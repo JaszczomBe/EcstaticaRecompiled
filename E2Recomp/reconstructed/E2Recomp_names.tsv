@@ -1,0 +1,11 @@
+address	old_name	new_name	reason
+0043c1b8	FUN_0043c1b8	savegame_handler_0043c1b8	string/import heuristic
+00459190	FUN_00459190	window_or_dialog_proc_00459190	string/import heuristic
+004598a0	FUN_004598a0	audio_init_or_stream_004598a0	string/import heuristic
+004599fc	FUN_004599fc	window_or_dialog_proc_004599fc	string/import heuristic
+0045aeb0	FUN_0045aeb0	audio_init_or_stream_0045aeb0	string/import heuristic
+0045bed0	FUN_0045bed0	audio_init_or_stream_0045bed0	string/import heuristic
+0045c070	FUN_0045c070	audio_init_or_stream_0045c070	string/import heuristic
+0045c0a0	FUN_0045c0a0	audio_init_or_stream_0045c0a0	string/import heuristic
+0045c594	FUN_0045c594	audio_init_or_stream_0045c594	string/import heuristic
+0046030e	entry	program_entry	string/import heuristic
