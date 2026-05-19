@@ -6,6 +6,9 @@ Ecstatica I & II — Modern Windows Recompilation
 A full 64‑bit native port of the legendary ellipsoid survival classics
 Spacefarer Retro Remasters proudly presents the definitive way to experience Ecstatica and Ecstatica II on modern hardware.
 
+> This is a Free, Non-profit passion project but takes us a lot of coffee to get it done! Donate to us at https://buymeacoffee.com/jakeysbakery
+> PayPal- jake@spacefarergames.com
+> 
 For the first time in decades, both games run smoothly, stably, and beautifully — exactly as you remember them, but finally playable again.
 
 <img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/efa6c845-1123-4b46-9fb1-5b6ba4fcf747" />
