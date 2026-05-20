@@ -35,8 +35,12 @@ typedef signed char sbyte;
 #define false 0
 #endif
 
-static HWND E2R_CreateWindowExA(DWORD exStyle, ...) { (void)exStyle; return (HWND)0; }
-static INT_PTR E2R_DialogBoxParamA(HINSTANCE inst, LPCSTR tmpl, HWND parent, DLGPROC proc, LPARAM param) { (void)inst; (void)tmpl; (void)parent; (void)proc; (void)param; return 0; }
+void E2R_InitData(void);
+void E2R_WinMainThunk(void);
+LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+extern uintptr_t E2R_timer_slots[8];
+HWND E2R_CreateWindowExA(DWORD exStyle, ...);
+INT_PTR E2R_DialogBoxParamA(HINSTANCE inst, LPCSTR tmpl, HWND parent, DLGPROC proc, LPARAM param);
 #define CreateWindowExA E2R_CreateWindowExA
 #define DialogBoxParamA E2R_DialogBoxParamA
 
@@ -692,7 +696,7 @@ void __fastcall FUN_00461149(undefined4 param_1,uint param_2);
 void FUN_0046123e(void);
 undefined8 __fastcall FUN_00461245(ushort *param_1,int *param_2);
 void FUN_0046172e(void);
-uint * FUN_00461746(void);
+uint * __fastcall FUN_00461746(int heap,uint size);
 void FUN_004617ee(void);
 undefined8 __fastcall FUN_004618f9(undefined4 param_1,undefined4 param_2);
 undefined8 __fastcall FUN_0046196d(undefined4 param_1,uint param_2);

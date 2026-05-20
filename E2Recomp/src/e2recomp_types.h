@@ -25,6 +25,7 @@ typedef uint8_t uchar;
 typedef uint64_t ulonglong;
 typedef int64_t longlong;
 
+#if !defined(_MSC_VER)
 #ifndef __fastcall
 #define __fastcall
 #endif
@@ -35,6 +36,7 @@ typedef int64_t longlong;
 
 #ifndef __stdcall
 #define __stdcall
+#endif
 #endif
 
 /*
