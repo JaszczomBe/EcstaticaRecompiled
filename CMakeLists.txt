@@ -91,7 +91,7 @@ target_compile_definitions(e2recomp PRIVATE
 )
 
 if(UNIX AND NOT APPLE)
-    target_link_libraries(e2recomp PRIVATE dl)
+    target_link_libraries(e2recomp PRIVATE dl m)
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")

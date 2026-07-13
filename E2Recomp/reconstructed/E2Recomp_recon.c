@@ -4,6 +4,107 @@
  */
 
 #include "E2Recomp_recon.h"
+#include <math.h>
+#ifdef NAN
+#undef NAN
+#endif
+#define NAN(x) isnan((double)(x))
+
+static uint E2R_file_flags[256];
+#define E2R_STREAM_MAGIC 0xe25eed01u
+
+static int E2R_round_to_int(double value)
+{
+  return (int)(value < 0.0 ? value - 0.5 : value + 0.5);
+}
+
+static byte E2R_clamp_byte(int value)
+{
+  if (value < 0) {
+    return 0;
+  }
+  if (255 < value) {
+    return 255;
+  }
+  return (byte)value;
+}
+
+static short E2R_clamp_short(int value)
+{
+  if (value < -32768) {
+    return -32768;
+  }
+  if (32767 < value) {
+    return 32767;
+  }
+  return (short)value;
+}
+
+static undefined4 E2R_OpenReadStream(LPCSTR path)
+{
+  HANDLE file;
+  DWORD size;
+  DWORD bytes_read = 0;
+  char *buffer;
+  undefined4 *stream;
+
+  file = CreateFileA(path,0x80000000,3,(LPSECURITY_ATTRIBUTES)0x0,3,0x80,(HANDLE)0x0);
+  if (file == INVALID_HANDLE_VALUE) {
+    return 0;
+  }
+  size = SetFilePointer(file,0,(PLONG)0x0,2);
+  if (size == 0xffffffff) {
+    CloseHandle(file);
+    return 0;
+  }
+  SetFilePointer(file,0,(PLONG)0x0,0);
+  buffer = (char *)LocalAlloc(0x40,size == 0 ? 1 : size);
+  stream = (undefined4 *)LocalAlloc(0x40,0x1c);
+  if (buffer == (char *)0x0 || stream == (undefined4 *)0x0) {
+    if (buffer != (char *)0x0) {
+      LocalFree(buffer);
+    }
+    if (stream != (undefined4 *)0x0) {
+      LocalFree(stream);
+    }
+    CloseHandle(file);
+    return 0;
+  }
+  if (size != 0 && ReadFile(file,buffer,size,&bytes_read,(LPOVERLAPPED)0x0) == 0) {
+    LocalFree(buffer);
+    LocalFree(stream);
+    CloseHandle(file);
+    return 0;
+  }
+  CloseHandle(file);
+  stream[0] = (undefined4)(uintptr_t)buffer;
+  stream[1] = (undefined4)bytes_read;
+  stream[2] = (undefined4)(uintptr_t)(buffer + bytes_read);
+  stream[3] = 0;
+  stream[4] = 0xffffffff;
+  stream[5] = (undefined4)(uintptr_t)buffer;
+  stream[6] = E2R_STREAM_MAGIC;
+  return (undefined4)(uintptr_t)stream;
+}
+
+static uint E2R_ReadOpenFileBytes(int descriptor,char *buffer,DWORD bytes_to_read)
+{
+  DWORD bytes_read = 0;
+  HANDLE file;
+  uint slot = (uint)descriptor;
+
+  if (_DAT_00ac51fc == 0 || _DAT_00ac51f8 <= slot) {
+    return 0xffffffff;
+  }
+  file = *(HANDLE *)(_DAT_00ac51fc + slot * 4);
+  if (file == (HANDLE)0x0 || file == INVALID_HANDLE_VALUE) {
+    return 0xffffffff;
+  }
+  if (ReadFile(file,buffer,bytes_to_read,&bytes_read,(LPOVERLAPPED)0x0) == 0) {
+    return 0xffffffff;
+  }
+  return bytes_read;
+}
 
 /* 00410078 */
 
@@ -581,7 +682,7 @@ void __fastcall FUN_00410a48(undefined4 param_1)
     *puVar7 = 0;
     puVar7 = puVar7 + 1;
   } while (iVar2 < 0x300);
-  _DAT_006366a4 = (undefined4 *)FUN_0045f1ff(extraout_ECX_14,4000);
+  _DAT_006366a4 = (undefined4 *)FUN_0045f1ff(1,4000);
   if (_DAT_006366a4 == (undefined4 *)0x0) {
     FUN_00414e68();
   }
@@ -3963,21 +4064,21 @@ void __fastcall FUN_00410a48(undefined4 param_1)
     cVar1 = *pcVar9;
     pcVar9 = pcVar9 + 1;
   } while (cVar1 != '\0');
-  _DAT_006366f4 = (undefined1 *)FUN_0045f1ff(~uVar3 - 1,0x9c4);
+  _DAT_006366f4 = (undefined1 *)FUN_0045f1ff(1,0x9c4);
   uVar5 = extraout_ECX_15;
   if (_DAT_006366f4 == (undefined1 *)0x0) {
     FUN_00414e68();
     uVar5 = extraout_ECX_16;
   }
   *(undefined4 *)(uintptr_t)_DAT_006366f4 = 0;
-  _DAT_0063669c = (undefined1 *)FUN_0045f1ff(uVar5,0x9c4);
+  _DAT_0063669c = (undefined1 *)FUN_0045f1ff(1,0x9c4);
   uVar5 = extraout_ECX_17;
   if (_DAT_0063669c == (undefined1 *)0x0) {
     FUN_00414e68();
     uVar5 = extraout_ECX_18;
   }
   *(undefined4 *)(uintptr_t)_DAT_0063669c = 0;
-  _DAT_00636698 = (char *)FUN_0045f1ff(uVar5,24000);
+  _DAT_00636698 = (char *)FUN_0045f1ff(1,24000);
   if (_DAT_00636698 == (char *)0x0) {
     FUN_00414e68();
   }
@@ -4207,7 +4308,7 @@ void __fastcall FUN_00410a48(undefined4 param_1)
     cVar1 = *pcVar9;
     pcVar9 = pcVar9 + 1;
   } while (cVar1 != '\0');
-  _DAT_0063668c = (char *)FUN_0045f1ff(~uVar3 - 1,4000);
+  _DAT_0063668c = (char *)FUN_0045f1ff(1,4000);
   if (_DAT_0063668c == (char *)0x0) {
     FUN_00414e68();
   }
@@ -4422,7 +4523,7 @@ void __fastcall FUN_00410a48(undefined4 param_1)
     cVar1 = *pcVar9;
     pcVar9 = pcVar9 + 1;
   } while (cVar1 != '\0');
-  _DAT_00636678 = (undefined4 *)FUN_0045f1ff(~uVar3 - 1,5000);
+  _DAT_00636678 = (undefined4 *)FUN_0045f1ff(1,5000);
   if (_DAT_00636678 == (undefined4 *)0x0) {
     FUN_00414e68();
   }
@@ -4594,14 +4695,14 @@ void __fastcall FUN_00410a48(undefined4 param_1)
     cVar1 = *pcVar9;
     pcVar9 = pcVar9 + 1;
   } while (cVar1 != '\0');
-  _DAT_00636694 = (undefined1 *)FUN_0045f1ff(~uVar3 - 1,0x5dc);
+  _DAT_00636694 = (undefined1 *)FUN_0045f1ff(1,0x5dc);
   uVar5 = extraout_ECX_19;
   if (_DAT_00636694 == (undefined1 *)0x0) {
     FUN_00414e68();
     uVar5 = extraout_ECX_20;
   }
   *(undefined4 *)(uintptr_t)_DAT_00636694 = 0;
-  _DAT_00636680 = (char *)FUN_0045f1ff(uVar5,2000);
+  _DAT_00636680 = (char *)FUN_0045f1ff(1,2000);
   if (_DAT_00636680 == (char *)0x0) {
     FUN_00414e68();
   }
@@ -4628,7 +4729,7 @@ void __fastcall FUN_00410a48(undefined4 param_1)
     cVar1 = *pcVar9;
     pcVar9 = pcVar9 + 1;
   } while (cVar1 != '\0');
-  _DAT_006366a0 = (undefined2 *)FUN_0045f1ff(~uVar3 - 1,20000);
+  _DAT_006366a0 = (undefined2 *)FUN_0045f1ff(2,20000);
   if (_DAT_006366a0 == (undefined2 *)0x0) {
     FUN_00414e68();
   }
@@ -5258,6 +5359,7 @@ void __fastcall FUN_00414998(undefined4 param_1)
   undefined4 in_EAX;
   int iVar1;
   int iVar2;
+  int iVar4;
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   undefined4 extraout_ECX_01;
@@ -5278,16 +5380,17 @@ void __fastcall FUN_00414998(undefined4 param_1)
   if (DAT_0047a43c != 0) {
     uVar3 = FUN_0045e594(param_1,in_EAX,(LPCSTR)in_EAX,0x200,unaff_EBP);
     if ((int)uVar3 != -1) {
-      FUN_0045e76f((int)uVar3,_DAT_0063615c);
-      FUN_0045e76f(extraout_ECX_00,(char *)0x621030);
+      iVar4 = (int)uVar3;
+      E2R_ReadOpenFileBytes(iVar4,_DAT_0063615c,0x20);
+      E2R_ReadOpenFileBytes(iVar4,(char *)0x621030,0x300);
       iVar1 = 0;
       do {
         iVar2 = iVar1 + 1;
         *(byte *)(iVar1 + 0x621030) = *(byte *)(iVar1 + 0x621030) >> 2;
         iVar1 = iVar2;
       } while (iVar2 < 0x300);
-      FUN_0045e76f(extraout_ECX_01,_DAT_0063615c);
-      uVar3 = FUN_0045e8e6(extraout_ECX_02,extraout_EDX_00);
+      E2R_ReadOpenFileBytes(iVar4,_DAT_0063615c,_DAT_006401ec * _DAT_006401d4);
+      uVar3 = FUN_0045e8e6(iVar4,extraout_EDX_00);
       FUN_0041af88(extraout_ECX_03,(int)((ulonglong)uVar3 >> 0x20));
       FUN_0041760c(0,0,0,0,_DAT_006401ec,_DAT_006401d4);
       FUN_0041760c(1,0,0,0,_DAT_006401ec,_DAT_006401d4);
@@ -5306,6 +5409,8 @@ undefined8 __fastcall FUN_00414a94(undefined4 param_1,undefined4 param_2)
 {
   int iVar1;
   int iVar2;
+  int iVar3;
+  LPCSTR pcVar3;
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   undefined4 extraout_EDX;
@@ -5313,24 +5418,27 @@ undefined8 __fastcall FUN_00414a94(undefined4 param_1,undefined4 param_2)
   undefined8 uVar4;
   uint uVar5;
   
+  pcVar3 = s_pallette_raw_004712b4;
   uVar5 = E2R_READ4(s_pallette_raw_004712b4,0);
   if (DAT_00479d74 != '\0') {
+    pcVar3 = s_p__pallette_raw_004712a4;
     uVar5 = E2R_READ4(s_p__pallette_raw_004712a4,0);
   }
-  uVar4 = FUN_0045e594(param_1,param_2,&stack_ffffffd4,0x200,uVar5);
+  uVar4 = FUN_0045e594(param_1,param_2,pcVar3,0x200,uVar5);
   iVar1 = (int)uVar4;
   if (iVar1 != -1) {
-    FUN_0045e76f(iVar1,&DAT_00621330);
-    FUN_0045e76f(extraout_ECX,&DAT_00621330);
+    iVar3 = iVar1;
+    E2R_ReadOpenFileBytes(iVar1,(char *)0x00621330,0x20);
+    E2R_ReadOpenFileBytes(iVar3,(char *)0x00621330,0x300);
     iVar1 = 0;
     uVar3 = extraout_EDX;
     do {
       iVar2 = iVar1 + 1;
-      uVar3 = CONCAT31((int3)((uint)uVar3 >> 8),(byte)(&DAT_00621330)[iVar1] >> 2);
-      (&DAT_00621330)[iVar1] = (byte)(&DAT_00621330)[iVar1] >> 2;
+      uVar3 = CONCAT31((int3)((uint)uVar3 >> 8),*(byte *)(iVar1 + 0x00621330) >> 2);
+      *(byte *)(iVar1 + 0x00621330) = *(byte *)(iVar1 + 0x00621330) >> 2;
       iVar1 = iVar2;
     } while (iVar2 < 0x300);
-    uVar4 = FUN_0045e8e6(extraout_ECX_00,uVar3);
+    uVar4 = FUN_0045e8e6(iVar3,uVar3);
     iVar1 = (int)uVar4;
   }
   return CONCAT44(param_2,iVar1);
@@ -5349,6 +5457,7 @@ undefined8 __fastcall FUN_00414b24(undefined4 param_1,undefined4 param_2)
   bool bVar2;
   int iVar3;
   undefined4 uVar4;
+  LPCSTR pcVar5;
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   undefined4 extraout_ECX_01;
@@ -5366,6 +5475,7 @@ undefined8 __fastcall FUN_00414b24(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX_01;
   undefined4 extraout_EDX_02;
   undefined4 extraout_EDX_03;
+  int iVar10;
   int iVar5;
   undefined4 *puVar6;
   char *pcVar7;
@@ -5381,23 +5491,26 @@ undefined8 __fastcall FUN_00414b24(undefined4 param_1,undefined4 param_2)
     param_1 = extraout_ECX;
     uVar4 = extraout_EDX;
   }
+  pcVar5 = s_tscreen_raw_0047033c;
   uVar9 = E2R_READ4(s_tscreen_raw_0047033c,0);
   if (DAT_00479d74 != '\0') {
+    pcVar5 = s_p__tscreen_raw_004712c4;
     uVar9 = E2R_READ4(s_p__tscreen_raw_004712c4,0);
   }
   if (DAT_0047a43c != 0) {
-    uVar8 = FUN_0045e594(param_1,uVar4,&stack_ffffffb8,0x200,uVar9);
+    uVar8 = FUN_0045e594(param_1,uVar4,pcVar5,0x200,uVar9);
     if ((int)uVar8 != -1) {
-      FUN_0045e76f((int)uVar8,_DAT_0063615c);
-      FUN_0045e76f(extraout_ECX_00,(char *)0x61ca30);
+      iVar10 = (int)uVar8;
+      E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,0x20);
+      E2R_ReadOpenFileBytes(iVar10,(char *)0x61ca30,0x300);
       iVar5 = 0;
       do {
         iVar3 = iVar5 + 1;
         *(byte *)(iVar5 + 0x61ca30) = *(byte *)(iVar5 + 0x61ca30) >> 2;
         iVar5 = iVar3;
       } while (iVar3 < 0x300);
-      FUN_0045e76f(extraout_ECX_01,_DAT_0063615c);
-      uVar8 = FUN_0045e8e6(extraout_ECX_02,extraout_EDX_00);
+      E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,_DAT_006401ec * _DAT_006401d4);
+      uVar8 = FUN_0045e8e6(iVar10,extraout_EDX_00);
       FUN_0041af88(extraout_ECX_03,(int)((ulonglong)uVar8 >> 0x20));
       FUN_0041760c(0,0,0,0,_DAT_006401ec,_DAT_006401d4);
       FUN_0041760c(1,0,0,0,_DAT_006401ec,_DAT_006401d4);
@@ -5410,16 +5523,17 @@ undefined8 __fastcall FUN_00414b24(undefined4 param_1,undefined4 param_2)
   uVar8 = FUN_0045e594(extraout_ECX_06,(int)((ulonglong)uVar8 >> 0x20),s_title_s_raw_00471314,0x200,
                        uVar9);
   if ((int)uVar8 != -1) {
-    FUN_0045e76f((int)uVar8,_DAT_0063615c);
-    FUN_0045e76f(extraout_ECX_07,&DAT_00621330);
+    iVar10 = (int)uVar8;
+    E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,0x20);
+    E2R_ReadOpenFileBytes(iVar10,(char *)0x00621330,0x300);
     iVar5 = 0;
     do {
       iVar3 = iVar5 + 1;
-      (&DAT_00621330)[iVar5] = (byte)(&DAT_00621330)[iVar5] >> 2;
+      *(byte *)(iVar5 + 0x00621330) = *(byte *)(iVar5 + 0x00621330) >> 2;
       iVar5 = iVar3;
     } while (iVar3 < 0x300);
-    FUN_0045e76f(extraout_ECX_08,_DAT_0063615c);
-    uVar8 = FUN_0045e8e6(extraout_ECX_09,extraout_EDX_03);
+    E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,_DAT_006401ec * _DAT_006401d4);
+    uVar8 = FUN_0045e8e6(iVar10,extraout_EDX_03);
     FUN_0041af88(extraout_ECX_10,(int)((ulonglong)uVar8 >> 0x20));
     if (DAT_0047a43c != 0) {
       local_28 = 0;
@@ -5614,33 +5728,50 @@ undefined4 FUN_00414e68(void)
 void FUN_00414f40(void)
 
 {
-  int extraout_ECX;
-  int extraout_ECX_00;
-  int extraout_ECX_01;
-  undefined4 extraout_EDX;
-  undefined4 extraout_EDX_00;
-  float10 fVar1;
-  undefined1 local_24;
-  
-  fpatan((float10)0 * (float10)_DAT_00471339,(float10)1);
-  fVar1 = FUN_0045f556();
-  local_24 = (undefined1)(int)ROUND(fVar1);
-  uRam005fe990 = local_24;
-  fpatan((float10)0.0 * (float10)_DAT_00471359,(float10)1);
-  fVar1 = FUN_0045f556();
-  local_24 = (undefined1)(int)ROUND(fVar1);
-  *(undefined1 *)(extraout_ECX + 0x5fe890) = local_24;
-  FUN_0045f574(extraout_ECX,extraout_EDX);
-  fVar1 = FUN_0045f556();
-  local_24 = (undefined1)(int)ROUND(fVar1);
-  *(undefined1 *)(extraout_ECX_00 + 0x60af88) = local_24;
-  FUN_0045f574(extraout_ECX_00,extraout_EDX_00);
-  fVar1 = FUN_0045f556();
-  local_24 = (undefined1)(int)ROUND(fVar1);
-  *(undefined1 *)(extraout_ECX_01 + 0x60b088) = local_24;
-  fptan((float10)0.0 * (float10)_DAT_00471371 * (float10)_DAT_00471361);
-                    /* WARNING: Bad instruction - Truncating control flow here */
-  halt_baddata();
+  const double pi = 3.14159265358979323846;
+  int mode;
+  int x;
+  int y;
+
+  for (x = 0; x < 256; x = x + 1) {
+    double phase = ((double)x * pi) / 128.0;
+    double normalized = (double)x / 255.0;
+    int tangent_index = (x & 0x40) != 0 ? x : 64 - x;
+    double tangent = tan(((double)tangent_index * pi) / 128.0);
+
+    *(byte *)(0x005fe990 + x) = E2R_clamp_byte(E2R_round_to_int(sin(phase) * 127.0 + 128.0));
+    *(byte *)(0x005fe890 + x) = E2R_clamp_byte(E2R_round_to_int(cos(phase) * 127.0 + 128.0));
+    *(byte *)(0x0060af88 + x) = E2R_clamp_byte(E2R_round_to_int(sqrt(normalized) * 255.0));
+    *(byte *)(0x0060b088 + x) = E2R_clamp_byte(E2R_round_to_int((1.0 - sqrt(normalized)) * 255.0));
+    *(short *)(0x0067be7c + x * 2) = E2R_clamp_short(E2R_round_to_int(tangent * 1024.0));
+  }
+
+  for (x = 0; x < 256; x = x + 1) {
+    *(byte *)(0x005fe790 + x) = E2R_clamp_byte(x);
+  }
+
+  for (x = 0; x < 1024; x = x + 1) {
+    double phase = (((double)x + 0.5) * pi) / 512.0;
+    *(short *)(0x0060c4b8 + x * 2) = E2R_clamp_short(E2R_round_to_int(sin(phase) * 32767.0));
+  }
+
+  for (mode = 0; mode < 16; mode = mode + 1) {
+    int base = 0x00507590 + mode * 0x4000;
+    int bias = mode * 32;
+    for (y = 0; y < 128; y = y + 1) {
+      for (x = 0; x < 128; x = x + 1) {
+        int shade = ((x * y) >> 7) + bias;
+        *(byte *)(base + y * 128 + x) = E2R_clamp_byte(shade);
+      }
+    }
+  }
+
+  for (y = 0; y < 128; y = y + 1) {
+    for (x = 0; x < 128; x = x + 1) {
+      *(byte *)(0x00507590 + 0x40000 + y * 128 + x) = 0x80;
+    }
+  }
+  return;
 }
 
 
@@ -5664,7 +5795,7 @@ undefined8 __fastcall FUN_00415b78(undefined4 param_1,undefined4 param_2)
   int iVar8;
   undefined8 uVar9;
   
-  piVar3 = (int *)FUN_0045eb05(param_1,&DAT_0047007c);
+  piVar3 = (int *)FUN_0045eb05(param_1,"shadow.dat");
   pbVar4 = extraout_ECX;
   if (piVar3 == (int *)0x0) {
     FUN_00414e68();
@@ -9561,7 +9692,7 @@ void __fastcall FUN_0041ca90(undefined4 param_1)
 void FUN_0041ccf0(void)
 
 {
-  undefined1 *in_EAX;
+  undefined1 *in_EAX = (undefined1 *)0x00684a68;
   
   *in_EAX = 0;
   in_EAX[1] = 0;
@@ -9597,54 +9728,30 @@ void FUN_0041ccf0(void)
 undefined8 __fastcall FUN_0041ce88(undefined4 param_1,undefined4 param_2)
 
 {
-  char cVar1;
-  byte *pbVar2;
-  int *piVar3;
-  undefined4 uVar4;
-  int extraout_ECX;
-  int extraout_ECX_00;
-  short sVar5;
-  int iVar6;
-  undefined8 uVar7;
-  short sStack_1c;
-  undefined2 uStack_1a;
+  byte *data;
+  undefined4 *stream;
+  int x;
+  int y;
   
-  piVar3 = (int *)FUN_0045eb05(param_1,&DAT_0047007c);
-  uVar4 = 0;
-  if (piVar3 != (int *)0x0) {
-    sStack_1c = 0;
-    iVar6 = extraout_ECX;
-    do {
-      sVar5 = 0;
-      do {
-        if ((piVar3[1] < 1) || ((piVar3[3] & 4U) != 0)) {
-LAB_0041ced0:
-          uVar7 = FUN_0045f38a(iVar6,piVar3);
-        }
-        else {
-          cVar1 = *(char *)*piVar3;
-          iVar6 = CONCAT31((int3)((uint)iVar6 >> 8),cVar1);
-          if ((cVar1 == '\r') || (cVar1 == '\x1a')) goto LAB_0041ced0;
-          pbVar2 = (byte *)*piVar3;
-          piVar3[1] = piVar3[1] + -1;
-          *piVar3 = (int)(pbVar2 + 1);
-          uVar7 = CONCAT44(piVar3,(uint)*pbVar2);
-        }
-        iVar6 = (int)sVar5;
-        *(char *)(sStack_1c * 0x80 + 0x61d030 + iVar6) = (char)uVar7;
-        sVar5 = sVar5 + 1;
-        uVar7 = FUN_004171b8((int)sStack_1c << 8,(int)((ulonglong)uVar7 >> 0x20));
-        piVar3 = (int *)((ulonglong)uVar7 >> 0x20);
-        *(short *)(extraout_ECX_00 + 0x621630 + iVar6 * 2) = (short)uVar7;
-        iVar6 = extraout_ECX_00;
-      } while (sVar5 < 0x80);
-      iVar6 = CONCAT22(uStack_1a,sStack_1c) + 1;
-      sStack_1c = (short)iVar6;
-    } while (sStack_1c < 0x80);
-    FUN_0045ec6c(iVar6,piVar3);
-    uVar4 = 1;
+  (void)param_1;
+  stream = (undefined4 *)(uintptr_t)E2R_OpenReadStream("shademap.dat");
+  if (stream == (undefined4 *)0x0) {
+    return (ulonglong)param_2 << 0x20;
   }
-  return CONCAT44(param_2,uVar4);
+  if ((uint)stream[1] < 0xc000) {
+    FUN_0045ec6c(0,(undefined4)(uintptr_t)stream);
+    return (ulonglong)param_2 << 0x20;
+  }
+  data = (byte *)(uintptr_t)stream[5];
+  for (y = 0; y < 0x80; y = y + 1) {
+    for (x = 0; x < 0x80; x = x + 1) {
+      *(byte *)(0x0061d030 + y * 0x80 + x) = data[0];
+      *(short *)(0x00621630 + y * 0x100 + x * 2) = (short)((uint)data[1] << 8 | (uint)data[2]);
+      data = data + 3;
+    }
+  }
+  FUN_0045ec6c(0,(undefined4)(uintptr_t)stream);
+  return CONCAT44(param_2,1);
 }
 
 
@@ -40241,7 +40348,7 @@ void FUN_0044c71c(void)
     iVar5 = iVar4 * 0xc;
     do {
       iVar8 = iVar5 + 1;
-      (&DAT_0068cd68)[iVar5] = 0;
+      *(undefined1 *)(0x0068cd68 + iVar5) = 0;
       iVar5 = iVar8;
     } while (iVar8 != iVar3);
     iVar4 = iVar4 + 1;
@@ -52955,14 +53062,10 @@ LAB_0045e8d3:
 undefined8 __fastcall FUN_0045e8e6(undefined4 param_1,undefined4 param_2)
 
 {
-  undefined4 extraout_ECX;
-  undefined4 extraout_EDX;
   undefined8 uVar1;
   
-  (*(code *)PTR_FUN_0047d3a0)();
   uVar1 = FUN_004608e8(param_1,param_2);
-  (*(code *)PTR_FUN_0047d3a4)();
-  (*(code *)PTR_thunk_FUN_004604e6_0047d3ac)(param_1,param_2);
+  FUN_004604e6(param_1,param_2);
   return CONCAT44(param_2,(int)uVar1);
 }
 
@@ -53168,8 +53271,8 @@ undefined4 __fastcall FUN_0045eacc(undefined4 param_1,undefined4 param_2)
 undefined4 __fastcall FUN_0045eb05(undefined4 param_1,undefined4 param_2)
 
 {
-  FUN_0045eacc(param_1,param_2);
-  return;
+  (void)param_1;
+  return E2R_OpenReadStream((LPCSTR)(uintptr_t)param_2);
 }
 
 
@@ -53235,11 +53338,22 @@ undefined1 * FUN_0045ebf1(void)
 undefined8 __fastcall FUN_0045ec6c(undefined4 param_1,undefined4 param_2)
 
 {
+  undefined4 *stream;
   int in_EAX;
   undefined4 *puVar1;
   undefined4 uVar2;
   undefined4 extraout_ECX;
   
+  (void)param_1;
+  stream = (undefined4 *)(uintptr_t)param_2;
+  if (stream != (undefined4 *)0x0 && stream[6] == E2R_STREAM_MAGIC) {
+    if (stream[5] != 0) {
+      LocalFree((HLOCAL)(uintptr_t)stream[5]);
+    }
+    stream[6] = 0;
+    LocalFree((HLOCAL)stream);
+    return (ulonglong)param_2 << 0x20;
+  }
   (*(code *)PTR_FUN_0047d3b0)();
   puVar1 = _DAT_00ac520c;
   while( true ) {
@@ -55322,13 +55436,13 @@ undefined8 __fastcall FUN_004603d1(undefined4 param_1,undefined4 param_2)
 void __fastcall FUN_004604e6(undefined4 param_1,undefined4 param_2)
 
 {
-  int extraout_EDX;
-  
-  (*(code *)PTR_FUN_0047d3d0)(param_2);
-  if (extraout_EDX < _DAT_00ac51f8) {
-    *(undefined4 *)(_DAT_00ac51fc + extraout_EDX * 4) = 0;
+  uint slot;
+
+  (void)param_2;
+  slot = (uint)(uintptr_t)param_1;
+  if (_DAT_00ac51fc != 0 && slot < _DAT_00ac51f8) {
+    *(undefined4 *)(_DAT_00ac51fc + slot * 4) = 0;
   }
-  (*(code *)PTR_FUN_0047d3d4)();
   return;
 }
 
@@ -55686,13 +55800,10 @@ longlong __fastcall FUN_00460803(undefined4 param_1,uint param_2)
     return (ulonglong)param_2 << 0x20;
   }
   hFile = *(HANDLE *)(_DAT_00ac51fc + uVar2 * 4);
-  (*(code *)PTR_FUN_0047d3a0)(param_2,param_1);
   DVar1 = GetFileType(hFile);
   if (DVar1 == 2) {
-    (*(code *)PTR_FUN_0047d3a4)();
     return CONCAT44(param_2,1);
   }
-  (*(code *)PTR_FUN_0047d3a4)();
   return (ulonglong)param_2 << 0x20;
 }
 
@@ -55703,29 +55814,23 @@ longlong __fastcall FUN_00460803(undefined4 param_1,uint param_2)
 longlong __fastcall FUN_00460844(undefined4 param_1,uint param_2)
 
 {
-  byte bVar1;
-  uint in_EAX;
-  uint uVar2;
-  int iVar3;
+  uint slot;
   longlong lVar4;
   
-  if (DAT_0047d610 <= in_EAX) {
+  slot = (uint)(uintptr_t)param_1;
+  if (256 <= slot) {
     return (ulonglong)param_2 << 0x20;
   }
-  if ((int)in_EAX < 4) {
-    iVar3 = in_EAX * 4;
-    bVar1 = ((undefined4 *)(uintptr_t)PTR_DAT_0047d664)[iVar3 + 1];
-    if ((bVar1 & 0x40) == 0) {
-      uVar2 = CONCAT22((short)((uint)param_1 >> 0x10),CONCAT11(bVar1,bVar1)) | 0x4000;
-      ((undefined4 *)(uintptr_t)PTR_DAT_0047d664)[iVar3 + 1] = (char)(uVar2 >> 8);
-      lVar4 = FUN_00460803(uVar2,in_EAX);
-      in_EAX = (uint)((ulonglong)lVar4 >> 0x20);
+  if (slot < 4) {
+    if ((E2R_file_flags[slot] & 0x40) == 0) {
+      E2R_file_flags[slot] = E2R_file_flags[slot] | 0x4000;
+      lVar4 = FUN_00460803(slot,slot);
       if ((int)lVar4 != 0) {
-        ((undefined4 *)(uintptr_t)PTR_DAT_0047d664)[iVar3 + 1] = ((undefined4 *)(uintptr_t)PTR_DAT_0047d664)[iVar3 + 1] | 0x20;
+        E2R_file_flags[slot] = E2R_file_flags[slot] | 0x20;
       }
     }
   }
-  return CONCAT44(param_2,*(undefined4 *)(PTR_DAT_0047d664 + in_EAX * 4));
+  return CONCAT44(param_2,E2R_file_flags[slot]);
 }
 
 
@@ -55738,8 +55843,8 @@ void __fastcall FUN_00460899(undefined4 param_1,uint param_2)
   uint in_EAX;
   
   in_EAX = (uint)(uintptr_t)param_1;
-  if (in_EAX < DAT_0047d610) {
-    *(uint *)(PTR_DAT_0047d664 + in_EAX * 4) = param_2 | 0x4000;
+  if (in_EAX < 256) {
+    E2R_file_flags[in_EAX] = param_2 | 0x4000;
   }
   return;
 }

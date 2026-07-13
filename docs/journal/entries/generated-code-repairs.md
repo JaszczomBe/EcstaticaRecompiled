@@ -13,6 +13,16 @@ Record transformations in `E2Recomp/tools/GenerateRecon.js` that preserve manual
 
 ## Recent Entries
 
+### 2026-07-13 - Main Loop Entry Repairs
+
+1. Added generated top-of-file helpers for native math tables, read-only stream loading, stream cleanup, descriptor reads, and local descriptor flags.
+2. Preserved startup allocation count arguments in `FUN_00410a48`, including the 2-byte table allocation for `_DAT_006366a0`.
+3. Replaced fragile generated startup table initialization in `FUN_00414f40` with a native initializer and linked Linux builds with `m`.
+4. Recovered raw-image and palette/title file reads by preserving descriptors and reading exact byte counts through `E2R_ReadOpenFileBytes`.
+5. Redirected `FUN_0045eb05` and `FUN_0045ec6c` through the native read-only stream adapter for startup data files.
+6. Recovered `shadow.dat` and `shademap.dat` loading paths, including the native `FUN_0041ce88` shademap table loader.
+7. Fixed additional lost-register/fixed-address startup writes in `FUN_0041ccf0`, `FUN_004604e6`, `FUN_00460803`, `FUN_00460844`, `FUN_00460899`, `FUN_0045e8e6`, and the `FUN_0044c71c` object-array clear.
+
 ### 2026-07-13
 
 1. Added the generated string symbol for `s_Can_t_load_title_picture_00471320` and mirrored the `FUN_00414e68` lost-`EAX` message pointer repair.

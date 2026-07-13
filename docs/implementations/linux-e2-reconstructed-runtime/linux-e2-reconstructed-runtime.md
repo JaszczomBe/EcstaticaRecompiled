@@ -26,7 +26,7 @@ Bring the reconstructed Ecstatica II runtime far enough on Linux that it can loa
 
 ## Current State
 
-Steps 1 through 4 are complete. Debug and ASan 32-bit builds compile. The runtime enters the Ecstatica II data directory through the build-tree `Ecstatica2` symlink, resolves read-only paths case-insensitively, creates a Linux-hosted X11 window from the original Ecstatica II window path, and now reaches title logic after startup logo loading.
+Steps 1 through 5 are complete. Debug and ASan 32-bit builds compile. The runtime enters the Ecstatica II data directory through the build-tree `Ecstatica2` symlink, resolves read-only paths case-insensitively, creates a Linux-hosted X11 window from the original Ecstatica II window path, reaches title logic after startup logo loading, and now reaches the suspected main-loop entry thunk.
 
 ```text
 /home/rgrabowski/Games/Ecstatica2/PSYGLOGO.RAW
@@ -42,18 +42,19 @@ title: Ecstatica II
 size: 640x640
 ```
 
-The reached title path is:
+The reached title and main-loop-entry paths are:
 
 ```text
 FUN_00410a48 -> FUN_00414a94
 FUN_00410a48 -> FUN_00414b24
+FUN_00410a48 -> thunk_FUN_004620db
 ```
 
-The latest debug GDB run hit both title functions and exited with code `0340` rather than crashing in the prior DirectDraw/surface frontier.
+The latest debug GDB run hit `thunk_FUN_004620db` from `FUN_00410a48` at reconstructed line 4752. After continuing past that entry point, the next frontier is a later `EIP=0xffffffff` crash through `FUN_0046055c`, called while opening `"e_config"` from `FUN_0041007c`.
 
 ## Active Steps
 
-No implementation step is currently active. Step 4 is complete; step 5 is the next planned step when work resumes.
+No implementation step is currently active. Step 5 is complete; the next planned step should start from the post-main-loop-entry `"e_config"` file-open crash.
 
 ## Step Roadmap
 
@@ -63,7 +64,7 @@ Each step should be scoped so it can preferably be completed in one context wind
 2. [Prove First Resource Load](steps/step-02/step-02-prove-first-resource-load.md) - completed; verified loading one real file from `/home/rgrabowski/Games/Ecstatica2/`.
 3. [Create Visible Window](steps/step-03/step-03-create-visible-window.md) - completed; create a Linux-hosted visible window or rendering surface.
 4. [Reach Menu Or Title Logic](steps/step-04/step-04-reach-menu-or-title-logic.md) - completed; initialize enough graphics/audio stubs to reach title/menu code.
-5. [Reach Main Loop](steps/step-05/step-05-reach-main-loop.md) - planned; advance to the main loop without crashing.
+5. [Reach Main Loop](steps/step-05/step-05-reach-main-loop.md) - completed; advanced to `thunk_FUN_004620db` and documented the next crash frontier.
 
 ## Journals
 
@@ -100,3 +101,4 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 3. Completed step 2 by proving the first real resource open and recording the next `FUN_0045e5b8` frontier.
 4. Completed step 3 by mapping the original Ecstatica II window request to a Linux X11 window and recording the next DirectDraw/surface frontier.
 5. Completed step 4 by adding minimal DirectDraw palette/surface startup support and reaching `FUN_00414a94 -> FUN_00414b24` title logic.
+6. Completed step 5 by repairing startup allocation, stream, shadow, and shademap blockers; GDB reached `FUN_00410a48 -> thunk_FUN_004620db`.

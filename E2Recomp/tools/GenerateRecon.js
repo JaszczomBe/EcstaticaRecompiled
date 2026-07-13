@@ -64,6 +64,10 @@ for (const name of valueUsed) {
 }
 
 source = source.replace('#include "e2recomp_types.h"', '#include "E2Recomp_recon.h"');
+source = source.replace(
+  '#include "E2Recomp_recon.h"',
+  '#include "E2Recomp_recon.h"\n#include <math.h>\n#ifdef NAN\n#undef NAN\n#endif\n#define NAN(x) isnan((double)(x))\n\nstatic uint E2R_file_flags[256];\n#define E2R_STREAM_MAGIC 0xe25eed01u\n\nstatic int E2R_round_to_int(double value)\n{\n  return (int)(value < 0.0 ? value - 0.5 : value + 0.5);\n}\n\nstatic byte E2R_clamp_byte(int value)\n{\n  if (value < 0) {\n    return 0;\n  }\n  if (255 < value) {\n    return 255;\n  }\n  return (byte)value;\n}\n\nstatic short E2R_clamp_short(int value)\n{\n  if (value < -32768) {\n    return -32768;\n  }\n  if (32767 < value) {\n    return 32767;\n  }\n  return (short)value;\n}\n\nstatic undefined4 E2R_OpenReadStream(LPCSTR path)\n{\n  HANDLE file;\n  DWORD size;\n  DWORD bytes_read = 0;\n  char *buffer;\n  undefined4 *stream;\n\n  file = CreateFileA(path,0x80000000,3,(LPSECURITY_ATTRIBUTES)0x0,3,0x80,(HANDLE)0x0);\n  if (file == INVALID_HANDLE_VALUE) {\n    return 0;\n  }\n  size = SetFilePointer(file,0,(PLONG)0x0,2);\n  if (size == 0xffffffff) {\n    CloseHandle(file);\n    return 0;\n  }\n  SetFilePointer(file,0,(PLONG)0x0,0);\n  buffer = (char *)LocalAlloc(0x40,size == 0 ? 1 : size);\n  stream = (undefined4 *)LocalAlloc(0x40,0x1c);\n  if (buffer == (char *)0x0 || stream == (undefined4 *)0x0) {\n    if (buffer != (char *)0x0) {\n      LocalFree(buffer);\n    }\n    if (stream != (undefined4 *)0x0) {\n      LocalFree(stream);\n    }\n    CloseHandle(file);\n    return 0;\n  }\n  if (size != 0 && ReadFile(file,buffer,size,&bytes_read,(LPOVERLAPPED)0x0) == 0) {\n    LocalFree(buffer);\n    LocalFree(stream);\n    CloseHandle(file);\n    return 0;\n  }\n  CloseHandle(file);\n  stream[0] = (undefined4)(uintptr_t)buffer;\n  stream[1] = (undefined4)bytes_read;\n  stream[2] = (undefined4)(uintptr_t)(buffer + bytes_read);\n  stream[3] = 0;\n  stream[4] = 0xffffffff;\n  stream[5] = (undefined4)(uintptr_t)buffer;\n  stream[6] = E2R_STREAM_MAGIC;\n  return (undefined4)(uintptr_t)stream;\n}\n\nstatic uint E2R_ReadOpenFileBytes(int descriptor,char *buffer,DWORD bytes_to_read)\n{\n  DWORD bytes_read = 0;\n  HANDLE file;\n  uint slot = (uint)descriptor;\n\n  if (_DAT_00ac51fc == 0 || _DAT_00ac51f8 <= slot) {\n    return 0xffffffff;\n  }\n  file = *(HANDLE *)(_DAT_00ac51fc + slot * 4);\n  if (file == (HANDLE)0x0 || file == INVALID_HANDLE_VALUE) {\n    return 0xffffffff;\n  }\n  if (ReadFile(file,buffer,bytes_to_read,&bytes_read,(LPOVERLAPPED)0x0) == 0) {\n    return 0xffffffff;\n  }\n  return bytes_read;\n}\n'
+);
 
 const protoMatches = source.matchAll(/^\s*((?:[A-Za-z_][A-Za-z0-9_]*\s+|[*]\s*)+[A-Za-z_][A-Za-z0-9_]*\s*\([^;{}]*?\))\s*\r?\n\s*\{/gms);
 const prototypes = [];
@@ -138,6 +142,10 @@ source = source.replace(
   /undefined8 __fastcall FUN_004603d1\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 004604e6 \*\//,
   "undefined8 __fastcall FUN_004603d1(undefined4 param_1,undefined4 param_2)\n\n{\n  uint uVar1;\n  HANDLE hFile;\n  \n  hFile = (HANDLE)(uintptr_t)param_1;\n  if (_DAT_00ac51fc == 0) {\n    _DAT_00ac51fc = (uintptr_t)LocalAlloc(0x40,DAT_0047d610 * 4);\n    _DAT_00ac51f8 = DAT_0047d610;\n  }\n  if (_DAT_00ac51fc == 0) {\n    return CONCAT44(param_2,0xffffffff);\n  }\n  for (uVar1 = 0; uVar1 < _DAT_00ac51f8; uVar1 = uVar1 + 1) {\n    if (*(HANDLE *)(_DAT_00ac51fc + uVar1 * 4) == (HANDLE)0x0) {\n      *(HANDLE *)(_DAT_00ac51fc + uVar1 * 4) = hFile;\n      return CONCAT44(param_2,uVar1);\n    }\n  }\n  return CONCAT44(param_2,0xffffffff);\n}\n\n\n\n/* 004604e6 */"
 );
+source = source.replace(
+  /void __fastcall FUN_004604e6\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0046050e \*\//,
+  "void __fastcall FUN_004604e6(undefined4 param_1,undefined4 param_2)\n\n{\n  uint slot;\n\n  (void)param_2;\n  slot = (uint)(uintptr_t)param_1;\n  if (_DAT_00ac51fc != 0 && slot < _DAT_00ac51f8) {\n    *(undefined4 *)(_DAT_00ac51fc + slot * 4) = 0;\n  }\n  return;\n}\n\n\n\n/* 0046050e */"
+);
 source = source.replace(/(undefined8 __fastcall FUN_0045f0d1\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined8 uVar7;\r?\n\s*)if \(\(in_EAX != 0\)/, "$1in_EAX = (uint)(uintptr_t)param_1;\n  if ((in_EAX != 0)");
 source = source.replace(/(undefined4 FUN_00458714\(void\)[\s\S]*?\r?\n  WNDCLASSA local_3c;\r?\n\s*)local_3c.style = 3;/, "$1in_EAX = GetModuleHandleA((LPCSTR)0x0);\n  local_3c.style = 3;");
 source = source.replace("local_3c.lpfnWndProc = (WNDPROC)&LAB_00458110;", "local_3c.lpfnWndProc = (WNDPROC)E2R_WndProc;");
@@ -158,7 +166,7 @@ source = source.replace(
 );
 source = source.replace(
   "  (*(code *)PTR_FUN_0047d3a0)();\n  uVar1 = FUN_004608e8(extraout_ECX,extraout_EDX);\n  (*(code *)PTR_FUN_0047d3a4)();\n  (*(code *)PTR_thunk_FUN_004604e6_0047d3ac)();\n  return CONCAT44(param_2,(int)uVar1);",
-  "  (*(code *)PTR_FUN_0047d3a0)();\n  uVar1 = FUN_004608e8(param_1,param_2);\n  (*(code *)PTR_FUN_0047d3a4)();\n  (*(code *)PTR_thunk_FUN_004604e6_0047d3ac)(param_1,param_2);\n  return CONCAT44(param_2,(int)uVar1);"
+  "  uVar1 = FUN_004608e8(param_1,param_2);\n  FUN_004604e6(param_1,param_2);\n  return CONCAT44(param_2,(int)uVar1);"
 );
 source = source.replace(/(void __fastcall FUN_004605bc\(undefined4 param_1,undefined4 \*param_2\)[\s\S]*?\r?\n  undefined4 \*unaff_EBX;\r?\n\s*)if \(in_EAX == 2\) \{/, "$1in_EAX = (int)(uintptr_t)param_1;\n  if (in_EAX == 2) {");
 source = source.replace("      *unaff_EBX = 1;\n      return;", "      if (unaff_EBX != (undefined4 *)0x0 && !E2R_IsBadWritePtr(unaff_EBX,4)) {\n        *unaff_EBX = 1;\n      }\n      return;");
@@ -168,9 +176,15 @@ source = source.replace(
   /(longlong __fastcall FUN_00460803\(undefined4 param_1,uint param_2\)[\s\S]*?\r?\n  DWORD DVar1;\r?\n  HANDLE hFile;\r?\n\s*)\(\*\(code \*\)PTR_FUN_0047d3a0\)\(param_2,param_1\);/,
   "$1uint uVar2;\n  \n  uVar2 = (uint)(uintptr_t)param_2;\n  if ((_DAT_00ac51fc == 0) || (_DAT_00ac51f8 <= uVar2)) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  hFile = *(HANDLE *)(_DAT_00ac51fc + uVar2 * 4);\n  (*(code *)PTR_FUN_0047d3a0)(param_2,param_1);"
 );
+source = source.replace("  (*(code *)PTR_FUN_0047d3a0)(param_2,param_1);\n  DVar1 = GetFileType(hFile);", "  DVar1 = GetFileType(hFile);");
+source = source.replace("    (*(code *)PTR_FUN_0047d3a4)();\n    return CONCAT44(param_2,1);\n  }\n  (*(code *)PTR_FUN_0047d3a4)();", "    return CONCAT44(param_2,1);\n  }");
+source = source.replace(
+  /longlong __fastcall FUN_00460844\(undefined4 param_1,uint param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 00460899 \*\//,
+  "longlong __fastcall FUN_00460844(undefined4 param_1,uint param_2)\n\n{\n  uint slot;\n  longlong lVar4;\n  \n  slot = (uint)(uintptr_t)param_1;\n  if (256 <= slot) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  if (slot < 4) {\n    if ((E2R_file_flags[slot] & 0x40) == 0) {\n      E2R_file_flags[slot] = E2R_file_flags[slot] | 0x4000;\n      lVar4 = FUN_00460803(slot,slot);\n      if ((int)lVar4 != 0) {\n        E2R_file_flags[slot] = E2R_file_flags[slot] | 0x20;\n      }\n    }\n  }\n  return CONCAT44(param_2,E2R_file_flags[slot]);\n}\n\n\n\n/* 00460899 */"
+);
 source = source.replace(
   /(void __fastcall FUN_00460899\(undefined4 param_1,uint param_2\)[\s\S]*?\r?\n\s*)int in_EAX;\r?\n\s*\r?\n  \*\(uint \*\)\(PTR_DAT_0047d664 \+ in_EAX \* 4\) = param_2 \| 0x4000;\r?\n  return;/,
-  "$1uint in_EAX;\n  \n  in_EAX = (uint)(uintptr_t)param_1;\n  if (in_EAX < DAT_0047d610) {\n    *(uint *)(PTR_DAT_0047d664 + in_EAX * 4) = param_2 | 0x4000;\n  }\n  return;"
+  "$1uint in_EAX;\n  \n  in_EAX = (uint)(uintptr_t)param_1;\n  if (in_EAX < 256) {\n    E2R_file_flags[in_EAX] = param_2 | 0x4000;\n  }\n  return;"
 );
 source = source.replace(
   /(undefined8 __fastcall FUN_004608e8\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined4 uVar4;\r?\n\s*\r?\n  iVar3 = 0;\r?\n\s*)hObject = \*\(HANDLE \*\)\(_DAT_00ac51fc \+ in_EAX \* 4\);/,
@@ -275,6 +289,37 @@ source = source.replace("_DAT_0063615c = FUN_0045f1ff(uVar1,0x4b281);", "_DAT_00
 source = source.replace("_DAT_00636668 = FUN_0045f1ff(0,0x4b281);", "_DAT_00636668 = FUN_0045f1ff(2,0x4b281);");
 source = source.replace("_DAT_0063666c = FUN_0045f1ff(uVar1,0x4b281);", "_DAT_0063666c = FUN_0045f1ff(2,0x4b281);");
 source = source.replace("_DAT_00636670 = FUN_0045f1ff(uVar1,0x4b281);", "_DAT_00636670 = FUN_0045f1ff(2,0x4b281);");
+source = source.replace("_DAT_006366a4 = (undefined4 *)FUN_0045f1ff(extraout_ECX_14,4000);", "_DAT_006366a4 = (undefined4 *)FUN_0045f1ff(1,4000);");
+source = source.replace("_DAT_006366f4 = (undefined1 *)FUN_0045f1ff(~uVar3 - 1,0x9c4);", "_DAT_006366f4 = (undefined1 *)FUN_0045f1ff(1,0x9c4);");
+source = source.replace("_DAT_0063669c = (undefined1 *)FUN_0045f1ff(uVar5,0x9c4);", "_DAT_0063669c = (undefined1 *)FUN_0045f1ff(1,0x9c4);");
+source = source.replace("_DAT_00636698 = (char *)FUN_0045f1ff(uVar5,24000);", "_DAT_00636698 = (char *)FUN_0045f1ff(1,24000);");
+source = source.replace("_DAT_0063668c = (char *)FUN_0045f1ff(~uVar3 - 1,4000);", "_DAT_0063668c = (char *)FUN_0045f1ff(1,4000);");
+source = source.replace("_DAT_00636678 = (undefined4 *)FUN_0045f1ff(~uVar3 - 1,5000);", "_DAT_00636678 = (undefined4 *)FUN_0045f1ff(1,5000);");
+source = source.replace("_DAT_00636694 = (undefined1 *)FUN_0045f1ff(~uVar3 - 1,0x5dc);", "_DAT_00636694 = (undefined1 *)FUN_0045f1ff(1,0x5dc);");
+source = source.replace("_DAT_00636680 = (char *)FUN_0045f1ff(uVar5,2000);", "_DAT_00636680 = (char *)FUN_0045f1ff(1,2000);");
+source = source.replace("_DAT_006366a0 = (undefined2 *)FUN_0045f1ff(~uVar3 - 1,20000);", "_DAT_006366a0 = (undefined2 *)FUN_0045f1ff(2,20000);");
+source = source.replace(
+  /void FUN_00414f40\(void\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 00415b78 \*\//,
+  "void FUN_00414f40(void)\n\n{\n  const double pi = 3.14159265358979323846;\n  int mode;\n  int x;\n  int y;\n\n  for (x = 0; x < 256; x = x + 1) {\n    double phase = ((double)x * pi) / 128.0;\n    double normalized = (double)x / 255.0;\n    int tangent_index = (x & 0x40) != 0 ? x : 64 - x;\n    double tangent = tan(((double)tangent_index * pi) / 128.0);\n\n    *(byte *)(0x005fe990 + x) = E2R_clamp_byte(E2R_round_to_int(sin(phase) * 127.0 + 128.0));\n    *(byte *)(0x005fe890 + x) = E2R_clamp_byte(E2R_round_to_int(cos(phase) * 127.0 + 128.0));\n    *(byte *)(0x0060af88 + x) = E2R_clamp_byte(E2R_round_to_int(sqrt(normalized) * 255.0));\n    *(byte *)(0x0060b088 + x) = E2R_clamp_byte(E2R_round_to_int((1.0 - sqrt(normalized)) * 255.0));\n    *(short *)(0x0067be7c + x * 2) = E2R_clamp_short(E2R_round_to_int(tangent * 1024.0));\n  }\n\n  for (x = 0; x < 256; x = x + 1) {\n    *(byte *)(0x005fe790 + x) = E2R_clamp_byte(x);\n  }\n\n  for (x = 0; x < 1024; x = x + 1) {\n    double phase = (((double)x + 0.5) * pi) / 512.0;\n    *(short *)(0x0060c4b8 + x * 2) = E2R_clamp_short(E2R_round_to_int(sin(phase) * 32767.0));\n  }\n\n  for (mode = 0; mode < 16; mode = mode + 1) {\n    int base = 0x00507590 + mode * 0x4000;\n    int bias = mode * 32;\n    for (y = 0; y < 128; y = y + 1) {\n      for (x = 0; x < 128; x = x + 1) {\n        int shade = ((x * y) >> 7) + bias;\n        *(byte *)(base + y * 128 + x) = E2R_clamp_byte(shade);\n      }\n    }\n  }\n\n  for (y = 0; y < 128; y = y + 1) {\n    for (x = 0; x < 128; x = x + 1) {\n      *(byte *)(0x00507590 + 0x40000 + y * 128 + x) = 0x80;\n    }\n  }\n  return;\n}\n\n\n\n/* 00415b78 */"
+);
+source = source.replace("piVar3 = (int *)FUN_0045eb05(param_1,&DAT_0047007c);", "piVar3 = (int *)FUN_0045eb05(param_1,\"shadow.dat\");");
+source = source.replace(
+  /(void FUN_0041ccf0\(void\)[\s\S]*?\r?\n\s*)undefined1 \*in_EAX;/,
+  "$1undefined1 *in_EAX = (undefined1 *)0x00684a68;"
+);
+source = source.replace(
+  /undefined8 __fastcall FUN_0041ce88\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0041cf44 \*\//,
+  "undefined8 __fastcall FUN_0041ce88(undefined4 param_1,undefined4 param_2)\n\n{\n  byte *data;\n  undefined4 *stream;\n  int x;\n  int y;\n  \n  (void)param_1;\n  stream = (undefined4 *)(uintptr_t)E2R_OpenReadStream(\"shademap.dat\");\n  if (stream == (undefined4 *)0x0) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  if ((uint)stream[1] < 0xc000) {\n    FUN_0045ec6c(0,(undefined4)(uintptr_t)stream);\n    return (ulonglong)param_2 << 0x20;\n  }\n  data = (byte *)(uintptr_t)stream[5];\n  for (y = 0; y < 0x80; y = y + 1) {\n    for (x = 0; x < 0x80; x = x + 1) {\n      *(byte *)(0x0061d030 + y * 0x80 + x) = data[0];\n      *(short *)(0x00621630 + y * 0x100 + x * 2) = (short)((uint)data[1] << 8 | (uint)data[2]);\n      data = data + 3;\n    }\n  }\n  FUN_0045ec6c(0,(undefined4)(uintptr_t)stream);\n  return CONCAT44(param_2,1);\n}\n\n\n\n/* 0041cf44 */"
+);
+source = source.replace("(&DAT_0068cd68)[iVar5] = 0;", "*(undefined1 *)(0x0068cd68 + iVar5) = 0;");
+source = source.replace(
+  /undefined4 __fastcall FUN_0045eb05\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045ebf1 \*\//,
+  "undefined4 __fastcall FUN_0045eb05(undefined4 param_1,undefined4 param_2)\n\n{\n  (void)param_1;\n  return E2R_OpenReadStream((LPCSTR)(uintptr_t)param_2);\n}\n\n\n\n/* 0045ebf1 */"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_0045ec6c\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n  undefined4 extraout_ECX;\r?\n\s*)\(\*\(code \*\)PTR_FUN_0047d3b0\)\(\);/,
+  "$1undefined4 *stream;\n  \n  (void)param_1;\n  stream = (undefined4 *)(uintptr_t)param_2;\n  if (stream != (undefined4 *)0x0 && stream[6] == E2R_STREAM_MAGIC) {\n    if (stream[5] != 0) {\n      LocalFree((HLOCAL)(uintptr_t)stream[5]);\n    }\n    stream[6] = 0;\n    LocalFree((HLOCAL)stream);\n    return (ulonglong)param_2 << 0x20;\n  }\n  (*(code *)PTR_FUN_0047d3b0)();"
+);
 source = source.replace(
   /undefined4 __fastcall FUN_0045f1ff\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045f218 \*\//,
   "undefined4 __fastcall FUN_0045f1ff(undefined4 param_1,undefined4 param_2)\n\n{\n  uint size;\n  undefined8 uVar1;\n  \n  size = (uint)(uintptr_t)param_1 * (uint)(uintptr_t)param_2;\n  uVar1 = FUN_0045f0d1(size,param_2);\n  if ((int)uVar1 != 0) {\n    FUN_0045f8d0((undefined4)(uintptr_t)(uint)uVar1,0);\n  }\n  return (undefined4)(uintptr_t)(uint)uVar1;\n}\n\n\n\n/* 0045f218 */"
@@ -310,8 +355,100 @@ source = source.replace(
   "$1in_EAX = param_1;\n  if (DAT_0047a43c == 0) {"
 );
 source = source.replace(
+  /(void __fastcall FUN_00414998\(undefined4 param_1\)[\s\S]*?\r?\n  int iVar2;\r?\n)/,
+  "$1  int iVar4;\n"
+);
+source = source.replace(
   "  if (DAT_0047a43c == 0) {\n    FUN_0043ac60();\n    param_1 = extraout_ECX;\n    in_EAX = extraout_EDX;\n  }\n  if (DAT_0047a43c != 0) {\n    uVar3 = FUN_0045e594(param_1,in_EAX,(LPCSTR)in_EAX,0x200,unaff_EBP);",
   "  if (DAT_0047a43c == 0) {\n    FUN_0043ac60();\n    param_1 = in_EAX;\n  }\n  if (DAT_0047a43c != 0) {\n    uVar3 = FUN_0045e594(param_1,in_EAX,(LPCSTR)in_EAX,0x200,unaff_EBP);"
+);
+source = source.replace(
+  "    if ((int)uVar3 != -1) {\n      FUN_0045e76f((int)uVar3,_DAT_0063615c);\n      FUN_0045e76f(extraout_ECX_00,(char *)0x621030);",
+  "    if ((int)uVar3 != -1) {\n      iVar4 = (int)uVar3;\n      FUN_0045e76f(iVar4,_DAT_0063615c);\n      FUN_0045e76f(iVar4,(char *)0x621030);"
+);
+source = source.replace(
+  "      FUN_0045e76f(iVar4,_DAT_0063615c);\n      FUN_0045e76f(iVar4,(char *)0x621030);",
+  "      E2R_ReadOpenFileBytes(iVar4,_DAT_0063615c,0x20);\n      E2R_ReadOpenFileBytes(iVar4,(char *)0x621030,0x300);"
+);
+source = source.replace(
+  "      FUN_0045e76f(extraout_ECX_01,_DAT_0063615c);\n      uVar3 = FUN_0045e8e6(extraout_ECX_02,extraout_EDX_00);",
+  "      E2R_ReadOpenFileBytes(iVar4,_DAT_0063615c,_DAT_006401ec * _DAT_006401d4);\n      uVar3 = FUN_0045e8e6(iVar4,extraout_EDX_00);"
+);
+source = source.replace(
+  "      uVar3 = FUN_0045e8e6(extraout_ECX_02,extraout_EDX_00);",
+  "      E2R_ReadOpenFileBytes(iVar4,_DAT_0063615c,_DAT_006401ec * _DAT_006401d4);\n      uVar3 = FUN_0045e8e6(iVar4,extraout_EDX_00);"
+);
+source = source.replace(
+  "  uVar5 = E2R_READ4(s_pallette_raw_004712b4,0);\n  if (DAT_00479d74 != '\\0') {\n    uVar5 = E2R_READ4(s_p__pallette_raw_004712a4,0);\n  }\n  uVar4 = FUN_0045e594(param_1,param_2,&stack_ffffffd4,0x200,uVar5);",
+  "  pcVar3 = s_pallette_raw_004712b4;\n  uVar5 = E2R_READ4(s_pallette_raw_004712b4,0);\n  if (DAT_00479d74 != '\\0') {\n    pcVar3 = s_p__pallette_raw_004712a4;\n    uVar5 = E2R_READ4(s_p__pallette_raw_004712a4,0);\n  }\n  uVar4 = FUN_0045e594(param_1,param_2,pcVar3,0x200,uVar5);"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_00414a94\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  int iVar2;\r?\n)/,
+  "$1  int iVar3;\n  LPCSTR pcVar3;\n"
+);
+source = source.replace(
+  "  iVar1 = (int)uVar4;\n  if (iVar1 != -1) {\n    FUN_0045e76f(iVar1,&DAT_00621330);\n    FUN_0045e76f(extraout_ECX,&DAT_00621330);",
+  "  iVar1 = (int)uVar4;\n  if (iVar1 != -1) {\n    iVar3 = iVar1;\n    FUN_0045e76f(iVar1,&DAT_00621330);\n    FUN_0045e76f(iVar3,&DAT_00621330);"
+);
+source = source.replace(
+  "    FUN_0045e76f(iVar1,&DAT_00621330);\n    FUN_0045e76f(iVar3,&DAT_00621330);",
+  "    E2R_ReadOpenFileBytes(iVar1,(char *)0x00621330,0x20);\n    E2R_ReadOpenFileBytes(iVar3,(char *)0x00621330,0x300);"
+);
+source = source.replace(
+  "      uVar3 = CONCAT31((int3)((uint)uVar3 >> 8),(byte)(&DAT_00621330)[iVar1] >> 2);\n      (&DAT_00621330)[iVar1] = (byte)(&DAT_00621330)[iVar1] >> 2;",
+  "      uVar3 = CONCAT31((int3)((uint)uVar3 >> 8),*(byte *)(iVar1 + 0x00621330) >> 2);\n      *(byte *)(iVar1 + 0x00621330) = *(byte *)(iVar1 + 0x00621330) >> 2;"
+);
+source = source.replace(
+  "    uVar4 = FUN_0045e8e6(extraout_ECX_00,uVar3);\n    iVar1 = (int)uVar4;",
+  "    uVar4 = FUN_0045e8e6(iVar3,uVar3);\n    iVar1 = (int)uVar4;"
+);
+source = source.replace(
+  "  uVar9 = E2R_READ4(s_tscreen_raw_0047033c,0);\n  if (DAT_00479d74 != '\\0') {\n    uVar9 = E2R_READ4(s_p__tscreen_raw_004712c4,0);\n  }\n  if (DAT_0047a43c != 0) {\n    uVar8 = FUN_0045e594(param_1,uVar4,&stack_ffffffb8,0x200,uVar9);",
+  "  pcVar5 = s_tscreen_raw_0047033c;\n  uVar9 = E2R_READ4(s_tscreen_raw_0047033c,0);\n  if (DAT_00479d74 != '\\0') {\n    pcVar5 = s_p__tscreen_raw_004712c4;\n    uVar9 = E2R_READ4(s_p__tscreen_raw_004712c4,0);\n  }\n  if (DAT_0047a43c != 0) {\n    uVar8 = FUN_0045e594(param_1,uVar4,pcVar5,0x200,uVar9);"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_00414b24\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined4 uVar4;\r?\n)/,
+  "$1  LPCSTR pcVar5;\n"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_00414b24\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined4 extraout_EDX_03;\r?\n)/,
+  "$1  int iVar10;\n"
+);
+source = source.replace(
+  "    if ((int)uVar8 != -1) {\n      FUN_0045e76f((int)uVar8,_DAT_0063615c);\n      FUN_0045e76f(extraout_ECX_00,(char *)0x61ca30);",
+  "    if ((int)uVar8 != -1) {\n      iVar10 = (int)uVar8;\n      FUN_0045e76f(iVar10,_DAT_0063615c);\n      FUN_0045e76f(iVar10,(char *)0x61ca30);"
+);
+source = source.replace(
+  "      FUN_0045e76f(iVar10,_DAT_0063615c);\n      FUN_0045e76f(iVar10,(char *)0x61ca30);",
+  "      E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,0x20);\n      E2R_ReadOpenFileBytes(iVar10,(char *)0x61ca30,0x300);"
+);
+source = source.replace(
+  "      FUN_0045e76f(extraout_ECX_01,_DAT_0063615c);",
+  "      E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,_DAT_006401ec * _DAT_006401d4);"
+);
+source = source.replace(
+  "      uVar8 = FUN_0045e8e6(extraout_ECX_02,extraout_EDX_00);",
+  "      uVar8 = FUN_0045e8e6(iVar10,extraout_EDX_00);"
+);
+source = source.replace(
+  "  if ((int)uVar8 != -1) {\n    FUN_0045e76f((int)uVar8,_DAT_0063615c);\n    FUN_0045e76f(extraout_ECX_07,&DAT_00621330);",
+  "  if ((int)uVar8 != -1) {\n    iVar10 = (int)uVar8;\n    FUN_0045e76f(iVar10,_DAT_0063615c);\n    FUN_0045e76f(iVar10,&DAT_00621330);"
+);
+source = source.replace(
+  "    FUN_0045e76f(iVar10,_DAT_0063615c);\n    FUN_0045e76f(iVar10,&DAT_00621330);",
+  "    E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,0x20);\n    E2R_ReadOpenFileBytes(iVar10,(char *)0x00621330,0x300);"
+);
+source = source.replace(
+  "      (&DAT_00621330)[iVar5] = (byte)(&DAT_00621330)[iVar5] >> 2;",
+  "      *(byte *)(iVar5 + 0x00621330) = *(byte *)(iVar5 + 0x00621330) >> 2;"
+);
+source = source.replace(
+  "    FUN_0045e76f(extraout_ECX_08,_DAT_0063615c);",
+  "    E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,_DAT_006401ec * _DAT_006401d4);"
+);
+source = source.replace(
+  "    uVar8 = FUN_0045e8e6(extraout_ECX_09,extraout_EDX_03);",
+  "    uVar8 = FUN_0045e8e6(iVar10,extraout_EDX_03);"
 );
 source = source.replace(
   "  char acStack_28 [4];\n  char acStack_24 [4];\n  char cStack_20;",
