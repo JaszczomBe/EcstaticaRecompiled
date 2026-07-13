@@ -8,7 +8,7 @@ Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
 
-Bring the reconstructed Ecstatica II runtime far enough on Linux that it can load original CD data, initialize host-compatible platform services, and advance toward menu/title or main-loop execution without relying on one-off untracked patches.
+Bring the reconstructed Ecstatica II runtime far enough on Linux that it can load original CD data, initialize host-compatible platform services, run a durable main loop, present inspectable frames, accept input, and advance toward a controllable gameplay scene without relying on one-off untracked patches.
 
 ## Scope
 
@@ -17,6 +17,7 @@ Bring the reconstructed Ecstatica II runtime far enough on Linux that it can loa
 3. GDB crash-loop investigation.
 4. Ghidra-backed recovery of lost register, calling convention, and pointer intent.
 5. Journaling each exploratory fix and exposed regression.
+6. Main-loop durability, frame presentation, input, and first-scene progression.
 
 ## Non-Goals
 
@@ -54,7 +55,7 @@ The latest debug GDB run hit `thunk_FUN_004620db` from `FUN_00410a48` at reconst
 
 ## Active Steps
 
-No implementation step is currently active. Step 5 is complete; the next planned step should start from the post-main-loop-entry `"e_config"` file-open crash.
+Step 6 is the next active step. It starts from the post-main-loop-entry `"e_config"` file-open crash and should stabilize the file/CRT callback path enough to continue beyond the current `FUN_0046055c` `EIP=0xffffffff` frontier.
 
 ## Step Roadmap
 
@@ -65,6 +66,12 @@ Each step should be scoped so it can preferably be completed in one context wind
 3. [Create Visible Window](steps/step-03/step-03-create-visible-window.md) - completed; create a Linux-hosted visible window or rendering surface.
 4. [Reach Menu Or Title Logic](steps/step-04/step-04-reach-menu-or-title-logic.md) - completed; initialize enough graphics/audio stubs to reach title/menu code.
 5. [Reach Main Loop](steps/step-05/step-05-reach-main-loop.md) - completed; advanced to `thunk_FUN_004620db` and documented the next crash frontier.
+6. [Resolve Post Main Loop Config Open Crash](steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - active; recover the `"e_config"` file/CRT callback path after main-loop entry.
+7. Sustain Main Loop Heartbeat - planned; run several consecutive loop iterations with stable timing, message-pump, and crash-frontier evidence.
+8. Present Inspectable Title Or Menu Frame - planned; show a real reconstructed title/menu frame in the Linux window.
+9. Wire Menu Input Path - planned; map host keyboard/mouse events into the reconstructed Win32-style input path far enough to navigate title/menu logic.
+10. Reach First Controllable Scene - planned; load a gameplay scene and prove basic player-control or camera-control progression.
+11. Harden Runtime Loop Regression Checks - planned; make debug/ASan/GDB probes repeatable for the stabilized loop path.
 
 ## Journals
 
@@ -102,3 +109,4 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 4. Completed step 3 by mapping the original Ecstatica II window request to a Linux X11 window and recording the next DirectDraw/surface frontier.
 5. Completed step 4 by adding minimal DirectDraw palette/surface startup support and reaching `FUN_00414a94 -> FUN_00414b24` title logic.
 6. Completed step 5 by repairing startup allocation, stream, shadow, and shademap blockers; GDB reached `FUN_00410a48 -> thunk_FUN_004620db`.
+7. Extended the implementation roadmap beyond main-loop entry: post-loop config/file recovery, loop heartbeat, visible frame, input, first scene, and regression hardening.

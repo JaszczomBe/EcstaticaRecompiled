@@ -9,7 +9,7 @@ Run the decompiled Ecstatica II reconstructed runtime on Linux using CMake and C
 ## Active Implementation
 
 - [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md)
-- Current recommended step: [Resolve Current Startup Crash](implementations/linux-e2-reconstructed-runtime/steps/step-01/step-01-resolve-current-startup-crash.md)
+- Current recommended step: [Resolve Post Main Loop Config Open Crash](implementations/linux-e2-reconstructed-runtime/steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md)
 - Current runtime journal: [Runtime crash fixes](journal/entries/runtime-crash-fixes.md)
 
 ## Journal
@@ -36,12 +36,14 @@ Run the decompiled Ecstatica II reconstructed runtime on Linux using CMake and C
 ## Current Runtime State
 
 - Branch: `linux-e2-reconstructed-runtime`
+- Current recommended step: [Resolve Post Main Loop Config Open Crash](implementations/linux-e2-reconstructed-runtime/steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md)
 - Data path: `/home/rgrabowski/Games/Ecstatica2/`
 - Build data symlink should resolve under build directories as `Ecstatica2`.
 - Debug build command: `cmake --build --preset linux-clang32-debug`
 - ASan build command: `cmake --build build/linux-clang32-asan`
 - Run command from debug build: `./e2recomp --run-recon`
-- Latest known crash after the last fix: `FUN_00414e68`, called from `FUN_00414b24`, dereferencing `0x200`.
+- Latest proven milestone: GDB reached `FUN_00410a48 -> thunk_FUN_004620db`.
+- Latest known crash after the last fix: `EIP=0xffffffff` through `FUN_0046055c`, called by `FUN_0045e5b8 -> FUN_0045e594` while opening `"e_config"` from `FUN_0041007c`.
 
 ## Blank Context Startup Protocol
 
