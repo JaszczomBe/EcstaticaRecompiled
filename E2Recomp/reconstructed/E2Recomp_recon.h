@@ -2693,6 +2693,7 @@ extern char s_Can_t_find__s_for__s_00475d64[];
 extern char s_Can_t_find_file__004731ec[];
 extern char s_Can_t_find_files_in__0047320c[];
 extern char s_Can_t_find_music_file__s_00471128[];
+extern char s_Can_t_load_title_picture_00471320[];
 extern char s_Can_t_load_graphic___s__00475e8c[];
 extern char s_Can_t_load_temp_graphic___s__00475ec0[];
 extern char s_Can_t_open_main_file_00473048[];

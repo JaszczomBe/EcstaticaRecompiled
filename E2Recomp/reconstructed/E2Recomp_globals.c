@@ -1859,6 +1859,7 @@ char s_Can_t_find__s_for__s_00475d64[256];
 char s_Can_t_find_file__004731ec[256];
 char s_Can_t_find_files_in__0047320c[256];
 char s_Can_t_find_music_file__s_00471128[256];
+char s_Can_t_load_title_picture_00471320[256];
 char s_Can_t_load_graphic___s__00475e8c[256];
 char s_Can_t_load_temp_graphic___s__00475ec0[256];
 char s_Can_t_open_main_file_00473048[256];

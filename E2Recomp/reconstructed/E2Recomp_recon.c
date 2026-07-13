@@ -5552,7 +5552,7 @@ undefined4 FUN_00414e68(void)
 {
   char cVar1;
   int iVar2;
-  char *in_EAX;
+  char *in_EAX = s_Can_t_load_title_picture_00471320;
   undefined4 in_ECX;
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
