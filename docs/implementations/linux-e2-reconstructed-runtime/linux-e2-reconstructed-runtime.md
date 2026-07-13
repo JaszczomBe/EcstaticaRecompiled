@@ -26,7 +26,7 @@ Bring the reconstructed Ecstatica II runtime far enough on Linux that it can loa
 
 ## Current State
 
-Step 1 and step 2 are complete. Debug and ASan 32-bit builds compile. The runtime enters the Ecstatica II data directory through the build-tree `Ecstatica2` symlink, resolves read-only paths case-insensitively, and has proven the first real resource open:
+Steps 1 through 3 are complete. Debug and ASan 32-bit builds compile. The runtime enters the Ecstatica II data directory through the build-tree `Ecstatica2` symlink, resolves read-only paths case-insensitively, has proven the first real resource open, and now creates a Linux-hosted X11 window from the original Ecstatica II window path.
 
 ```text
 /home/rgrabowski/Games/Ecstatica2/PSYGLOGO.RAW
@@ -34,20 +34,27 @@ requested as: psyglogo.raw
 call path: FUN_00410a48 -> FUN_00414998 -> FUN_0045e594 -> CreateFileA
 ```
 
-The latest known crash after that successful open is:
+The proven window path is:
 
 ```text
-FUN_0045e5b8()
-FUN_0045e594()
+FUN_00458714 -> RegisterClassA -> CreateWindowExA
+title: Ecstatica II
+size: 640x640
+```
+
+The latest known crash after the visible-window milestone is:
+
+```text
+FUN_0041af88()
 FUN_00414998()
 FUN_00410a48()
 ```
 
-The fault reads `E2R_READ1(param_4,1)` with `param_4 == 0x200`, exposing file-handle/open-mode bookkeeping as the next runtime frontier.
+The fault calls through a DirectDraw/surface vtable from the startup logo path.
 
 ## Active Steps
 
-No implementation step is currently active. Step 2 is complete; step 3 is the next planned step when work resumes.
+No implementation step is currently active. Step 3 is complete; step 4 is the next planned step when work resumes.
 
 ## Step Roadmap
 
@@ -55,8 +62,8 @@ Each step should be scoped so it can preferably be completed in one context wind
 
 1. [Resolve Current Startup Crash](steps/step-01/step-01-resolve-current-startup-crash.md) - completed; fixed the `FUN_00414b24 -> FUN_00414e68` `0x200` dereference.
 2. [Prove First Resource Load](steps/step-02/step-02-prove-first-resource-load.md) - completed; verified loading one real file from `/home/rgrabowski/Games/Ecstatica2/`.
-3. [Create Visible Window](steps/step-03/step-03-create-visible-window.md) - planned; create a Linux-hosted visible window or rendering surface.
-4. [Reach Menu Or Title Logic](steps/step-04/step-04-reach-menu-or-title-logic.md) - initialize enough graphics/audio stubs to reach title/menu code.
+3. [Create Visible Window](steps/step-03/step-03-create-visible-window.md) - completed; create a Linux-hosted visible window or rendering surface.
+4. [Reach Menu Or Title Logic](steps/step-04/step-04-reach-menu-or-title-logic.md) - planned; initialize enough graphics/audio stubs to reach title/menu code.
 5. [Reach Main Loop](steps/step-05/step-05-reach-main-loop.md) - advance to the main loop without crashing.
 
 ## Journals
@@ -92,3 +99,4 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 1. Created implementation handoff.
 2. Completed step 1 by recovering the lost title-error `EAX` message pointer.
 3. Completed step 2 by proving the first real resource open and recording the next `FUN_0045e5b8` frontier.
+4. Completed step 3 by mapping the original Ecstatica II window request to a Linux X11 window and recording the next DirectDraw/surface frontier.

@@ -90,6 +90,10 @@ target_compile_definitions(e2recomp PRIVATE
     E2RECOMP_DATA_DIR="${ECSTATICA2_DATA_LINK}"
 )
 
+if(UNIX AND NOT APPLE)
+    target_link_libraries(e2recomp PRIVATE dl)
+endif()
+
 if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(e2recomp PRIVATE
         -w

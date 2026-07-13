@@ -11,6 +11,7 @@
 #include <time.h>
 #include <unistd.h>
 #ifndef _WIN32
+#include <dlfcn.h>
 #include <sys/mman.h>
 #ifndef MAP_ANONYMOUS
 #define MAP_ANONYMOUS MAP_ANON
@@ -27,6 +28,81 @@ static E2R_HANDLE__ e2r_handle = {0, 0};
 static DWORD e2r_last_error;
 static void *e2r_tls[64];
 static DWORD e2r_next_tls;
+
+#ifndef _WIN32
+typedef struct E2R_XDisplay E2R_XDisplay;
+typedef unsigned long E2R_XWindow;
+
+typedef struct E2R_X11_API {
+    void *lib;
+    E2R_XDisplay *(*XOpenDisplay)(const char *);
+    int (*XDefaultScreen)(E2R_XDisplay *);
+    E2R_XWindow (*XRootWindow)(E2R_XDisplay *, int);
+    unsigned long (*XBlackPixel)(E2R_XDisplay *, int);
+    unsigned long (*XWhitePixel)(E2R_XDisplay *, int);
+    E2R_XWindow (*XCreateSimpleWindow)(E2R_XDisplay *, E2R_XWindow, int, int, unsigned int, unsigned int, unsigned int, unsigned long, unsigned long);
+    int (*XStoreName)(E2R_XDisplay *, E2R_XWindow, const char *);
+    int (*XMapWindow)(E2R_XDisplay *, E2R_XWindow);
+    int (*XDestroyWindow)(E2R_XDisplay *, E2R_XWindow);
+    int (*XFlush)(E2R_XDisplay *);
+    int (*XCloseDisplay)(E2R_XDisplay *);
+} E2R_X11_API;
+
+typedef struct E2R_X11_Window {
+    E2R_XDisplay *display;
+    E2R_XWindow window;
+} E2R_X11_Window;
+
+static E2R_X11_API e2r_x11;
+static E2R_X11_Window e2r_x11_window;
+static int e2r_x11_load_attempted;
+static int e2r_x11_warned;
+
+static void *e2r_x11_symbol(const char *name)
+{
+    return e2r_x11.lib ? dlsym(e2r_x11.lib, name) : NULL;
+}
+
+static int e2r_load_x11(void)
+{
+    if (e2r_x11_load_attempted) return e2r_x11.lib != NULL;
+    e2r_x11_load_attempted = 1;
+
+    e2r_x11.lib = dlopen("libX11.so.6", RTLD_LAZY);
+    if (!e2r_x11.lib) return 0;
+
+    e2r_x11.XOpenDisplay = (E2R_XDisplay *(*)(const char *))e2r_x11_symbol("XOpenDisplay");
+    e2r_x11.XDefaultScreen = (int (*)(E2R_XDisplay *))e2r_x11_symbol("XDefaultScreen");
+    e2r_x11.XRootWindow = (E2R_XWindow (*)(E2R_XDisplay *, int))e2r_x11_symbol("XRootWindow");
+    e2r_x11.XBlackPixel = (unsigned long (*)(E2R_XDisplay *, int))e2r_x11_symbol("XBlackPixel");
+    e2r_x11.XWhitePixel = (unsigned long (*)(E2R_XDisplay *, int))e2r_x11_symbol("XWhitePixel");
+    e2r_x11.XCreateSimpleWindow = (E2R_XWindow (*)(E2R_XDisplay *, E2R_XWindow, int, int, unsigned int, unsigned int, unsigned int, unsigned long, unsigned long))e2r_x11_symbol("XCreateSimpleWindow");
+    e2r_x11.XStoreName = (int (*)(E2R_XDisplay *, E2R_XWindow, const char *))e2r_x11_symbol("XStoreName");
+    e2r_x11.XMapWindow = (int (*)(E2R_XDisplay *, E2R_XWindow))e2r_x11_symbol("XMapWindow");
+    e2r_x11.XDestroyWindow = (int (*)(E2R_XDisplay *, E2R_XWindow))e2r_x11_symbol("XDestroyWindow");
+    e2r_x11.XFlush = (int (*)(E2R_XDisplay *))e2r_x11_symbol("XFlush");
+    e2r_x11.XCloseDisplay = (int (*)(E2R_XDisplay *))e2r_x11_symbol("XCloseDisplay");
+
+    if (!e2r_x11.XOpenDisplay || !e2r_x11.XDefaultScreen || !e2r_x11.XRootWindow ||
+        !e2r_x11.XBlackPixel || !e2r_x11.XWhitePixel || !e2r_x11.XCreateSimpleWindow ||
+        !e2r_x11.XStoreName || !e2r_x11.XMapWindow || !e2r_x11.XDestroyWindow ||
+        !e2r_x11.XFlush || !e2r_x11.XCloseDisplay) {
+        dlclose(e2r_x11.lib);
+        memset(&e2r_x11, 0, sizeof(e2r_x11));
+        return 0;
+    }
+
+    return 1;
+}
+
+static void e2r_warn_window_unavailable(void)
+{
+    if (!e2r_x11_warned) {
+        fprintf(stderr, "warning: X11 window unavailable; continuing with headless HWND stub\n");
+        e2r_x11_warned = 1;
+    }
+}
+#endif
 
 void E2R_MapLegacyAddressSpace(void)
 {
@@ -299,8 +375,30 @@ BOOL E2R_IsBadWritePtr(const void *ptr, UINT_PTR size)
 }
 
 BOOL IsWindow(HWND hwnd) { return hwnd != NULL; }
-BOOL DestroyWindow(HWND hwnd) { (void)hwnd; return TRUE; }
-BOOL ShowWindow(HWND hwnd, int cmd_show) { (void)hwnd; (void)cmd_show; return TRUE; }
+BOOL DestroyWindow(HWND hwnd)
+{
+#ifndef _WIN32
+    if (hwnd == &e2r_window && e2r_x11_window.display && e2r_x11_window.window) {
+        e2r_x11.XDestroyWindow(e2r_x11_window.display, e2r_x11_window.window);
+        e2r_x11.XFlush(e2r_x11_window.display);
+        e2r_x11_window.window = 0;
+        hwnd->ptr = NULL;
+    }
+#endif
+    (void)hwnd;
+    return TRUE;
+}
+BOOL ShowWindow(HWND hwnd, int cmd_show)
+{
+#ifndef _WIN32
+    if (hwnd == &e2r_window && e2r_x11_window.display && e2r_x11_window.window && cmd_show != 0) {
+        e2r_x11.XMapWindow(e2r_x11_window.display, e2r_x11_window.window);
+        e2r_x11.XFlush(e2r_x11_window.display);
+    }
+#endif
+    (void)hwnd; (void)cmd_show;
+    return TRUE;
+}
 BOOL UpdateWindow(HWND hwnd) { (void)hwnd; return TRUE; }
 HWND SetFocus(HWND hwnd) { return hwnd; }
 int ShowCursor(BOOL show) { (void)show; return 0; }
@@ -339,9 +437,45 @@ HWND CreateWindowExA(DWORD ex_style, LPCSTR class_name, LPCSTR window_name,
                      DWORD style, int x, int y, int width, int height,
                      HWND parent, HMENU menu, HINSTANCE instance, LPVOID param)
 {
-    (void)ex_style; (void)class_name; (void)window_name; (void)style;
-    (void)x; (void)y; (void)width; (void)height; (void)parent; (void)menu;
-    (void)instance; (void)param;
+    (void)ex_style; (void)class_name; (void)style; (void)menu; (void)instance; (void)param;
+#ifndef _WIN32
+    if (!parent) {
+        int screen;
+        unsigned int w = width > 0 ? (unsigned int)width : 640u;
+        unsigned int h = height > 0 ? (unsigned int)height : 480u;
+
+        if (!e2r_load_x11()) {
+            e2r_warn_window_unavailable();
+            return &e2r_window;
+        }
+
+        if (!e2r_x11_window.display) {
+            e2r_x11_window.display = e2r_x11.XOpenDisplay(NULL);
+            if (!e2r_x11_window.display) {
+                e2r_warn_window_unavailable();
+                return &e2r_window;
+            }
+        }
+
+        screen = e2r_x11.XDefaultScreen(e2r_x11_window.display);
+        if (e2r_x11_window.window == 0) {
+            E2R_XWindow root = e2r_x11.XRootWindow(e2r_x11_window.display, screen);
+            unsigned long black = e2r_x11.XBlackPixel(e2r_x11_window.display, screen);
+            unsigned long white = e2r_x11.XWhitePixel(e2r_x11_window.display, screen);
+            e2r_x11_window.window =
+                e2r_x11.XCreateSimpleWindow(e2r_x11_window.display, root, x, y, w, h, 1, black, white);
+        }
+        if (e2r_x11_window.window != 0) {
+            e2r_x11.XStoreName(e2r_x11_window.display, e2r_x11_window.window,
+                               window_name ? window_name : "Ecstatica II");
+            e2r_x11.XMapWindow(e2r_x11_window.display, e2r_x11_window.window);
+            e2r_x11.XFlush(e2r_x11_window.display);
+            e2r_window.ptr = &e2r_x11_window;
+        }
+    }
+#else
+    (void)window_name; (void)x; (void)y; (void)width; (void)height; (void)parent;
+#endif
     return &e2r_window;
 }
 INT_PTR DialogBoxParamA(HINSTANCE inst, LPCSTR tmpl, HWND parent, DLGPROC proc,

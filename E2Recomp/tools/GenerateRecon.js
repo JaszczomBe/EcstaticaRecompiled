@@ -136,7 +136,7 @@ source = source.replace(
 );
 source = source.replace(
   /undefined8 __fastcall FUN_004603d1\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 004604e6 \*\//,
-  "undefined8 __fastcall FUN_004603d1(undefined4 param_1,undefined4 param_2)\n\n{\n  (void)param_1;\n  return (ulonglong)param_2 << 32;\n}\n\n\n\n/* 004604e6 */"
+  "undefined8 __fastcall FUN_004603d1(undefined4 param_1,undefined4 param_2)\n\n{\n  uint uVar1;\n  HANDLE hFile;\n  \n  hFile = (HANDLE)(uintptr_t)param_1;\n  if (_DAT_00ac51fc == 0) {\n    _DAT_00ac51fc = (uintptr_t)LocalAlloc(0x40,DAT_0047d610 * 4);\n    _DAT_00ac51f8 = DAT_0047d610;\n  }\n  if (_DAT_00ac51fc == 0) {\n    return CONCAT44(param_2,0xffffffff);\n  }\n  for (uVar1 = 0; uVar1 < _DAT_00ac51f8; uVar1 = uVar1 + 1) {\n    if (*(HANDLE *)(_DAT_00ac51fc + uVar1 * 4) == (HANDLE)0x0) {\n      *(HANDLE *)(_DAT_00ac51fc + uVar1 * 4) = hFile;\n      return CONCAT44(param_2,uVar1);\n    }\n  }\n  return CONCAT44(param_2,0xffffffff);\n}\n\n\n\n/* 004604e6 */"
 );
 source = source.replace(/(undefined8 __fastcall FUN_0045f0d1\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined8 uVar7;\r?\n\s*)if \(\(in_EAX != 0\)/, "$1in_EAX = (uint)(uintptr_t)param_1;\n  if ((in_EAX != 0)");
 source = source.replace(/(undefined4 FUN_00458714\(void\)[\s\S]*?\r?\n  WNDCLASSA local_3c;\r?\n\s*)local_3c.style = 3;/, "$1in_EAX = GetModuleHandleA((LPCSTR)0x0);\n  local_3c.style = 3;");
@@ -148,10 +148,34 @@ source = source.replace(
   "undefined8 __fastcall FUN_0045fa43(undefined4 param_1,undefined4 param_2)\n\n{\n  char *src = (char *)(uintptr_t)param_1;\n  char *dst;\n  uint len = 0;\n  if ((uintptr_t)src < 0x10000 || (uintptr_t)src > 0x7fffffff) return (ulonglong)param_2 << 32;\n  while (src[len] != 0) len++;\n  len++;\n  dst = (char *)LocalAlloc(0x40, len);\n  if (dst != (char *)0x0) {\n    uint i;\n    for (i = 0; i < len; i++) dst[i] = src[i];\n  }\n  return CONCAT44(param_2,dst);\n}\n\n\n\n/* 0045fa88 */"
 );
 source = source.replace("  FUN_004605bc(extraout_ECX,&local_20);\n  FUN_004605e8(extraout_ECX_00,&local_24);", "  FUN_004605bc(uVar6,&local_20);\n  FUN_004605e8(uVar6,&local_24);");
+source = source.replace(
+  "    uVar7 = (*(code *)PTR_thunk_FUN_004603d1_0047d3a8)();\n    uVar1 = (undefined4)uVar7;\n    lVar8 = FUN_00460803(extraout_ECX_06,(uint)((ulonglong)uVar7 >> 0x20));",
+  "    uVar7 = FUN_004603d1((undefined4)(uintptr_t)pvVar3,param_2);\n    uVar1 = (undefined4)uVar7;\n    lVar8 = FUN_00460803(uVar1,uVar1);"
+);
+source = source.replace(
+  "  FUN_00460899(CONCAT22((short)((uint)uVar4 >> 0x10),CONCAT11(E2R_READ1(param_4,1),(char)uVar4)),uVar5);",
+  "  FUN_00460899(uVar1,uVar5);"
+);
+source = source.replace(
+  "  (*(code *)PTR_FUN_0047d3a0)();\n  uVar1 = FUN_004608e8(extraout_ECX,extraout_EDX);\n  (*(code *)PTR_FUN_0047d3a4)();\n  (*(code *)PTR_thunk_FUN_004604e6_0047d3ac)();\n  return CONCAT44(param_2,(int)uVar1);",
+  "  (*(code *)PTR_FUN_0047d3a0)();\n  uVar1 = FUN_004608e8(param_1,param_2);\n  (*(code *)PTR_FUN_0047d3a4)();\n  (*(code *)PTR_thunk_FUN_004604e6_0047d3ac)(param_1,param_2);\n  return CONCAT44(param_2,(int)uVar1);"
+);
 source = source.replace(/(void __fastcall FUN_004605bc\(undefined4 param_1,undefined4 \*param_2\)[\s\S]*?\r?\n  undefined4 \*unaff_EBX;\r?\n\s*)if \(in_EAX == 2\) \{/, "$1in_EAX = (int)(uintptr_t)param_1;\n  if (in_EAX == 2) {");
 source = source.replace("      *unaff_EBX = 1;\n      return;", "      if (unaff_EBX != (undefined4 *)0x0 && !E2R_IsBadWritePtr(unaff_EBX,4)) {\n        *unaff_EBX = 1;\n      }\n      return;");
 source = source.replace("  *unaff_EBX = 0x80;\n  return;\n}\n\n\n\n/* 004605e8 */", "  if (unaff_EBX != (undefined4 *)0x0 && !E2R_IsBadWritePtr(unaff_EBX,4)) {\n    *unaff_EBX = 0x80;\n  }\n  return;\n}\n\n\n\n/* 004605e8 */");
 source = source.replace(/(void __fastcall FUN_004605e8\(undefined4 param_1,undefined4 \*param_2\)[\s\S]*?\r?\n  int in_EAX;\r?\n\s*)if \(\(in_EAX == 0\)/, "$1in_EAX = (int)(uintptr_t)param_1;\n  if ((in_EAX == 0)");
+source = source.replace(
+  /(longlong __fastcall FUN_00460803\(undefined4 param_1,uint param_2\)[\s\S]*?\r?\n  DWORD DVar1;\r?\n  HANDLE hFile;\r?\n\s*)\(\*\(code \*\)PTR_FUN_0047d3a0\)\(param_2,param_1\);/,
+  "$1uint uVar2;\n  \n  uVar2 = (uint)(uintptr_t)param_2;\n  if ((_DAT_00ac51fc == 0) || (_DAT_00ac51f8 <= uVar2)) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  hFile = *(HANDLE *)(_DAT_00ac51fc + uVar2 * 4);\n  (*(code *)PTR_FUN_0047d3a0)(param_2,param_1);"
+);
+source = source.replace(
+  /(void __fastcall FUN_00460899\(undefined4 param_1,uint param_2\)[\s\S]*?\r?\n\s*)int in_EAX;\r?\n\s*\r?\n  \*\(uint \*\)\(PTR_DAT_0047d664 \+ in_EAX \* 4\) = param_2 \| 0x4000;\r?\n  return;/,
+  "$1uint in_EAX;\n  \n  in_EAX = (uint)(uintptr_t)param_1;\n  if (in_EAX < DAT_0047d610) {\n    *(uint *)(PTR_DAT_0047d664 + in_EAX * 4) = param_2 | 0x4000;\n  }\n  return;"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_004608e8\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined4 uVar4;\r?\n\s*\r?\n  iVar3 = 0;\r?\n\s*)hObject = \*\(HANDLE \*\)\(_DAT_00ac51fc \+ in_EAX \* 4\);/,
+  "$1in_EAX = (int)(uintptr_t)param_1;\n  if ((_DAT_00ac51fc == 0) || (in_EAX < 0) || (_DAT_00ac51f8 <= (uint)in_EAX)) {\n    return CONCAT44(param_2,0xffffffff);\n  }\n  hObject = *(HANDLE *)(_DAT_00ac51fc + in_EAX * 4);"
+);
 source = source.replace(
   /void FUN_0045f9b5\(void\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045fa43 \*\//,
   "void FUN_0045f9b5(void)\n\n{\n  return;\n}\n\n\n\n/* 0045fa43 */"

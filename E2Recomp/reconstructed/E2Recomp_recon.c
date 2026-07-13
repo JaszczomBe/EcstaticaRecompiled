@@ -52806,9 +52806,9 @@ LAB_0045e69e:
         goto LAB_0045e765;
       }
     }
-    uVar7 = (*(code *)PTR_thunk_FUN_004603d1_0047d3a8)();
+    uVar7 = FUN_004603d1((undefined4)(uintptr_t)pvVar3,param_2);
     uVar1 = (undefined4)uVar7;
-    lVar8 = FUN_00460803(extraout_ECX_06,(uint)((ulonglong)uVar7 >> 0x20));
+    lVar8 = FUN_00460803(uVar1,uVar1);
     uVar5 = 0;
     uVar4 = extraout_ECX_07;
     if ((int)lVar8 != 0) {
@@ -52841,7 +52841,7 @@ LAB_0045e69e:
 LAB_0045e75a:
     uVar5 = uVar5 | 0x40;
   }
-  FUN_00460899(CONCAT22((short)((uint)uVar4 >> 0x10),CONCAT11(E2R_READ1(param_4,1),(char)uVar4)),uVar5);
+  FUN_00460899(uVar1,uVar5);
 LAB_0045e765:
   return CONCAT44(param_2,uVar1);
 }
@@ -52952,9 +52952,9 @@ undefined8 __fastcall FUN_0045e8e6(undefined4 param_1,undefined4 param_2)
   undefined8 uVar1;
   
   (*(code *)PTR_FUN_0047d3a0)();
-  uVar1 = FUN_004608e8(extraout_ECX,extraout_EDX);
+  uVar1 = FUN_004608e8(param_1,param_2);
   (*(code *)PTR_FUN_0047d3a4)();
-  (*(code *)PTR_thunk_FUN_004604e6_0047d3ac)();
+  (*(code *)PTR_thunk_FUN_004604e6_0047d3ac)(param_1,param_2);
   return CONCAT44(param_2,(int)uVar1);
 }
 
@@ -55285,8 +55285,24 @@ LAB_004603a2:
 undefined8 __fastcall FUN_004603d1(undefined4 param_1,undefined4 param_2)
 
 {
-  (void)param_1;
-  return (ulonglong)param_2 << 32;
+  uint uVar1;
+  HANDLE hFile;
+
+  hFile = (HANDLE)(uintptr_t)param_1;
+  if (_DAT_00ac51fc == 0) {
+    _DAT_00ac51fc = (uintptr_t)LocalAlloc(0x40,DAT_0047d610 * 4);
+    _DAT_00ac51f8 = DAT_0047d610;
+  }
+  if (_DAT_00ac51fc == 0) {
+    return CONCAT44(param_2,0xffffffff);
+  }
+  for (uVar1 = 0; uVar1 < _DAT_00ac51f8; uVar1 = uVar1 + 1) {
+    if (*(HANDLE *)(_DAT_00ac51fc + uVar1 * 4) == (HANDLE)0x0) {
+      *(HANDLE *)(_DAT_00ac51fc + uVar1 * 4) = hFile;
+      return CONCAT44(param_2,uVar1);
+    }
+  }
+  return CONCAT44(param_2,0xffffffff);
 }
 
 
@@ -55655,7 +55671,13 @@ longlong __fastcall FUN_00460803(undefined4 param_1,uint param_2)
 {
   DWORD DVar1;
   HANDLE hFile;
+  uint uVar2;
   
+  uVar2 = (uint)(uintptr_t)param_2;
+  if ((_DAT_00ac51fc == 0) || (_DAT_00ac51f8 <= uVar2)) {
+    return (ulonglong)param_2 << 0x20;
+  }
+  hFile = *(HANDLE *)(_DAT_00ac51fc + uVar2 * 4);
   (*(code *)PTR_FUN_0047d3a0)(param_2,param_1);
   DVar1 = GetFileType(hFile);
   if (DVar1 == 2) {
@@ -55705,9 +55727,12 @@ longlong __fastcall FUN_00460844(undefined4 param_1,uint param_2)
 void __fastcall FUN_00460899(undefined4 param_1,uint param_2)
 
 {
-  int in_EAX;
+  uint in_EAX;
   
-  *(uint *)(PTR_DAT_0047d664 + in_EAX * 4) = param_2 | 0x4000;
+  in_EAX = (uint)(uintptr_t)param_1;
+  if (in_EAX < DAT_0047d610) {
+    *(uint *)(PTR_DAT_0047d664 + in_EAX * 4) = param_2 | 0x4000;
+  }
   return;
 }
 
@@ -55755,6 +55780,10 @@ undefined8 __fastcall FUN_004608e8(undefined4 param_1,undefined4 param_2)
   undefined4 uVar4;
   
   iVar3 = 0;
+  in_EAX = (int)(uintptr_t)param_1;
+  if ((_DAT_00ac51fc == 0) || (in_EAX < 0) || (_DAT_00ac51f8 <= (uint)in_EAX)) {
+    return CONCAT44(param_2,0xffffffff);
+  }
   hObject = *(HANDLE *)(_DAT_00ac51fc + in_EAX * 4);
   uVar4 = 0;
   if (DAT_0047d360 != (code *)0x0) {

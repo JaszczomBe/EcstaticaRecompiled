@@ -19,5 +19,6 @@ Record transformations in `E2Recomp/tools/GenerateRecon.js` that preserve manual
 2. Preserved `FUN_00414998` filename input across `FUN_0043ac60` so startup logo opens use the original `EAX` filename flow.
 3. Recovered startup logo filename symbols for `gbnklogo.raw`, `psyglogo.raw`, and `aasglogo.raw`.
 4. Replaced the split `E_CONFIG` stack filename artifact with one contiguous 9-byte buffer.
+5. Recovered file descriptor registration, stream-state, and close bookkeeping around `FUN_0045e5b8`, `FUN_004603d1`, `FUN_00460803`, `FUN_00460899`, and `FUN_004608e8`.
 
 Use the generated code repair template in [journal.template.md](../../templates/journal.template.md) for new entries.
