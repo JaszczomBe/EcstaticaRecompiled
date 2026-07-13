@@ -2,7 +2,10 @@ const fs = require("fs");
 const path = require("path");
 
 const workspaceRoot = process.argv[2] || "C:\\ecstatica2";
-const root = path.join(workspaceRoot, "reverse", "E2Recomp");
+const repoLayoutRoot = path.join(workspaceRoot, "E2Recomp");
+const root = fs.existsSync(path.join(repoLayoutRoot, "src", "E2Recomp_decompiled.c"))
+  ? repoLayoutRoot
+  : path.join(workspaceRoot, "reverse", "E2Recomp");
 const srcPath = path.join(root, "src", "E2Recomp_decompiled.c");
 const funcPath = path.join(root, "metadata", "functions.tsv");
 const symPath = path.join(root, "metadata", "symbols.tsv");
@@ -147,6 +150,20 @@ source = source.replace(
   /void FUN_0045f9b5\(void\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045fa43 \*\//,
   "void FUN_0045f9b5(void)\n\n{\n  return;\n}\n\n\n\n/* 0045fa43 */"
 );
+source = source.replace(
+  /void __fastcall FUN_00459440\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 004594a0 \*\//,
+  "void __fastcall FUN_00459440(undefined4 param_1,undefined4 param_2)\n\n{\n  char local_status[256];\n  undefined4 local_caps[24];\n  \n  (void)param_1;\n  (void)param_2;\n  local_caps[0] = 0x60;\n  if (DAT_0047d1f0 != 0) {\n    (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d1f0 + 0x10))();\n  }\n  wsprintfA(local_status,(LPCSTR)&DAT_004766c0,s_Ecstatica_II_0047d141);\n  SendMessageA(DAT_0047d150,0xc,0,(LPARAM)local_status);\n  return;\n}\n\n\n\n/* 004594a0 */"
+);
+source = source.replace(/(void __fastcall FUN_00458bec\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined8 uVar2;\r?\n\s*)piVar1 = \*\(int \*\*\)\(in_EAX \+ 0x38\);/, "$1in_EAX = (int)(uintptr_t)param_1;\n  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x3c)) return;\n  piVar1 = *(int **)(in_EAX + 0x38);");
+source = source.replace(
+  "      FUN_00458bec(param_1,iVar1);\n      param_1 = extraout_ECX;\n      iVar1 = extraout_EDX;",
+  "      FUN_00458bec(param_1,iVar1);"
+);
+source = source.replace(
+  /void __fastcall FUN_0045f22f\(undefined4 param_1,char \*param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045f254 \*\//,
+  "void __fastcall FUN_0045f22f(undefined4 param_1,char *param_2)\n\n{\n  (void)param_1;\n  (void)param_2;\n  return;\n}\n\n\n\n/* 0045f254 */"
+);
+source = source.replace(/(undefined4 __fastcall FUN_0041af88\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  int iVar2;\r?\n\s*)iVar2 = 0;/, "$1in_EAX = (char *)(uintptr_t)param_1;\n  if (IsBadReadPtr(in_EAX,0x300)) return 0;\n  iVar2 = 0;");
 source = source.replace(/(undefined8 __fastcall FUN_004618f9\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  int \*piVar3;\r?\n\s*)piVar1 = DAT_0047d260;/, "$1in_EAX = (int *)(uintptr_t)param_2;\n  if (in_EAX == 0) return (ulonglong)param_2 << 32;\n  piVar1 = DAT_0047d260;");
 source = source.replace("uint * FUN_00461746(void)", "uint * __fastcall FUN_00461746(int heap,uint size)");
 source = source.replace(/(uint \* __fastcall FUN_00461746\(int heap,uint size\)[\s\S]*?\r?\n  uint \*puVar5;\r?\n\s*)if \(\(\(in_EAX != 0\)/, "$1unaff_EBX = heap;\n  in_EAX = size;\n  if (unaff_EBX == 0 || IsBadReadPtr((void *)(uintptr_t)unaff_EBX,0x2c)) return (uint *)0x0;\n  if (((in_EAX != 0)");
@@ -166,6 +183,10 @@ source = source.replace(/\*\(undefined4 \*\)\(iVar2 \+ 0xac4e00\)/g, "E2R_timer_
 source = source.replace(/\*\(int \*\)\(iVar2 \+ 0xac4e00\)/g, "((int *)E2R_timer_slots)[iVar2 / 4]");
 source = source.replace(/\*\(undefined4 \*\)\(iVar5 \+ 0xac4e00\)/g, "E2R_timer_slots[iVar5 / 4]");
 source = source.replace(/\*\(undefined4 \*\)\(\(\*\(int \*\)\(in_EAX \+ 0x28\) \/ 0x96\) \* 4 \+ 0xac4e00\)/g, "E2R_timer_slots[*(int *)(in_EAX + 0x28) / 0x96]");
+source = source.replace(/\biVar9 = 0xac4fdc;/g, "iVar9 = (int)(uintptr_t)E2R_midi_device_labels;");
+source = source.replace(/\*\(undefined1 \*\)\(iVar2 \+ 0xac4fdc\)/g, "E2R_midi_device_labels[iVar2 / 0x33][0]");
+source = source.replace(/\*\(undefined1 \*\)\(iVar2 \+ 0xac500e\)/g, "E2R_midi_device_labels[iVar2 / 0x33][0x32]");
+source = source.replace(/E2R_READ2\(DAT_0047a45e,2\)/g, "E2R_WORD_AT(DAT_0047a45e,2)");
 source = source.replace(
   /void __fastcall FUN_0046388f\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 004638cd \*\//,
   "void __fastcall FUN_0046388f(undefined4 param_1,undefined4 param_2)\n\n{\n  (void)param_1;\n  (void)param_2;\n  return;\n}\n\n\n\n/* 004638cd */"
@@ -201,7 +222,7 @@ const sortedStacks = [...stackIds].sort();
 let header = "";
 header += "#pragma once\n";
 header += '#include "../src/e2recomp_types.h"\n';
-header += "#include <commdlg.h>\n#include <mmsystem.h>\n#include <stdint.h>\n\n";
+header += "#ifdef _WIN32\n#include <commdlg.h>\n#include <mmsystem.h>\n#else\n#include \"../platform/e2recomp_win32_compat.h\"\n#endif\n#include <stdint.h>\n\n";
 header += "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n";
 header += "typedef uint32_t uint3;\ntypedef int32_t int3;\ntypedef uint32_t undefined3;\ntypedef uint64_t undefined6;\ntypedef uint64_t uint6;\ntypedef double float10;\ntypedef unsigned __int64 unkbyte10;\ntypedef unsigned __int64 unkuint10;\ntypedef int code();\ntypedef unsigned char bool;\ntypedef signed char sbyte;\n";
 header += "#define tagMSG MSG\n#define tagPOINT POINT\n#define tagSIZE SIZE\n#define tagMIDIOUTCAPSA MIDIOUTCAPSA\n#define _MMCKINFO MMCKINFO\n#define _MMIOINFO MMIOINFO\n#define _WIN32_FIND_DATAA WIN32_FIND_DATAA\n#define _INPUT_RECORD INPUT_RECORD\n#define _SYSTEMTIME SYSTEMTIME\n#define _FILETIME FILETIME\n#define _GUID GUID\n#ifndef true\n#define true 1\n#define false 0\n#endif\n\n";
@@ -209,6 +230,7 @@ header += "void E2R_InitData(void);\n";
 header += "void E2R_WinMainThunk(void);\n";
 header += "LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);\n";
 header += "extern uintptr_t E2R_timer_slots[8];\n";
+header += "extern char E2R_midi_device_labels[10][0x33];\n";
 header += "HWND E2R_CreateWindowExA(DWORD exStyle, ...);\n";
 header += "INT_PTR E2R_DialogBoxParamA(HINSTANCE inst, LPCSTR tmpl, HWND parent, DLGPROC proc, LPARAM param);\n";
 header += "#define CreateWindowExA E2R_CreateWindowExA\n#define DialogBoxParamA E2R_DialogBoxParamA\n\n";
@@ -222,6 +244,7 @@ header += "#define E2R_READ1(base,off) (*(undefined1 *)((byte *)(uintptr_t)(base
 header += "#define E2R_READ2(base,off) (*(undefined2 *)((byte *)(uintptr_t)(base) + (off)))\n";
 header += "#define E2R_READ4(base,off) (*(undefined4 *)((byte *)(uintptr_t)(base) + (off)))\n";
 header += "#define E2R_READ8(base,off) (*(undefined8 *)((byte *)(uintptr_t)(base) + (off)))\n";
+header += "#define E2R_WORD_AT(var,off) (*(undefined2 *)((byte *)&(var) + (off)))\n";
 header += "#endif\n\n";
 header += "/* Function prototypes recovered from the decompiler signatures. */\n";
 header += prototypes.join("\n") + "\n\n";
@@ -232,6 +255,7 @@ header += "\n#ifdef __cplusplus\n}\n#endif\n";
 fs.writeFileSync(outHdr, header);
 
 let globals = '#include "E2Recomp_recon.h"\n\n';
+globals += "char E2R_midi_device_labels[10][0x33];\n";
 for (const name of sortedIds) globals += name.startsWith("s_") ? `char ${name}[256];\n` : `uintptr_t ${name};\n`;
 for (const name of sortedStacks) globals += `undefined1 ${name}[4096];\n`;
 fs.writeFileSync(outGlobals, globals);

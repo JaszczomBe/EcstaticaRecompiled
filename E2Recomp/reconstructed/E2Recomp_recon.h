@@ -1,7 +1,9 @@
 #pragma once
 #include "../src/e2recomp_types.h"
+#if defined(_WIN32)
 #include <commdlg.h>
 #include <mmsystem.h>
+#endif
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -39,6 +41,7 @@ void E2R_InitData(void);
 void E2R_WinMainThunk(void);
 LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 extern uintptr_t E2R_timer_slots[8];
+extern char E2R_midi_device_labels[10][0x33];
 HWND E2R_CreateWindowExA(DWORD exStyle, ...);
 INT_PTR E2R_DialogBoxParamA(HINSTANCE inst, LPCSTR tmpl, HWND parent, DLGPROC proc, LPARAM param);
 #define CreateWindowExA E2R_CreateWindowExA
@@ -56,6 +59,7 @@ INT_PTR E2R_DialogBoxParamA(HINSTANCE inst, LPCSTR tmpl, HWND parent, DLGPROC pr
 #define E2R_READ2(base,off) (*(undefined2 *)((byte *)(uintptr_t)(base) + (off)))
 #define E2R_READ4(base,off) (*(undefined4 *)((byte *)(uintptr_t)(base) + (off)))
 #define E2R_READ8(base,off) (*(undefined8 *)((byte *)(uintptr_t)(base) + (off)))
+#define E2R_WORD_AT(var,off) (*(undefined2 *)((byte *)&(var) + (off)))
 #endif
 
 /* Function prototypes recovered from the decompiler signatures. */

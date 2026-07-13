@@ -1,6 +1,6 @@
 // Ghidra headless script: export a first-pass C decompilation and symbol notes.
 // Usage:
-//   analyzeHeadless <project_dir> <project_name> -import E2Recomp.exe \
+//   analyzeHeadless <project_dir> <project_name> -import E2WIN95.EXE \
 //     -scriptPath reverse/ghidra_scripts -postScript ExportDecomp.java <out_dir>
 
 import java.io.BufferedWriter;
@@ -45,7 +45,7 @@ public class ExportDecomp extends GhidraScript {
         try (BufferedWriter c = new BufferedWriter(new FileWriter(new File(srcDir, "E2Recomp_decompiled.c")));
              BufferedWriter index = new BufferedWriter(new FileWriter(new File(metaDir, "functions.tsv")))) {
             c.write("/*\n");
-            c.write(" * First-pass Ghidra decompilation of E2Recomp.exe.\n");
+            c.write(" * First-pass Ghidra decompilation of " + currentProgram.getExecutablePath() + ".\n");
             c.write(" * This is reconstruction input, not original source.\n");
             c.write(" */\n\n");
             c.write("#include \"e2recomp_types.h\"\n\n");
@@ -84,6 +84,17 @@ public class ExportDecomp extends GhidraScript {
             }
         } finally {
             ifc.dispose();
+        }
+
+        try (BufferedWriter program = new BufferedWriter(new FileWriter(new File(metaDir, "program.tsv")))) {
+            program.write("property\tvalue\n");
+            program.write("name\t" + currentProgram.getName() + "\n");
+            program.write("executable_path\t" + currentProgram.getExecutablePath() + "\n");
+            program.write("language\t" + currentProgram.getLanguageID().getIdAsString() + "\n");
+            program.write("compiler\t" + currentProgram.getCompilerSpec().getCompilerSpecID().getIdAsString() + "\n");
+            program.write("image_base\t" + currentProgram.getImageBase().toString() + "\n");
+            program.write("min_address\t" + currentProgram.getMinAddress().toString() + "\n");
+            program.write("max_address\t" + currentProgram.getMaxAddress().toString() + "\n");
         }
 
         try (BufferedWriter symbols = new BufferedWriter(new FileWriter(new File(metaDir, "symbols.tsv")))) {

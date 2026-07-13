@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Ecstatica Recompiled",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/linux-clang32-debug/e2recomp",
+      "args": ["--run-recon"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/build/linux-clang32-debug",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "preLaunchTask": "CMake: Build"
+    }
+  ]
+}

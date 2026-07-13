@@ -150,15 +150,19 @@ INT_PTR E2R_DialogBoxParamA(HINSTANCE inst, LPCSTR tmpl, HWND parent, DLGPROC pr
     return DialogBoxParamA(inst, tmpl, parent, proc, param);
 }
 
-static void *E2R_dd_vtbl[64];
-static void *E2R_dd_obj[1] = { E2R_dd_vtbl };
-static void *E2R_surf_vtbl[64];
-static void *E2R_surf_obj[1] = { E2R_surf_vtbl };
+static void *E2R_dd_obj[64];
+static void *E2R_surf_obj[64];
+static void *E2R_ds_obj[64];
+static void *E2R_dsbuf_obj[64];
 
 static int E2R_DD_Generic(void) { return 0; }
 static int E2R_DD_CreateSurface(void *self, void *desc, void **out, void *outer) {
     (void)self; (void)desc; (void)outer;
     if (out) *out = E2R_surf_obj;
+    return 0;
+}
+static int E2R_DS_CreateSoundBuffer(void) {
+    _DAT_00ac4eb8 = (uintptr_t)E2R_dsbuf_obj;
     return 0;
 }
 
@@ -167,54 +171,47 @@ HRESULT DirectDrawCreate(void *guid, void **ddraw, void *outer) {
     (void)guid;
     (void)outer;
     for (i = 0; i < 64; i++) {
-        E2R_dd_vtbl[i] = (void *)E2R_DD_Generic;
-        E2R_surf_vtbl[i] = (void *)E2R_DD_Generic;
+        E2R_dd_obj[i] = (void *)E2R_DD_Generic;
+        E2R_surf_obj[i] = (void *)E2R_DD_Generic;
     }
-    E2R_dd_vtbl[6] = (void *)E2R_DD_CreateSurface;
+    E2R_dd_obj[0] = E2R_dd_obj;
+    E2R_surf_obj[0] = E2R_surf_obj;
+    E2R_dd_obj[6] = (void *)E2R_DD_CreateSurface;
     if (ddraw) *ddraw = E2R_dd_obj;
     return 0;
 }
 
-HRESULT DirectSoundCreate(void *guid, void **dsound, void *outer) {
-    typedef HRESULT (WINAPI *DirectSoundCreateFn)(void *, void **, void *);
-    static DirectSoundCreateFn fn;
-    if (!fn) fn = (DirectSoundCreateFn)GetProcAddress(LoadLibraryA("dsound.dll"), "DirectSoundCreate");
-    if (fn) return fn(guid, dsound, outer);
-    if (dsound) *dsound = 0;
-    return E_FAIL;
+HRESULT DirectSoundCreate(void) {
+    int i;
+    for (i = 0; i < 64; i++) {
+        E2R_ds_obj[i] = (void *)E2R_DD_Generic;
+        E2R_dsbuf_obj[i] = (void *)E2R_DD_Generic;
+    }
+    E2R_ds_obj[0] = E2R_ds_obj;
+    E2R_dsbuf_obj[0] = E2R_dsbuf_obj;
+    E2R_ds_obj[3] = (void *)E2R_DS_CreateSoundBuffer;
+    DAT_0047d1f0 = (uintptr_t)E2R_ds_obj;
+    return 0;
 }
 
 int acmMetrics(void) {
-    typedef int (WINAPI *AcmMetricsFn)(void);
-    static AcmMetricsFn fn;
-    if (!fn) fn = (AcmMetricsFn)GetProcAddress(LoadLibraryA("msacm32.dll"), "acmMetrics");
-    return fn ? fn() : 0;
+    return 0;
 }
 
 short SIMD_InitDriver(unsigned int flags, GUID *guid, short device) {
-    typedef short (WINAPI *Fn)(unsigned int, GUID *, short);
-    static Fn fn;
-    if (!fn) fn = (Fn)GetProcAddress(LoadLibraryA("SIMD_W95.DLL"), "SIMD_InitDriver");
-    return fn ? fn(flags, guid, device) : 0;
+    (void)flags; (void)guid; (void)device;
+    return 0;
 }
 
 short SIMD_PlayTune(char *path, short mode) {
-    typedef short (WINAPI *Fn)(char *, short);
-    static Fn fn;
-    if (!fn) fn = (Fn)GetProcAddress(LoadLibraryA("SIMD_W95.DLL"), "SIMD_PlayTune");
-    return fn ? fn(path, mode) : 0;
+    (void)path; (void)mode;
+    return 0;
 }
 
 short SIMD_StopTune(void) {
-    typedef short (WINAPI *Fn)(void);
-    static Fn fn;
-    if (!fn) fn = (Fn)GetProcAddress(LoadLibraryA("SIMD_W95.DLL"), "SIMD_StopTune");
-    return fn ? fn() : 0;
+    return 0;
 }
 
 short SIMD_RemoveDriver(void) {
-    typedef short (WINAPI *Fn)(void);
-    static Fn fn;
-    if (!fn) fn = (Fn)GetProcAddress(LoadLibraryA("SIMD_W95.DLL"), "SIMD_RemoveDriver");
-    return fn ? fn() : 0;
+    return 0;
 }

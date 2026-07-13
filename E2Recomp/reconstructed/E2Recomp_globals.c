@@ -1,5 +1,6 @@
 #include "E2Recomp_recon.h"
 
+char E2R_midi_device_labels[10][0x33];
 uintptr_t DAT_00000186;
 uintptr_t DAT_00427140;
 uintptr_t DAT_0043c4bc;

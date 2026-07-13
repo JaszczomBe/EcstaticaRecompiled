@@ -38,6 +38,28 @@ Imported libraries observed by Ghidra:
 
 ## Regenerate The Decompilation
 
+On Linux, configure the project and run the explicit Ghidra export target:
+
+```sh
+cmake --preset linux-clang32-debug
+cmake --build --preset linux-clang32-debug --target ghidra-export
+```
+
+By default this imports `/home/rgrabowski/Games/Ecstatica2/E2WIN95.EXE` and writes
+the exported C and TSV metadata back into this `E2Recomp` directory. Ghidra is
+found via `GHIDRA_ANALYZE_HEADLESS`, `GHIDRA_HOME`, `analyzeHeadless` on `PATH`,
+or a local `third_party/ghidra` checkout/unpacked release.
+
+To regenerate the normalized reconstruction from the export:
+
+```sh
+cmake --build --preset linux-clang32-debug --target ghidra-generate-recon
+```
+
+That target intentionally rewrites `reconstructed/E2Recomp_recon.c`,
+`reconstructed/E2Recomp_recon.h`, and related generated artifacts, so use it when
+you want a fresh Ghidra-derived reconstruction pass.
+
 From `C:\ecstatica2`:
 
 ```powershell

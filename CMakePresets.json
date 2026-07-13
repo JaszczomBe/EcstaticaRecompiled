@@ -1,0 +1,39 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "linux-clang-debug",
+      "displayName": "Linux Clang Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-clang-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2"
+      }
+    },
+    {
+      "name": "linux-clang32-debug",
+      "displayName": "Linux Clang 32-bit Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-clang32-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_EXE_LINKER_FLAGS": "-m32",
+        "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-clang-debug",
+      "configurePreset": "linux-clang-debug"
+    },
+    {
+      "name": "linux-clang32-debug",
+      "configurePreset": "linux-clang32-debug"
+    }
+  ]
+}

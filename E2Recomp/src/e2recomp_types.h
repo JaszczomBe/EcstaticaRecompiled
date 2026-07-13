@@ -8,7 +8,11 @@
 #pragma once
 
 #include <stdint.h>
+#if defined(_WIN32)
 #include <windows.h>
+#else
+#include "../platform/e2recomp_win32_compat.h"
+#endif
 
 typedef uint8_t byte;
 typedef uint8_t undefined;
