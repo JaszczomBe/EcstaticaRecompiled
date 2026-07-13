@@ -1,6 +1,6 @@
 # Resolve Current Startup Crash
 
-Status: active
+Status: completed
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
 Last Updated: 2026-07-13
 
@@ -50,6 +50,12 @@ Hard limit: spend no more than 5% weekly usage burn per day on this step. If tha
 3. Run under GDB with `./e2recomp --run-recon`.
 4. Compare relevant original executable functions in Ghidra before finalizing a non-trivial fix.
 
+## Result
+
+The `FUN_00414b24 -> FUN_00414e68` startup crash no longer dereferences `0x200`. Original disassembly showed the failing call path loads `EAX = 0x471320`, metadata names that address as `s_Can't_load_title_picture_00471320`, and GDB confirmed reconstructed `FUN_00414e68` now receives `Can't load title picture`.
+
+Debug and ASan builds compile. The debug run exits cleanly through the recovered fatal shutdown path with code `0364`, exposing first resource loading as the next step.
+
 ## Notes
 
 Use `analyzeHeadless` or `ghidra` from PATH. If a tool asks for the install directory, use `/home/rgrabowski/Work/ghidra_12.1.2_PUBLIC`.
@@ -60,3 +66,4 @@ Use `analyzeHeadless` or `ghidra` from PATH. If a tool asks for the install dire
 
 1. Created active step.
 2. Narrowed step scope to the current startup crash.
+3. Completed the title-error pointer recovery and mirrored the generated-code repair.

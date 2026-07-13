@@ -1,6 +1,6 @@
 # Prove First Resource Load
 
-Status: planned
+Status: completed
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
 Last Updated: 2026-07-13
 
@@ -31,3 +31,19 @@ Reach and verify loading one real Ecstatica II resource file from `/home/rgrabow
 1. Build debug and ASan targets.
 2. Run `./e2recomp --run-recon` under GDB or equivalent tracing.
 3. Capture the file path and owning reconstructed function.
+
+## Result
+
+First proven resource open: `/home/rgrabowski/Games/Ecstatica2/PSYGLOGO.RAW`, requested as `psyglogo.raw`.
+
+Evidence: GDB breakpoint on `CreateFileA` showed the request from `FUN_00410a48 -> FUN_00414998 -> FUN_0045e594` and a valid returned handle.
+
+Next frontier: `FUN_0045e5b8` now crashes after the successful open by reading `param_4 == 0x200` as a pointer.
+
+## Change Log
+
+### 2026-07-13
+
+1. Recovered first startup logo filename flow into `FUN_00414998`.
+2. Added Linux read-only `CreateFileA` path normalization/case-insensitive resolution and startup data-directory entry.
+3. Verified first real Ecstatica II data file open.

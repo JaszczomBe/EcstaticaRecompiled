@@ -26,27 +26,36 @@ Bring the reconstructed Ecstatica II runtime far enough on Linux that it can loa
 
 ## Current State
 
-Debug and ASan 32-bit builds compile. The runtime uses the Ecstatica II data symlink under the build tree. The latest known crash is:
+Step 1 and step 2 are complete. Debug and ASan 32-bit builds compile. The runtime enters the Ecstatica II data directory through the build-tree `Ecstatica2` symlink, resolves read-only paths case-insensitively, and has proven the first real resource open:
 
 ```text
-FUN_00414e68()
-FUN_00414b24(param_1=0, param_2=0)
+/home/rgrabowski/Games/Ecstatica2/PSYGLOGO.RAW
+requested as: psyglogo.raw
+call path: FUN_00410a48 -> FUN_00414998 -> FUN_0045e594 -> CreateFileA
+```
+
+The latest known crash after that successful open is:
+
+```text
+FUN_0045e5b8()
+FUN_0045e594()
+FUN_00414998()
 FUN_00410a48()
 ```
 
-The fault dereferences `0x200` in `FUN_00414e68`.
+The fault reads `E2R_READ1(param_4,1)` with `param_4 == 0x200`, exposing file-handle/open-mode bookkeeping as the next runtime frontier.
 
 ## Active Steps
 
-1. [Resolve Current Startup Crash](steps/step-01/step-01-resolve-current-startup-crash.md) - active
+No implementation step is currently active. Step 2 is complete; step 3 is the next planned step when work resumes.
 
 ## Step Roadmap
 
 Each step should be scoped so it can preferably be completed in one context window. If a step grows beyond that, split it before implementation continues.
 
-1. [Resolve Current Startup Crash](steps/step-01/step-01-resolve-current-startup-crash.md) - fix the current `FUN_00414b24 -> FUN_00414e68` `0x200` dereference.
-2. [Prove First Resource Load](steps/step-02/step-02-prove-first-resource-load.md) - reach and verify loading one real file from `/home/rgrabowski/Games/Ecstatica2/`.
-3. [Create Visible Window](steps/step-03/step-03-create-visible-window.md) - create a Linux-hosted visible window or rendering surface.
+1. [Resolve Current Startup Crash](steps/step-01/step-01-resolve-current-startup-crash.md) - completed; fixed the `FUN_00414b24 -> FUN_00414e68` `0x200` dereference.
+2. [Prove First Resource Load](steps/step-02/step-02-prove-first-resource-load.md) - completed; verified loading one real file from `/home/rgrabowski/Games/Ecstatica2/`.
+3. [Create Visible Window](steps/step-03/step-03-create-visible-window.md) - planned; create a Linux-hosted visible window or rendering surface.
 4. [Reach Menu Or Title Logic](steps/step-04/step-04-reach-menu-or-title-logic.md) - initialize enough graphics/audio stubs to reach title/menu code.
 5. [Reach Main Loop](steps/step-05/step-05-reach-main-loop.md) - advance to the main loop without crashing.
 
@@ -81,3 +90,5 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 ### 2026-07-13
 
 1. Created implementation handoff.
+2. Completed step 1 by recovering the lost title-error `EAX` message pointer.
+3. Completed step 2 by proving the first real resource open and recording the next `FUN_0045e5b8` frontier.

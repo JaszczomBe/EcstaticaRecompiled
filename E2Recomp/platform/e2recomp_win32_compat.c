@@ -2,15 +2,22 @@
 
 #include <stdarg.h>
 #include <errno.h>
+#include <dirent.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <unistd.h>
 #ifndef _WIN32
 #include <sys/mman.h>
 #ifndef MAP_ANONYMOUS
 #define MAP_ANONYMOUS MAP_ANON
+#endif
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
 #endif
 #endif
 
@@ -58,15 +65,103 @@ static HANDLE e2r_alloc_handle(void *ptr)
     return handle;
 }
 
+static void e2r_normalize_path(char *dst, size_t dst_size, const char *src)
+{
+    size_t i;
+    if (dst_size == 0) return;
+    if (!src) src = "";
+    for (i = 0; i + 1 < dst_size && src[i]; i++) {
+        dst[i] = src[i] == '\\' ? '/' : src[i];
+    }
+    dst[i] = '\0';
+}
+
+static int e2r_append_path_component(char *path, size_t path_size, const char *component)
+{
+    size_t len = strlen(path);
+    size_t comp_len = strlen(component);
+    int need_slash = len > 0 && path[len - 1] != '/';
+    if (len + (need_slash ? 1 : 0) + comp_len + 1 > path_size) return 0;
+    if (need_slash) path[len++] = '/';
+    memcpy(path + len, component, comp_len + 1);
+    return 1;
+}
+
+static int e2r_resolve_case_path(const char *input, char *resolved, size_t resolved_size)
+{
+    char normalized[PATH_MAX];
+    char current[PATH_MAX];
+    char *cursor;
+    char *component;
+
+    e2r_normalize_path(normalized, sizeof(normalized), input);
+    if (normalized[0] == '\0') return 0;
+
+    if (normalized[0] == '/') {
+        strcpy(current, "/");
+        cursor = normalized + 1;
+    } else {
+        strcpy(current, ".");
+        cursor = normalized;
+    }
+
+    component = cursor;
+    while (1) {
+        char saved;
+        char matched[PATH_MAX];
+        DIR *dir;
+        struct dirent *entry;
+        int found = 0;
+
+        while (*component == '/') component++;
+        if (*component == '\0') break;
+
+        cursor = component;
+        while (*cursor && *cursor != '/') cursor++;
+        saved = *cursor;
+        *cursor = '\0';
+
+        dir = opendir(current);
+        if (!dir) return 0;
+        while ((entry = readdir(dir)) != NULL) {
+            if (strcasecmp(entry->d_name, component) == 0) {
+                e2r_normalize_path(matched, sizeof(matched), entry->d_name);
+                found = 1;
+                break;
+            }
+        }
+        closedir(dir);
+        if (!found || !e2r_append_path_component(current, sizeof(current), matched)) return 0;
+
+        *cursor = saved;
+        component = cursor;
+        if (saved == '\0') break;
+    }
+
+    if (strlen(current) + 1 > resolved_size) return 0;
+    strcpy(resolved, current);
+    return 1;
+}
+
 HANDLE CreateFileA(LPCSTR name, DWORD access, DWORD share, LPVOID security,
                    DWORD creation, DWORD flags, HANDLE template_file)
 {
+    char normalized[PATH_MAX];
+    char resolved[PATH_MAX];
+    const char *open_name;
+    FILE *file;
     (void)share;
     (void)security;
     (void)creation;
     (void)flags;
     (void)template_file;
-    FILE *file = fopen(name ? name : "", (access & GENERIC_WRITE) ? "wb+" : "rb");
+    e2r_normalize_path(normalized, sizeof(normalized), name);
+    open_name = normalized;
+    file = fopen(open_name, (access & GENERIC_WRITE) ? "wb+" : "rb");
+    if (!file && (access & GENERIC_WRITE) == 0 && e2r_resolve_case_path(normalized, resolved, sizeof(resolved))) {
+        open_name = resolved;
+        file = fopen(open_name, "rb");
+    }
     if (!file) return INVALID_HANDLE_VALUE;
     return e2r_alloc_handle(file);
 }

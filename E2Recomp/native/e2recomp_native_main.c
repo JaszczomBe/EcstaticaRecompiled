@@ -7,6 +7,10 @@
 int main(int argc, char **argv)
 {
     printf("Ecstatica II data: %s\n", E2RECOMP_DATA_DIR);
+    if (!SetCurrentDirectoryA(E2RECOMP_DATA_DIR)) {
+        fprintf(stderr, "failed to enter Ecstatica II data directory\n");
+        return 1;
+    }
     E2R_MapLegacyAddressSpace();
     E2R_InitData();
 

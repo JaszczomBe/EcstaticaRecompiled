@@ -130,9 +130,7 @@ void __fastcall FUN_0041007c(undefined4 param_1)
   undefined1 uStack_53;
   byte bStack_52;
   undefined1 auStack_48 [32];
-  char acStack_28 [4];
-  char acStack_24 [4];
-  char cStack_20;
+  char acStack_28 [9];
   
   _DAT_0063667c = 0;
   _DAT_00636690 = 0;
@@ -166,11 +164,11 @@ void __fastcall FUN_0041007c(undefined4 param_1)
   acStack_28[1] = s_e_config_0047000c[1];
   acStack_28[2] = s_e_config_0047000c[2];
   acStack_28[3] = s_e_config_0047000c[3];
-  acStack_24[0] = s_e_config_0047000c[4];
-  acStack_24[1] = s_e_config_0047000c[5];
-  acStack_24[2] = s_e_config_0047000c[6];
-  acStack_24[3] = s_e_config_0047000c[7];
-  cStack_20 = s_e_config_0047000c[8];
+  acStack_28[4] = s_e_config_0047000c[4];
+  acStack_28[5] = s_e_config_0047000c[5];
+  acStack_28[6] = s_e_config_0047000c[6];
+  acStack_28[7] = s_e_config_0047000c[7];
+  acStack_28[8] = s_e_config_0047000c[8];
   uVar11 = FUN_0045e594(uVar6,uVar7,acStack_28,0x200,in_stack_fffffe2c);
   if ((int)uVar11 == -1) {
     FUN_00414e68();
@@ -552,12 +550,12 @@ void __fastcall FUN_00410a48(undefined4 param_1)
   FUN_0043ac60();
   uVar5 = 0;
   if (DAT_00479dfc != 0) {
-    FUN_00414998(0);
+    FUN_00414998(s_gbnklogo_raw_00470500);
     Sleep(5);
   }
-  FUN_00414998(uVar5);
+  FUN_00414998(s_psyglogo_raw_00470510);
   Sleep(5);
-  FUN_00414998(uVar5);
+  FUN_00414998(s_aasglogo_raw_00470520);
   Sleep(5);
   uVar3 = 0;
   uVar11 = FUN_00414a94(uVar5,uVar3);
@@ -5272,10 +5270,10 @@ void __fastcall FUN_00414998(undefined4 param_1)
   uint unaff_EBP;
   undefined8 uVar3;
   
+  in_EAX = param_1;
   if (DAT_0047a43c == 0) {
     FUN_0043ac60();
-    param_1 = extraout_ECX;
-    in_EAX = extraout_EDX;
+    param_1 = in_EAX;
   }
   if (DAT_0047a43c != 0) {
     uVar3 = FUN_0045e594(param_1,in_EAX,(LPCSTR)in_EAX,0x200,unaff_EBP);

@@ -266,11 +266,27 @@ source = source.replace("  *(uint *)(extraout_ECX_00 + 0x18) = (uVar6 + 1) % 7;"
 source = source.replace("  return extraout_ECX_00;\n}\n\n\n\n/* 0046471c */", "  return (int)(uintptr_t)param_1;\n}\n\n\n\n/* 0046471c */");
 source = source.replace(
   "  FUN_0043ac60();\n  uVar5 = extraout_ECX_01;\n  if (DAT_00479dfc != 0) {\n    FUN_00414998(extraout_ECX_01);\n    lVar12 = FUN_0045f1c0(extraout_ECX_02,extraout_EDX_00);\n    uVar3 = (uint)((ulonglong)lVar12 >> 0x20);\n    uVar5 = extraout_ECX_03;\n    do {\n      lVar12 = FUN_0045f1c0(uVar5,uVar3);\n      uVar3 = (uint)((ulonglong)lVar12 >> 0x20);\n      uVar5 = extraout_ECX_04;\n    } while ((uint)(local_58 - local_34) < 5);\n  }\n  FUN_00414998(uVar5);\n  lVar12 = FUN_0045f1c0(extraout_ECX_05,extraout_EDX_01);\n  uVar3 = (uint)((ulonglong)lVar12 >> 0x20);\n  uVar5 = extraout_ECX_06;\n  do {\n    lVar12 = FUN_0045f1c0(uVar5,uVar3);\n    uVar3 = (uint)((ulonglong)lVar12 >> 0x20);\n    uVar5 = extraout_ECX_07;\n  } while ((uint)(local_4c - local_40) < 5);\n  FUN_00414998(extraout_ECX_07);\n  lVar12 = FUN_0045f1c0(extraout_ECX_08,extraout_EDX_02);\n  uVar3 = (uint)((ulonglong)lVar12 >> 0x20);\n  uVar5 = extraout_ECX_09;\n  do {\n    lVar12 = FUN_0045f1c0(uVar5,uVar3);\n    uVar3 = (uint)((ulonglong)lVar12 >> 0x20);\n    uVar5 = extraout_ECX_10;\n  } while ((uint)(local_28 - local_64) < 5);\n  uVar11 = FUN_00414a94(extraout_ECX_10,uVar3);\n  uVar6 = (undefined4)((ulonglong)uVar11 >> 0x20);\n  uVar5 = extraout_ECX_11;\n  if (DAT_00479e1c == 0) {\n    uVar11 = FUN_00414b24(extraout_ECX_11,uVar6);\n    uVar6 = (undefined4)((ulonglong)uVar11 >> 0x20);\n    uVar5 = extraout_ECX_12;\n  }",
-  "  FUN_0043ac60();\n  uVar5 = 0;\n  if (DAT_00479dfc != 0) {\n    FUN_00414998(0);\n    Sleep(5);\n  }\n  FUN_00414998(uVar5);\n  Sleep(5);\n  FUN_00414998(uVar5);\n  Sleep(5);\n  uVar3 = 0;\n  uVar11 = FUN_00414a94(uVar5,uVar3);\n  uVar6 = (undefined4)((ulonglong)uVar11 >> 0x20);\n  uVar5 = 0;\n  if (DAT_00479e1c == 0) {\n    uVar11 = FUN_00414b24(uVar5,uVar6);\n    uVar6 = (undefined4)((ulonglong)uVar11 >> 0x20);\n    uVar5 = 0;\n  }"
+  "  FUN_0043ac60();\n  uVar5 = 0;\n  if (DAT_00479dfc != 0) {\n    FUN_00414998(s_gbnklogo_raw_00470500);\n    Sleep(5);\n  }\n  FUN_00414998(s_psyglogo_raw_00470510);\n  Sleep(5);\n  FUN_00414998(s_aasglogo_raw_00470520);\n  Sleep(5);\n  uVar3 = 0;\n  uVar11 = FUN_00414a94(uVar5,uVar3);\n  uVar6 = (undefined4)((ulonglong)uVar11 >> 0x20);\n  uVar5 = 0;\n  if (DAT_00479e1c == 0) {\n    uVar11 = FUN_00414b24(uVar5,uVar6);\n    uVar6 = (undefined4)((ulonglong)uVar11 >> 0x20);\n    uVar5 = 0;\n  }"
 );
 source = source.replace(
   /(undefined4|void) FUN_00414e68\(void\)([\s\S]*?\r?\n  char \*)in_EAX;/,
   "$1 FUN_00414e68(void)$2in_EAX = s_Can_t_load_title_picture_00471320;"
+);
+source = source.replace(
+  /(void __fastcall FUN_00414998\(undefined4 param_1\)[\s\S]*?\r?\n  undefined8 uVar3;\r?\n\s*)if \(DAT_0047a43c == 0\) \{/,
+  "$1in_EAX = param_1;\n  if (DAT_0047a43c == 0) {"
+);
+source = source.replace(
+  "  if (DAT_0047a43c == 0) {\n    FUN_0043ac60();\n    param_1 = extraout_ECX;\n    in_EAX = extraout_EDX;\n  }\n  if (DAT_0047a43c != 0) {\n    uVar3 = FUN_0045e594(param_1,in_EAX,(LPCSTR)in_EAX,0x200,unaff_EBP);",
+  "  if (DAT_0047a43c == 0) {\n    FUN_0043ac60();\n    param_1 = in_EAX;\n  }\n  if (DAT_0047a43c != 0) {\n    uVar3 = FUN_0045e594(param_1,in_EAX,(LPCSTR)in_EAX,0x200,unaff_EBP);"
+);
+source = source.replace(
+  "  char acStack_28 [4];\n  char acStack_24 [4];\n  char cStack_20;",
+  "  char acStack_28 [9];"
+);
+source = source.replace(
+  "  acStack_28[0] = s_e_config_0047000c[0];\n  acStack_28[1] = s_e_config_0047000c[1];\n  acStack_28[2] = s_e_config_0047000c[2];\n  acStack_28[3] = s_e_config_0047000c[3];\n  acStack_24[0] = s_e_config_0047000c[4];\n  acStack_24[1] = s_e_config_0047000c[5];\n  acStack_24[2] = s_e_config_0047000c[6];\n  acStack_24[3] = s_e_config_0047000c[7];\n  cStack_20 = s_e_config_0047000c[8];",
+  "  acStack_28[0] = s_e_config_0047000c[0];\n  acStack_28[1] = s_e_config_0047000c[1];\n  acStack_28[2] = s_e_config_0047000c[2];\n  acStack_28[3] = s_e_config_0047000c[3];\n  acStack_28[4] = s_e_config_0047000c[4];\n  acStack_28[5] = s_e_config_0047000c[5];\n  acStack_28[6] = s_e_config_0047000c[6];\n  acStack_28[7] = s_e_config_0047000c[7];\n  acStack_28[8] = s_e_config_0047000c[8];"
 );
 source = source.replace("uint * FUN_00461746(void)", "uint * __fastcall FUN_00461746(int heap,uint size)");
 source = source.replace(/(uint \* __fastcall FUN_00461746\(int heap,uint size\)[\s\S]*?\r?\n  uint \*puVar5;\r?\n\s*)if \(\(\(in_EAX != 0\)/, "$1unaff_EBX = heap;\n  in_EAX = size;\n  if (unaff_EBX == 0 || (uintptr_t)unaff_EBX < 0x10000 ||\n      IsBadReadPtr((void *)(uintptr_t)unaff_EBX,0x2c)) return (uint *)0x0;\n  if (((in_EAX != 0)");
@@ -348,6 +364,11 @@ for (let i = 0; i < prototypes.length; i++) {
   prototypes[i] = prototypes[i].replace("uint * FUN_00461746(void);", "uint * __fastcall FUN_00461746(int heap,uint size);");
   prototypes[i] = prototypes[i].replace("void FUN_00420b8c(void);", "void FUN_00420b8c(int index);");
 }
+
+ids.add("s_Can_t_load_title_picture_00471320");
+ids.add("s_gbnklogo_raw_00470500");
+ids.add("s_psyglogo_raw_00470510");
+ids.add("s_aasglogo_raw_00470520");
 
 fs.writeFileSync(outSrc, source);
 
