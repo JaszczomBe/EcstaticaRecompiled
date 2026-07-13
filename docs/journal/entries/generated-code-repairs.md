@@ -20,5 +20,6 @@ Record transformations in `E2Recomp/tools/GenerateRecon.js` that preserve manual
 3. Recovered startup logo filename symbols for `gbnklogo.raw`, `psyglogo.raw`, and `aasglogo.raw`.
 4. Replaced the split `E_CONFIG` stack filename artifact with one contiguous 9-byte buffer.
 5. Recovered file descriptor registration, stream-state, and close bookkeeping around `FUN_0045e5b8`, `FUN_004603d1`, `FUN_00460803`, `FUN_00460899`, and `FUN_004608e8`.
+6. Recovered startup title/blit artifacts for `_DAT_006366c0`, `FUN_00418a04`, and `FUN_00417b20`.
 
 Use the generated code repair template in [journal.template.md](../../templates/journal.template.md) for new entries.

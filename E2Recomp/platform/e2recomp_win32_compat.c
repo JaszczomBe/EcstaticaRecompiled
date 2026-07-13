@@ -108,8 +108,6 @@ void E2R_MapLegacyAddressSpace(void)
 {
 #ifndef _WIN32
     static int initialized;
-    const uintptr_t base = 0x00400000u;
-    const size_t size = 0x00700000u;
     int flags = MAP_PRIVATE | MAP_ANONYMOUS;
     void *mapped;
 
@@ -122,12 +120,19 @@ void E2R_MapLegacyAddressSpace(void)
     flags |= MAP_FIXED;
 #endif
 
-    mapped = mmap((void *)base, size, PROT_READ | PROT_WRITE, flags, -1, 0);
+    mapped = mmap((void *)0x000a0000u, 0x00060000u, PROT_READ | PROT_WRITE, flags, -1, 0);
+    if (mapped == MAP_FAILED) {
+        fprintf(stderr,
+                "warning: could not map legacy Ecstatica VGA range 0x000a0000..0x00100000: %s\n",
+                strerror(errno));
+    }
+
+    mapped = mmap((void *)0x00400000u, 0x00700000u, PROT_READ | PROT_WRITE, flags, -1, 0);
     if (mapped == MAP_FAILED) {
         fprintf(stderr,
                 "warning: could not map legacy Ecstatica address range 0x%08lx..0x%08lx: %s\n",
-                (unsigned long)base,
-                (unsigned long)(base + size),
+                (unsigned long)0x00400000u,
+                (unsigned long)0x00b00000u,
                 strerror(errno));
     }
 #endif

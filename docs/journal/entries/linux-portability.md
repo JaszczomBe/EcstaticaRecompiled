@@ -19,5 +19,6 @@ Track non-gameplay scaffolding needed to build and launch the reconstructed runt
 1. The native Linux launcher now enters `E2RECOMP_DATA_DIR` before reconstructed startup, so relative game-data opens resolve through the build-tree `Ecstatica2` symlink.
 2. `CreateFileA` now normalizes backslashes and resolves read-only file paths case-insensitively, matching the original Windows data-open behavior closely enough to open uppercase CD assets from lowercase reconstructed requests.
 3. Top-level `CreateWindowExA` now dynamically loads X11 and maps a visible host window for the original Ecstatica II window request, with a headless HWND fallback when X11 is unavailable.
+4. The Linux launcher now maps the legacy VGA-style `0xa0000..0x100000` address range used by startup blits.
 
 Use the Linux portability template in [journal.template.md](../../templates/journal.template.md) for new entries.

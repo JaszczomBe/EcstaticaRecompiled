@@ -210,6 +210,15 @@ source = source.replace(
   "void __fastcall FUN_0045f22f(undefined4 param_1,char *param_2)\n\n{\n  (void)param_1;\n  (void)param_2;\n  return;\n}\n\n\n\n/* 0045f254 */"
 );
 source = source.replace(/(undefined4 __fastcall FUN_0041af88\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  int iVar2;\r?\n\s*)iVar2 = 0;/, "$1in_EAX = (char *)(uintptr_t)param_1;\n  if (IsBadReadPtr(in_EAX,0x300) || (uintptr_t)in_EAX >= 0x70000000u) return 0;\n  iVar2 = 0;");
+source = source.replace(/&DAT_006366c0/g, "&_DAT_006366c0");
+source = source.replace(/(undefined4 __fastcall FUN_00418a04\(undefined4 param_1,undefined4 \*param_2\)[\s\S]*?\r?\n  int extraout_ECX;\r?\n\s*)if \(1 < in_EAX\) \{/, "$1in_EAX = (int)(uintptr_t)param_1;\n  if (1 < in_EAX) {");
+source = source.replace(
+  "  if (1 < in_EAX) {\n    *param_2 = _DAT_006401ec;\n    return *(undefined4 *)(&DAT_00636150 + in_EAX * 4);\n  }",
+  "  if (1 < in_EAX) {\n    *param_2 = _DAT_006401ec;\n    if (in_EAX == 2) {\n      return _DAT_00636158;\n    }\n    if (in_EAX == 3) {\n      return _DAT_0063615c;\n    }\n    return *(undefined4 *)(&DAT_00636150 + in_EAX * 4);\n  }"
+);
+source = source.replace(/(FUN_00417b20\(int param_1,int param_2,undefined4 param_3,int param_4,int param_5,int param_6\)[\s\S]*?\r?\n  int local_10;\r?\n\s*)local_24 = 1;/, "$1unaff_EBX = param_4;\n  local_24 = 1;");
+source = source.replace("  local_18 = in_EAX;\n  if ((DAT_0047a279 >> 0x18 == param_1)", "  local_18 = param_1;\n  if ((DAT_0047a279 >> 0x18 == param_1)");
+source = source.replace("      local_30 = local_2c;\n      iVar6 = extraout_ECX_01;\n      local_20 = local_28;", "      local_30 = local_2c;\n      iVar6 = param_2;\n      local_20 = local_28;");
 source = source.replace(
   /undefined8 __fastcall FUN_00415c04\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 00415c68 \*\//,
   "undefined8 __fastcall FUN_00415c04(undefined4 param_1,undefined4 param_2)\n\n{\n  (void)param_1;\n  DAT_00479d88 = 0;\n  return (ulonglong)param_2 << 32;\n}\n\n\n\n/* 00415c68 */"

@@ -152,10 +152,16 @@ INT_PTR E2R_DialogBoxParamA(HINSTANCE inst, LPCSTR tmpl, HWND parent, DLGPROC pr
 
 static void *E2R_dd_obj[64];
 static void *E2R_surf_obj[64];
+static void *E2R_palette_obj[16];
 static void *E2R_ds_obj[64];
 static void *E2R_dsbuf_obj[64];
 
 static int E2R_DD_Generic(void) { return 0; }
+static int E2R_DD_CreatePalette(void *self, unsigned int flags, void *entries, void **out, void *outer) {
+    (void)self; (void)flags; (void)entries; (void)outer;
+    if (out) *out = E2R_palette_obj;
+    return 0;
+}
 static int E2R_DD_CreateSurface(void *self, void *desc, void **out, void *outer) {
     (void)self; (void)desc; (void)outer;
     if (out) *out = E2R_surf_obj;
@@ -174,8 +180,13 @@ HRESULT DirectDrawCreate(void *guid, void **ddraw, void *outer) {
         E2R_dd_obj[i] = (void *)E2R_DD_Generic;
         E2R_surf_obj[i] = (void *)E2R_DD_Generic;
     }
+    for (i = 0; i < 16; i++) {
+        E2R_palette_obj[i] = (void *)E2R_DD_Generic;
+    }
     E2R_dd_obj[0] = E2R_dd_obj;
     E2R_surf_obj[0] = E2R_surf_obj;
+    E2R_palette_obj[0] = E2R_palette_obj;
+    E2R_dd_obj[5] = (void *)E2R_DD_CreatePalette;
     E2R_dd_obj[6] = (void *)E2R_DD_CreateSurface;
     if (ddraw) *ddraw = E2R_dd_obj;
     return 0;
