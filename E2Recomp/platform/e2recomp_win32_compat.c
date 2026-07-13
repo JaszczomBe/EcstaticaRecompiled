@@ -144,10 +144,63 @@ BOOL VirtualProtect(LPVOID address, size_t size, DWORD new_protect, DWORD *old_p
 }
 
 void *SetUnhandledExceptionFilter(void *filter) { return filter; }
+static BOOL e2r_is_bad_memory_range(const void *ptr, UINT_PTR size, char permission)
+{
+    uintptr_t start = (uintptr_t)ptr;
+    uintptr_t end;
+    uintptr_t cursor;
+#ifndef _WIN32
+    FILE *maps;
+    char line[256];
+#endif
+
+    if (size == 0) return FALSE;
+    if (ptr == NULL || start < 0x10000u) return TRUE;
+    end = start + (uintptr_t)size;
+    if (end <= start) return TRUE;
+
+#ifndef _WIN32
+    maps = fopen("/proc/self/maps", "r");
+    if (!maps) return TRUE;
+
+    cursor = start;
+    while (fgets(line, sizeof(line), maps)) {
+        unsigned long lo;
+        unsigned long hi;
+        char perms[5];
+
+        if (sscanf(line, "%lx-%lx %4s", &lo, &hi, perms) != 3) continue;
+        if ((uintptr_t)hi <= cursor) continue;
+        if ((uintptr_t)lo > cursor) break;
+
+        if ((permission == 'r' && perms[0] != 'r') ||
+            (permission == 'w' && perms[1] != 'w')) {
+            fclose(maps);
+            return TRUE;
+        }
+
+        cursor = (uintptr_t)hi;
+        if (cursor >= end) {
+            fclose(maps);
+            return FALSE;
+        }
+    }
+
+    fclose(maps);
+    return TRUE;
+#endif
+
+    return FALSE;
+}
+
 BOOL IsBadReadPtr(const void *ptr, UINT_PTR size)
 {
-    (void)size;
-    return ptr == NULL || (uintptr_t)ptr < 0x10000u;
+    return e2r_is_bad_memory_range(ptr, size, 'r');
+}
+
+BOOL E2R_IsBadWritePtr(const void *ptr, UINT_PTR size)
+{
+    return e2r_is_bad_memory_range(ptr, size, 'w');
 }
 
 BOOL IsWindow(HWND hwnd) { return hwnd != NULL; }
@@ -241,15 +294,14 @@ BOOL KillTimer(HWND hwnd, UINT_PTR id_event) { (void)hwnd; (void)id_event; retur
 HGLOBAL GlobalAlloc(UINT flags, size_t bytes)
 {
     (void)flags;
-    return (HGLOBAL)e2r_alloc_handle(calloc(1, bytes));
+    return (HGLOBAL)calloc(1, bytes);
 }
-LPVOID GlobalLock(HGLOBAL mem) { return mem ? mem->ptr : NULL; }
+LPVOID GlobalLock(HGLOBAL mem) { return mem; }
 BOOL GlobalUnlock(HGLOBAL mem) { (void)mem; return TRUE; }
 HGLOBAL GlobalHandle(LPCVOID mem) { return (HGLOBAL)mem; }
 HGLOBAL GlobalFree(HGLOBAL mem)
 {
     if (!mem) return NULL;
-    free(mem->ptr);
     free(mem);
     return NULL;
 }

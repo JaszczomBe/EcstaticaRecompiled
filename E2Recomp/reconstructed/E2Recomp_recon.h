@@ -142,7 +142,7 @@ undefined8 __fastcall FUN_0041e85c(undefined4 param_1,undefined4 param_2);
 undefined8 __fastcall FUN_0041eb30(undefined4 param_1,undefined4 param_2);
 undefined8 __fastcall FUN_00420578(undefined4 param_1,undefined4 param_2);
 void FUN_00420a10(void);
-void FUN_00420b8c(void);
+void FUN_00420b8c(int index);
 void FUN_00420c10(void);
 void FUN_00420c34(void);
 void FUN_00420dcc(void);

@@ -61,6 +61,7 @@ typedef void *LPOVERLAPPED;
 typedef WORD ATOM;
 
 void E2R_MapLegacyAddressSpace(void);
+BOOL E2R_IsBadWritePtr(const void *ptr, UINT_PTR size);
 
 typedef struct _GUID {
     uint32_t Data1;
