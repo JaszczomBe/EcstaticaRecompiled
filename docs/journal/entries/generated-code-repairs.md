@@ -13,6 +13,14 @@ Record transformations in `E2Recomp/tools/GenerateRecon.js` that preserve manual
 
 ## Recent Entries
 
+### 2026-07-15 - Post-Config Fixed-Address And Header Repairs
+
+1. Normalized generated `&DAT_00684d68` and `&DAT_00684be8` map-table references to fixed legacy addresses so `FUN_0044c71c` does not overwrite adjacent host globals such as `PTR_FUN_0047d39c`.
+2. Normalized generated `&DAT_00621330` raw-palette references to fixed legacy palette memory.
+3. Preserved the native config-header path by rewriting the `e_config` read to `E2R_ReadOpenFileBytes(..., 0x20)`.
+4. Replaced the lost-register `FUN_0045e90e` startup config signature check with `strncmp(acStack_68, s_Ecstatica001_0047006c, 0xc)`.
+5. Added `<string.h>` to the generated reconstructed C prefix for the explicit signature comparison.
+
 ### 2026-07-13 - Main Loop Entry Repairs
 
 1. Added generated top-of-file helpers for native math tables, read-only stream loading, stream cleanup, descriptor reads, and local descriptor flags.

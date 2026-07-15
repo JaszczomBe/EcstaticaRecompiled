@@ -5,6 +5,7 @@
 
 #include "E2Recomp_recon.h"
 #include <math.h>
+#include <string.h>
 #ifdef NAN
 #undef NAN
 #endif
@@ -276,7 +277,7 @@ void __fastcall FUN_0041007c(undefined4 param_1)
     uVar6 = extraout_ECX_06;
   }
   else {
-    uVar4 = FUN_0045e76f((int)uVar11,acStack_68);
+    uVar4 = E2R_ReadOpenFileBytes((int)uVar11,acStack_68,0x20);
     uVar6 = extraout_ECX_03;
     uVar7 = extraout_EDX_00;
     if (uVar4 != 0x20) {
@@ -287,7 +288,7 @@ void __fastcall FUN_0041007c(undefined4 param_1)
     FUN_0045e8e6(uVar6,uVar7);
     uVar6 = extraout_ECX_05;
   }
-  iVar3 = FUN_0045e90e(uVar6,(byte *)s_Ecstatica001_0047006c);
+  iVar3 = strncmp(acStack_68,s_Ecstatica001_0047006c,0xc);
   if (iVar3 != 0) {
     FUN_00414e68();
   }
@@ -37072,7 +37073,7 @@ void __fastcall FUN_00447638(undefined4 param_1)
     uVar16 = FUN_0043cac0(extraout_ECX_01,(int)((ulonglong)uVar16 >> 0x20));
     uVar16 = CONCAT44((int)((ulonglong)uVar16 >> 0x20),_DAT_00ac4af0);
   }
-  puVar7 = &DAT_00684d68;
+  puVar7 = (undefined1 *)0x00684d68;
   sVar13 = 0;
   do {
     sVar12 = 0;
@@ -37526,7 +37527,7 @@ undefined8 __fastcall FUN_00448744(undefined4 param_1,undefined4 param_2)
   local_20 = 0xffffffff;
   local_28 = 0xffffffff;
   uVar5 = (uint)*(ushort *)
-                 (&DAT_00684d68 +
+                 ((undefined1 *)0x00684d68 +
                  (((int)(short)*in_EAX >> 9) + 0x40) * 2 +
                  ((*(int *)(in_EAX + 1) >> 0x19) + 0x40) * 0x100);
   iVar6 = (short)(*in_EAX & 0x1ff) + -0x100;
@@ -37607,7 +37608,7 @@ undefined8 __fastcall FUN_004488a4(undefined4 param_1,undefined4 param_2)
   local_20 = 0xffffffff;
   iVar6 = (short)(*in_EAX & 0x1ff) + -0x100;
   uVar5 = (uint)*(ushort *)
-                 (&DAT_00684d68 +
+                 ((undefined1 *)0x00684d68 +
                  (((int)(short)*in_EAX >> 9) + 0x40) * 2 +
                  ((*(int *)(in_EAX + 1) >> 0x19) + 0x40) * 0x100);
   iVar4 = (short)(in_EAX[2] & 0x1ff) + -0x100;
@@ -39023,7 +39024,7 @@ LAB_0044a91a:
     pcVar6 = &DAT_0061c730;
   }
   else {
-    pcVar6 = &DAT_00621330;
+    pcVar6 = (char *)0x00621330;
   }
   iVar5 = 0;
   uVar3 = 10;
@@ -39205,7 +39206,7 @@ undefined8 __fastcall FUN_0044add8(undefined4 param_1,undefined4 param_2)
       iVar10 = 0;
       do {
         iVar4 = iVar10 + 1;
-        (&DAT_0061c730)[iVar10] = (&DAT_00621330)[iVar10];
+        (&DAT_0061c730)[iVar10] = ((char *)0x00621330)[iVar10];
         iVar10 = iVar4;
       } while (iVar4 < 0x300);
     }
@@ -39219,7 +39220,7 @@ undefined8 __fastcall FUN_0044add8(undefined4 param_1,undefined4 param_2)
         iVar10 = 0x18;
         do {
           iVar4 = iVar10 + 1;
-          (&DAT_0061c730)[iVar10] = (&DAT_00621330)[iVar10];
+          (&DAT_0061c730)[iVar10] = ((char *)0x00621330)[iVar10];
           iVar10 = iVar4;
         } while (iVar4 < 0x30);
       }
@@ -39237,7 +39238,7 @@ undefined8 __fastcall FUN_0044add8(undefined4 param_1,undefined4 param_2)
       iVar10 = 0;
       do {
         iVar4 = iVar10 + 1;
-        (&DAT_0061c730)[iVar10] = (&DAT_00621330)[iVar10];
+        (&DAT_0061c730)[iVar10] = ((char *)0x00621330)[iVar10];
         iVar10 = iVar4;
       } while (iVar4 < 0x300);
     }
@@ -39326,7 +39327,7 @@ LAB_0044b026:
         iVar10 = 0x18;
         do {
           iVar4 = iVar10 + 1;
-          (&DAT_0061c730)[iVar10] = (&DAT_00621330)[iVar10];
+          (&DAT_0061c730)[iVar10] = ((char *)0x00621330)[iVar10];
           iVar10 = iVar4;
         } while (iVar4 < 0x30);
       }
@@ -39398,7 +39399,7 @@ undefined8 __fastcall FUN_0044b0ac(undefined4 param_1,undefined4 param_2)
   do {
     iVar14 = local_3c * 2;
     do {
-      uVar10 = (uint)*(ushort *)(&DAT_00684d68 + iVar14);
+      uVar10 = (uint)*(ushort *)((undefined1 *)0x00684d68 + iVar14);
       bVar3 = false;
       piVar5 = (int *)(&DAT_0068cd68 + uVar10 * 0xc);
       do {
@@ -39460,7 +39461,7 @@ undefined8 __fastcall FUN_0044b0ac(undefined4 param_1,undefined4 param_2)
         FUN_0045e8e6(extraout_ECX_07,extraout_EDX_01);
         for (; iVar14 = local_1e >> 0x10, local_48 < iVar14; local_48 = local_48 + 1) {
           uVar10 = (uint)*(ushort *)
-                          (&DAT_00684d68 + (uint)local_38[1] * 0x100 + (uint)*local_38 * 2);
+                          ((undefined1 *)0x00684d68 + (uint)local_38[1] * 0x100 + (uint)*local_38 * 2);
           bVar1 = local_38[2];
           bVar2 = local_38[3];
           local_38 = local_38 + 4;
@@ -39578,7 +39579,7 @@ LAB_0044b460:
       pbVar7 = _DAT_00636668;
       for (local_28 = 0; local_28 < iVar14; local_28 = local_28 + 1) {
         bVar1 = pbVar7[2];
-        uVar10 = (uint)*(ushort *)(&DAT_00684d68 + (uint)*pbVar7 * 2 + (uint)pbVar7[1] * 0x100);
+        uVar10 = (uint)*(ushort *)((undefined1 *)0x00684d68 + (uint)*pbVar7 * 2 + (uint)pbVar7[1] * 0x100);
         bVar2 = pbVar7[3];
         pbVar7 = pbVar7 + 4;
         bVar3 = false;
@@ -40129,7 +40130,7 @@ void FUN_0044c71c(void)
     *(undefined2 *)(iVar4 + 0x67c73a) = 0xffff;
     iVar4 = iVar3;
   } while (iVar3 != 0x8340);
-  puVar6 = (undefined2 *)&DAT_00684d68;
+  puVar6 = (undefined2 *)0x00684d68;
   iVar4 = 0;
   do {
     iVar4 = iVar4 + 1;
@@ -40189,12 +40190,12 @@ void FUN_0044c71c(void)
   iVar4 = 0x18;
   do {
     iVar3 = iVar4 + 1;
-    *(undefined1 *)(iVar4 + 0x684a68) = (&DAT_00621330)[iVar4];
+    *(undefined1 *)(iVar4 + 0x684a68) = ((char *)0x00621330)[iVar4];
     iVar4 = iVar3;
   } while (iVar3 < 0x30);
   iVar4 = 0x80;
   iVar3 = 0;
-  puVar7 = &DAT_00684be8;
+  puVar7 = (undefined1 *)0x00684be8;
   do {
     iVar8 = iVar4 + ((int)((iVar4 + (iVar4 >> 0x1f) * -0x10) - (uint)((iVar4 >> 0x1f) << 3 < 0)) >>
                     4) * -0x10;

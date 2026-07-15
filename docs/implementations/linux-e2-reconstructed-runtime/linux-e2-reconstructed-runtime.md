@@ -3,12 +3,14 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-13
+Last Updated: 2026-07-14
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
 
 Bring the reconstructed Ecstatica II runtime far enough on Linux that it can load original CD data, initialize host-compatible platform services, run a durable main loop, present inspectable frames, accept input, and advance toward a controllable gameplay scene without relying on one-off untracked patches.
+
+Linux is the current proof platform. Portability work should preserve reconstructed game logic as an original-shaped source base for reverse engineering and modding, while moving host behavior behind compatibility and backend boundaries that can later be implemented with SDL or an equivalent multi-platform library.
 
 ## Scope
 
@@ -18,12 +20,15 @@ Bring the reconstructed Ecstatica II runtime far enough on Linux that it can loa
 4. Ghidra-backed recovery of lost register, calling convention, and pointer intent.
 5. Journaling each exploratory fix and exposed regression.
 6. Main-loop durability, frame presentation, input, and first-scene progression.
+7. Separation of reconstructed game behavior, Win32/DirectX compatibility semantics, and host backend implementation.
 
 ## Non-Goals
 
 1. Perfect original Windows behavior in the first pass.
 2. Full graphics/audio backend implementation before startup is stable.
 3. Committing or pushing changes without explicit user approval.
+4. Calling SDL or any other host library directly from reconstructed game logic.
+5. True multi-platform release support before 32-bit, fixed-address, and legacy memory-layout assumptions are understood well enough to relax.
 
 ## Current State
 
@@ -68,10 +73,12 @@ Each step should be scoped so it can preferably be completed in one context wind
 5. [Reach Main Loop](steps/step-05/step-05-reach-main-loop.md) - completed; advanced to `thunk_FUN_004620db` and documented the next crash frontier.
 6. [Resolve Post Main Loop Config Open Crash](steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - active; recover the `"e_config"` file/CRT callback path after main-loop entry.
 7. Sustain Main Loop Heartbeat - planned; run several consecutive loop iterations with stable timing, message-pump, and crash-frontier evidence.
-8. Present Inspectable Title Or Menu Frame - planned; show a real reconstructed title/menu frame in the Linux window.
+8. Present Inspectable Title Or Menu Frame - planned; show a real reconstructed title/menu frame through the compatibility renderer while keeping host presentation replaceable.
 9. Wire Menu Input Path - planned; map host keyboard/mouse events into the reconstructed Win32-style input path far enough to navigate title/menu logic.
 10. Reach First Controllable Scene - planned; load a gameplay scene and prove basic player-control or camera-control progression.
 11. Harden Runtime Loop Regression Checks - planned; make debug/ASan/GDB probes repeatable for the stabilized loop path.
+12. Define Replaceable Host Backend Boundary - planned; isolate window, input, timing, presentation, and audio backend calls below the compatibility layer.
+13. Add SDL Host Backend - planned; replace or supplement Linux/X11 scaffolding with SDL once loop, frame, and compatibility semantics are stable enough to specify.
 
 ## Journals
 
@@ -87,6 +94,9 @@ Each step should be scoped so it can preferably be completed in one context wind
 3. Keep `/home/rgrabowski/Games/Ecstatica2/` as the source CD data path.
 4. Keep VS Code F5 and CMake preset workflow functional.
 5. Keep implementation steps small enough for a single context window whenever practical.
+6. Keep reconstructed C focused on recovered original behavior; host-library calls belong behind compatibility or backend boundaries.
+7. Treat DirectDraw, DirectSound, Win32, and CRT shims as game-facing compatibility surfaces, not as disposable shortcuts to SDL.
+8. When adding rendering, input, timing, or audio behavior, record which layer owns it: reconstructed game logic, compatibility semantics, or host backend.
 
 ## Usage Budget
 
@@ -110,3 +120,9 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 5. Completed step 4 by adding minimal DirectDraw palette/surface startup support and reaching `FUN_00414a94 -> FUN_00414b24` title logic.
 6. Completed step 5 by repairing startup allocation, stream, shadow, and shademap blockers; GDB reached `FUN_00410a48 -> thunk_FUN_004620db`.
 7. Extended the implementation roadmap beyond main-loop entry: post-loop config/file recovery, loop heartbeat, visible frame, input, first scene, and regression hardening.
+
+### 2026-07-14
+
+1. Clarified the portability direction: Linux remains the runtime proof target, but host work should prepare for a replaceable backend and future SDL implementation.
+2. Added explicit non-goals against direct SDL calls from reconstructed logic and premature true multi-platform promises.
+3. Extended the roadmap and invariants with backend-boundary milestones so future graphics, input, timing, and audio work stays layered.

@@ -14,6 +14,13 @@ Track non-gameplay scaffolding needed to build and launch the reconstructed runt
 
 ## Recent Entries
 
+### 2026-07-14
+
+1. Reframed Linux portability as the current proof platform rather than the final host abstraction.
+2. Adopted a layered direction: reconstructed game logic remains original-shaped; Win32, DirectDraw, DirectSound, and CRT shims remain the game-facing compatibility surface; host-specific implementation should move behind a replaceable backend boundary.
+3. Deferred SDL until the runtime has a stable loop, inspectable frame path, and clearer DirectDraw/DirectSound compatibility needs. SDL should back window, input, timing, presentation, and audio, not be called directly from reconstructed game logic.
+4. Recorded the portability ladder as Linux/i386 first, backend-neutral host layer second, SDL-backed multi-platform work later, because fixed-address, 32-bit pointer, and legacy memory-layout assumptions still constrain true multi-platform support.
+
 ### 2026-07-13
 
 1. The native Linux launcher now enters `E2RECOMP_DATA_DIR` before reconstructed startup, so relative game-data opens resolve through the build-tree `Ecstatica2` symlink.
