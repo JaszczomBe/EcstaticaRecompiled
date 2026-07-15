@@ -2,11 +2,11 @@
 
 Status: active
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
-Last Updated: 2026-07-13
+Last Updated: 2026-07-15
 
 ## Goal
 
-Continue past the first post-main-loop-entry crash by recovering the `"e_config"` file-open path around `FUN_0046055c`, `FUN_0045e5b8`, and `FUN_0045e594`.
+Continue past the first post-main-loop-entry crash by recovering the `"e_config"` file-open path around `FUN_0046055c`, `FUN_0045e5b8`, and `FUN_0045e594`, then journal the next stable runtime frontier.
 
 ## Why This Step Exists
 
@@ -62,10 +62,17 @@ Program received signal SIGSEGV, Segmentation fault.
 #4 FUN_0041007c
 ```
 
-The next investigation should compare the original disassembly for `FUN_0046055c` and its callers against the generated code before adding another defensive no-op.
+The original `FUN_0046055c` frontier has been cleared. Current stop point is after replacing `FUN_00453920` with a hosted no-op; builds pass, but ASan has not been rerun after that final change.
 
 ## Change Log
 
 ### 2026-07-13
 
 1. Created step after completing main-loop entry milestone.
+
+### 2026-07-15
+
+1. Cleared the original post-main-loop `"e_config"` crash and advanced through CDPath, config-header, menu/dialog, fixed-address table, and framebuffer clear frontiers.
+2. Mirrored reconstructed C fixes in `E2Recomp/tools/GenerateRecon.js`.
+3. Stopped after reducing `FUN_00453920` to a hosted no-op. Verification performed after that final change: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build build/linux-clang32-debug`, and `cmake --build build/linux-clang32-asan`.
+4. Next action is a single bounded ASan run to verify the `FUN_00453920` no-op and record the next frontier.

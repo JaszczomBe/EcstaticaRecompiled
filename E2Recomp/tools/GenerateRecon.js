@@ -230,15 +230,54 @@ source = source.replace(
   "  if (1 < in_EAX) {\n    *param_2 = _DAT_006401ec;\n    return *(undefined4 *)(&DAT_00636150 + in_EAX * 4);\n  }",
   "  if (1 < in_EAX) {\n    *param_2 = _DAT_006401ec;\n    if (in_EAX == 2) {\n      return _DAT_00636158;\n    }\n    if (in_EAX == 3) {\n      return _DAT_0063615c;\n    }\n    return *(undefined4 *)(&DAT_00636150 + in_EAX * 4);\n  }"
 );
-source = source.replace(/(FUN_00417b20\(int param_1,int param_2,undefined4 param_3,int param_4,int param_5,int param_6\)[\s\S]*?\r?\n  int local_10;\r?\n\s*)local_24 = 1;/, "$1unaff_EBX = param_4;\n  local_24 = 1;");
+source = source.replace(
+  /void __fastcall FUN_0041ad54\(undefined4 param_1,int param_2,int param_3\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0041ae18 \*\//,
+  "void __fastcall FUN_0041ad54(undefined4 param_1,int param_2,int param_3)\n\n{\n  int x;\n  int y;\n  int x2;\n  int y1;\n  int pitch;\n  int base;\n  int surface;\n  undefined1 color;\n  undefined1 *row;\n  \n  x2 = (int)(uintptr_t)param_1;\n  y1 = 0;\n  surface = DAT_0047a279 >> 0x18;\n  if (DAT_0047a43c != 0) {\n    surface = surface + 2;\n  }\n  if (param_2 < 0) {\n    param_2 = 0;\n  }\n  if (x2 >= _DAT_006401ec) {\n    x2 = _DAT_006401ec + -1;\n  }\n  if (param_3 >= _DAT_006401d4) {\n    param_3 = _DAT_006401d4 + -1;\n  }\n  if (x2 < param_2 || param_3 < y1) {\n    return;\n  }\n  base = FUN_00418a04((undefined4)(uintptr_t)surface,&pitch);\n  if (base == 0 || pitch <= 0) {\n    return;\n  }\n  color = ((undefined1 *)0x006366dc)[surface * 2];\n  for (y = y1; y <= param_3; y = y + 1) {\n    row = (undefined1 *)(base + y * pitch + param_2);\n    for (x = param_2; x <= x2; x = x + 1) {\n      *row = color;\n      row = row + 1;\n    }\n  }\n  return;\n}\n\n\n\n/* 0041ae18 */"
+);
+source = source.replace(
+  /\/\* 00453920 \*\/\s*\r?\n\s*\/\* WARNING:[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\s*\/\* 004544a4 \*\//,
+  "/* 00453920 */\n\nundefined8 __fastcall FUN_00453920(undefined4 param_1,char *param_2)\n\n{\n  (void)param_1;\n  (void)param_2;\n  return 0;\n}\n\n\n\n/* 004544a4 */"
+);
+source = source.replace(/(FUN_00417b20\(int param_1,int param_2,undefined4 param_3,int param_4,int param_5,int param_6\)[\s\S]*?\r?\n  int local_10;\r?\n\s*)local_24 = 1;/, "$1E2R_InitCursorMaskState();\n  unaff_EBX = param_4;\n  local_24 = 1;");
 source = source.replace("  local_18 = in_EAX;\n  if ((DAT_0047a279 >> 0x18 == param_1)", "  local_18 = param_1;\n  if ((DAT_0047a279 >> 0x18 == param_1)");
 source = source.replace("      local_30 = local_2c;\n      iVar6 = extraout_ECX_01;\n      local_20 = local_28;", "      local_30 = local_2c;\n      iVar6 = param_2;\n      local_20 = local_28;");
+source = source.replace("  iVar3 = FUN_0045e54d(extraout_ECX_00,(byte *)s_andrew_00470004);", "  iVar3 = FUN_0045e54d(0x00479d74,(byte *)s_andrew_00470004);");
+source = source.replace("    (&DAT_00ac4cad)[iVar2] = 0;", "    ((undefined1 *)0x00ac4cad)[iVar2] = 0;");
+source = source.replace("    (&DAT_004c3990)[iVar2] = 0;", "    ((undefined1 *)0x004c3990)[iVar2] = 0;");
+source = source.replace("    (&DAT_004c3890)[iVar2] = 0;", "    ((undefined1 *)0x004c3890)[iVar2] = 0;");
+source = source.replace("    (&DAT_004c3b90)[iVar2] = 0;", "    ((undefined1 *)0x004c3b90)[iVar2] = 0;");
+source = source.replace("    (&DAT_00507490)[iVar2] = 0;", "    ((undefined1 *)0x00507490)[iVar2] = 0;");
+source = source.replace("    (&DAT_004c3a90)[iVar2] = 0;", "    ((undefined1 *)0x004c3a90)[iVar2] = 0;");
+source = source.replace("  puVar7 = &DAT_0061cd30;\n  iVar2 = 0;", "  puVar7 = (undefined1 *)0x0061cd30;\n  iVar2 = 0;");
+source = source.replace(
+  "  if (_DAT_006366a4 == (undefined4 *)0x0) {\n    FUN_00414e68();\n  }\n  puVar10 = _DAT_006366a4 + 1;",
+  "  if (_DAT_006366a4 == (undefined4 *)0x0) {\n    FUN_00414e68();\n  }\n  E2R_MirrorStartupPartNames();\n  puVar10 = _DAT_006366a4 + 1;"
+);
+source = source.replace("  pcVar9 = &DAT_00470558;", "  pcVar9 = (char *)0x00470558;");
+source = source.replace("  pcVar9 = &DAT_00470568;", "  pcVar9 = (char *)0x00470568;");
+source = source.replace("      pcVar9 = &DAT_004705e0;", "      pcVar9 = (char *)0x004705e0;");
+source = source.replace(/pcVar9 = &DAT_(00470[78][0-9a-f]{2});/g, "pcVar9 = (char *)0x$1;");
+source = source.replace(/pcVar9 = &DAT_(00470[9ab][0-9a-f]{2});/g, "pcVar9 = (char *)0x$1;");
+source = source.replace(/pcVar9 = &DAT_(00470[cdef][0-9a-f]{2});/g, "pcVar9 = (char *)0x$1;");
+source = source.replace(/pcVar9 = &DAT_(004710[0-9a-f]{2});/g, "pcVar9 = (char *)0x$1;");
+source = source.replace(
+  "  DAT_00479e8a = CONCAT22((short)local_20.x,(undefined2)DAT_00479e8a);\n  _DAT_0063683c = 0;",
+  "  DAT_00479e8a = CONCAT22((short)local_20.x,(undefined2)DAT_00479e8a);\n  E2R_SyncCursorPackedPosition();\n  _DAT_0063683c = 0;"
+);
+source = source.replace(
+  "    _DAT_00479e90 = 0xffff;\n    _DAT_00479e8e = 0xffff;",
+  "    E2R_InitCursorMaskState();\n    *(undefined2 *)0x00479e90 = 0xffff;\n    *(undefined2 *)0x00479e8e = 0xffff;"
+);
 source = source.replace(
   /undefined8 __fastcall FUN_00415c04\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 00415c68 \*\//,
   "undefined8 __fastcall FUN_00415c04(undefined4 param_1,undefined4 param_2)\n\n{\n  (void)param_1;\n  DAT_00479d88 = 0;\n  return (ulonglong)param_2 << 32;\n}\n\n\n\n/* 00415c68 */"
 );
 source = source.replace(/(undefined8 __fastcall FUN_0041db98\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  uint uVar4;\r?\n\s*)uVar4 = 0;/, "$1in_EAX = *(ushort *)(uintptr_t)param_1;\n  uVar4 = 0;");
 source = source.replace(/(uint __fastcall FUN_0041dc20\(undefined4 param_1,uint param_2\)[\s\S]*?\r?\n  uint uVar3;\r?\n\s*)uVar2 = \(param_2 & 0xff\)/, "$1in_EAX = (int)(uintptr_t)param_1;\n  uVar2 = (param_2 & 0xff)");
+source = source.replace(
+  "  puVar3 = &DAT_00477068;\n  do {\n    puVar2 = puVar3 + 2;\n    *(undefined2 *)(puVar3 + 0x2940) = *(undefined2 *)(puVar3 + 0xd7e);",
+  "  E2R_MirrorGlyphTableData();\n  puVar3 = &DAT_00477068;\n  do {\n    puVar2 = puVar3 + 2;\n    *(undefined2 *)(puVar3 + 0x2940) = *(undefined2 *)(puVar3 + 0xd7e);"
+);
 source = source.replace(
   "  do {\n    uVar5 = FUN_0041db98(puVar3 + 2,puVar4);\n    puVar4 = (undefined2 *)((int)((ulonglong)uVar5 >> 0x20) + -2);\n    *(short *)(extraout_ECX + 0x2aca) = (short)uVar5;\n    puVar3 = extraout_ECX;\n  } while (extraout_ECX != &DAT_0047707e);",
   "  do {\n    puVar2 = puVar3 + 2;\n    uVar5 = FUN_0041db98(puVar2,puVar4);\n    puVar4 = (undefined2 *)((int)((ulonglong)uVar5 >> 0x20) + -2);\n    *(short *)(puVar2 + 0x2aca) = (short)uVar5;\n    puVar3 = puVar2;\n  } while (puVar2 != &DAT_0047707e);"
@@ -253,8 +292,196 @@ source = source.replace(
   "  do {\n    uVar1 = FUN_0041dc20(puVar3,*(int *)(puVar3 + 0x292) >> 0x10);\n    puVar3 = (undefined *)(extraout_ECX_03 + 2);\n    *(ushort *)(extraout_ECX_03 + 0x2c16) = *(ushort *)(extraout_ECX_03 + 0x2c16) | (ushort)uVar1;\n  } while (puVar3 != &DAT_00477078);",
   "  do {\n    uVar1 = FUN_0041dc20(puVar3,*(int *)(puVar3 + 0x292) >> 0x10);\n    *(ushort *)(puVar3 + 0x2c16) = *(ushort *)(puVar3 + 0x2c16) | (ushort)uVar1;\n    puVar3 = puVar3 + 2;\n  } while (puVar3 != &DAT_00477078);"
 );
+const glyphTableMirrorSymbols = [
+  "DAT_00477010", "DAT_00477012", "DAT_00477016", "DAT_00477060", "DAT_00477064",
+  "DAT_00477068", "DAT_0047706e", "DAT_00477078", "DAT_0047707a", "DAT_0047707c",
+  "DAT_0047707e", "DAT_004770aa", "DAT_004770c0", "DAT_004770ec", "DAT_00477118",
+  "DAT_0047712c", "DAT_0047712e", "DAT_00477142", "DAT_0047719c", "DAT_004771de",
+  "DAT_004772fc", "DAT_00477312", "DAT_004773ac", "DAT_004773ee", "DAT_00477404",
+  "DAT_00477446", "DAT_0047745c", "DAT_0047757a", "DAT_00477590", "DAT_004777b6",
+  "DAT_0047930a", "DAT_004799a8", "DAT_004799be", "DAT_004799d4", "DAT_004799ea",
+  "DAT_00479a00", "DAT_00479a16", "DAT_00479a2c", "DAT_00479a42", "DAT_00479a58",
+  "DAT_00479a6e", "DAT_00479a84", "DAT_00479a9a", "DAT_00479ab0", "DAT_00479ac6",
+  "DAT_00479adc", "DAT_00479af2", "DAT_00479b08", "DAT_00479b1e", "DAT_00479b34",
+  "DAT_00479b4a", "DAT_00479b60", "DAT_00479b76", "DAT_00479b8c", "DAT_00479ba2",
+  "DAT_00479bb8", "DAT_00479bce", "DAT_00479be4", "DAT_00479bfa", "DAT_00479c10",
+  "DAT_00479c26", "DAT_00479c3c", "DAT_00479c52", "DAT_00479c68", "DAT_00479c7e",
+  "DAT_00479c94", "DAT_00479d6c",
+];
+const ctypeTableState = `\nstatic byte E2R_CtypeFlags(uint index)\n{\n  int c = (int)(byte)index - 1;\n  byte flags = 0;\n\n  if (c < 0) {\n    return 0;\n  }\n  if (c < 0x20 || c == 0x7f) {\n    flags = flags | 1;\n  }\n  if (c == ' ' || c == '\\t' || c == '\\n' || c == '\\r' || c == '\\v' || c == '\\f') {\n    flags = flags | 2;\n  }\n  if ('0' <= c && c <= '9') {\n    flags = flags | 0x20;\n  }\n  if ('A' <= c && c <= 'Z') {\n    flags = flags | 0x40;\n  }\n  if ('a' <= c && c <= 'z') {\n    flags = flags | 0x80;\n  }\n  return flags;\n}\n\nstatic byte E2R_BitMask(uint index)\n{\n  return (byte)(1u << (index & 7));\n}\n\nstatic void E2R_FormatOneString(char *dest,char *format,char *value)\n{\n  while (*format != '\\0') {\n    if (format[0] == '%' && format[1] == 's') {\n      while (*value != '\\0') {\n        *dest = *value;\n        dest = dest + 1;\n        value = value + 1;\n      }\n      format = format + 2;\n    }\n    else {\n      *dest = *format;\n      dest = dest + 1;\n      format = format + 1;\n    }\n  }\n  *dest = '\\0';\n}\n\nstatic void E2R_UseHostedCdPath(char *path)\n{\n  if ((path[0] != '\\0' && path[1] == ':') || path[0] == '\\\\' || path[0] == '/') {\n    path[0] = '\\0';\n  }\n}\n`;
+const menuStringState = `\nstatic int E2R_IsReadableCString(char *text)\n{\n  uint i;\n\n  if ((uintptr_t)text < 0x10000 || IsBadReadPtr(text,1)) {\n    return 0;\n  }\n  for (i = 0; i < 0x1000; i = i + 1) {\n    if (IsBadReadPtr(text + i,1)) {\n      return 0;\n    }\n    if (text[i] == '\\0') {\n      return 1;\n    }\n  }\n  return 0;\n}\n\nstatic int *E2R_ResolveMenuStringList(undefined4 first,undefined4 second,undefined4 *local_single)\n{\n  int *list;\n  char *text;\n\n  list = (int *)(uintptr_t)first;\n  if ((uintptr_t)list >= 0x10000 && !IsBadReadPtr(list,4)) {\n    text = (char *)(uintptr_t)list[0];\n    if (text == (char *)0x0 || E2R_IsReadableCString(text)) {\n      return list;\n    }\n  }\n  text = (char *)(uintptr_t)first;\n  if (E2R_IsReadableCString(text)) {\n    local_single[0] = first;\n    local_single[1] = 0;\n    return (int *)local_single;\n  }\n  text = (char *)(uintptr_t)second;\n  if (E2R_IsReadableCString(text)) {\n    local_single[0] = second;\n    local_single[1] = 0;\n    return (int *)local_single;\n  }\n  return (int *)0x0;\n}\n`;
+const streamLineState = `\nstatic undefined1 *E2R_ReadStreamLine(undefined4 stream_handle,char *buffer,uint count)\n{\n  undefined4 *stream;\n  byte *cursor;\n  uint remaining;\n  uint copied = 0;\n  byte value = 0;\n\n  if (count == 0) {\n    return (undefined1 *)0x0;\n  }\n  buffer[0] = '\\0';\n  stream = (undefined4 *)(uintptr_t)stream_handle;\n  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||\n      IsBadReadPtr(stream,0x1c) || stream[6] != E2R_STREAM_MAGIC) {\n    return (undefined1 *)0x0;\n  }\n  cursor = (byte *)(uintptr_t)stream[0];\n  remaining = (uint)stream[1];\n  while (copied + 1 < count && remaining != 0) {\n    value = *cursor;\n    cursor = cursor + 1;\n    remaining = remaining - 1;\n    buffer[copied] = (char)value;\n    copied = copied + 1;\n    if (value == '\\n') {\n      break;\n    }\n  }\n  stream[0] = (undefined4)(uintptr_t)cursor;\n  stream[1] = remaining;\n  if (copied == 0) {\n    return (undefined1 *)0x0;\n  }\n  buffer[copied] = '\\0';\n  return (undefined1 *)buffer;\n}\n`;
+const configHeaderState = `\nstatic void E2R_UnpackConfigHeader(char *header,char *cStack_5c,byte *bStack_5b,byte *bStack_5a,\n                                   undefined1 *uStack_59,byte *bStack_58,\n                                   undefined1 *uStack_57,undefined1 *uStack_56,\n                                   undefined1 *uStack_55,undefined1 *uStack_54,\n                                   undefined1 *uStack_53,byte *bStack_52)\n{\n  *cStack_5c = header[0xc];\n  *bStack_5b = (byte)header[0xd];\n  *bStack_5a = (byte)header[0xe];\n  *uStack_59 = (undefined1)header[0xf];\n  *bStack_58 = (byte)header[0x10];\n  *uStack_57 = (undefined1)header[0x11];\n  *uStack_56 = (undefined1)header[0x12];\n  *uStack_55 = (undefined1)header[0x13];\n  *uStack_54 = (undefined1)header[0x14];\n  *uStack_53 = (undefined1)header[0x15];\n  *bStack_52 = (byte)header[0x16];\n}\n\nstatic void E2R_PackConfigHeader(char *header,char cStack_5c,byte bStack_5b,byte bStack_5a,\n                                 undefined1 uStack_59,byte bStack_58,undefined1 uStack_57,\n                                 undefined1 uStack_56,undefined1 uStack_55,\n                                 undefined1 uStack_54,undefined1 uStack_53,byte bStack_52)\n{\n  header[0xc] = cStack_5c;\n  header[0xd] = (char)bStack_5b;\n  header[0xe] = (char)bStack_5a;\n  header[0xf] = (char)uStack_59;\n  header[0x10] = (char)bStack_58;\n  header[0x11] = (char)uStack_57;\n  header[0x12] = (char)uStack_56;\n  header[0x13] = (char)uStack_55;\n  header[0x14] = (char)uStack_54;\n  header[0x15] = (char)uStack_53;\n  header[0x16] = (char)bStack_52;\n}\n`;
+const cursorMaskState = `\nstatic void E2R_InitCursorMaskState(void)\n{\n  static int initialized;\n\n  if (initialized != 0) {\n    return;\n  }\n  initialized = 1;\n  *(undefined4 *)0x00479e8a = (undefined4)DAT_00479e8a;\n  *(undefined2 *)0x00479e8e = 0xffff;\n  *(undefined2 *)0x00479e90 = 0xffff;\n  memset((void *)0x00479e92,'#',0x40);\n}\n\nstatic void E2R_SyncCursorPackedPosition(void)\n{\n  E2R_InitCursorMaskState();\n  *(undefined4 *)0x00479e8a = (undefined4)DAT_00479e8a;\n}\n`;
+const startupNameWordSymbols = [
+  "DAT_00470708", "DAT_0047070c", "DAT_00470724", "DAT_00470728", "DAT_0047072c",
+  "DAT_00470730", "DAT_00470740", "DAT_00470748", "DAT_00470750", "DAT_00470758",
+  "DAT_00470760", "DAT_00470768", "DAT_00470770", "DAT_00470778", "DAT_00470780",
+  "DAT_0047078c", "DAT_00470798", "DAT_004707a4", "DAT_004707b0", "DAT_004707bc",
+  "DAT_004707c8", "DAT_004707d4", "DAT_004707e0", "DAT_004707ec", "DAT_004707f8",
+  "DAT_00470804", "DAT_0047081c", "DAT_00470828", "DAT_00470834", "DAT_00470840",
+  "DAT_0047086c", "DAT_00470874", "DAT_0047087c", "DAT_00470884", "DAT_0047088c",
+  "DAT_00470894", "DAT_0047089c", "DAT_004708a4", "DAT_004708ac", "DAT_004708b4",
+  "DAT_004708bc", "DAT_004708c4", "DAT_004708cc", "DAT_004708d4", "DAT_004708dc",
+  "DAT_004708e4", "DAT_004708ec", "DAT_004708f4", "DAT_004708fc",
+];
+const startupNameWordConstants2 = [
+  ["00470904", "0x6c735f77u"], ["0047090c", "0x6c735f77u"],
+  ["00470914", "0x79635f77u"], ["0047091c", "0x79635f77u"],
+  ["00470928", "0x79635f77u"], ["00470934", "0x6f7a5f77u"],
+  ["0047093c", "0x6f7a5f77u"], ["00470944", "0x6f7a5f77u"],
+  ["00470958", "0x69765f77u"], ["00470960", "0x69765f77u"],
+  ["00470968", "0x69765f77u"], ["00470970", "0x6f6d5f77u"],
+  ["00470978", "0x6f6d5f77u"], ["00470980", "0x6f6d5f77u"],
+  ["004709a8", "0x72745f77u"], ["004709b0", "0x72745f77u"],
+  ["004709b8", "0x72745f77u"], ["004709e0", "0x6f645f77u"],
+  ["004709f0", "0x6f645f77u"], ["004709f8", "0x65625f77u"],
+  ["00470a00", "0x65625f77u"], ["00470a08", "0x65625f77u"],
+  ["00470a30", "0x61675f77u"], ["00470a38", "0x61675f77u"],
+  ["00470a44", "0x61675f77u"], ["00470a50", "0x6f775f77u"],
+  ["00470a58", "0x6f775f77u"], ["00470a60", "0x6f775f77u"],
+  ["00470a74", "0x75685f77u"], ["00470a7c", "0x75685f77u"],
+  ["00470a84", "0x6b735f77u"], ["00470a8c", "0x6b735f77u"],
+  ["00470a94", "0x6b735f77u"], ["00470a9c", "0x6e625f77u"],
+  ["00470aa4", "0x6e625f77u"], ["00470ab0", "0x6e625f77u"],
+  ["00470af0", "0x72635f77u"], ["00470b04", "0x61665f77u"],
+  ["00470b10", "0x61665f77u"], ["00470b1c", "0x61665f77u"],
+  ["00470b28", "0x61665f77u"], ["00470b34", "0x61665f77u"],
+  ["00470b40", "0x69665f77u"], ["00470b48", "0x69665f77u"],
+  ["00470b50", "0x69665f77u"], ["00470b58", "0x6d615f77u"],
+  ["00470b60", "0x6d615f77u"], ["00470b68", "0x6d615f77u"],
+  ["00470b70", "0x6d615f77u"], ["00470b78", "0x6d615f77u"],
+  ["00470b80", "0x6d615f77u"], ["00470b88", "0x6d615f77u"],
+  ["00470b90", "0x6d615f77u"], ["00470b98", "0x67625f77u"],
+  ["00470ba0", "0x67625f77u"], ["00470ba8", "0x67625f77u"],
+  ["00470bb0", "0x756d5f77u"], ["00470bb8", "0x756d5f77u"],
+  ["00470bc4", "0x756d5f77u"], ["00470bd0", "0x756d5f77u"],
+  ["00470bd8", "0x756d5f77u"], ["00470be0", "0x756d5f77u"],
+  ["00470be8", "0x67735f77u"], ["00470bf0", "0x67735f77u"],
+  ["00470bf8", "0x67735f77u"],
+];
+const startupNameWords2 = `  static const struct {\\n    uintptr_t address;\\n    undefined4 value;\\n  } startupNameWords2[] = {\\n${startupNameWordConstants2.map(([address, value]) => `    {0x${address},${value}},`).join("\\n")}\\n  };`;
+const startupNameWordConstants3 = `
+00470c34 0x6f746b62u
+00470c38 0x6e7572u
+00470ca4 0x53646e45u
+00470ca8 0x46316e63u
+00470cac 0x0u
+00470cb0 0x53646e45u
+00470cb4 0x46326e63u
+00470cb8 0x0u
+00470cd0 0x6f726568u
+00470cd4 0x64736b71u
+00470cd8 0x0u
+00470db0 0x5f79654bu
+00470db4 0x345f3146u
+00470db8 0x0u
+00470dbc 0x5f79654bu
+00470dc0 0x385f3546u
+00470dc4 0x0u
+00470dc8 0x5f79654bu
+00470dcc 0x315f3946u
+00470dd0 0x32u
+00470dd4 0x3179654bu
+00470dd8 0x0u
+00470ddc 0x3279654bu
+00470de0 0x0u
+00470de4 0x3379654bu
+00470de8 0x0u
+00470dec 0x3479654bu
+00470df0 0x0u
+00470df4 0x3579654bu
+00470df8 0x0u
+00470dfc 0x3679654bu
+00470e00 0x0u
+00470e04 0x3779654bu
+00470e08 0x0u
+00470e0c 0x3879654bu
+00470e10 0x0u
+00470e14 0x3979654bu
+00470e18 0x0u
+00470e7c 0x75725f66u
+00470e80 0x705f6eu
+00470e84 0x31747966u
+00470e88 0x0u
+00470e8c 0x32747966u
+00470e90 0x0u
+00470e94 0x72747966u
+00470e98 0x6e75u
+00470e9a 0x6f670000u
+00470e9c 0x66626f67u
+00470ea0 0x317479u
+00470ee8 0x6a616d6au
+00470eec 0x646e6177u
+00470ef0 0x0u
+00470ef4 0x776a6d6au
+00470ef8 0x646e61u
+00470f28 0x544f4f46u
+00470f2c 0x0u
+00470f30 0x45444157u
+00470f34 0x32u
+00470f38 0x3244554du
+00470f3c 0x0u
+00470f4c 0x4f484345u
+00470f50 0x413230u
+00470f54 0x53415247u
+00470f58 0x3153u
+00470f5a 0x454c0000u
+00470f5c 0x5641454cu
+00470f60 0x315345u
+00470f64 0x44554854u
+00470f68 0x314d53u
+00470f6c 0x3144554du
+00470f70 0x0u
+00470f7c 0x4c494f53u
+00470f80 0x32u
+00470f84 0x4f484345u
+00470f88 0x413130u
+00470f8c 0x4b43494bu
+00470f90 0x31u
+00470f94 0x44554854u
+00470f98 0x0u
+0047108c 0x6973756du
+00471094 0x6363732eu
+0047109c 0x6c62732eu
+004710a4 0x6577612eu
+004710ac 0x7375672eu
+004710b4 0x70616c2eu
+`.trim().split(/\n/).map((line) => line.split(/\s+/));
+const startupNameWords3 = `  static const struct {\\n    uintptr_t address;\\n    undefined4 value;\\n  } startupNameWords3[] = {\\n${startupNameWordConstants3.map(([address, value]) => `    {0x${address},${value}},`).join("\\n")}\\n  };`;
+const startupPartNames = `\nstatic void E2R_MirrorStartupPartNames(void)\n{\n${startupNameWords2}\n${startupNameWords3}\n  static int initialized;\n  uint i;\n\n  if (initialized != 0) {\n    return;\n  }\n  initialized = 1;\n  *(undefined4 *)0x00470558 = (undefined4)_DAT_00470558;\n  *(undefined1 *)0x0047055c = (undefined1)DAT_0047055c;\n  memcpy((void *)0x00470560,s_Chest_00470560,6);\n  *(undefined4 *)0x00470568 = (undefined4)_DAT_00470568;\n  *(undefined1 *)0x0047056c = (undefined1)DAT_0047056c;\n  *(undefined4 *)0x004705e0 = (undefined4)_DAT_004705e0;\n  *(undefined2 *)0x004705e4 = (undefined2)DAT_004705e4;\n  *(undefined1 *)0x004705e6 = (undefined1)DAT_004705e6;\n${startupNameWordSymbols.map((name) => {
+  const address = name.slice(4).toLowerCase();
+  return `  *(undefined4 *)0x${address} = (undefined4)${name};`;
+}).join("\n")}\n  for (i = 0; i < sizeof(startupNameWords2) / sizeof(startupNameWords2[0]); i++) {\n    *(undefined4 *)startupNameWords2[i].address = startupNameWords2[i].value;\n  }\n  for (i = 0; i < sizeof(startupNameWords3) / sizeof(startupNameWords3[0]); i++) {\n    *(undefined4 *)startupNameWords3[i].address = startupNameWords3[i].value;\n  }\n}\n`;
+const glyphTableMirror = `\nstatic void E2R_MirrorGlyphTableData(void)\n{\n  static int initialized;\n\n  if (initialized != 0) {\n    return;\n  }\n  initialized = 1;\n${glyphTableMirrorSymbols.map((name) => {
+  const address = name.slice(4).toLowerCase();
+  return `  *(undefined4 *)0x${address} = (undefined4)${name};`;
+}).join("\n")}\n}\n`;
+source = source.replace("\n\n/* 00410078 */", `${ctypeTableState}\n${menuStringState}\n${streamLineState}\n${configHeaderState}\n${cursorMaskState}\n${startupPartNames}\n${glyphTableMirror}\n\n/* 00410078 */`);
+source = source.replace(/\(&DAT_00476e8c\)\[([^\]]+)\]/g, "E2R_CtypeFlags($1)");
+source = source.replace(/\(&DAT_00476f90\)\[([^\]]+)\]/g, "E2R_BitMask($1)");
+source = source.replace(/&DAT_00479e24/g, "(char *)0x00479e24");
+source = source.replace(/\(int\)&DAT_0047aad8/g, "0x0047aad8");
+source = source.replace(/\(&DAT_0047aad8\)\[([^\]]+)\]/g, "((short *)0x0047aad8)[$1]");
+source = source.replace(/&DAT_006430ee/g, "(undefined1 *)0x006430ee");
+source = source.replace(/_DAT_006432ec/g, "*(undefined4 *)0x006432ec");
+source = source.replace(/&DAT_00636150/g, "(undefined1 *)0x00636150");
+source = source.replace(/&DAT_006366dc/g, "(undefined1 *)0x006366dc");
+const menuRecordBuilder = `\nstatic int E2R_menu_record_build_index;\n\nstatic void E2R_ResetMenuRecordBuilder(void)\n{\n  E2R_menu_record_build_index = 0;\n}\n\nstatic int E2R_NextMenuRecordTarget(short **target,short *width)\n{\n  int index = E2R_menu_record_build_index++;\n  int dest = 0;\n  int w = 0;\n\n  switch (index) {\n  case 0: dest = 0x643de4; w = -0x14; break;\n  case 1: dest = 0x643e04; w = -0x14; break;\n  case 2: dest = 0x643d84; w = -0x14; break;\n  case 3: dest = 0x643780; w = -0x14; break;\n  case 4: dest = 0x643dc4; w = -0x14; break;\n  case 5: dest = 0x643c84; w = -0x14; break;\n  case 6: dest = 0x643700; w = -0x14; break;\n  case 13: dest = 0x643d24; w = 0x5a; break;\n  case 14: dest = 0x643e24; w = 0x5a; break;\n  case 15: dest = 0x643d44; w = 0x68; break;\n  case 16: dest = 0x643d64; w = 0x68; break;\n  case 17: dest = 0x643da4; w = 0x3c; break;\n  case 18: dest = 0x643d04; w = 0x14; break;\n  case 19: dest = 0x643740; w = 0x14; break;\n  case 20: dest = 0x6436c0; w = 0x28; break;\n  case 21: dest = 0x6438b8; w = 0x3c; break;\n  case 22: dest = 0x643838; w = 0x28; break;\n  case 23: dest = 0x643918; w = 0x3c; break;\n  case 24: dest = 0x643720; w = 0x50; break;\n  case 25: dest = 0x643ca4; w = 0x82; break;\n  case 26: dest = 0x643ad0; w = 0x69; break;\n  case 27: dest = 0x6439d8; w = 0x50; break;\n  case 28: dest = 0x643cc4; w = 0x41; break;\n  case 29: dest = 0x643b10; w = 0x32; break;\n  case 30: dest = 0x643af0; w = 0x23; break;\n  case 31: dest = 0x643b30; w = 0x14; break;\n  case 32: dest = 0x6439b8; w = 0x1e; break;\n  case 33: dest = 0x6437a0; w = 0x1e; break;\n  case 34: dest = 0x6437be; w = 0x28; break;\n  case 35: dest = 0x6437dc; w = 0x32; break;\n  case 36: dest = 0x6437fa; w = 0x3c; break;\n  case 37: dest = 0x643818; w = 0x46; break;\n  case 38: dest = 0x643ce4; w = 0x19; break;\n  case 39: dest = 0x643978; w = 0x19; break;\n  case 40: dest = 0x6438d8; w = 0x1e; break;\n  case 60: dest = 0x643878; w = 0x14; break;\n  case 61: dest = 0x643898; w = 0x0a; break;\n  case 62: dest = 0x643938; w = 0x14; break;\n  case 71: dest = 0x643b90; w = 0x7d; break;\n  case 90: dest = 0x643760; w = 0x14; break;\n  case 96: dest = 0x643858; w = 0x64; break;\n  case 97: dest = 0x643998; w = 0x1e; break;\n  case 98: dest = 0x6439f8; w = 0x2d; break;\n  case 99: dest = 0x643958; w = 0x3c; break;\n  case 100: dest = 0x643a18; w = 0x3c; break;\n  case 101: dest = 0x6436e0; w = 0x4b; break;\n  default:\n    if (7 <= index && index <= 12) {\n      dest = 0x643ee4 - (index - 7) * 0x20;\n      w = 0x46 - (index - 7) * 0x0a;\n    }\n    else if (41 <= index && index <= 50) {\n      dest = 0x642fb0 + (index - 41) * 0x1e;\n      w = 0x25 + (index - 41) * 0x0b;\n    }\n    else if (51 <= index && index <= 59) {\n      dest = 0x6432f8 + (index - 51) * 0x1e;\n      w = 0x25 + (index - 51) * 0x0b;\n    }\n    else if (63 <= index && index <= 70) {\n      dest = 0x640244 + (index - 63) * 0x1e;\n      w = 0x23 + (index - 63) * 0x0a;\n    }\n    else if (72 <= index && index <= 89) {\n      dest = 0x6430dc + (index - 72) * 0x1e;\n      w = 0x0a + (index - 72) * 9;\n    }\n    else if (91 <= index && index <= 95) {\n      dest = 0x643a38 + (index - 91) * 0x1e;\n      w = 0x23 + (index - 91) * 0x0a;\n    }\n    else {\n      return 0;\n    }\n    break;\n  }\n  *target = (short *)(uintptr_t)dest;\n  *width = (short)w;\n  return 1;\n}\n`;
+source = source.replace("\n\n/* 0043fe24 */", `${menuRecordBuilder}\n\n/* 0043fe24 */`);
+source = source.replace(/&DAT_0047([0-9a-fA-F]{4})/g, (match, suffix) => {
+  const address = parseInt(`0047${suffix}`, 16);
+  if (address < 0x00477010 || 0x00479c94 < address) {
+    return match;
+  }
+  return `(undefined1 *)0x0047${suffix.toLowerCase()}`;
+});
+source = source.replace(/\(int\)&DAT_00479e8a/g, "(int)(undefined1 *)0x00479e8a");
+source = source.replace(/&DAT_00479e8e/g, "(undefined1 *)0x00479e8e");
+source = source.replace(/&DAT_00479e92/g, "(undefined1 *)0x00479e92");
 source = source.replace(/(undefined8 __fastcall FUN_0043b384\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  ulonglong uVar11;\r?\n\s*)DAT_0047a788 = 1;/, "$1in_EAX = (short *)(uintptr_t)param_1;\n  if (IsBadReadPtr(in_EAX,0x40) || (uintptr_t)in_EAX >= 0x70000000u) return (ulonglong)param_2 << 32;\n  DAT_0047a788 = 1;");
-source = source.replace(/(void __fastcall\s*\r?\nFUN_0043fe24\(short param_1,short param_2,short param_3,undefined4 param_4,undefined4 param_5,\s*\r?\n\s*short param_6,undefined4 param_7\)[\s\S]*?\r?\n  short unaff_BX;\r?\n\s*)if \(DAT_0047a43c == 0\) \{/, "$1if (in_EAX == (short *)0x0 || E2R_IsBadWritePtr(in_EAX,0x16)) {\n    return;\n  }\n  if (DAT_0047a43c == 0) {");
+source = source.replace(/(void __fastcall\s*\r?\nFUN_0043fe24\(short param_1,short param_2,short param_3,undefined4 param_4,undefined4 param_5,\s*\r?\n\s*short param_6,undefined4 param_7\)[\s\S]*?\r?\n  short unaff_BX;\r?\n\s*)if \(DAT_0047a43c == 0\) \{/, "$1if (!E2R_NextMenuRecordTarget(&in_EAX,&unaff_BX) || E2R_IsBadWritePtr(in_EAX,0x16)) {\n    return;\n  }\n  if (DAT_0047a43c == 0) {");
+source = source.replace(/(void FUN_0043fea4\(void\)\s*\r?\n\s*\{[\s\S]*?\r?\n  char \*pcVar8;\r?\n\s*)if \(DAT_00479e00 == 0\) \{/, "$1E2R_ResetMenuRecordBuilder();\n  if (DAT_00479e00 == 0) {");
 source = source.replace("  *(undefined1 *)(_DAT_006438c0 + 4) = 0x87;", "  if (_DAT_006438c0 != 0) {\n    *(undefined1 *)(_DAT_006438c0 + 4) = 0x87;\n  }");
 source = source.replace(/(void __fastcall FUN_004537bc\(undefined4 param_1\)[\s\S]*?\r?\n  undefined8 uVar1;\r?\n\s*)if \(\*\(int \*\)\(in_EAX \+ 0x38\) != 0\) \{/, "$1in_EAX = (int)(uintptr_t)param_1;\n  if (in_EAX == 0 || (uintptr_t)in_EAX >= 0x70000000u ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x3c)) return;\n  if (*(int *)(in_EAX + 0x38) != 0) {");
 source = source.replace(/(void __fastcall FUN_00422368\(undefined4 param_1,uint param_2\)[\s\S]*?\r?\n  int iVar4;\r?\n\s*)iVar1 = \*\(int \*\)\(\(int\)in_EAX \+ 6\) >> 0x10;/, "$1in_EAX = (int *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(in_EAX,0x14) || (uintptr_t)in_EAX >= 0x70000000u) return;\n  iVar1 = *(int *)((int)in_EAX + 6) >> 0x10;");
@@ -284,6 +511,7 @@ source = source.replace(
   "      E2R_SetIdentityMatrix((undefined2 *)0x00637274);\n      uVar4 = 0x00637274;\n      if (_DAT_006372e4 != 0) {\n        FUN_00422538(uVar4,(int)_DAT_006372e4);\n      }\n      if (_DAT_006372e0 != 0) {\n        FUN_00422368(uVar4,(int)_DAT_006372e0);\n      }\n      if (_DAT_006372e2 != 0) {\n        FUN_00422460(uVar4,(int)_DAT_006372e2);\n      }"
 );
 source = source.replace(/(undefined8 __fastcall FUN_004618f9\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  int \*piVar3;\r?\n\s*)piVar1 = DAT_0047d260;/, "$1in_EAX = (int *)(uintptr_t)param_1;\n  if (in_EAX == 0) return (ulonglong)param_2 << 32;\n  piVar1 = DAT_0047d260;");
+source = source.replace(/(int __fastcall FUN_0045e54d\(undefined4 param_1,byte \*param_2\)[\s\S]*?\r?\n  byte \*in_EAX;\r?\n\s*)while\( true \) \{/, "$1in_EAX = (byte *)(uintptr_t)param_1;\n  while( true ) {");
 source = source.replace("_DAT_00636158 = FUN_0045f1ff(param_1,0x4b281);", "_DAT_00636158 = FUN_0045f1ff(1,0x4b281);");
 source = source.replace("_DAT_0063615c = FUN_0045f1ff(uVar1,0x4b281);", "_DAT_0063615c = FUN_0045f1ff(1,0x4b281);");
 source = source.replace("_DAT_00636668 = FUN_0045f1ff(0,0x4b281);", "_DAT_00636668 = FUN_0045f1ff(2,0x4b281);");
@@ -298,6 +526,36 @@ source = source.replace("_DAT_00636678 = (undefined4 *)FUN_0045f1ff(~uVar3 - 1,5
 source = source.replace("_DAT_00636694 = (undefined1 *)FUN_0045f1ff(~uVar3 - 1,0x5dc);", "_DAT_00636694 = (undefined1 *)FUN_0045f1ff(1,0x5dc);");
 source = source.replace("_DAT_00636680 = (char *)FUN_0045f1ff(uVar5,2000);", "_DAT_00636680 = (char *)FUN_0045f1ff(1,2000);");
 source = source.replace("_DAT_006366a0 = (undefined2 *)FUN_0045f1ff(~uVar3 - 1,20000);", "_DAT_006366a0 = (undefined2 *)FUN_0045f1ff(2,20000);");
+source = source.replace("DAT_00479e04 = FUN_0045f1ff(param_1,0x4b281);", "DAT_00479e04 = FUN_0045f1ff(1,0x4b281);");
+source = source.replace("DAT_00479e08 = FUN_0045f1ff(uVar1,0xa0000);", "DAT_00479e08 = FUN_0045f1ff(1,0xa0000);");
+source = source.replace(
+  "  FUN_0045f0a1((int)auStack_48,(byte *)s__sCODE_ECSTATIC_FAN_00470370);",
+  "  E2R_FormatOneString((char *)auStack_48,s__sCODE_ECSTATIC_FAN_00470370,(char *)0x00479e24);"
+);
+source = source.replace(
+  "  iVar3 = FUN_00445378(extraout_ECX_41,0);",
+  "  iVar3 = FUN_00445378((undefined4)(uintptr_t)auStack_48,0);"
+);
+source = source.replace(
+  "    FUN_0045f0a1((int)auStack_16c,(byte *)s__sactions__00470490);",
+  "    E2R_FormatOneString((char *)auStack_16c,s__sactions__00470490,(char *)0x00479e24);"
+);
+source = source.replace(
+  "    FUN_0045f0a1((int)auStack_9c,(byte *)s_files_ECSTATIC_0047049c);\n    uVar11 = FUN_004452e0(extraout_ECX_48,extraout_EDX_20);",
+  "    E2R_FormatOneString((char *)auStack_9c,s_files_ECSTATIC_0047049c,(char *)0x00479e24);\n    uVar11 = FUN_004452e0((undefined4)(uintptr_t)auStack_9c,extraout_EDX_20);"
+);
+source = source.replace(
+  "      FUN_0045f0a1((int)auStack_9c,(byte *)s_files_ECST2_004704ac);\n      uVar11 = FUN_004452e0(extraout_ECX_50,extraout_EDX_21);",
+  "      E2R_FormatOneString((char *)auStack_9c,s_files_ECST2_004704ac,(char *)0x00479e24);\n      uVar11 = FUN_004452e0((undefined4)(uintptr_t)auStack_9c,extraout_EDX_21);"
+);
+source = source.replace(
+  "      FUN_0045f0a1((int)auStack_9c,(byte *)s__sfiles_ECSTATIC_004704d0);",
+  "      E2R_FormatOneString((char *)auStack_9c,s__sfiles_ECSTATIC_004704d0,(char *)0x00479e24);"
+);
+source = source.replace(
+  "      uVar11 = FUN_00445330(extraout_ECX_52);",
+  "      uVar11 = FUN_00445330((undefined4)(uintptr_t)auStack_9c);"
+);
 source = source.replace(
   /void FUN_00414f40\(void\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 00415b78 \*\//,
   "void FUN_00414f40(void)\n\n{\n  const double pi = 3.14159265358979323846;\n  int mode;\n  int x;\n  int y;\n\n  for (x = 0; x < 256; x = x + 1) {\n    double phase = ((double)x * pi) / 128.0;\n    double normalized = (double)x / 255.0;\n    int tangent_index = (x & 0x40) != 0 ? x : 64 - x;\n    double tangent = tan(((double)tangent_index * pi) / 128.0);\n\n    *(byte *)(0x005fe990 + x) = E2R_clamp_byte(E2R_round_to_int(sin(phase) * 127.0 + 128.0));\n    *(byte *)(0x005fe890 + x) = E2R_clamp_byte(E2R_round_to_int(cos(phase) * 127.0 + 128.0));\n    *(byte *)(0x0060af88 + x) = E2R_clamp_byte(E2R_round_to_int(sqrt(normalized) * 255.0));\n    *(byte *)(0x0060b088 + x) = E2R_clamp_byte(E2R_round_to_int((1.0 - sqrt(normalized)) * 255.0));\n    *(short *)(0x0067be7c + x * 2) = E2R_clamp_short(E2R_round_to_int(tangent * 1024.0));\n  }\n\n  for (x = 0; x < 256; x = x + 1) {\n    *(byte *)(0x005fe790 + x) = E2R_clamp_byte(x);\n  }\n\n  for (x = 0; x < 1024; x = x + 1) {\n    double phase = (((double)x + 0.5) * pi) / 512.0;\n    *(short *)(0x0060c4b8 + x * 2) = E2R_clamp_short(E2R_round_to_int(sin(phase) * 32767.0));\n  }\n\n  for (mode = 0; mode < 16; mode = mode + 1) {\n    int base = 0x00507590 + mode * 0x4000;\n    int bias = mode * 32;\n    for (y = 0; y < 128; y = y + 1) {\n      for (x = 0; x < 128; x = x + 1) {\n        int shade = ((x * y) >> 7) + bias;\n        *(byte *)(base + y * 128 + x) = E2R_clamp_byte(shade);\n      }\n    }\n  }\n\n  for (y = 0; y < 128; y = y + 1) {\n    for (x = 0; x < 128; x = x + 1) {\n      *(byte *)(0x00507590 + 0x40000 + y * 128 + x) = 0x80;\n    }\n  }\n  return;\n}\n\n\n\n/* 00415b78 */"
@@ -306,6 +564,14 @@ source = source.replace("piVar3 = (int *)FUN_0045eb05(param_1,&DAT_0047007c);", 
 source = source.replace(
   "  iVar3 = FUN_0045eb05(extraout_ECX_07,extraout_EDX_02);",
   "  iVar3 = FUN_0045eb05((undefined4)(uintptr_t)\"CDPath\",&DAT_0047007c);"
+);
+source = source.replace(
+  "    FUN_0045ebf1();",
+  "    E2R_ReadStreamLine((undefined4)(uintptr_t)iVar3,(char *)0x00479e24,0x14);"
+);
+source = source.replace(
+  "    } while (cVar2 != '\\0');\n    FUN_0045ec6c(iVar3,(uint)(byte)(cVar1 + 1U));",
+  "    } while (cVar2 != '\\0');\n    E2R_UseHostedCdPath((char *)0x00479e24);\n    FUN_0045ec6c(iVar3,(uint)(byte)(cVar1 + 1U));"
 );
 source = source.replace(
   /(void FUN_0041ccf0\(void\)[\s\S]*?\r?\n\s*)undefined1 \*in_EAX;/,
@@ -318,7 +584,7 @@ source = source.replace(
 source = source.replace("(&DAT_0068cd68)[iVar5] = 0;", "*(undefined1 *)(0x0068cd68 + iVar5) = 0;");
 source = source.replace(
   /undefined4 __fastcall FUN_0045eb05\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045ebf1 \*\//,
-  "undefined4 __fastcall FUN_0045eb05(undefined4 param_1,undefined4 param_2)\n\n{\n  LPCSTR path;\n  \n  path = (LPCSTR)(uintptr_t)param_1;\n  if ((uintptr_t)path < 0x10000 || (uintptr_t)path >= 0x70000000u ||\n      IsBadReadPtr(path,1)) {\n    path = (LPCSTR)(uintptr_t)param_2;\n  }\n  if ((uintptr_t)path < 0x10000 || (uintptr_t)path >= 0x70000000u ||\n      IsBadReadPtr(path,1)) {\n    return 0;\n  }\n  return E2R_OpenReadStream(path);\n}\n\n\n\n/* 0045ebf1 */"
+  "undefined4 __fastcall FUN_0045eb05(undefined4 param_1,undefined4 param_2)\n\n{\n  LPCSTR path;\n  \n  path = (LPCSTR)(uintptr_t)param_1;\n  if ((uintptr_t)path < 0x10000 || IsBadReadPtr(path,1)) {\n    path = (LPCSTR)(uintptr_t)param_2;\n  }\n  if ((uintptr_t)path < 0x10000 || IsBadReadPtr(path,1)) {\n    return 0;\n  }\n  return E2R_OpenReadStream(path);\n}\n\n\n\n/* 0045ebf1 */"
 );
 source = source.replace(
   /(undefined8 __fastcall FUN_0045ec6c\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n  undefined4 extraout_ECX;\r?\n\s*)\(\*\(code \*\)PTR_FUN_0047d3b0\)\(\);/,
@@ -331,6 +597,26 @@ source = source.replace(
 source = source.replace(
   /undefined4 __fastcall FUN_0045f1ff\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045f218 \*\//,
   "undefined4 __fastcall FUN_0045f1ff(undefined4 param_1,undefined4 param_2)\n\n{\n  uint size;\n  undefined8 uVar1;\n  \n  size = (uint)(uintptr_t)param_1 * (uint)(uintptr_t)param_2;\n  uVar1 = FUN_0045f0d1(size,param_2);\n  if ((int)uVar1 != 0) {\n    FUN_0045f8d0((undefined4)(uintptr_t)(uint)uVar1,0);\n  }\n  return (undefined4)(uintptr_t)(uint)uVar1;\n}\n\n\n\n/* 0045f218 */"
+);
+source = source.replace(
+  /undefined4 __fastcall FUN_00445378\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 004453a4 \*\//,
+  "undefined4 __fastcall FUN_00445378(undefined4 param_1,undefined4 param_2)\n\n{\n  int iVar1;\n  undefined4 uVar2;\n  \n  (void)param_2;\n  iVar1 = FUN_0045eb05(param_1,&DAT_00474388);\n  uVar2 = 0;\n  if (iVar1 != 0) {\n    FUN_0045ec6c(0,(undefined4)(uintptr_t)iVar1);\n    uVar2 = 1;\n  }\n  return uVar2;\n}\n\n\n\n/* 004453a4 */"
+);
+source = source.replace(
+  /void __fastcall FUN_0041db48\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0041db98 \*\//,
+  "void __fastcall FUN_0041db48(undefined4 param_1,undefined4 param_2)\n\n{\n  int iVar1;\n  undefined1 local_3c [52];\n  undefined4 uStack_8;\n  \n  uStack_8 = param_2;\n  E2R_FormatOneString((char *)local_3c,s__sSCENES_00471b58,(char *)0x00479e24);\n  iVar1 = FUN_00445378((undefined4)(uintptr_t)local_3c,0);\n  DAT_0047ab10 = (uint)(iVar1 == 0);\n  return;\n}\n\n\n\n/* 0041db98 */"
+);
+source = source.replace(
+  /undefined8 __fastcall FUN_0043cbf0\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0043ccc8 \*\//,
+  "undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)\n\n{\n  int *in_EAX;\n  int iVar1;\n  int iVar3;\n  int iVar4;\n  undefined8 uVar5;\n  int iVar2;\n  undefined4 local_single [2];\n  \n  in_EAX = E2R_ResolveMenuStringList(param_1,param_2,local_single);\n  if (in_EAX == (int *)0x0) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;\n  iVar2 = 0;\n  do {\n    iVar1 = iVar2 + 0x33;\n    iVar3 = 0;\n    *(undefined1 *)(iVar2 + 0x64403a) = 0;\n    iVar2 = iVar1;\n  } while (iVar1 != 0x396);\n  iVar1 = 0;\n  iVar3 = 0;\n  iVar4 = 0x6430fa;\n  iVar2 = *in_EAX;\n  while (iVar2 != 0) {\n    if (!E2R_IsReadableCString((char *)(uintptr_t)*in_EAX)) {\n      break;\n    }\n    FUN_0045f22f(iVar1,(char *)*in_EAX);\n    *(undefined1 *)(iVar1 * 0x33 + 0x64406c) = 0;\n    if (iVar1 < 0x11) {\n      *(int *)((undefined1 *)0x006430ee + iVar3) = iVar4;\n    }\n    in_EAX = in_EAX + 1;\n    iVar4 = iVar4 + 0x1e;\n    iVar3 = iVar3 + 0x1e;\n    iVar1 = iVar1 + 1;\n    if (0x11 < iVar1) break;\n    if (IsBadReadPtr(in_EAX,4)) break;\n    iVar2 = *in_EAX;\n  }\n  _DAT_0047a636 = (short)iVar1 * 9 + 0x28;\n  if (iVar1 < 0x12) {\n    iVar3 = iVar1 * 0xf;\n    *(undefined4 *)((undefined1 *)0x006430ee + iVar1 * 0x1e) = 0x643de4;\n  }\n  else {\n    *(undefined4 *)0x006432ec = 0x643de4;\n  }\n  uVar5 = FUN_0043b384(iVar1,iVar3);\n  return CONCAT44(param_2,(int)uVar5);\n}\n\n\n\n/* 0043ccc8 */"
+);
+source = source.replace(
+  /\/\* 00453920 \*\/[\s\S]*?\r?\n\s*\r?\n\/\* 004544a4 \*\//,
+  "/* 00453920 */\n\nundefined8 __fastcall FUN_00453920(undefined4 param_1,char *param_2)\n\n{\n  (void)param_1;\n  (void)param_2;\n  return 0;\n}\n\n\n\n/* 004544a4 */"
+);
+source = source.replace(
+  "  FUN_0045fd2c(uVar6,_DAT_006365f4);",
+  "  E2R_FormatOneString((char *)0x00479e24,(char *)_DAT_006365f4,(char *)0x00479e24);"
 );
 source = source.replace("        uVar7 = FUN_004619f2(0,uVar2);", "        uVar7 = FUN_004619f2(in_EAX,uVar2);");
 source = source.replace(
@@ -462,6 +748,7 @@ source = source.replace(
   "  char acStack_28 [4];\n  char acStack_24 [4];\n  char cStack_20;",
   "  char acStack_28 [9];"
 );
+source = source.replace("  char acStack_68 [12];", "  char acStack_68 [32];");
 source = source.replace(
   "  acStack_28[0] = s_e_config_0047000c[0];\n  acStack_28[1] = s_e_config_0047000c[1];\n  acStack_28[2] = s_e_config_0047000c[2];\n  acStack_28[3] = s_e_config_0047000c[3];\n  acStack_24[0] = s_e_config_0047000c[4];\n  acStack_24[1] = s_e_config_0047000c[5];\n  acStack_24[2] = s_e_config_0047000c[6];\n  acStack_24[3] = s_e_config_0047000c[7];\n  cStack_20 = s_e_config_0047000c[8];",
   "  acStack_28[0] = s_e_config_0047000c[0];\n  acStack_28[1] = s_e_config_0047000c[1];\n  acStack_28[2] = s_e_config_0047000c[2];\n  acStack_28[3] = s_e_config_0047000c[3];\n  acStack_28[4] = s_e_config_0047000c[4];\n  acStack_28[5] = s_e_config_0047000c[5];\n  acStack_28[6] = s_e_config_0047000c[6];\n  acStack_28[7] = s_e_config_0047000c[7];\n  acStack_28[8] = s_e_config_0047000c[8];"
@@ -471,8 +758,20 @@ source = source.replace(
   "    uVar4 = E2R_ReadOpenFileBytes((int)uVar11,acStack_68,0x20);"
 );
 source = source.replace(
+  "    if (uVar4 != 0x20) {\n      FUN_00414e68();\n      uVar6 = extraout_ECX_04;\n      uVar7 = extraout_EDX_01;\n    }\n    FUN_0045e8e6(uVar6,uVar7);",
+  "    if (uVar4 != 0x20) {\n      FUN_00414e68();\n      uVar6 = extraout_ECX_04;\n      uVar7 = extraout_EDX_01;\n    }\n    E2R_UnpackConfigHeader(acStack_68,&cStack_5c,&bStack_5b,&bStack_5a,&uStack_59,&bStack_58,\n                           &uStack_57,&uStack_56,&uStack_55,&uStack_54,&uStack_53,&bStack_52);\n    FUN_0045e8e6(uVar6,uVar7);"
+);
+source = source.replace(
   "  iVar3 = FUN_0045e90e(uVar6,(byte *)s_Ecstatica001_0047006c);",
   "  iVar3 = strncmp(acStack_68,s_Ecstatica001_0047006c,0xc);"
+);
+source = source.replace(
+  "      uStack_57 = (undefined1)DAT_00479dd4;\n      uStack_56 = (undefined1)((uint)DAT_00479dd4 >> 8);\n      uStack_55 = DAT_00479dd8;\n      uStack_54 = DAT_00479ddc;\n      uVar11 = FUN_0045e594(extraout_ECX_28,extraout_EDX_09,acStack_28,0x261,0x180);",
+  "      uStack_57 = (undefined1)DAT_00479dd4;\n      uStack_56 = (undefined1)((uint)DAT_00479dd4 >> 8);\n      uStack_55 = DAT_00479dd8;\n      uStack_54 = DAT_00479ddc;\n      E2R_PackConfigHeader(acStack_68,cStack_5c,bStack_5b,bStack_5a,uStack_59,bStack_58,\n                           uStack_57,uStack_56,uStack_55,uStack_54,uStack_53,bStack_52);\n      uVar11 = FUN_0045e594(extraout_ECX_28,extraout_EDX_09,acStack_28,0x261,0x180);"
+);
+source = source.replace(
+  "      uStack_54 = DAT_00479ddc;\n      uStack_53 = (undefined1)DAT_00479e00;\n      bStack_52 = DAT_00479df0;\n      cStack_5c = '#';\n      uVar11 = FUN_0045e594(extraout_ECX_13,extraout_EDX_06,acStack_28,0x261,0x180);",
+  "      uStack_54 = DAT_00479ddc;\n      uStack_53 = (undefined1)DAT_00479e00;\n      bStack_52 = DAT_00479df0;\n      cStack_5c = '#';\n      E2R_PackConfigHeader(acStack_68,cStack_5c,bStack_5b,bStack_5a,uStack_59,bStack_58,\n                           uStack_57,uStack_56,uStack_55,uStack_54,uStack_53,bStack_52);\n      uVar11 = FUN_0045e594(extraout_ECX_13,extraout_EDX_06,acStack_28,0x261,0x180);"
 );
 source = source.replace("uint * FUN_00461746(void)", "uint * __fastcall FUN_00461746(int heap,uint size)");
 source = source.replace(/(uint \* __fastcall FUN_00461746\(int heap,uint size\)[\s\S]*?\r?\n  uint \*puVar5;\r?\n\s*)if \(\(\(in_EAX != 0\)/, "$1unaff_EBX = heap;\n  in_EAX = size;\n  if (unaff_EBX == 0 || (uintptr_t)unaff_EBX < 0x10000 ||\n      IsBadReadPtr((void *)(uintptr_t)unaff_EBX,0x2c)) return (uint *)0x0;\n  if (((in_EAX != 0)");

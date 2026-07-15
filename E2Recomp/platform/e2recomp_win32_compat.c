@@ -13,6 +13,7 @@
 #ifndef _WIN32
 #include <dlfcn.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #ifndef MAP_ANONYMOUS
 #define MAP_ANONYMOUS MAP_ANON
 #endif
@@ -597,12 +598,32 @@ BOOL GetDiskFreeSpaceA(LPCSTR root, LPDWORD sectors, LPDWORD bytes, LPDWORD free
 }
 HANDLE FindFirstFileA(LPCSTR pattern, LPWIN32_FIND_DATAA data)
 {
-    (void)pattern;
-    if (data) memset(data, 0, sizeof(*data));
-    return INVALID_HANDLE_VALUE;
+    char normalized[PATH_MAX];
+    char resolved[PATH_MAX];
+    const char *path;
+    const char *leaf;
+    struct stat st;
+
+    e2r_normalize_path(normalized, sizeof(normalized), pattern);
+    path = normalized;
+    if (stat(path, &st) != 0) {
+        if (!e2r_resolve_case_path(normalized, resolved, sizeof(resolved)) || stat(resolved, &st) != 0) {
+            return INVALID_HANDLE_VALUE;
+        }
+        path = resolved;
+    }
+    if (data) {
+        memset(data, 0, sizeof(*data));
+        data->dwFileAttributes = S_ISDIR(st.st_mode) ? 0x10u : FILE_ATTRIBUTE_NORMAL;
+        data->nFileSizeLow = (DWORD)st.st_size;
+        leaf = strrchr(path, '/');
+        leaf = leaf ? leaf + 1 : path;
+        strncpy(data->cFileName, leaf, sizeof(data->cFileName) - 1);
+    }
+    return e2r_alloc_handle(NULL);
 }
 BOOL FindNextFileA(HANDLE find, LPWIN32_FIND_DATAA data) { (void)find; (void)data; return FALSE; }
-BOOL FindClose(HANDLE find) { (void)find; return TRUE; }
+BOOL FindClose(HANDLE find) { if (!find || find == INVALID_HANDLE_VALUE) return FALSE; free(find); return TRUE; }
 
 BOOL GetConsoleMode(HANDLE console, DWORD *mode) { (void)console; if (mode) *mode = 0; return TRUE; }
 BOOL SetConsoleMode(HANDLE console, DWORD mode) { (void)console; (void)mode; return TRUE; }

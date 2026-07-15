@@ -3,7 +3,7 @@
 Use this format for commits prepared from this exploratory Linux runtime work:
 
 ```text
-[Tag] high level description:
+[Tag] High level description:
  - bullet point 1
  - bullet point 2
  - bullet point n

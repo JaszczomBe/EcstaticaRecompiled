@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-14
+Last Updated: 2026-07-15
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -56,11 +56,11 @@ FUN_00410a48 -> FUN_00414b24
 FUN_00410a48 -> thunk_FUN_004620db
 ```
 
-The latest debug GDB run hit `thunk_FUN_004620db` from `FUN_00410a48` at reconstructed line 4752. After continuing past that entry point, the next frontier is a later `EIP=0xffffffff` crash through `FUN_0046055c`, called while opening `"e_config"` from `FUN_0041007c`.
+The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been cleared. Runtime stabilization has advanced through config-header, CDPath, hosted file existence, menu/dialog string-list, fixed-address table, framebuffer fill, and quick-save writer frontiers. The current stop point is the hosted no-op replacement for `FUN_00453920`; builds pass after that change, but ASan has not been rerun after the final no-op.
 
 ## Active Steps
 
-Step 6 is the next active step. It starts from the post-main-loop-entry `"e_config"` file-open crash and should stabilize the file/CRT callback path enough to continue beyond the current `FUN_0046055c` `EIP=0xffffffff` frontier.
+Step 6 remains the active documentation bucket until the next ASan frontier is recorded. It no longer starts from `FUN_0046055c`; the next action is a bounded verification run after the `FUN_00453920` no-op and then either close step 6 or split the newly exposed frontier into step 7.
 
 ## Step Roadmap
 
@@ -71,7 +71,7 @@ Each step should be scoped so it can preferably be completed in one context wind
 3. [Create Visible Window](steps/step-03/step-03-create-visible-window.md) - completed; create a Linux-hosted visible window or rendering surface.
 4. [Reach Menu Or Title Logic](steps/step-04/step-04-reach-menu-or-title-logic.md) - completed; initialize enough graphics/audio stubs to reach title/menu code.
 5. [Reach Main Loop](steps/step-05/step-05-reach-main-loop.md) - completed; advanced to `thunk_FUN_004620db` and documented the next crash frontier.
-6. [Resolve Post Main Loop Config Open Crash](steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - active; recover the `"e_config"` file/CRT callback path after main-loop entry.
+6. [Resolve Post Main Loop Config Open Crash](steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - active; old `"e_config"` file/CRT crash is cleared, pending one bounded ASan verification after the `FUN_00453920` no-op.
 7. Sustain Main Loop Heartbeat - planned; run several consecutive loop iterations with stable timing, message-pump, and crash-frontier evidence.
 8. Present Inspectable Title Or Menu Frame - planned; show a real reconstructed title/menu frame through the compatibility renderer while keeping host presentation replaceable.
 9. Wire Menu Input Path - planned; map host keyboard/mouse events into the reconstructed Win32-style input path far enough to navigate title/menu logic.
@@ -126,3 +126,9 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 1. Clarified the portability direction: Linux remains the runtime proof target, but host work should prepare for a replaceable backend and future SDL implementation.
 2. Added explicit non-goals against direct SDL calls from reconstructed logic and premature true multi-platform promises.
 3. Extended the roadmap and invariants with backend-boundary milestones so future graphics, input, timing, and audio work stays layered.
+
+### 2026-07-15
+
+1. Advanced step 6 beyond the old `FUN_0046055c`/`"e_config"` crash through hosted config, CDPath, menu/dialog, fixed-address table, and framebuffer frontiers.
+2. Added a hosted no-op for `FUN_00453920` to stop the quick-save writer from crashing through invalid generated string-copy state.
+3. Recorded that ASan was not rerun after the final `FUN_00453920` no-op; the next session should start with one bounded verification run.

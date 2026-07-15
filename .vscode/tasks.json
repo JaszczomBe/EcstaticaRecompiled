@@ -13,7 +13,7 @@
       "label": "CMake: Build",
       "type": "shell",
       "command": "cmake",
-      "args": ["--build", "--preset", "linux-clang32-debug"],
+      "args": ["--build", "build/linux-clang32-debug"],
       "group": {
         "kind": "build",
         "isDefault": true
