@@ -13,6 +13,13 @@ Record transformations in `E2Recomp/tools/GenerateRecon.js` that preserve manual
 
 ## Recent Entries
 
+### 2026-07-15 - CDPATH And Native Stream Slow-Path Repairs
+
+1. Recovered the post-config `CDPath` open in `FUN_0041007c` by replacing the lost-register `FUN_0045eb05(extraout_ECX_07, extraout_EDX_02)` call.
+2. Changed generated `FUN_0045eb05` to treat a plausible `param_1` as the filename and fall back to `param_2` only for generated artifact call sites.
+3. Added native `E2R_STREAM_MAGIC` handling to generated `FUN_0045f38a` so special bytes in read-only stream data do not enter stale-register CRT slow paths.
+4. Guarded generated stream read/close shims against impossible pointers before checking the stream magic marker.
+
 ### 2026-07-15 - Post-Config Fixed-Address And Header Repairs
 
 1. Normalized generated `&DAT_00684d68` and `&DAT_00684be8` map-table references to fixed legacy addresses so `FUN_0044c71c` does not overwrite adjacent host globals such as `PTR_FUN_0047d39c`.

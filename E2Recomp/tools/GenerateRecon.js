@@ -304,6 +304,10 @@ source = source.replace(
 );
 source = source.replace("piVar3 = (int *)FUN_0045eb05(param_1,&DAT_0047007c);", "piVar3 = (int *)FUN_0045eb05(param_1,\"shadow.dat\");");
 source = source.replace(
+  "  iVar3 = FUN_0045eb05(extraout_ECX_07,extraout_EDX_02);",
+  "  iVar3 = FUN_0045eb05((undefined4)(uintptr_t)\"CDPath\",&DAT_0047007c);"
+);
+source = source.replace(
   /(void FUN_0041ccf0\(void\)[\s\S]*?\r?\n\s*)undefined1 \*in_EAX;/,
   "$1undefined1 *in_EAX = (undefined1 *)0x00684a68;"
 );
@@ -314,11 +318,15 @@ source = source.replace(
 source = source.replace("(&DAT_0068cd68)[iVar5] = 0;", "*(undefined1 *)(0x0068cd68 + iVar5) = 0;");
 source = source.replace(
   /undefined4 __fastcall FUN_0045eb05\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045ebf1 \*\//,
-  "undefined4 __fastcall FUN_0045eb05(undefined4 param_1,undefined4 param_2)\n\n{\n  (void)param_1;\n  return E2R_OpenReadStream((LPCSTR)(uintptr_t)param_2);\n}\n\n\n\n/* 0045ebf1 */"
+  "undefined4 __fastcall FUN_0045eb05(undefined4 param_1,undefined4 param_2)\n\n{\n  LPCSTR path;\n  \n  path = (LPCSTR)(uintptr_t)param_1;\n  if ((uintptr_t)path < 0x10000 || (uintptr_t)path >= 0x70000000u ||\n      IsBadReadPtr(path,1)) {\n    path = (LPCSTR)(uintptr_t)param_2;\n  }\n  if ((uintptr_t)path < 0x10000 || (uintptr_t)path >= 0x70000000u ||\n      IsBadReadPtr(path,1)) {\n    return 0;\n  }\n  return E2R_OpenReadStream(path);\n}\n\n\n\n/* 0045ebf1 */"
 );
 source = source.replace(
   /(undefined8 __fastcall FUN_0045ec6c\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n  undefined4 extraout_ECX;\r?\n\s*)\(\*\(code \*\)PTR_FUN_0047d3b0\)\(\);/,
-  "$1undefined4 *stream;\n  \n  (void)param_1;\n  stream = (undefined4 *)(uintptr_t)param_2;\n  if (stream != (undefined4 *)0x0 && stream[6] == E2R_STREAM_MAGIC) {\n    if (stream[5] != 0) {\n      LocalFree((HLOCAL)(uintptr_t)stream[5]);\n    }\n    stream[6] = 0;\n    LocalFree((HLOCAL)stream);\n    return (ulonglong)param_2 << 0x20;\n  }\n  (*(code *)PTR_FUN_0047d3b0)();"
+  "$1undefined4 *stream;\n  \n  (void)param_1;\n  stream = (undefined4 *)(uintptr_t)param_2;\n  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||\n      IsBadReadPtr(stream,0x1c)) {\n    return CONCAT44(param_2,0xffffffff);\n  }\n  if (stream[6] == E2R_STREAM_MAGIC) {\n    if (stream[5] != 0) {\n      LocalFree((HLOCAL)(uintptr_t)stream[5]);\n    }\n    stream[6] = 0;\n    LocalFree((HLOCAL)stream);\n    return (ulonglong)param_2 << 0x20;\n  }\n  (*(code *)PTR_FUN_0047d3b0)();"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_0045f38a\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n  undefined8 uVar5;\r?\n\s*)\(\*\(code \*\)PTR_FUN_0047d3a0\)\(\);/,
+  "$1undefined4 *stream;\n  byte *cursor;\n  \n  (void)param_1;\n  stream = (undefined4 *)(uintptr_t)param_2;\n  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||\n      IsBadReadPtr(stream,0x1c)) {\n    return CONCAT44(param_2,0xffffffff);\n  }\n  if (stream[6] == E2R_STREAM_MAGIC) {\n    if ((int)stream[1] < 1) {\n      *(byte *)(stream + 3) = *(byte *)(stream + 3) | 0x10;\n      return CONCAT44(param_2,0xffffffff);\n    }\n    cursor = (byte *)(uintptr_t)stream[0];\n    stream[0] = (undefined4)(uintptr_t)(cursor + 1);\n    stream[1] = stream[1] + -1;\n    return CONCAT44(param_2,(uint)*cursor);\n  }\n  (*(code *)PTR_FUN_0047d3a0)();"
 );
 source = source.replace(
   /undefined4 __fastcall FUN_0045f1ff\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045f218 \*\//,

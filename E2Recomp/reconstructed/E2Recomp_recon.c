@@ -298,7 +298,7 @@ void __fastcall FUN_0041007c(undefined4 param_1)
   DAT_00479dac = _DAT_00479de0 - 1;
   _DAT_00479df0 = (uint)bStack_52;
   FUN_0043fea4();
-  iVar3 = FUN_0045eb05(extraout_ECX_07,extraout_EDX_02);
+  iVar3 = FUN_0045eb05((undefined4)(uintptr_t)"CDPath",&DAT_0047007c);
   if (iVar3 == 0) {
     FUN_00414e68();
   }
@@ -53272,8 +53272,18 @@ undefined4 __fastcall FUN_0045eacc(undefined4 param_1,undefined4 param_2)
 undefined4 __fastcall FUN_0045eb05(undefined4 param_1,undefined4 param_2)
 
 {
-  (void)param_1;
-  return E2R_OpenReadStream((LPCSTR)(uintptr_t)param_2);
+  LPCSTR path;
+  
+  path = (LPCSTR)(uintptr_t)param_1;
+  if ((uintptr_t)path < 0x10000 || (uintptr_t)path >= 0x70000000u ||
+      IsBadReadPtr(path,1)) {
+    path = (LPCSTR)(uintptr_t)param_2;
+  }
+  if ((uintptr_t)path < 0x10000 || (uintptr_t)path >= 0x70000000u ||
+      IsBadReadPtr(path,1)) {
+    return 0;
+  }
+  return E2R_OpenReadStream(path);
 }
 
 
@@ -53347,7 +53357,11 @@ undefined8 __fastcall FUN_0045ec6c(undefined4 param_1,undefined4 param_2)
   
   (void)param_1;
   stream = (undefined4 *)(uintptr_t)param_2;
-  if (stream != (undefined4 *)0x0 && stream[6] == E2R_STREAM_MAGIC) {
+  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||
+      IsBadReadPtr(stream,0x1c)) {
+    return CONCAT44(param_2,0xffffffff);
+  }
+  if (stream[6] == E2R_STREAM_MAGIC) {
     if (stream[5] != 0) {
       LocalFree((HLOCAL)(uintptr_t)stream[5]);
     }
@@ -53948,7 +53962,25 @@ undefined8 __fastcall FUN_0045f38a(undefined4 param_1,undefined4 param_2)
   int iVar3;
   int iVar4;
   undefined8 uVar5;
+  undefined4 *stream;
+  byte *cursor;
   
+  (void)param_1;
+  stream = (undefined4 *)(uintptr_t)param_2;
+  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||
+      IsBadReadPtr(stream,0x1c)) {
+    return CONCAT44(param_2,0xffffffff);
+  }
+  if (stream[6] == E2R_STREAM_MAGIC) {
+    if ((int)stream[1] < 1) {
+      *(byte *)(stream + 3) = *(byte *)(stream + 3) | 0x10;
+      return CONCAT44(param_2,0xffffffff);
+    }
+    cursor = (byte *)(uintptr_t)stream[0];
+    stream[0] = (undefined4)(uintptr_t)(cursor + 1);
+    stream[1] = stream[1] + -1;
+    return CONCAT44(param_2,(uint)*cursor);
+  }
   (*(code *)PTR_FUN_0047d3a0)();
   if ((*(byte *)(extraout_EDX + 3) & 1) == 0) {
     FUN_0046055c(extraout_ECX,extraout_EDX);
