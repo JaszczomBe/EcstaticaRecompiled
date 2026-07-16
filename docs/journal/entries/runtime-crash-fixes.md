@@ -2,6 +2,88 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-16 - Main Loop Heartbeat Sustained After Requester Id Recovery
+
+Area: `FUN_00415d40 -> FUN_0043ce58`, loop-adjacent requester/menu state
+
+Symptom: after the HUD icon and damage-rectangle table repairs, ASan stopped in `FUN_0043cac0` through `FUN_0043ce58 -> FUN_00414e68`, with `FUN_0043cac0` reading through `in_EAX == 0x1`.
+
+Evidence: original disassembly at `00416278..004162b5` stores `5` in `_DAT_00643650`, but then loads requester id `0x27` or `0x28` into `EAX` before calling `0043ce58`. The reconstructed call used `FUN_0043ce58(param_1,5)`, so `FUN_0043ce58` saw the wrong requester id and fell into the original fatal `Bad request number` path at `0043d43b`.
+
+Change: added a narrow requester-id recovery in `FUN_00415d40`, passing `0x27` when `DAT_00479db4` is set and `0x28` otherwise. Restored `FUN_0043ce58`'s lost incoming `EAX` convention by initializing its generated `in_EAX` from `param_1`. Mirrored both changes in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. Bounded ASan runs of 30 seconds and 90 seconds both timed out with no sanitizer report.
+
+Next Frontier: step 8 should move from crash stabilization to an inspectable title/menu frame, verifying what the compatibility renderer is actually presenting during the sustained loop.
+
+Regression Risk: `FUN_0043ce58` is a shared requester/menu initializer. Initializing `in_EAX` from `param_1` is the correct recovered convention, but other callers that still pass stale `extraout_*` values may expose additional requester ids that need local call-site recovery.
+
+## 2026-07-16 - HUD Icon Clear And Damage-Rect Table Frontiers Advanced
+
+Area: `FUN_00455e84`, `FUN_00455940`/`FUN_0045fae0`, and the `DAT_0047a29c` damage-rectangle count table
+
+Symptom: the first Step 7 ASan run stopped in `FUN_0045fae0` because `FUN_00455940` lost its incoming `EAX` string pointer while clearing HUD icon/action names. After recovering that path, ASan exposed a second fixed-address/global-layout failure in `FUN_00424b48`, where generated code indexed `&DAT_0047a29c` as though it were a contiguous table.
+
+Evidence: original disassembly for `00455940` saves incoming `EAX` in `ESI`, sets `EDX` to each 9-byte entry at `0x00ac4cad`, restores `EAX` from `ESI`, and calls `0045fae0`. Original `00455e84` is a sequence of `mov eax,<icon-name>; call 00455940` operations over icon-name clusters such as `life1`, `armour3`, `hndicon1`, and magic/life bar ranges. After that repair, ASan reported:
+
+```text
+ERROR: AddressSanitizer: global-buffer-overflow
+#0 FUN_00424b48 E2Recomp_recon.c:14961
+#1 FUN_004211c8 E2Recomp_recon.c:12897
+#2 FUN_0042a70c E2Recomp_recon.c:19414
+#3 FUN_00426df8 E2Recomp_recon.c:16516
+```
+
+Redirecting `&DAT_0047a29c` to fixed address `0x0047a29c` cleared that ASan redzone read. The next bounded ASan run now reports:
+
+```text
+ERROR: AddressSanitizer: SEGV on unknown address 0x00000001
+#0 FUN_0043cac0 E2Recomp_recon.c:29610
+#1 FUN_00414e68 E2Recomp_recon.c:6242
+#2 FUN_0043ce58 E2Recomp_recon.c:30141
+#3 FUN_00415d40 E2Recomp_recon.c:6647
+#4 FUN_00426df8 E2Recomp_recon.c:16515
+#5 FUN_0041007c E2Recomp_recon.c:1104
+eax = 0x00000001
+```
+
+Change: added hosted helpers that mirror the HUD icon name literals needed by `00455e84`, clear matching entries from the original `0x00ac4cad` table, and preserve the original status side effects at `0x00ac4a6c`, `0x00ac4c94`, and `DAT_0047ab08`. Replaced the generated `FUN_00455e84` body with the recovered icon-name clear sequence from original disassembly. Redirected `&DAT_0047a29c` table indexing to fixed legacy address `0x0047a29c`. Mirrored both repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. ASan no longer stops in `FUN_0045fae0` or `FUN_00424b48`.
+
+Next Frontier: recover the current `FUN_0043cac0` call path from `FUN_0043ce58 -> FUN_00414e68`; the immediate bad read is through `in_EAX == 0x1` while formatting/scanning text.
+
+Regression Risk: `FUN_00455e84` is now a narrow hosted reconstruction of the observed original icon-name clear sequence, not a full recovery of every `FUN_00455940` caller. `FUN_00455940` and `FUN_0045fae0` still have broader shared call surfaces and should be recovered separately when a future path reaches them.
+
+## 2026-07-16 - Post Quick-Save No-Op ASan Frontier Recorded
+
+Area: `FUN_0041007c -> FUN_00426df8 -> FUN_00415d40 -> FUN_00455e84 -> FUN_00455940 -> FUN_0045fae0`
+
+Symptom: after the hosted no-op replacement for `FUN_00453920`, the bounded ASan run no longer stops in the quick-save writer path. The next crash is a read through an invalid `in_EAX` value inside `FUN_0045fae0`.
+
+Evidence: the ASan run from `build/linux-clang32-asan` reported:
+
+```text
+ERROR: AddressSanitizer: SEGV on unknown address 0x27d9823c
+#0 FUN_0045fae0 E2Recomp_recon.c:54618
+#1 FUN_00455940 E2Recomp_recon.c:47610
+#2 FUN_00455e84 E2Recomp_recon.c:47852
+#3 FUN_00415d40 E2Recomp_recon.c:6544
+#4 FUN_00426df8 E2Recomp_recon.c:16430
+#5 FUN_0041007c E2Recomp_recon.c:1019
+eax = 0x27d9823c
+```
+
+`FUN_00455940` iterates a 25-entry table beginning at `0x00ac4cad` and passes each entry as `param_2` to `FUN_0045fae0`. The callee then reads from its local `in_EAX` pseudo-register at `E2Recomp_recon.c:54618`, so the immediate frontier looks like another lost incoming string/pointer register around a strcmp-like helper or its call site.
+
+Change: no code change in this pass. This was the bounded verification run requested after the `FUN_00453920` no-op.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. The single ASan run verifies that the quick-save no-op advances execution to the new `FUN_0045fae0` frontier.
+
+Next Frontier: step 7 should recover the missing input pointer or call convention for `FUN_0045fae0`/`FUN_00455940`, then continue toward a sustained main-loop heartbeat.
+
+Regression Risk: the quick-save path remains intentionally disabled by the hosted `FUN_00453920` no-op. `FUN_0045fae0` appears to be a shared comparison helper, so the next repair should be Ghidra-backed and avoid a broad guard that hides valid string/table comparisons.
+
 ## 2026-07-15 - Config, CDPath, Menu, Framebuffer, And Quick-Save Frontiers Advanced
 
 Area: `FUN_0041007c`, hosted file/config startup, menu/dialog helpers, fixed-address framebuffer tables, and `FUN_00453920`

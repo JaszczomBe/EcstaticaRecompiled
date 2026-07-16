@@ -1,8 +1,8 @@
 # Resolve Post Main Loop Config Open Crash
 
-Status: active
+Status: completed
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
-Last Updated: 2026-07-15
+Last Updated: 2026-07-16
 
 ## Goal
 
@@ -62,7 +62,32 @@ Program received signal SIGSEGV, Segmentation fault.
 #4 FUN_0041007c
 ```
 
-The original `FUN_0046055c` frontier has been cleared. Current stop point is after replacing `FUN_00453920` with a hosted no-op; builds pass, but ASan has not been rerun after that final change.
+The original `FUN_0046055c` frontier has been cleared. The hosted no-op replacement for `FUN_00453920` has now been verified with one bounded ASan run, which advanced to the next frontier in `FUN_0045fae0`.
+
+## Result
+
+Completed on 2026-07-16. Verification after the `FUN_00453920` no-op:
+
+```text
+node --check E2Recomp/tools/GenerateRecon.js
+cmake --build --preset linux-clang32-debug
+cmake --build build/linux-clang32-asan
+timeout --preserve-status 30s ./e2recomp --run-recon
+```
+
+The ASan run no longer stops in the quick-save writer path and instead reports:
+
+```text
+ERROR: AddressSanitizer: SEGV on unknown address 0x27d9823c
+#0 FUN_0045fae0 E2Recomp_recon.c:54618
+#1 FUN_00455940 E2Recomp_recon.c:47610
+#2 FUN_00455e84 E2Recomp_recon.c:47852
+#3 FUN_00415d40 E2Recomp_recon.c:6544
+#4 FUN_00426df8 E2Recomp_recon.c:16430
+#5 FUN_0041007c E2Recomp_recon.c:1019
+```
+
+Next frontier: recover the missing input pointer or call convention around `FUN_0045fae0` and `FUN_00455940` as the first step toward a sustained main-loop heartbeat.
 
 ## Change Log
 
@@ -76,3 +101,9 @@ The original `FUN_0046055c` frontier has been cleared. Current stop point is aft
 2. Mirrored reconstructed C fixes in `E2Recomp/tools/GenerateRecon.js`.
 3. Stopped after reducing `FUN_00453920` to a hosted no-op. Verification performed after that final change: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build build/linux-clang32-debug`, and `cmake --build build/linux-clang32-asan`.
 4. Next action is a single bounded ASan run to verify the `FUN_00453920` no-op and record the next frontier.
+
+### 2026-07-16
+
+1. Ran the bounded ASan verification after the `FUN_00453920` no-op.
+2. Verified the quick-save frontier is cleared and recorded the new `FUN_0045fae0` read fault.
+3. Closed step 6; continue in step 7 with `FUN_0045fae0`/`FUN_00455940` recovery.

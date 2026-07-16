@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-15
+Last Updated: 2026-07-16
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -56,11 +56,11 @@ FUN_00410a48 -> FUN_00414b24
 FUN_00410a48 -> thunk_FUN_004620db
 ```
 
-The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been cleared. Runtime stabilization has advanced through config-header, CDPath, hosted file existence, menu/dialog string-list, fixed-address table, framebuffer fill, and quick-save writer frontiers. The current stop point is the hosted no-op replacement for `FUN_00453920`; builds pass after that change, but ASan has not been rerun after the final no-op.
+The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been cleared. Runtime stabilization has advanced through config-header, CDPath, hosted file existence, menu/dialog string-list, fixed-address table, framebuffer fill, quick-save writer, HUD icon clear, damage-rectangle table, and requester-id frontiers. Step 7 now sustains the reconstructed runtime under ASan for 90 seconds without a sanitizer crash.
 
 ## Active Steps
 
-Step 6 remains the active documentation bucket until the next ASan frontier is recorded. It no longer starts from `FUN_0046055c`; the next action is a bounded verification run after the `FUN_00453920` no-op and then either close step 6 or split the newly exposed frontier into step 7.
+Step 7 is complete. Step 8 is active and should turn the sustained heartbeat into an inspectable title/menu frame.
 
 ## Step Roadmap
 
@@ -71,9 +71,9 @@ Each step should be scoped so it can preferably be completed in one context wind
 3. [Create Visible Window](steps/step-03/step-03-create-visible-window.md) - completed; create a Linux-hosted visible window or rendering surface.
 4. [Reach Menu Or Title Logic](steps/step-04/step-04-reach-menu-or-title-logic.md) - completed; initialize enough graphics/audio stubs to reach title/menu code.
 5. [Reach Main Loop](steps/step-05/step-05-reach-main-loop.md) - completed; advanced to `thunk_FUN_004620db` and documented the next crash frontier.
-6. [Resolve Post Main Loop Config Open Crash](steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - active; old `"e_config"` file/CRT crash is cleared, pending one bounded ASan verification after the `FUN_00453920` no-op.
-7. Sustain Main Loop Heartbeat - planned; run several consecutive loop iterations with stable timing, message-pump, and crash-frontier evidence.
-8. Present Inspectable Title Or Menu Frame - planned; show a real reconstructed title/menu frame through the compatibility renderer while keeping host presentation replaceable.
+6. [Resolve Post Main Loop Config Open Crash](steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - completed; old `"e_config"` file/CRT crash is cleared and the `FUN_00453920` no-op has been verified under ASan.
+7. [Sustain Main Loop Heartbeat](steps/step-07/step-07-sustain-main-loop-heartbeat.md) - completed; recovered HUD icon clearing, damage-rectangle table access, and loop requester-id handoff, then verified 90 seconds under ASan.
+8. [Present Inspectable Title Or Menu Frame](steps/step-08/step-08-present-inspectable-title-or-menu-frame.md) - active; show a real reconstructed title/menu frame through the compatibility renderer while keeping host presentation replaceable.
 9. Wire Menu Input Path - planned; map host keyboard/mouse events into the reconstructed Win32-style input path far enough to navigate title/menu logic.
 10. Reach First Controllable Scene - planned; load a gameplay scene and prove basic player-control or camera-control progression.
 11. Harden Runtime Loop Regression Checks - planned; make debug/ASan/GDB probes repeatable for the stabilized loop path.
@@ -132,3 +132,13 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 1. Advanced step 6 beyond the old `FUN_0046055c`/`"e_config"` crash through hosted config, CDPath, menu/dialog, fixed-address table, and framebuffer frontiers.
 2. Added a hosted no-op for `FUN_00453920` to stop the quick-save writer from crashing through invalid generated string-copy state.
 3. Recorded that ASan was not rerun after the final `FUN_00453920` no-op; the next session should start with one bounded verification run.
+
+### 2026-07-16
+
+1. Verified the `FUN_00453920` no-op with one bounded ASan run.
+2. Recorded the next frontier at `FUN_0045fae0`, called from `FUN_00455940 -> FUN_00455e84 -> FUN_00415d40 -> FUN_00426df8 -> FUN_0041007c`.
+3. Closed step 6 and opened step 7 for sustaining the main-loop heartbeat from the comparison-helper frontier.
+4. Recovered the current `FUN_00455e84` HUD icon clear path and redirected the `DAT_0047a29c` fixed-address table.
+5. Recorded the next frontier at `FUN_0043cac0`, reached from `FUN_0043ce58 -> FUN_00414e68`.
+6. Recovered the `FUN_00415d40 -> FUN_0043ce58` requester id handoff and verified 30-second and 90-second ASan runs without a sanitizer crash.
+7. Closed step 7 and opened step 8 for making the sustained title/menu loop inspectable.

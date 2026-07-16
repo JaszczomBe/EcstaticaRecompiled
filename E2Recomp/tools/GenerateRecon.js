@@ -202,6 +202,18 @@ source = source.replace(
   /undefined8 __fastcall FUN_00457fe0\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 00458094 \*\//,
   "undefined8 __fastcall FUN_00457fe0(undefined4 param_1,undefined4 param_2)\n\n{\n  (void)param_1;\n  return CONCAT44(param_2,1);\n}\n\n\n\n/* 00458094 */"
 );
+source = source.replace(
+  /(void __fastcall FUN_00415d40\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  bool bVar3;\r?\n\s*)undefined8 uVar4;/,
+  "$1int requester_id;\n  undefined8 uVar4;"
+);
+source = source.replace(
+  "    DAT_0047a788 = 1;\n    DAT_00636844 = '\\0';\n    _DAT_00643650 = 5;\n    if (DAT_00479db4 != 0) {\n      param_1 = 0;\n      DAT_00479db4 = 0;\n    }\n    uVar4 = FUN_0043ce58(param_1,5);",
+  "    DAT_0047a788 = 1;\n    DAT_00636844 = '\\0';\n    _DAT_00643650 = 5;\n    requester_id = 0x28;\n    if (DAT_00479db4 != 0) {\n      requester_id = 0x27;\n      param_1 = 0;\n      DAT_00479db4 = 0;\n    }\n    uVar4 = FUN_0043ce58(requester_id,5);"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_0043ce58\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  short sStack_1c;\r?\n\s*)E2R_WORD_AT\(DAT_0047a45e,2\) = \(ushort\)in_EAX;/,
+  "$1in_EAX = (uint)(uintptr_t)param_1;\n  E2R_WORD_AT(DAT_0047a45e,2) = (ushort)in_EAX;"
+);
 source = source.replace(/(void __fastcall FUN_00460557\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n\s*)\*\(int \*\)\(\(int\)uVar1 \+ 4\) = \(int\)\(\(ulonglong\)uVar1 >> 0x20\);/, "$1if ((int)uVar1 != 0) {\n    *(int *)((int)uVar1 + 4) = (int)((ulonglong)uVar1 >> 0x20);\n  }");
 source = source.replace(/(void __fastcall FUN_0046055c\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n\s*)\*\(int \*\)\(\(int\)uVar1 \+ 4\) = \(int\)\(\(ulonglong\)uVar1 >> 0x20\);/, "$1if ((int)uVar1 != 0) {\n    *(int *)((int)uVar1 + 4) = (int)((ulonglong)uVar1 >> 0x20);\n  }");
 source = source.replace(/(void __fastcall FUN_00460581\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n\s*)\*\(int \*\)\(\(int\)uVar1 \+ 8\) = \(int\)\(\(ulonglong\)uVar1 >> 0x20\);/, "$1if ((int)uVar1 != 0) {\n    *(int *)((int)uVar1 + 8) = (int)((ulonglong)uVar1 >> 0x20);\n  }");
@@ -237,6 +249,10 @@ source = source.replace(
 source = source.replace(
   /\/\* 00453920 \*\/\s*\r?\n\s*\/\* WARNING:[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\s*\/\* 004544a4 \*\//,
   "/* 00453920 */\n\nundefined8 __fastcall FUN_00453920(undefined4 param_1,char *param_2)\n\n{\n  (void)param_1;\n  (void)param_2;\n  return 0;\n}\n\n\n\n/* 004544a4 */"
+);
+source = source.replace(
+  /\/\* 00455e84 \*\/\s*\r?\n\s*void FUN_00455e84\(void\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\s*\/\* 00455fe8 \*\//,
+  "/* 00455e84 */\n\nvoid FUN_00455e84(void)\n\n{\n  if (DAT_0047a43c == 0) {\n    E2R_ClearHudIconName((char *)0x00475ef8);\n    E2R_ClearHudIconName((char *)0x00475f00);\n    E2R_ClearHudIconName((char *)0x00475f08);\n    E2R_ClearHudIconName((char *)0x00475f2c);\n    E2R_ClearHudIconName((char *)0x00475f20);\n    E2R_ClearHudIconName((char *)0x00475f6c);\n    E2R_ClearHudIconName((char *)0x00475f64);\n    E2R_ClearHudIconNameRange(0x0047ab71,0x0047ab9e);\n    E2R_ClearHudIconName((char *)0x00475f5c);\n    E2R_ClearHudIconName((char *)0x00475e4c);\n    E2R_ClearHudIconNameRange(0x0047ac40,0x0047ac76);\n    E2R_ClearHudIconNameRange(0x0047ac76,0x0047acac);\n    E2R_ClearHudIconNameRange(0x0047acac,0x0047ace2);\n  }\n  else {\n    E2R_ClearHudIconName((char *)0x00475ee0);\n    E2R_ClearHudIconName((char *)0x00475ee8);\n    E2R_ClearHudIconName((char *)0x00475ef0);\n    E2R_ClearHudIconName((char *)0x00475f18);\n    E2R_ClearHudIconName((char *)0x00475f10);\n    E2R_ClearHudIconName((char *)0x00475f50);\n    E2R_ClearHudIconName((char *)0x00475f44);\n    E2R_ClearHudIconNameRange(0x0047ab44,0x0047ab71);\n    E2R_ClearHudIconName((char *)0x00475f38);\n    E2R_ClearHudIconName((char *)0x00475e40);\n    E2R_ClearHudIconNameRange(0x0047ab9e,0x0047abd4);\n    E2R_ClearHudIconNameRange(0x0047abd4,0x0047ac0a);\n    E2R_ClearHudIconNameRange(0x0047ac0a,0x0047ac40);\n  }\n  return;\n}\n\n\n\n/* 00455fe8 */"
 );
 source = source.replace(/(FUN_00417b20\(int param_1,int param_2,undefined4 param_3,int param_4,int param_5,int param_6\)[\s\S]*?\r?\n  int local_10;\r?\n\s*)local_24 = 1;/, "$1E2R_InitCursorMaskState();\n  unaff_EBX = param_4;\n  local_24 = 1;");
 source = source.replace("  local_18 = in_EAX;\n  if ((DAT_0047a279 >> 0x18 == param_1)", "  local_18 = param_1;\n  if ((DAT_0047a279 >> 0x18 == param_1)");
@@ -457,12 +473,99 @@ const glyphTableMirror = `\nstatic void E2R_MirrorGlyphTableData(void)\n{\n  sta
   const address = name.slice(4).toLowerCase();
   return `  *(undefined4 *)0x${address} = (undefined4)${name};`;
 }).join("\n")}\n}\n`;
-source = source.replace("\n\n/* 00410078 */", `${ctypeTableState}\n${menuStringState}\n${streamLineState}\n${configHeaderState}\n${cursorMaskState}\n${startupPartNames}\n${glyphTableMirror}\n\n/* 00410078 */`);
+const hudIconNameState = `
+static void E2R_MirrorHudIconNames(void)
+{
+  static const struct {
+    uintptr_t address;
+    const char *text;
+  } names[] = {
+    {0x00475e38,"llife"},
+    {0x00475e40,"magibar1"},
+    {0x00475e4c,"lmbar"},
+    {0x00475ee0,"life1"},
+    {0x00475ee8,"life2"},
+    {0x00475ef0,"life3"},
+    {0x00475ef8,"llife1"},
+    {0x00475f00,"llife2"},
+    {0x00475f08,"llife3"},
+    {0x00475f10,"armour3"},
+    {0x00475f18,"armour2"},
+    {0x00475f20,"larmour3"},
+    {0x00475f2c,"larmour2"},
+    {0x00475f38,"hndicon1"},
+    {0x00475f44,"swdicon1"},
+    {0x00475f50,"rodicon1"},
+    {0x00475f5c,"lhand2"},
+    {0x00475f64,"lsword1"},
+    {0x00475f6c,"lrod1"},
+    {0x0047ab71,"lbar1"},
+    {0x0047ab9e,"magic1"},
+    {0x0047aba7,"magic1b"},
+    {0x0047abd4,"magic2"},
+    {0x0047ac0a,"magic3"},
+    {0x0047ac40,"lmagic1"},
+    {0x0047ac76,"lmagic2"},
+    {0x0047acac,"lmagic3"},
+  };
+  static int initialized;
+  uint i;
+
+  if (initialized != 0) {
+    return;
+  }
+  initialized = 1;
+  for (i = 0; i < sizeof(names) / sizeof(names[0]); i = i + 1) {
+    strcpy((char *)names[i].address,names[i].text);
+  }
+}
+
+static void E2R_ClearHudIconName(char *name)
+{
+  char *entry;
+  char state;
+  int i;
+
+  E2R_MirrorHudIconNames();
+  if (!E2R_IsReadableCString(name) || name[0] == '\\0') {
+    return;
+  }
+  for (i = 0; i < 0x19; i = i + 1) {
+    entry = (char *)(0x00ac4cad + i * 9);
+    if (entry[0] != '\\0' && strncmp(name,entry,9) == 0) {
+      if (*(int *)(0x00ac4a6c + i * 4) != 0) {
+        FUN_0045f9b5();
+      }
+      state = *(char *)(0x00ac4c94 + i);
+      *(undefined4 *)(0x00ac4a6c + i * 4) = 0;
+      if (state == '\\x02') {
+        *(undefined1 *)(0x00ac4c94 + i) = 0xff;
+        DAT_0047ab08 = 1;
+      }
+      else {
+        *(undefined1 *)(0x00ac4cad + i * 9) = 0;
+      }
+      return;
+    }
+  }
+}
+
+static void E2R_ClearHudIconNameRange(uintptr_t start,uintptr_t end)
+{
+  uintptr_t address;
+
+  for (address = start; address != end; address = address + 9) {
+    E2R_ClearHudIconName((char *)address);
+  }
+}
+`;
+source = source.replace("\n\n/* 00410078 */", `${ctypeTableState}\n${menuStringState}\n${streamLineState}\n${configHeaderState}\n${cursorMaskState}\n${startupPartNames}\n${glyphTableMirror}\n${hudIconNameState}\n\n/* 00410078 */`);
 source = source.replace(/\(&DAT_00476e8c\)\[([^\]]+)\]/g, "E2R_CtypeFlags($1)");
 source = source.replace(/\(&DAT_00476f90\)\[([^\]]+)\]/g, "E2R_BitMask($1)");
 source = source.replace(/&DAT_00479e24/g, "(char *)0x00479e24");
 source = source.replace(/\(int\)&DAT_0047aad8/g, "0x0047aad8");
 source = source.replace(/\(&DAT_0047aad8\)\[([^\]]+)\]/g, "((short *)0x0047aad8)[$1]");
+source = source.replace(/&DAT_0047a29c/g, "(undefined1 *)0x0047a29c");
 source = source.replace(/&DAT_006430ee/g, "(undefined1 *)0x006430ee");
 source = source.replace(/_DAT_006432ec/g, "*(undefined4 *)0x006432ec");
 source = source.replace(/&DAT_00636150/g, "(undefined1 *)0x00636150");
