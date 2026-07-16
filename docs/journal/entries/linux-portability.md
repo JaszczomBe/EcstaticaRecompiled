@@ -14,6 +14,13 @@ Track non-gameplay scaffolding needed to build and launch the reconstructed runt
 
 ## Recent Entries
 
+### 2026-07-16
+
+1. Added `--dump-frame <path.pgm> [seconds]` to the native Linux launcher as a bounded host-side inspection hook.
+2. The probe starts the reconstructed runtime, waits for the requested delay, scans the known legacy surface pages for a nonblank frame, writes a raw PGM dump, and exits without adding backend-specific presentation calls to reconstructed game logic.
+3. Verified the ASan build can dump a coherent `640x480` Ecstatica II title-logo frame from surface 3. The image artifact was written to `/tmp/e2-step08-frame-asan.pgm` and locally converted to `/tmp/e2-step08-frame-asan.png` with `pnmtopng`.
+4. The debug build compiles, but its `--dump-frame` mode currently exits immediately with code `112` before the delayed dump thread fires. Treat this as a runtime parity caveat for the next input/presentation stabilization pass.
+
 ### 2026-07-14
 
 1. Reframed Linux portability as the current proof platform rather than the final host abstraction.

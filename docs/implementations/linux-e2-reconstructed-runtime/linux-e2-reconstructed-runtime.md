@@ -56,11 +56,11 @@ FUN_00410a48 -> FUN_00414b24
 FUN_00410a48 -> thunk_FUN_004620db
 ```
 
-The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been cleared. Runtime stabilization has advanced through config-header, CDPath, hosted file existence, menu/dialog string-list, fixed-address table, framebuffer fill, quick-save writer, HUD icon clear, damage-rectangle table, and requester-id frontiers. Step 7 now sustains the reconstructed runtime under ASan for 90 seconds without a sanitizer crash.
+The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been cleared. Runtime stabilization has advanced through config-header, CDPath, hosted file existence, menu/dialog string-list, fixed-address table, framebuffer fill, quick-save writer, HUD icon clear, damage-rectangle table, and requester-id frontiers. Step 7 sustains the reconstructed runtime under ASan for 90 seconds without a sanitizer crash, and Step 8 captures an inspectable `640x480` Ecstatica II title-logo frame from the ASan build.
 
 ## Active Steps
 
-Step 7 is complete. Step 8 is active and should turn the sustained heartbeat into an inspectable title/menu frame.
+Step 8 is complete. Step 9 is active and should wire enough host input to drive the reconstructed title/menu path.
 
 ## Step Roadmap
 
@@ -73,8 +73,8 @@ Each step should be scoped so it can preferably be completed in one context wind
 5. [Reach Main Loop](steps/step-05/step-05-reach-main-loop.md) - completed; advanced to `thunk_FUN_004620db` and documented the next crash frontier.
 6. [Resolve Post Main Loop Config Open Crash](steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - completed; old `"e_config"` file/CRT crash is cleared and the `FUN_00453920` no-op has been verified under ASan.
 7. [Sustain Main Loop Heartbeat](steps/step-07/step-07-sustain-main-loop-heartbeat.md) - completed; recovered HUD icon clearing, damage-rectangle table access, and loop requester-id handoff, then verified 90 seconds under ASan.
-8. [Present Inspectable Title Or Menu Frame](steps/step-08/step-08-present-inspectable-title-or-menu-frame.md) - active; show a real reconstructed title/menu frame through the compatibility renderer while keeping host presentation replaceable.
-9. Wire Menu Input Path - planned; map host keyboard/mouse events into the reconstructed Win32-style input path far enough to navigate title/menu logic.
+8. [Present Inspectable Title Or Menu Frame](steps/step-08/step-08-present-inspectable-title-or-menu-frame.md) - completed; added bounded frame dumping and captured a real Ecstatica II title-logo frame from ASan surface 3.
+9. [Wire Menu Input Path](steps/step-09/step-09-wire-menu-input-path.md) - active; map host keyboard/mouse events into the reconstructed Win32-style input path far enough to navigate title/menu logic.
 10. Reach First Controllable Scene - planned; load a gameplay scene and prove basic player-control or camera-control progression.
 11. Harden Runtime Loop Regression Checks - planned; make debug/ASan/GDB probes repeatable for the stabilized loop path.
 12. Define Replaceable Host Backend Boundary - planned; isolate window, input, timing, presentation, and audio backend calls below the compatibility layer.
@@ -142,3 +142,5 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 5. Recorded the next frontier at `FUN_0043cac0`, reached from `FUN_0043ce58 -> FUN_00414e68`.
 6. Recovered the `FUN_00415d40 -> FUN_0043ce58` requester id handoff and verified 30-second and 90-second ASan runs without a sanitizer crash.
 7. Closed step 7 and opened step 8 for making the sustained title/menu loop inspectable.
+8. Added bounded `--dump-frame` support and captured a real `640x480` Ecstatica II title-logo frame from the ASan build.
+9. Closed step 8 and opened step 9 for host input/menu navigation.

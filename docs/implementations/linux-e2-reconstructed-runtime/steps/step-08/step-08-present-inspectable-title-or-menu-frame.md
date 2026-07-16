@@ -1,6 +1,6 @@
 # Present Inspectable Title Or Menu Frame
 
-Status: active
+Status: completed
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
 Last Updated: 2026-07-16
 
@@ -39,6 +39,25 @@ exit code 143
 
 No sanitizer report was emitted during the 90-second bounded run.
 
+## Result
+
+Added a bounded host-side frame dump mode:
+
+```text
+./e2recomp --dump-frame /tmp/e2-step08-frame-asan.pgm 5
+```
+
+The probe starts the reconstructed runtime, waits for the requested delay, scans the known legacy surface pages for the first nonblank frame, writes a raw PGM image, and exits without committing reconstructed game logic to a final host backend.
+
+ASan verification captured a coherent Ecstatica II title-logo frame from surface 3:
+
+```text
+Ecstatica II data: /home/rgrabowski/Work/EcstaticaRecompiled/build/linux-clang32-asan/Ecstatica2
+wrote frame dump: /tmp/e2-step08-frame-asan.pgm (surface 3)
+```
+
+`file /tmp/e2-step08-frame-asan.pgm` reports `Netpbm image data, size = 640 x 480, rawbits, greymap`. A converted PNG at `/tmp/e2-step08-frame-asan.png` shows the Ecstatica II title logo. The debug build compiles, but `--dump-frame` currently exits immediately with code `112` before the delayed dump fires; keep that as a timing/runtime parity caveat for the next input/presentation work.
+
 ## Acceptance Criteria
 
 1. Runtime still builds in debug and ASan configurations.
@@ -52,9 +71,12 @@ No sanitizer report was emitted during the 90-second bounded run.
 2. `cmake --build --preset linux-clang32-debug`
 3. `cmake --build build/linux-clang32-asan`
 4. Bounded runtime or screenshot/presentation probe from the relevant build directory.
+5. Optional local review conversion: `pnmtopng /tmp/e2-step08-frame-asan.pgm > /tmp/e2-step08-frame-asan.png`
 
 ## Change Log
 
 ### 2026-07-16
 
 1. Created after Step 7 sustained a 90-second ASan heartbeat without a sanitizer crash.
+2. Added `--dump-frame <path.pgm> [seconds]` as a bounded native launcher inspection mode.
+3. Verified a nonblank `640x480` title-logo frame from ASan surface 3.
