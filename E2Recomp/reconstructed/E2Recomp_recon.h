@@ -1,8 +1,10 @@
 #pragma once
 #include "../src/e2recomp_types.h"
-#if defined(_WIN32)
+#ifdef _WIN32
 #include <commdlg.h>
 #include <mmsystem.h>
+#else
+#include "../platform/e2recomp_win32_compat.h"
 #endif
 #include <stdint.h>
 
@@ -41,6 +43,16 @@ void E2R_InitData(void);
 void E2R_WinMainThunk(void);
 LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 extern uintptr_t E2R_timer_slots[8];
+extern uintptr_t E2R_requester_probe_ce58_count;
+extern uintptr_t E2R_requester_probe_last_id;
+extern uintptr_t E2R_requester_probe_last_mode;
+extern uintptr_t E2R_requester_probe_b384_count;
+extern uintptr_t E2R_requester_probe_b384_bad_ptr_count;
+extern uintptr_t E2R_requester_probe_b384_last_ptr;
+extern uintptr_t E2R_requester_probe_b9bc_count;
+extern uintptr_t E2R_requester_probe_b9bc_last_item;
+extern uintptr_t E2R_requester_probe_bd4c_count;
+extern uintptr_t E2R_requester_probe_bd4c_last_key;
 extern char E2R_midi_device_labels[10][0x33];
 HWND E2R_CreateWindowExA(DWORD exStyle, ...);
 INT_PTR E2R_DialogBoxParamA(HINSTANCE inst, LPCSTR tmpl, HWND parent, DLGPROC proc, LPARAM param);
@@ -2693,9 +2705,9 @@ extern char s_Can_t_find__s_for__s_00475d64[];
 extern char s_Can_t_find_file__004731ec[];
 extern char s_Can_t_find_files_in__0047320c[];
 extern char s_Can_t_find_music_file__s_00471128[];
-extern char s_Can_t_load_title_picture_00471320[];
 extern char s_Can_t_load_graphic___s__00475e8c[];
 extern char s_Can_t_load_temp_graphic___s__00475ec0[];
+extern char s_Can_t_load_title_picture_00471320[];
 extern char s_Can_t_open_main_file_00473048[];
 extern char s_Can_t_read__s_004731cc[];
 extern char s_Can_t_write__s_004731dc[];
@@ -2980,8 +2992,8 @@ extern char s_files_ECST2_0047303c[];
 extern char s_files_ECSTATIC_0047049c[];
 extern char s_files_ECSTATIC_0047302c[];
 extern char s_frame__d_00471f60[];
-extern char s_gbnklogo_raw_00470500[];
 extern char s_fromnec_00470cdc[];
+extern char s_gbnklogo_raw_00470500[];
 extern char s_graphics_00472a3c[];
 extern char s_graphics__00474a1c[];
 extern char s_graphics__00475f74[];

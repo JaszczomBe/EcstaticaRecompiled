@@ -12,6 +12,7 @@
 #include <unistd.h>
 #ifndef _WIN32
 #include <dlfcn.h>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #ifndef MAP_ANONYMOUS
@@ -29,10 +30,111 @@ static E2R_HANDLE__ e2r_handle = {0, 0};
 static DWORD e2r_last_error;
 static void *e2r_tls[64];
 static DWORD e2r_next_tls;
+static WNDPROC e2r_window_proc;
+
+#define E2R_MESSAGE_QUEUE_CAPACITY 32
+
+static MSG e2r_message_queue[E2R_MESSAGE_QUEUE_CAPACITY];
+static unsigned e2r_message_head;
+static unsigned e2r_message_tail;
+
+#ifndef _WIN32
+static pthread_mutex_t e2r_message_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
+static void e2r_message_lock(void)
+{
+#ifndef _WIN32
+    pthread_mutex_lock(&e2r_message_mutex);
+#endif
+}
+
+static void e2r_message_unlock(void)
+{
+#ifndef _WIN32
+    pthread_mutex_unlock(&e2r_message_mutex);
+#endif
+}
+
+static BOOL e2r_message_matches(const MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter)
+{
+    if (hwnd != NULL && msg->hwnd != hwnd) {
+        return FALSE;
+    }
+    if ((min_filter != 0 || max_filter != 0) &&
+        (msg->message < min_filter || msg->message > max_filter)) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static BOOL e2r_pop_message(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter, BOOL remove)
+{
+    BOOL found = FALSE;
+
+    e2r_message_lock();
+    if (e2r_message_head != e2r_message_tail &&
+        e2r_message_matches(&e2r_message_queue[e2r_message_head], hwnd, min_filter, max_filter)) {
+        if (msg != NULL) {
+            *msg = e2r_message_queue[e2r_message_head];
+        }
+        if (remove) {
+            e2r_message_head = (e2r_message_head + 1u) % E2R_MESSAGE_QUEUE_CAPACITY;
+        }
+        found = TRUE;
+    }
+    e2r_message_unlock();
+    return found;
+}
+
+static BOOL e2r_push_message(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+    unsigned next_tail;
+    BOOL queued = FALSE;
+
+    e2r_message_lock();
+    next_tail = (e2r_message_tail + 1u) % E2R_MESSAGE_QUEUE_CAPACITY;
+    if (next_tail != e2r_message_head) {
+        MSG *entry = &e2r_message_queue[e2r_message_tail];
+        memset(entry, 0, sizeof(*entry));
+        entry->hwnd = hwnd;
+        entry->message = msg;
+        entry->wParam = wparam;
+        entry->lParam = lparam;
+        e2r_message_tail = next_tail;
+        queued = TRUE;
+    }
+    e2r_message_unlock();
+    return queued;
+}
 
 #ifndef _WIN32
 typedef struct E2R_XDisplay E2R_XDisplay;
 typedef unsigned long E2R_XWindow;
+
+typedef struct E2R_XKeyEvent {
+    int type;
+    unsigned long serial;
+    int send_event;
+    E2R_XDisplay *display;
+    E2R_XWindow window;
+    E2R_XWindow root;
+    E2R_XWindow subwindow;
+    unsigned long time;
+    int x;
+    int y;
+    int x_root;
+    int y_root;
+    unsigned int state;
+    unsigned int keycode;
+    int same_screen;
+} E2R_XKeyEvent;
+
+typedef union E2R_XEvent {
+    int type;
+    E2R_XKeyEvent xkey;
+    long pad[24];
+} E2R_XEvent;
 
 typedef struct E2R_X11_API {
     void *lib;
@@ -47,6 +149,10 @@ typedef struct E2R_X11_API {
     int (*XDestroyWindow)(E2R_XDisplay *, E2R_XWindow);
     int (*XFlush)(E2R_XDisplay *);
     int (*XCloseDisplay)(E2R_XDisplay *);
+    int (*XSelectInput)(E2R_XDisplay *, E2R_XWindow, long);
+    int (*XPending)(E2R_XDisplay *);
+    int (*XNextEvent)(E2R_XDisplay *, E2R_XEvent *);
+    unsigned long (*XLookupKeysym)(E2R_XKeyEvent *, int);
 } E2R_X11_API;
 
 typedef struct E2R_X11_Window {
@@ -58,6 +164,9 @@ static E2R_X11_API e2r_x11;
 static E2R_X11_Window e2r_x11_window;
 static int e2r_x11_load_attempted;
 static int e2r_x11_warned;
+
+#define E2R_X11_KEY_PRESS 2
+#define E2R_X11_KEY_PRESS_MASK (1L << 0)
 
 static void *e2r_x11_symbol(const char *name)
 {
@@ -83,17 +192,70 @@ static int e2r_load_x11(void)
     e2r_x11.XDestroyWindow = (int (*)(E2R_XDisplay *, E2R_XWindow))e2r_x11_symbol("XDestroyWindow");
     e2r_x11.XFlush = (int (*)(E2R_XDisplay *))e2r_x11_symbol("XFlush");
     e2r_x11.XCloseDisplay = (int (*)(E2R_XDisplay *))e2r_x11_symbol("XCloseDisplay");
+    e2r_x11.XSelectInput = (int (*)(E2R_XDisplay *, E2R_XWindow, long))e2r_x11_symbol("XSelectInput");
+    e2r_x11.XPending = (int (*)(E2R_XDisplay *))e2r_x11_symbol("XPending");
+    e2r_x11.XNextEvent = (int (*)(E2R_XDisplay *, E2R_XEvent *))e2r_x11_symbol("XNextEvent");
+    e2r_x11.XLookupKeysym = (unsigned long (*)(E2R_XKeyEvent *, int))e2r_x11_symbol("XLookupKeysym");
 
     if (!e2r_x11.XOpenDisplay || !e2r_x11.XDefaultScreen || !e2r_x11.XRootWindow ||
         !e2r_x11.XBlackPixel || !e2r_x11.XWhitePixel || !e2r_x11.XCreateSimpleWindow ||
         !e2r_x11.XStoreName || !e2r_x11.XMapWindow || !e2r_x11.XDestroyWindow ||
-        !e2r_x11.XFlush || !e2r_x11.XCloseDisplay) {
+        !e2r_x11.XFlush || !e2r_x11.XCloseDisplay || !e2r_x11.XSelectInput ||
+        !e2r_x11.XPending || !e2r_x11.XNextEvent || !e2r_x11.XLookupKeysym) {
         dlclose(e2r_x11.lib);
         memset(&e2r_x11, 0, sizeof(e2r_x11));
         return 0;
     }
 
     return 1;
+}
+
+static UINT e2r_virtual_key_from_keysym(unsigned long keysym)
+{
+    if (keysym >= 'a' && keysym <= 'z') {
+        keysym -= 'a' - 'A';
+    }
+    if (keysym >= 0xffb0u && keysym <= 0xffb9u) {
+        return 0x60u + (UINT)(keysym - 0xffb0u);
+    }
+    if (keysym >= 0xffbeu && keysym <= 0xffc9u) {
+        return 0x70u + (UINT)(keysym - 0xffbeu);
+    }
+    switch (keysym) {
+    case 0xff1b: return VK_ESCAPE;
+    case 0xff0d: return VK_RETURN;
+    case 0x20: return VK_SPACE;
+    case 0xffe3:
+    case 0xffe4: return 0x11;
+    case 0xff51: return 0x64;
+    case 0xff52: return 0x68;
+    case 0xff53: return 0x66;
+    case 0xff54: return 0x62;
+    default:
+        if (keysym >= 'A' && keysym <= 'Z') {
+            return (UINT)keysym;
+        }
+        return 0;
+    }
+}
+
+static void e2r_poll_host_events(void)
+{
+    if (!e2r_x11_window.display || !e2r_x11_window.window || !e2r_x11.XPending ||
+        !e2r_x11.XNextEvent || !e2r_x11.XLookupKeysym) {
+        return;
+    }
+
+    while (e2r_x11.XPending(e2r_x11_window.display) > 0) {
+        E2R_XEvent event;
+        e2r_x11.XNextEvent(e2r_x11_window.display, &event);
+        if (event.type == E2R_X11_KEY_PRESS) {
+            UINT vk = e2r_virtual_key_from_keysym(e2r_x11.XLookupKeysym(&event.xkey, 0));
+            if (vk != 0) {
+                e2r_push_message(&e2r_window, WM_KEYDOWN, vk, 0);
+            }
+        }
+    }
 }
 
 static void e2r_warn_window_unavailable(void)
@@ -411,23 +573,41 @@ int ShowCursor(BOOL show) { (void)show; return 0; }
 BOOL GetCursorPos(POINT *point) { if (point) point->x = point->y = 0; return TRUE; }
 BOOL PeekMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter, UINT remove)
 {
-    (void)msg; (void)hwnd; (void)min_filter; (void)max_filter; (void)remove;
-    return FALSE;
+#ifndef _WIN32
+    e2r_poll_host_events();
+#endif
+    return e2r_pop_message(msg, hwnd, min_filter, max_filter, (remove & PM_REMOVE) != 0);
 }
 BOOL GetMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter)
 {
-    (void)msg; (void)hwnd; (void)min_filter; (void)max_filter;
-    return FALSE;
+#ifndef _WIN32
+    e2r_poll_host_events();
+#endif
+    if (!e2r_pop_message(msg, hwnd, min_filter, max_filter, TRUE)) {
+        return FALSE;
+    }
+    return msg == NULL || msg->message != WM_QUIT;
 }
 BOOL TranslateMessage(const MSG *msg) { (void)msg; return TRUE; }
-LRESULT DispatchMessageA(const MSG *msg) { (void)msg; return 0; }
+LRESULT DispatchMessageA(const MSG *msg)
+{
+    if (msg == NULL) {
+        return 0;
+    }
+    if (e2r_window_proc != NULL && msg->message != WM_QUIT) {
+        return e2r_window_proc(msg->hwnd, msg->message, msg->wParam, msg->lParam);
+    }
+    return DefWindowProcA(msg->hwnd, msg->message, msg->wParam, msg->lParam);
+}
 void WaitMessage(void) {}
 void Sleep(DWORD milliseconds) { usleep(milliseconds * 1000u); }
-void PostQuitMessage(int exit_code) { (void)exit_code; }
+void PostQuitMessage(int exit_code)
+{
+    e2r_push_message(NULL, WM_QUIT, (WPARAM)exit_code, 0);
+}
 BOOL PostMessageA(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-    (void)hwnd; (void)msg; (void)wparam; (void)lparam;
-    return TRUE;
+    return e2r_push_message(hwnd, msg, wparam, lparam);
 }
 LRESULT SendMessageA(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -472,6 +652,7 @@ HWND CreateWindowExA(DWORD ex_style, LPCSTR class_name, LPCSTR window_name,
                 e2r_x11.XCreateSimpleWindow(e2r_x11_window.display, root, x, y, w, h, 1, black, white);
         }
         if (e2r_x11_window.window != 0) {
+            e2r_x11.XSelectInput(e2r_x11_window.display, e2r_x11_window.window, E2R_X11_KEY_PRESS_MASK);
             e2r_x11.XStoreName(e2r_x11_window.display, e2r_x11_window.window,
                                window_name ? window_name : "Ecstatica II");
             e2r_x11.XMapWindow(e2r_x11_window.display, e2r_x11_window.window);
@@ -501,7 +682,11 @@ int MessageBoxA(HWND hwnd, LPCSTR text, LPCSTR caption, UINT type)
 HICON LoadIconA(HINSTANCE instance, LPCSTR icon_name) { (void)instance; (void)icon_name; return (HICON)&e2r_handle; }
 HCURSOR LoadCursorA(HINSTANCE instance, LPCSTR cursor_name) { (void)instance; (void)cursor_name; return (HCURSOR)&e2r_handle; }
 HGDIOBJ GetStockObject(int object) { (void)object; return (HGDIOBJ)&e2r_handle; }
-ATOM RegisterClassA(const WNDCLASSA *wnd_class) { (void)wnd_class; return 1; }
+ATOM RegisterClassA(const WNDCLASSA *wnd_class)
+{
+    e2r_window_proc = wnd_class != NULL ? wnd_class->lpfnWndProc : NULL;
+    return 1;
+}
 BOOL UnregisterClassA(LPCSTR class_name, HINSTANCE instance) { (void)class_name; (void)instance; return TRUE; }
 int GetSystemMetrics(int index) { (void)index; return 640; }
 HMENU GetMenu(HWND hwnd) { (void)hwnd; return (HMENU)&e2r_handle; }

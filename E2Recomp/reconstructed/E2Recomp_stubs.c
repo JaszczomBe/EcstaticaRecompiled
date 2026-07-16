@@ -5,6 +5,128 @@
 #undef DialogBoxParamA
 
 uintptr_t E2R_timer_slots[8];
+uintptr_t E2R_input_probe_keydown_count;
+uintptr_t E2R_input_probe_last_key;
+uintptr_t E2R_input_probe_last_char_queue;
+uintptr_t E2R_input_probe_last_scan_queue;
+uintptr_t E2R_requester_probe_ce58_count;
+uintptr_t E2R_requester_probe_last_id;
+uintptr_t E2R_requester_probe_last_mode;
+uintptr_t E2R_requester_probe_b384_count;
+uintptr_t E2R_requester_probe_b384_bad_ptr_count;
+uintptr_t E2R_requester_probe_b384_last_ptr;
+uintptr_t E2R_requester_probe_b9bc_count;
+uintptr_t E2R_requester_probe_b9bc_last_item;
+uintptr_t E2R_requester_probe_bd4c_count;
+uintptr_t E2R_requester_probe_bd4c_last_key;
+
+static unsigned char *E2R_legacy_queue(unsigned address) {
+    return (unsigned char *)(uintptr_t)address;
+}
+
+static unsigned E2R_virtual_key_to_scan(WPARAM key) {
+    switch ((unsigned)key) {
+    case VK_ESCAPE: return 0x01;
+    case 0x08: return 0x0e;
+    case VK_RETURN: return 0x1c;
+    case VK_SPACE: return 0x39;
+    case 0x11: return 0x1d;
+    case 0x41: return 0x1e;
+    case 0x43: return 0x2e;
+    case 0x44: return 0x20;
+    case 0x4d: return 0x32;
+    case 0x50: return 0x19;
+    case VK_Q: return 0x10;
+    case 0x57: return 0x11;
+    case 0x58: return 0x2d;
+    case 0x5a: return 0x2c;
+    case 0x61: return 0x4f;
+    case 0x62: return 0x50;
+    case 0x63: return 0x51;
+    case 0x64: return 0x4b;
+    case 0x65: return 0x4c;
+    case 0x66: return 0x4d;
+    case 0x67: return 0x47;
+    case 0x68: return 0x48;
+    case 0x69: return 0x49;
+    case 0x70: return 0x3b;
+    case 0x71: return 0x3c;
+    case 0x72: return 0x3d;
+    case 0x73: return 0x3e;
+    case 0x74: return 0x3f;
+    case 0x75: return 0x40;
+    case 0x76: return 0x41;
+    case 0x77: return 0x42;
+    case 0x78: return 0x43;
+    case 0x79: return 0x44;
+    case 0x7a: return 0x57;
+    case 0x7b: return 0x58;
+    default:
+        break;
+    }
+    return 0;
+}
+
+static unsigned E2R_virtual_key_to_char_queue(WPARAM key) {
+    unsigned value = (unsigned)key & 0xffu;
+
+    if (value == 0x08 || value == VK_RETURN || value == VK_ESCAPE || value == VK_SPACE) {
+        return value;
+    }
+    if (value >= 0x30 && value <= 0x5a) {
+        return value;
+    }
+    return 0;
+}
+
+static void E2R_feed_legacy_keydown(WPARAM key, LPARAM lParam) {
+    unsigned scan = ((unsigned)lParam >> 16) & 0x7fu;
+    unsigned is_extended = (((unsigned)lParam >> 24) & 1u) != 0;
+    unsigned char_key;
+
+    if (scan == 0) {
+        scan = E2R_virtual_key_to_scan(key);
+    }
+    if (scan != 0) {
+        if (is_extended) {
+            E2R_legacy_queue(0x00507490)[scan] = 1;
+            E2R_legacy_queue(0x004c3a90)[scan] = 1;
+        }
+        else {
+            E2R_legacy_queue(0x004c3b90)[scan] = 1;
+            E2R_legacy_queue(0x004c3990)[scan] = 1;
+        }
+        if (key >= 0x61 && key <= 0x69) {
+            E2R_legacy_queue(0x00507490)[scan] = 1;
+            E2R_legacy_queue(0x004c3a90)[scan] = 1;
+        }
+        E2R_input_probe_last_scan_queue = scan;
+    }
+
+    char_key = E2R_virtual_key_to_char_queue(key);
+    if (char_key != 0) {
+        E2R_legacy_queue(0x004c3890)[char_key] = 1;
+        E2R_input_probe_last_char_queue = char_key;
+    }
+}
+
+static void E2R_feed_legacy_keyup(WPARAM key, LPARAM lParam) {
+    unsigned scan = ((unsigned)lParam >> 16) & 0x7fu;
+    unsigned is_extended = (((unsigned)lParam >> 24) & 1u) != 0;
+
+    if (scan == 0) {
+        scan = E2R_virtual_key_to_scan(key);
+    }
+    if (scan == 0) {
+        return;
+    }
+    if (is_extended) {
+        E2R_legacy_queue(0x004c3a90)[scan] = 0;
+    }
+    else {
+        E2R_legacy_queue(0x004c3b90)[scan] = 0;
+    }
+}
 
 void *memcpy(void *dst, const void *src, size_t n) {
     unsigned char *d = (unsigned char *)dst;
@@ -74,6 +196,111 @@ void E2R_WinMainThunk(void) {
 }
 
 LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (msg == WM_KEYDOWN) {
+        E2R_input_probe_keydown_count++;
+        E2R_input_probe_last_key = wParam;
+        E2R_feed_legacy_keydown(wParam, lParam);
+        switch (wParam) {
+        case 0x11:
+            if (DAT_00479dfc == 0) {
+                DAT_00636852 = 1;
+            }
+            return 0;
+        case VK_ESCAPE:
+            DAT_00636844 = 1;
+            return 0;
+        case VK_SPACE:
+            DAT_00636850 = 1;
+            return 0;
+        case 0x41:
+            DAT_00636845 = 1;
+            return 0;
+        case 0x43:
+            DAT_0063684f = 1;
+            return 0;
+        case 0x44:
+            DAT_00636849 = 1;
+            return 0;
+        case 0x4d:
+            DAT_0063684b = 1;
+            return 0;
+        case 0x50:
+            DAT_00636847 = 1;
+            return 0;
+        case VK_Q:
+            DAT_00636853 = 1;
+            return 0;
+        case 0x57:
+            DAT_00636851 = 1;
+            return 0;
+        case 0x58:
+            if (DAT_00479dfc != 0) {
+                DAT_0063684a = 1;
+            }
+            return 0;
+        case 0x5a:
+            if (DAT_00479dfc != 0) {
+                DAT_00636852 = 1;
+            }
+            DAT_00636846 = 1;
+            return 0;
+        case 0x61:
+            DAT_0063685c = 1;
+            return 0;
+        case 0x62:
+            DAT_0063685a = 1;
+            return 0;
+        case 0x63:
+            DAT_00636855 = 1;
+            return 0;
+        case 0x64:
+            DAT_00636854 = 1;
+            return 0;
+        case 0x65:
+        case 0x66:
+            DAT_00636856 = 1;
+            return 0;
+        case 0x67:
+        case 0x68:
+            DAT_00636859 = 1;
+            return 0;
+        case 0x69:
+            DAT_0063685b = 1;
+            return 0;
+        case 0x70:
+        case 0x71:
+        case 0x72:
+        case 0x73:
+            DAT_0063684d = 1;
+            return 0;
+        case 0x74:
+        case 0x75:
+        case 0x76:
+        case 0x77:
+            DAT_00636848 = 1;
+            return 0;
+        case 0x78:
+        case 0x79:
+        case 0x7a:
+        case 0x7b:
+            DAT_0063684c = 1;
+            return 0;
+        default:
+            break;
+        }
+    }
+    if (msg == WM_CHAR) {
+        unsigned char_key = (unsigned)wParam & 0xffu;
+        if (char_key != 0) {
+            E2R_legacy_queue(0x004c3890)[char_key] = 1;
+            E2R_input_probe_last_char_queue = char_key;
+        }
+        return 0;
+    }
+    if (msg == WM_KEYUP) {
+        E2R_feed_legacy_keyup(wParam, lParam);
+        return 0;
+    }
     if (msg == WM_DESTROY) {
         PostQuitMessage(0);
         return 0;

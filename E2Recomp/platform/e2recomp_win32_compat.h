@@ -267,7 +267,14 @@ typedef INT_PTR (WINAPI *FARPROC)();
 #define E_FAIL ((HRESULT)0x80004005u)
 #define WM_QUIT 0x0012
 #define WM_DESTROY 0x0002
+#define WM_KEYDOWN 0x0100
+#define WM_KEYUP 0x0101
+#define WM_CHAR 0x0102
 #define PM_REMOVE 0x0001
+#define VK_RETURN 0x0d
+#define VK_ESCAPE 0x1b
+#define VK_SPACE 0x20
+#define VK_Q 0x51
 #define GENERIC_WRITE 0x40000000u
 #define FILE_SHARE_READ 0x00000001u
 #define CREATE_ALWAYS 2u
@@ -291,10 +298,12 @@ BOOL VirtualProtect(LPVOID address, size_t size, DWORD new_protect, DWORD *old_p
 void *SetUnhandledExceptionFilter(void *filter);
 BOOL IsWindow(HWND hwnd);
 BOOL PeekMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter, UINT remove);
+BOOL GetMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter);
 BOOL TranslateMessage(const MSG *msg);
 LRESULT DispatchMessageA(const MSG *msg);
 void Sleep(DWORD milliseconds);
 void PostQuitMessage(int exit_code);
+BOOL PostMessageA(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 LRESULT DefWindowProcA(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 HWND CreateWindowExA(DWORD ex_style, LPCSTR class_name, LPCSTR window_name,
                      DWORD style, int x, int y, int width, int height,

@@ -56,11 +56,11 @@ FUN_00410a48 -> FUN_00414b24
 FUN_00410a48 -> thunk_FUN_004620db
 ```
 
-The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been cleared. Runtime stabilization has advanced through config-header, CDPath, hosted file existence, menu/dialog string-list, fixed-address table, framebuffer fill, quick-save writer, HUD icon clear, damage-rectangle table, and requester-id frontiers. Step 7 sustains the reconstructed runtime under ASan for 90 seconds without a sanitizer crash, and Step 8 captures an inspectable `640x480` Ecstatica II title-logo frame from the ASan build.
+The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been cleared. Runtime stabilization has advanced through config-header, CDPath, hosted file existence, menu/dialog string-list, fixed-address table, framebuffer fill, quick-save writer, HUD icon clear, damage-rectangle table, requester-id frontiers, and the first bounded input-flag probe. Step 7 sustains the reconstructed runtime under ASan for 90 seconds without a sanitizer crash, Step 8 captures an inspectable `640x480` Ecstatica II title-logo frame from the ASan build, and Step 9 now posts recovered key events through the compatibility queue into `E2R_WndProc`/`DAT_006368xx`, polls X11 host keypresses, and confirms the visible-menu gap is not hidden on another framebuffer page.
 
 ## Active Steps
 
-Step 8 is complete. Step 9 is active and should wire enough host input to drive the reconstructed title/menu path.
+Step 8 is complete. Step 9 is active. Its first bridge maps `WM_KEYDOWN` through the compatibility message queue into recovered input globals and proves `DAT_00636844` and the numpad movement cluster toggle under ASan; the host window now polls X11 keypresses into that queue. All-surface probes show input and requester/menu state changes are not producing framebuffer writes yet, so the remaining frontier is requester/menu presentation.
 
 ## Step Roadmap
 
@@ -74,7 +74,7 @@ Each step should be scoped so it can preferably be completed in one context wind
 6. [Resolve Post Main Loop Config Open Crash](steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - completed; old `"e_config"` file/CRT crash is cleared and the `FUN_00453920` no-op has been verified under ASan.
 7. [Sustain Main Loop Heartbeat](steps/step-07/step-07-sustain-main-loop-heartbeat.md) - completed; recovered HUD icon clearing, damage-rectangle table access, and loop requester-id handoff, then verified 90 seconds under ASan.
 8. [Present Inspectable Title Or Menu Frame](steps/step-08/step-08-present-inspectable-title-or-menu-frame.md) - completed; added bounded frame dumping and captured a real Ecstatica II title-logo frame from ASan surface 3.
-9. [Wire Menu Input Path](steps/step-09/step-09-wire-menu-input-path.md) - active; map host keyboard/mouse events into the reconstructed Win32-style input path far enough to navigate title/menu logic.
+9. [Wire Menu Input Path](steps/step-09/step-09-wire-menu-input-path.md) - active; message-queue `WM_KEYDOWN`, X11 host-key poll, legacy key queues, key-sequence probes, and ASan requester item rendering are verified; normal debug timing/exit behavior and requester fidelity remain open.
 10. Reach First Controllable Scene - planned; load a gameplay scene and prove basic player-control or camera-control progression.
 11. Harden Runtime Loop Regression Checks - planned; make debug/ASan/GDB probes repeatable for the stabilized loop path.
 12. Define Replaceable Host Backend Boundary - planned; isolate window, input, timing, presentation, and audio backend calls below the compatibility layer.
@@ -144,3 +144,9 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 7. Closed step 7 and opened step 8 for making the sustained title/menu loop inspectable.
 8. Added bounded `--dump-frame` support and captured a real `640x480` Ecstatica II title-logo frame from the ASan build.
 9. Closed step 8 and opened step 9 for host input/menu navigation.
+
+### 2026-07-17
+
+1. Advanced step 9 through legacy key queue bridging, requester instrumentation, raw requester-record repair, item traversal, and text-draw surface fixes.
+2. Verified ASan `escape,num8,space` reaches `FUN_0043ce58`, records `b9bc=18`, and changes surface 3 to hash `9042c4ed`.
+3. Recorded the next frontier: normal debug timing can miss the requester-ready window or exit with code 112 on later injection.
