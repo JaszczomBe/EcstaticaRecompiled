@@ -100,7 +100,39 @@ wrote surface dump: /tmp/e2-step09-requester-stringraw-esc-num8-space-s3.pgm (su
 input state: ... requester=[ce58=6 id=0x27 mode=5 b384=9 bad=9 ptr=0x47a588 b9bc=18 item=0x643780 bd4c=9 key=0x0] ...
 ```
 
-This proves the path now reaches `FUN_0043ce58`, resolves the requester parent record through `FUN_0043aeac`, renders requester items through `FUN_0043b9bc`, and produces a changed surface-3 framebuffer hash. The next implementation target is requester fidelity and non-ASan timing: the normal debug build still misses this path at the old two-second injection timing and can hit an immediate exit-112 path with later injection.
+This proves the path now reaches `FUN_0043ce58`, resolves the requester parent record through `FUN_0043aeac`, renders requester items through `FUN_0043b9bc`, and produces a changed surface-3 framebuffer hash.
+
+The requester-ready probe added on 2026-07-17 waits for the reconstructed requester/menu state before injecting. After bypassing hosted startup audio and pinning the shadow-table loader to `shadow.dat`, both debug and ASan builds reach requester rendering:
+
+```text
+./e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-debug-music-alloc-shadow escape,num8,space 8 250 3
+requester-ready wait satisfied after 20 ms: DAT_0047a76c=1 DAT_00479de8=0 _DAT_00643650=0
+wrote surface dump: /tmp/e2-step09-ready-debug-music-alloc-shadow-s3.pgm (surface 3 nonblank=1 hash=af17b505)
+input state: ... _DAT_00643650=5 DAT_00479de8=1 DAT_0047a76c=1 ... requester=[ce58=12 id=0x27 mode=5 b384=14 bad=14 ptr=0x47a588 b9bc=36 item=0x643780 bd4c=13 key=0x0] ...
+
+./e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-asan-music-alloc-shadow escape,num8,space 6 250 5
+requester-ready wait satisfied after 30 ms: DAT_0047a76c=1 DAT_00479de8=0 _DAT_00643650=0
+wrote surface dump: /tmp/e2-step09-ready-asan-music-alloc-shadow-s3.pgm (surface 3 nonblank=1 hash=9042c4ed)
+input state: ... _DAT_00643650=5 DAT_00479de8=1 DAT_0047a76c=1 ... requester=[ce58=12 id=0x27 mode=5 b384=14 bad=14 ptr=0x47a588 b9bc=36 item=0x643780 bd4c=14 key=0x0] ...
+```
+
+The requester action probe now stages Escape through the Win32 queue, waits for the rendered requester dialog, then queues requester-local Num8 and Enter keys for `FUN_0043bd4c` so they are consumed on the game thread rather than racing `FUN_0041cfc0`. The path reconstructs the hidden requester record for `FUN_0043bd4c`/`FUN_0043b9bc`, records raw action callbacks instead of calling unrecovered label pointers, and skips the malformed requester restore copies in `FUN_0043adc0`.
+
+Final debug and ASan probes from 2026-07-17:
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-debug-palette-guard escape,num8,enter 8 250 5
+wrote surface dump: /tmp/e2-step09-ready-debug-palette-guard-s3.pgm (surface 3 nonblank=1 hash=9042c4ed)
+input state: ... requester=[ce58=15 id=0x27 mode=5 b384=17 bad=17 ptr=0x47a588 b9bc=47 item=0x643780 bd4c=16 key=0xd seen=3 none=12 cursor=0 pending=2/2 fed=2 fed_key=0xd fed_char=0xd fed_scan=0x1c actions=1 last_action=0x566453e0] ...
+
+build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-asan-palette-guard escape,num8,enter 8 250 5
+wrote surface dump: /tmp/e2-step09-ready-asan-palette-guard-s3.pgm (surface 3 nonblank=1 hash=9042c4ed)
+input state: ... requester=[ce58=16 id=0x27 mode=5 b384=18 bad=18 ptr=0x47a588 b9bc=50 item=0x643780 bd4c=18 key=0xd seen=3 none=13 cursor=0 pending=2/2 fed=2 fed_key=0xd fed_char=0xd fed_scan=0x1c actions=1 last_action=0x572f77c0] ...
+```
+
+This proves requester navigation now reaches Enter/action selection in both configurations. A first explicit dispatcher now handles the simple original label callbacks that only update requester/menu state (`LAB_0043d458`, `LAB_0043d464`, `LAB_0043d470`, `LAB_0043d47c`, `LAB_0043d490`, `DAT_0043d4c0`, and the active `LAB_0043c4e8` cancel case for requester ids `0x27/0x28`).
+
+Focus/selection fidelity has also advanced. The requester path now initializes the fixed-address main-menu item chain locally, seeds `_DAT_00643430` from the requester record before trusting stale decompiler parameters, marks locally initialized menu items keyboard-focusable, and fixes integer-global pointer arithmetic around `_DAT_00643430`. Debug and ASan `escape,num2,enter` now move once from `0x643ad0` to `0x643ca4` and dispatch `DAT_0043d49c`; `escape,num2,num2,enter` moves through `0x643ca4` to the cancel item `0x643780` and dispatches `LAB_0043c4e8` without crashing. The next implementation target is the complex callback labels, especially `DAT_0043d49c`.
 
 ## Acceptance Criteria
 
@@ -119,6 +151,14 @@ This proves the path now reaches `FUN_0043ce58`, resolves the requester parent r
 6. `./e2recomp --dump-surfaces /tmp/e2-step09-surfaces-control 3` from `build/linux-clang32-asan`
 7. `./e2recomp --inject-key-sequence-surfaces /tmp/e2-step09-surfaces-seq-esc-num8-space escape,num8,space 2 250 5` from `build/linux-clang32-asan`
 8. `./e2recomp --inject-key-sequence-surfaces /tmp/e2-step09-requester-stringraw-esc-num8-space escape,num8,space 2 250 5` from `build/linux-clang32-asan`
+9. `./e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-debug-music-alloc-shadow escape,num8,space 8 250 3` from `build/linux-clang32-debug`
+10. `./e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-asan-music-alloc-shadow escape,num8,space 6 250 5` from `build/linux-clang32-asan`
+11. `build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-debug-palette-guard escape,num8,enter 8 250 5`
+12. `build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-asan-palette-guard escape,num8,enter 8 250 5`
+13. `build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-debug-focus-bit escape,num2,enter 8 250 5`
+14. `build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-asan-focus-bit escape,num2,enter 8 250 5`
+15. `build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-debug-two-down-cast escape,num2,num2,enter 8 250 5`
+16. `build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-asan-two-down-cast escape,num2,num2,enter 8 250 5`
 
 ## Change Log
 
@@ -133,7 +173,13 @@ This proves the path now reaches `FUN_0043ce58`, resolves the requester parent r
 7. Recorded that all four surface hashes are unchanged from the no-input control; the next work is requester/menu presentation rather than hidden framebuffer-page selection.
 8. Added a legacy key queue bridge for `WM_KEYDOWN`/`WM_KEYUP`/`WM_CHAR`, feeding the recovered `0x004c3890`, `0x004c3990`, `0x004c3a90`, `0x004c3b90`, and `0x00507490` queues.
 9. Instrumented requester entry, renderer, item renderer, and key handler counters, then fixed raw-address rewrites for the `0x00ac4xxx`, requester-record, input-queue, and menu-label tables.
-10. Recovered enough requester rendering to traverse 18 item draws under ASan and produce a changed surface-3 hash (`9042c4ed`) for the `escape,num8,space` sequence; normal debug timing remains a frontier.
+10. Recovered enough requester rendering to traverse 18 item draws under ASan and produce a changed surface-3 hash (`9042c4ed`) for the `escape,num8,space` sequence.
+11. Added a requester-ready sequence probe and cleared the debug-only startup blocker by hosting the music buffer allocation/loader as a no-op for now and forcing `FUN_00415b78` to open literal `shadow.dat`.
+12. Verified the requester-ready sequence in both debug (`hash=af17b505`) and ASan (`hash=9042c4ed`); debug-vs-ASan timing parity is no longer the active Step 9 frontier.
+13. Added game-thread requester key staging for `FUN_0043bd4c`, reconstructed hidden requester-record inputs for `FUN_0043bd4c`/`FUN_0043b9bc`, stabilized `FUN_0043adc0`, and tightened `FUN_0041af88` palette pointer guards.
+14. Verified `escape,num8,enter` reaches requester action selection in debug and ASan with surface-3 hash `9042c4ed`, `fed=2`, `key=0xd`, and `actions=1`. Raw requester callback labels are recorded and intentionally not called yet.
+15. Added an explicit dispatcher for the simple requester callback labels recovered from original disassembly. Debug and ASan `escape,num8,enter` still pass with hash `9042c4ed`; `escape,num2,enter` also lands on the same cancel action, confirming the next frontier is requester focus/selection fidelity rather than the first label-dispatch crash.
+16. Initialized the fixed-address main-menu item chain at requester open, seeded keyboard focus from the requester record, marked local menu items focusable for `FUN_0043bd4c`, and fixed `_DAT_00643430` pointer arithmetic. Debug and ASan now verify one-step movement to `0x643ca4` and two-step movement to cancel `0x643780`.
 
 ### 2026-07-16
 

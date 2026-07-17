@@ -2,6 +2,54 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-17 - Requester Focus Movement Recovered
+
+Area: `FUN_0043bd4c`, fixed-address requester item records, `_DAT_00643430`
+
+Symptom: requester-ready `escape,num2,enter` still selected cancel because `_DAT_00643430` was unset and the key handler trusted a stale `param_2`/last-rendered item. After seeding focus, Down exposed garbage `next` and action slots for the fixed-address requester item records.
+
+Evidence: debug and ASan probes showed `selected=0x0`, `param=0x643780`, `moves=0` before the focus seed. After seeding, `selected=0x643ad0` but `next`/`selected_action` were garbage until the main-menu item chain was initialized locally. A two-Down probe then exposed integer-global pointer arithmetic on `_DAT_00643430 + 4`.
+
+Change: added a guarded first-item focus seed for `FUN_0043bd4c`, initialized the fixed-address main-menu requester item chain at requester open, marked those local records keyboard-focusable for the recovered movement branch, and cast `_DAT_00643430` back to `short *` before item-slot pointer arithmetic. Mirrored generated-code repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, `cmake --build build/linux-clang32-asan`, and `git diff --check` pass. Debug and ASan `escape,num2,enter` move from `0x643ad0` to `0x643ca4` and dispatch `DAT_0043d49c`. Debug and ASan `escape,num2,num2,enter` move through `0x643ca4` to cancel `0x643780` and dispatch `LAB_0043c4e8` without crashing.
+
+Next Frontier: reconstruct complex callback `DAT_0043d49c`; it is now selectable and recorded but intentionally not executed by the simple dispatcher.
+
+Regression Risk: the main-menu item chain initializer is scoped to requester ids `0x27/0x28` via the existing open branch. It is still a fixed-address reconstruction shim; broader requester families may need their own item-chain recovery.
+
+## 2026-07-17 - Requester Input Reaches Action Selection
+
+Area: `FUN_0043bd4c`, `FUN_0043b9bc`, `FUN_0043adc0`, `FUN_0041af88`, requester-ready input probes
+
+Symptom: requester-ready probes could render the requester, but `escape,num8,enter` did not reliably reach the requester key-consume path. Once keys were fed directly into `FUN_0043bd4c`, Enter advanced into raw decompiler label callbacks and malformed requester restore copies.
+
+Evidence: debug runs showed `bd4c` being called with `key=0x0` until requester keys were staged on the game thread. GDB then showed Num8 reaching the requester movement branch with a stale hidden requester-record register, Enter crashing first in `FUN_0043adc0` restore copies, and then in raw label callback `LAB_0043c4e8`. ASan additionally exposed `FUN_0043b9bc` accepting a mapped but wrong requester-record pointer and `FUN_0041af88` accepting a stray high palette pointer.
+
+Change: added requester-local pending key staging for ready probes, so post-Escape keys are fed at `FUN_0043bd4c` entry on the game thread. Reconstructed hidden requester-record inputs for `FUN_0043bd4c` and `FUN_0043b9bc` via `FUN_0043aeac`, added a rendered-item fallback for the current requester item, stabilized `FUN_0043adc0` by reconstructing the current item and skipping malformed screen-copy calls, recorded raw action callback labels, dispatched the simple state-setting labels recovered from original disassembly, and tightened `FUN_0041af88` palette source guards. Mirrored generated-code repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, `cmake --build build/linux-clang32-asan`, and `git diff --check` pass. Debug and ASan `escape,num8,enter` requester-ready probes both finish with surface-3 hash `9042c4ed`, `key=0xd`, `pending=2/2`, `fed=2`, and `actions=1`.
+
+Next Frontier: `escape,num8,enter` and `escape,num2,enter` both still land on the cancel record at `0x643780`, so focus/selection fidelity is now the immediate frontier. The harder callback labels, especially `DAT_0043d49c`, still need full reconstruction once probes can select them.
+
+Regression Risk: raw requester callbacks are intentionally not invoked yet, and `FUN_0043adc0` restore copies are no-oped for stability. These are Step 9 stabilizers around known decompiler artifacts, not final menu/action behavior.
+
+## 2026-07-17 - Debug Requester Timing Parity Recovered
+
+Area: `FUN_004142b8`, `FUN_004142e4`, `FUN_00415b78`, requester-ready input probes
+
+Symptom: ASan could reach requester rendering for the `escape,num8,space` sequence, but the debug build either missed requester readiness or exited through a stale high-code `ExitProcess` path before the delayed input probe fired.
+
+Evidence: extended `ExitProcess` caller logging mapped the debug-only high-code exit first to `FUN_004142e4 -> FUN_0045f38a` while reading startup music data, then to `FUN_00415b78 -> FUN_00414e68` while opening the shadow table. A direct GDB run after the first bypass showed `FUN_004142b8` still using stale allocation arguments before formatting a bogus fatal message. The successful debug requester-ready probe later reported `requester-ready wait satisfied after 20 ms`, `_DAT_00643650=5`, `DAT_00479de8=1`, requester counters `ce58=12`, `b9bc=36`, and surface-3 hash `af17b505`.
+
+Change: added `--inject-key-sequence-ready-surfaces` so probes wait for requester/menu readiness instead of relying on a fixed startup delay. Hosted the startup music buffer allocation in `FUN_004142b8`, made `FUN_004142e4` a temporary success no-op for Step 9, and forced `FUN_00415b78` to open literal `shadow.dat` instead of accepting a stale first argument. Mirrored generated-code repairs in `E2Recomp/tools/GenerateRecon.js`. `ExitThread` now terminates only the calling pthread on Linux, and high stale `ExitProcess` codes are treated as thread termination for diagnostics instead of killing the whole process.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. Debug `--inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-debug-music-alloc-shadow escape,num8,space 8 250 3` reaches requester rendering and writes surface 3 with hash `af17b505`. ASan `--inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-asan-music-alloc-shadow escape,num8,space 6 250 5` still reaches requester rendering with surface-3 hash `9042c4ed`.
+
+Next Frontier: requester fidelity and actual menu navigation are now the Step 9 frontier. Audio stream reconstruction remains intentionally deferred; the current music loader bypass is a hosted runtime stabilization, not a faithful audio implementation.
+
+Regression Risk: `FUN_004142e4` is intentionally bypassed, so startup music playback is disabled. The `FUN_00415b78` literal-path recovery is narrow to `shadow.dat`; other callers of `FUN_0045eb05` may still need call-site-specific argument recovery if they pass readable stale pointers.
+
 ## 2026-07-16 - Main Loop Heartbeat Sustained After Requester Id Recovery
 
 Area: `FUN_00415d40 -> FUN_0043ce58`, loop-adjacent requester/menu state

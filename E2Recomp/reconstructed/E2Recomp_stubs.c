@@ -19,6 +19,26 @@ uintptr_t E2R_requester_probe_b9bc_count;
 uintptr_t E2R_requester_probe_b9bc_last_item;
 uintptr_t E2R_requester_probe_bd4c_count;
 uintptr_t E2R_requester_probe_bd4c_last_key;
+uintptr_t E2R_requester_probe_bd4c_seen_key_count;
+uintptr_t E2R_requester_probe_bd4c_no_key_count;
+uintptr_t E2R_requester_probe_bd4c_last_cursor;
+uintptr_t E2R_requester_probe_bd4c_param_item;
+uintptr_t E2R_requester_probe_selected_item;
+uintptr_t E2R_requester_probe_selected_next;
+uintptr_t E2R_requester_probe_selected_action;
+uintptr_t E2R_requester_probe_move_count;
+uintptr_t E2R_requester_probe_move_key;
+uintptr_t E2R_requester_probe_move_from;
+uintptr_t E2R_requester_probe_move_to;
+uintptr_t E2R_requester_probe_pending_key_count;
+uintptr_t E2R_requester_probe_pending_key_read;
+uintptr_t E2R_requester_probe_fed_key_count;
+uintptr_t E2R_requester_probe_last_fed_key;
+uintptr_t E2R_requester_probe_last_fed_char;
+uintptr_t E2R_requester_probe_last_fed_scan;
+uintptr_t E2R_requester_probe_action_count;
+uintptr_t E2R_requester_probe_last_action;
+static uintptr_t E2R_requester_probe_pending_keys[16];
 
 static unsigned char *E2R_legacy_queue(unsigned address) {
     return (unsigned char *)(uintptr_t)address;
@@ -108,6 +128,33 @@ static void E2R_feed_legacy_keydown(WPARAM key, LPARAM lParam) {
         E2R_legacy_queue(0x004c3890)[char_key] = 1;
         E2R_input_probe_last_char_queue = char_key;
     }
+}
+
+void E2R_RequesterProbeQueueKey(uintptr_t key) {
+    if (E2R_requester_probe_pending_key_count - E2R_requester_probe_pending_key_read >= 16) {
+        return;
+    }
+    E2R_requester_probe_pending_keys[E2R_requester_probe_pending_key_count & 15u] = key;
+    E2R_requester_probe_pending_key_count++;
+}
+
+void E2R_RequesterProbeFeedPendingKey(void) {
+    uintptr_t key;
+    uintptr_t char_key;
+    uintptr_t scan;
+
+    if (E2R_requester_probe_pending_key_read == E2R_requester_probe_pending_key_count) {
+        return;
+    }
+    key = E2R_requester_probe_pending_keys[E2R_requester_probe_pending_key_read & 15u];
+    E2R_requester_probe_pending_key_read++;
+    E2R_requester_probe_fed_key_count++;
+    E2R_requester_probe_last_fed_key = key;
+    char_key = E2R_virtual_key_to_char_queue((WPARAM)key);
+    scan = E2R_virtual_key_to_scan((WPARAM)key);
+    E2R_requester_probe_last_fed_char = char_key;
+    E2R_requester_probe_last_fed_scan = scan;
+    E2R_feed_legacy_keydown((WPARAM)key, 0);
 }
 
 static void E2R_feed_legacy_keyup(WPARAM key, LPARAM lParam) {

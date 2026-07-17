@@ -835,8 +835,32 @@ DWORD GetModuleFileNameA(HMODULE module, LPSTR filename, DWORD size)
     snprintf(filename, size, "%s", "e2recomp");
     return lstrlenA(filename);
 }
-void ExitProcess(UINT exit_code) { exit((int)exit_code); }
-void ExitThread(DWORD exit_code) { exit((int)exit_code); }
+void ExitProcess(UINT exit_code)
+{
+    fprintf(stderr, "E2R ExitProcess(%u) caller=%p caller1=%p caller2=%p caller3=%p\n",
+            exit_code, __builtin_return_address(0), __builtin_return_address(1),
+            __builtin_return_address(2), __builtin_return_address(3));
+    fflush(stderr);
+#ifndef _WIN32
+    if (exit_code > 0xffu) {
+        fprintf(stderr, "E2R treating high ExitProcess code as stale-register thread termination\n");
+        fflush(stderr);
+        pthread_exit((void *)(uintptr_t)(exit_code & 0xffu));
+    }
+#endif
+    exit((int)exit_code);
+}
+
+void ExitThread(DWORD exit_code)
+{
+    fprintf(stderr, "E2R ExitThread(%u)\n", exit_code);
+    fflush(stderr);
+#ifndef _WIN32
+    pthread_exit((void *)(uintptr_t)exit_code);
+#else
+    exit((int)exit_code);
+#endif
+}
 
 void GetLocalTime(SYSTEMTIME *time_out)
 {

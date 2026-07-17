@@ -18,6 +18,7 @@ typedef struct E2R_FrameDumpRequest {
     unsigned inject_keys[16];
     unsigned inject_key_count;
     unsigned inject_interval_ms;
+    int wait_for_requester_ready;
     int dump_all_surfaces;
 } E2R_FrameDumpRequest;
 
@@ -36,6 +37,25 @@ extern uintptr_t E2R_requester_probe_b9bc_count;
 extern uintptr_t E2R_requester_probe_b9bc_last_item;
 extern uintptr_t E2R_requester_probe_bd4c_count;
 extern uintptr_t E2R_requester_probe_bd4c_last_key;
+extern uintptr_t E2R_requester_probe_bd4c_seen_key_count;
+extern uintptr_t E2R_requester_probe_bd4c_no_key_count;
+extern uintptr_t E2R_requester_probe_bd4c_last_cursor;
+extern uintptr_t E2R_requester_probe_bd4c_param_item;
+extern uintptr_t E2R_requester_probe_selected_item;
+extern uintptr_t E2R_requester_probe_selected_next;
+extern uintptr_t E2R_requester_probe_selected_action;
+extern uintptr_t E2R_requester_probe_move_count;
+extern uintptr_t E2R_requester_probe_move_key;
+extern uintptr_t E2R_requester_probe_move_from;
+extern uintptr_t E2R_requester_probe_move_to;
+extern uintptr_t E2R_requester_probe_pending_key_count;
+extern uintptr_t E2R_requester_probe_pending_key_read;
+extern uintptr_t E2R_requester_probe_fed_key_count;
+extern uintptr_t E2R_requester_probe_last_fed_key;
+extern uintptr_t E2R_requester_probe_last_fed_char;
+extern uintptr_t E2R_requester_probe_last_fed_scan;
+extern uintptr_t E2R_requester_probe_action_count;
+extern uintptr_t E2R_requester_probe_last_action;
 
 static uintptr_t e2r_surface_framebuffer(unsigned surface)
 {
@@ -180,6 +200,61 @@ static int e2r_write_surface_set(const char *prefix)
     return wrote;
 }
 
+static unsigned e2r_wait_for_requester_ready(unsigned timeout_seconds)
+{
+    unsigned waited_ms = 0;
+    unsigned timeout_ms = timeout_seconds * 1000u;
+
+    while (waited_ms < timeout_ms) {
+        if (DAT_0047a76c != 0 || DAT_00479de8 != 0 || _DAT_00643650 == 5) {
+            fprintf(stderr,
+                    "requester-ready wait satisfied after %u ms: DAT_0047a76c=%lu "
+                    "DAT_00479de8=%lu _DAT_00643650=%lu\n",
+                    waited_ms, (unsigned long)DAT_0047a76c,
+                    (unsigned long)DAT_00479de8, (unsigned long)_DAT_00643650);
+            return waited_ms;
+        }
+        usleep(10000);
+        waited_ms += 10;
+    }
+    fprintf(stderr,
+            "requester-ready wait timed out after %u ms: DAT_0047a76c=%lu "
+            "DAT_00479de8=%lu _DAT_00643650=%lu\n",
+            waited_ms, (unsigned long)DAT_0047a76c,
+            (unsigned long)DAT_00479de8, (unsigned long)_DAT_00643650);
+    return waited_ms;
+}
+
+static unsigned e2r_wait_for_requester_dialog(unsigned timeout_seconds)
+{
+    unsigned waited_ms = 0;
+    unsigned timeout_ms = timeout_seconds * 1000u;
+    uintptr_t initial_b9bc_count = E2R_requester_probe_b9bc_count;
+
+    while (waited_ms < timeout_ms) {
+        if (_DAT_00643650 == 5 && E2R_requester_probe_b9bc_count != initial_b9bc_count) {
+            fprintf(stderr,
+                    "requester-dialog wait satisfied after %u ms: _DAT_00643650=%lu "
+                    "b9bc %lu->%lu bd4c=%lu\n",
+                    waited_ms, (unsigned long)_DAT_00643650,
+                    (unsigned long)initial_b9bc_count,
+                    (unsigned long)E2R_requester_probe_b9bc_count,
+                    (unsigned long)E2R_requester_probe_bd4c_count);
+            return waited_ms;
+        }
+        usleep(10000);
+        waited_ms += 10;
+    }
+    fprintf(stderr,
+            "requester-dialog wait timed out after %u ms: _DAT_00643650=%lu "
+            "b9bc %lu->%lu bd4c=%lu\n",
+            waited_ms, (unsigned long)_DAT_00643650,
+            (unsigned long)initial_b9bc_count,
+            (unsigned long)E2R_requester_probe_b9bc_count,
+            (unsigned long)E2R_requester_probe_bd4c_count);
+    return waited_ms;
+}
+
 static void *e2r_frame_dump_thread(void *arg)
 {
     E2R_FrameDumpRequest *request = (E2R_FrameDumpRequest *)arg;
@@ -188,9 +263,22 @@ static void *e2r_frame_dump_thread(void *arg)
 
     if (request->inject_key_count != 0 && request->inject_delay_seconds < remaining_delay) {
         unsigned key_index;
+        uintptr_t initial_action_count = E2R_requester_probe_action_count;
 
-        sleep(request->inject_delay_seconds);
-        remaining_delay -= request->inject_delay_seconds;
+        if (request->wait_for_requester_ready) {
+            unsigned waited_ms = e2r_wait_for_requester_ready(request->inject_delay_seconds);
+            unsigned waited_seconds = (waited_ms + 999u) / 1000u;
+            if (waited_seconds < remaining_delay) {
+                remaining_delay -= waited_seconds;
+            }
+            else {
+                remaining_delay = 1;
+            }
+        }
+        else {
+            sleep(request->inject_delay_seconds);
+            remaining_delay -= request->inject_delay_seconds;
+        }
 
         for (key_index = 0; key_index < request->inject_key_count; key_index++) {
             uintptr_t keydown_count_before = E2R_input_probe_keydown_count;
@@ -200,19 +288,29 @@ static void *e2r_frame_dump_thread(void *arg)
             if (key_index != 0) {
                 usleep(request->inject_interval_ms * 1000u);
             }
-            if (PostMessageA((HWND)_DAT_00ac4dac, WM_KEYDOWN, inject_key, 0)) {
+            if (request->wait_for_requester_ready && key_index > 0) {
+                E2R_RequesterProbeQueueKey(inject_key);
+                fprintf(stderr,
+                        "queued requester probe key 0x%02x for bd4c dispatch (%lu/%lu fed=%lu)\n",
+                        inject_key,
+                        (unsigned long)E2R_requester_probe_pending_key_read,
+                        (unsigned long)E2R_requester_probe_pending_key_count,
+                        (unsigned long)E2R_requester_probe_fed_key_count);
+            }
+            else if (PostMessageA((HWND)_DAT_00ac4dac, WM_KEYDOWN, inject_key, 0)) {
                 fprintf(stderr, "posted key 0x%02x through the Win32 message queue\n", inject_key);
             }
             else {
                 fprintf(stderr, "failed to post key 0x%02x through the Win32 message queue\n",
                         inject_key);
             }
-            if (PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE) && msg.message != WM_QUIT) {
+            if ((!request->wait_for_requester_ready || key_index == 0) &&
+                PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE) && msg.message != WM_QUIT) {
                 TranslateMessage(&msg);
                 DispatchMessageA(&msg);
                 fprintf(stderr, "dispatched one queued probe message\n");
             }
-            else {
+            else if (!request->wait_for_requester_ready || key_index == 0) {
                 fprintf(stderr, "no queued probe message available for dispatch\n");
             }
             usleep(100000);
@@ -236,9 +334,34 @@ static void *e2r_frame_dump_thread(void *arg)
                     (unsigned long)DAT_0047a76c, (unsigned long)DAT_0047a43c,
                     (unsigned long)_DAT_0073cc3c);
             fflush(stderr);
+            if (request->wait_for_requester_ready && key_index == 0 &&
+                request->inject_key_count > 1) {
+                e2r_wait_for_requester_dialog(request->inject_delay_seconds);
+            }
+        }
+        if (request->wait_for_requester_ready) {
+            unsigned waited_ms = 0;
+            while (waited_ms < 1000 &&
+                   E2R_requester_probe_action_count == initial_action_count &&
+                   E2R_requester_probe_pending_key_read != E2R_requester_probe_pending_key_count) {
+                usleep(10000);
+                waited_ms += 10;
+            }
+            if (E2R_requester_probe_action_count != initial_action_count ||
+                E2R_requester_probe_pending_key_read == E2R_requester_probe_pending_key_count) {
+                fprintf(stderr,
+                        "requester probe completed after %u ms: pending=%lu/%lu actions=%lu\n",
+                        waited_ms,
+                        (unsigned long)E2R_requester_probe_pending_key_read,
+                        (unsigned long)E2R_requester_probe_pending_key_count,
+                        (unsigned long)E2R_requester_probe_action_count);
+                remaining_delay = 0;
+            }
         }
     }
-    sleep(remaining_delay);
+    if (remaining_delay != 0) {
+        sleep(remaining_delay);
+    }
     if (request->dump_all_surfaces) {
         int wrote = e2r_write_surface_set(request->path);
         if (wrote > 0) {
@@ -249,7 +372,11 @@ static void *e2r_frame_dump_thread(void *arg)
                     "DAT_0047a730=%lu DAT_00479de4=%lu DAT_0047a788=%lu "
                     "_DAT_00636690=%lu _DAT_0073cc3c=0x%lx "
                     "requester=[ce58=%lu id=0x%lx mode=%lu b384=%lu bad=%lu ptr=0x%lx "
-                    "b9bc=%lu item=0x%lx bd4c=%lu key=0x%lx] "
+                    "b9bc=%lu item=0x%lx bd4c=%lu key=0x%lx seen=%lu none=%lu cursor=%lu "
+                    "param=0x%lx selected=0x%lx next=0x%lx selected_action=0x%lx "
+                    "moves=%lu move_key=0x%lx move_from=0x%lx move_to=0x%lx "
+                    "pending=%lu/%lu fed=%lu fed_key=0x%lx fed_char=0x%lx fed_scan=0x%lx "
+                    "actions=%lu last_action=0x%lx] "
                     "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu]\n",
                     (unsigned long)DAT_00636844, (unsigned long)DAT_00636853,
                     (unsigned long)_DAT_00643650, (unsigned long)DAT_00479de8,
@@ -267,6 +394,25 @@ static void *e2r_frame_dump_thread(void *arg)
                     (unsigned long)E2R_requester_probe_b9bc_last_item,
                     (unsigned long)E2R_requester_probe_bd4c_count,
                     (unsigned long)E2R_requester_probe_bd4c_last_key,
+                    (unsigned long)E2R_requester_probe_bd4c_seen_key_count,
+                    (unsigned long)E2R_requester_probe_bd4c_no_key_count,
+                    (unsigned long)E2R_requester_probe_bd4c_last_cursor,
+                    (unsigned long)E2R_requester_probe_bd4c_param_item,
+                    (unsigned long)E2R_requester_probe_selected_item,
+                    (unsigned long)E2R_requester_probe_selected_next,
+                    (unsigned long)E2R_requester_probe_selected_action,
+                    (unsigned long)E2R_requester_probe_move_count,
+                    (unsigned long)E2R_requester_probe_move_key,
+                    (unsigned long)E2R_requester_probe_move_from,
+                    (unsigned long)E2R_requester_probe_move_to,
+                    (unsigned long)E2R_requester_probe_pending_key_read,
+                    (unsigned long)E2R_requester_probe_pending_key_count,
+                    (unsigned long)E2R_requester_probe_fed_key_count,
+                    (unsigned long)E2R_requester_probe_last_fed_key,
+                    (unsigned long)E2R_requester_probe_last_fed_char,
+                    (unsigned long)E2R_requester_probe_last_fed_scan,
+                    (unsigned long)E2R_requester_probe_action_count,
+                    (unsigned long)E2R_requester_probe_last_action,
                     (unsigned long)DAT_00636859,
                     (unsigned long)DAT_00636858, (unsigned long)DAT_0063685b,
                     (unsigned long)DAT_00636854, (unsigned long)DAT_00636856,
@@ -320,6 +466,7 @@ static int e2r_start_frame_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.inject_keys[0] = inject_key;
     e2r_frame_dump_request.inject_key_count = inject_key != 0 ? 1 : 0;
     e2r_frame_dump_request.inject_interval_ms = 250;
+    e2r_frame_dump_request.wait_for_requester_ready = 0;
     e2r_frame_dump_request.dump_all_surfaces = dump_all_surfaces;
     if (pthread_create(&thread, NULL, e2r_frame_dump_thread, &e2r_frame_dump_request) != 0) {
         fprintf(stderr, "failed to start frame dump thread\n");
@@ -410,7 +557,7 @@ static unsigned e2r_parse_virtual_key_sequence(const char *value, unsigned *keys
 static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
                                        unsigned inject_delay_seconds, const unsigned *keys,
                                        unsigned key_count, unsigned interval_ms,
-                                       int dump_all_surfaces)
+                                       int dump_all_surfaces, int wait_for_requester_ready)
 {
     pthread_t thread;
     unsigned i;
@@ -421,6 +568,7 @@ static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.inject_key = key_count != 0 ? keys[0] : 0;
     e2r_frame_dump_request.inject_key_count = key_count;
     e2r_frame_dump_request.inject_interval_ms = interval_ms == 0 ? 250 : interval_ms;
+    e2r_frame_dump_request.wait_for_requester_ready = wait_for_requester_ready;
     e2r_frame_dump_request.dump_all_surfaces = dump_all_surfaces;
     for (i = 0; i < key_count && i < 16; i++) {
         e2r_frame_dump_request.inject_keys[i] = keys[i];
@@ -548,7 +696,33 @@ int main(int argc, char **argv)
             return 3;
         }
         if (!e2r_start_key_sequence_dump(argv[2], delay_seconds, inject_delay_seconds, keys,
-                                         key_count, interval_ms, 1)) {
+                                         key_count, interval_ms, 1, 0)) {
+            return 3;
+        }
+        fflush(stdout);
+        E2R_WinMainThunk();
+        return 0;
+#endif
+    }
+
+    if (argc > 3 && strcmp(argv[1], "--inject-key-sequence-ready-surfaces") == 0) {
+#if UINTPTR_MAX > UINT32_MAX
+        fprintf(stderr,
+                "--inject-key-sequence-ready-surfaces needs a 32-bit build. Use the linux-clang32-debug CMake preset.\n");
+        return 2;
+#else
+        unsigned keys[16];
+        unsigned key_count = e2r_parse_virtual_key_sequence(argv[3], keys, 16);
+        unsigned ready_timeout_seconds = argc > 4 ? (unsigned)strtoul(argv[4], NULL, 10) : 6;
+        unsigned interval_ms = argc > 5 ? (unsigned)strtoul(argv[5], NULL, 10) : 250;
+        unsigned dump_seconds = argc > 6 ? (unsigned)strtoul(argv[6], NULL, 10) : 5;
+        unsigned total_seconds = ready_timeout_seconds + dump_seconds + 1;
+        if (key_count == 0) {
+            fprintf(stderr, "unknown key sequence for --inject-key-sequence-ready-surfaces: %s\n", argv[3]);
+            return 3;
+        }
+        if (!e2r_start_key_sequence_dump(argv[2], total_seconds, ready_timeout_seconds, keys,
+                                         key_count, interval_ms, 1, 1)) {
             return 3;
         }
         fflush(stdout);
@@ -563,5 +737,6 @@ int main(int argc, char **argv)
     puts("Pass --inject-key-dump <path.pgm> <key|vk> [inject_seconds] [dump_seconds] to probe input.");
     puts("Pass --inject-key-surfaces <prefix> <key|vk> [inject_seconds] [dump_seconds] to probe input surfaces.");
     puts("Pass --inject-key-sequence-surfaces <prefix> <key[,key...]> [inject_seconds] [interval_ms] [dump_seconds] to probe input sequences.");
+    puts("Pass --inject-key-sequence-ready-surfaces <prefix> <key[,key...]> [ready_timeout_seconds] [interval_ms] [dump_seconds] to inject when requester-ready state appears.");
     return 0;
 }

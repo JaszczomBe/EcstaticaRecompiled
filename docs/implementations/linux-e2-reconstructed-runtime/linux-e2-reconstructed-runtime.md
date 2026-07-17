@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-16
+Last Updated: 2026-07-17
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -60,7 +60,7 @@ The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been c
 
 ## Active Steps
 
-Step 8 is complete. Step 9 is active. Its first bridge maps `WM_KEYDOWN` through the compatibility message queue into recovered input globals and proves `DAT_00636844` and the numpad movement cluster toggle under ASan; the host window now polls X11 keypresses into that queue. All-surface probes show input and requester/menu state changes are not producing framebuffer writes yet, so the remaining frontier is requester/menu presentation.
+Step 8 is complete. Step 9 is active. Its input bridge maps `WM_KEYDOWN` through the compatibility message queue into recovered input globals, feeds legacy key queues, and polls X11 keypresses into the same path. Requester-ready probes now reach requester rendering, keyboard focus movement, and action selection in both debug and ASan. A first dispatcher handles simple requester callback labels; the remaining frontier is the more complex callback labels, especially `DAT_0043d49c`.
 
 ## Step Roadmap
 
@@ -74,7 +74,7 @@ Each step should be scoped so it can preferably be completed in one context wind
 6. [Resolve Post Main Loop Config Open Crash](steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - completed; old `"e_config"` file/CRT crash is cleared and the `FUN_00453920` no-op has been verified under ASan.
 7. [Sustain Main Loop Heartbeat](steps/step-07/step-07-sustain-main-loop-heartbeat.md) - completed; recovered HUD icon clearing, damage-rectangle table access, and loop requester-id handoff, then verified 90 seconds under ASan.
 8. [Present Inspectable Title Or Menu Frame](steps/step-08/step-08-present-inspectable-title-or-menu-frame.md) - completed; added bounded frame dumping and captured a real Ecstatica II title-logo frame from ASan surface 3.
-9. [Wire Menu Input Path](steps/step-09/step-09-wire-menu-input-path.md) - active; message-queue `WM_KEYDOWN`, X11 host-key poll, legacy key queues, key-sequence probes, and ASan requester item rendering are verified; normal debug timing/exit behavior and requester fidelity remain open.
+9. [Wire Menu Input Path](steps/step-09/step-09-wire-menu-input-path.md) - active; message-queue `WM_KEYDOWN`, X11 host-key poll, legacy key queues, key-sequence probes, debug/ASan requester action selection, simple callback dispatch, and requester focus movement are verified; complex callback reconstruction remains open.
 10. Reach First Controllable Scene - planned; load a gameplay scene and prove basic player-control or camera-control progression.
 11. Harden Runtime Loop Regression Checks - planned; make debug/ASan/GDB probes repeatable for the stabilized loop path.
 12. Define Replaceable Host Backend Boundary - planned; isolate window, input, timing, presentation, and audio backend calls below the compatibility layer.
@@ -149,4 +149,7 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 
 1. Advanced step 9 through legacy key queue bridging, requester instrumentation, raw requester-record repair, item traversal, and text-draw surface fixes.
 2. Verified ASan `escape,num8,space` reaches `FUN_0043ce58`, records `b9bc=18`, and changes surface 3 to hash `9042c4ed`.
-3. Recorded the next frontier: normal debug timing can miss the requester-ready window or exit with code 112 on later injection.
+3. Added requester-ready key-sequence probes, bypassed the hosted startup music path for Step 9, pinned the shadow-table preload to literal `shadow.dat`, and verified requester rendering in both debug and ASan.
+4. Advanced requester input through `FUN_0043bd4c` key consumption and Enter/action selection in both debug and ASan, recording raw callback labels instead of calling unrecovered label pointers.
+5. Added a first recovered dispatcher for simple requester callback labels, keeping harder callbacks recorded while focus/selection fidelity is investigated.
+6. Recovered requester focus movement by locally initializing the fixed-address main-menu item chain, seeding `_DAT_00643430`, and fixing selected-item pointer arithmetic; debug and ASan now verify one-step and two-step Down/Enter requester probes.
