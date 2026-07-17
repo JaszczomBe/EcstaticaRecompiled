@@ -132,7 +132,9 @@ input state: ... requester=[ce58=16 id=0x27 mode=5 b384=18 bad=18 ptr=0x47a588 b
 
 This proves requester navigation now reaches Enter/action selection in both configurations. A first explicit dispatcher now handles the simple original label callbacks that only update requester/menu state (`LAB_0043d458`, `LAB_0043d464`, `LAB_0043d470`, `LAB_0043d47c`, `LAB_0043d490`, `DAT_0043d4c0`, and the active `LAB_0043c4e8` cancel case for requester ids `0x27/0x28`).
 
-Focus/selection fidelity has also advanced. The requester path now initializes the fixed-address main-menu item chain locally, seeds `_DAT_00643430` from the requester record before trusting stale decompiler parameters, marks locally initialized menu items keyboard-focusable, and fixes integer-global pointer arithmetic around `_DAT_00643430`. Debug and ASan `escape,num2,enter` now move once from `0x643ad0` to `0x643ca4` and dispatch `DAT_0043d49c`; `escape,num2,num2,enter` moves through `0x643ca4` to the cancel item `0x643780` and dispatches `LAB_0043c4e8` without crashing. The next implementation target is the complex callback labels, especially `DAT_0043d49c`.
+Focus/selection fidelity has also advanced. The requester path now initializes the fixed-address main-menu item chain locally, seeds `_DAT_00643430` from the requester record before trusting stale decompiler parameters, marks locally initialized menu items keyboard-focusable, and fixes integer-global pointer arithmetic around `_DAT_00643430`. Debug and ASan `escape,num2,enter` now move once from `0x643ad0` to `0x643ca4` and dispatch `DAT_0043d49c`; `escape,num2,num2,enter` moves through `0x643ca4` to the cancel item `0x643780` and dispatches `LAB_0043c4e8` without crashing.
+
+`DAT_0043d49c` now reaches the recovered `FUN_0043c910` yes/no prompt path. The prompt helper seeds requester id `0x14`, stores a stable prompt string at `0x0047a520`, sizes the prompt record, initializes the fixed Yes/No item chain, and dispatches the original affirmative/decline callbacks. Debug and ASan `escape,num2,enter,enter` select Quit then default No and finish with `_DAT_00643650=5`. Debug and ASan `escape,num2,enter,num2,enter` move from No to Yes and finish with `_DAT_00643650=6`; original switch case `6` has also been corrected to open requester id `0x31` instead of calling the decompiler's bad `FUN_00414e68()` arm. The remaining prompt-text frontier is the unnamed fixed English source at `0x004729b8`; the current recovery uses the localized pointer at `0x0060aef0` when available and a bounded fallback string otherwise.
 
 ## Acceptance Criteria
 
@@ -159,6 +161,10 @@ Focus/selection fidelity has also advanced. The requester path now initializes t
 14. `build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-asan-focus-bit escape,num2,enter 8 250 5`
 15. `build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-debug-two-down-cast escape,num2,num2,enter 8 250 5`
 16. `build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-ready-asan-two-down-cast escape,num2,num2,enter 8 250 5`
+17. `build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-debug-quit-prompt-no escape,num2,enter,enter 8 250 5`
+18. `build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-debug-quit-prompt-yes escape,num2,enter,num2,enter 8 250 5`
+19. `build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-asan-quit-prompt-no escape,num2,enter,enter 8 250 5`
+20. `build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step09-asan-quit-prompt-yes escape,num2,enter,num2,enter 8 250 5`
 
 ## Change Log
 
@@ -180,6 +186,8 @@ Focus/selection fidelity has also advanced. The requester path now initializes t
 14. Verified `escape,num8,enter` reaches requester action selection in debug and ASan with surface-3 hash `9042c4ed`, `fed=2`, `key=0xd`, and `actions=1`. Raw requester callback labels are recorded and intentionally not called yet.
 15. Added an explicit dispatcher for the simple requester callback labels recovered from original disassembly. Debug and ASan `escape,num8,enter` still pass with hash `9042c4ed`; `escape,num2,enter` also lands on the same cancel action, confirming the next frontier is requester focus/selection fidelity rather than the first label-dispatch crash.
 16. Initialized the fixed-address main-menu item chain at requester open, seeded keyboard focus from the requester record, marked local menu items focusable for `FUN_0043bd4c`, and fixed `_DAT_00643430` pointer arithmetic. Debug and ASan now verify one-step movement to `0x643ca4` and two-step movement to cancel `0x643780`.
+17. Recovered the `DAT_0043d49c` Quit callback's original no-confirm branch in the dispatcher. Debug and ASan `escape,num2,enter` select `0x643ca4`, record the Quit action, keep `_DAT_00643650=5`, and leave `FUN_0043c910` prompt recovery as the next frontier.
+18. Recovered the `FUN_0043c910` Quit confirmation prompt path, initialized the fixed Yes/No prompt items, fixed the requester probe's per-key wait, and corrected original state switch case `6` to open requester id `0x31`. Debug and ASan now verify both default No (`_DAT_00643650=5`) and Down+Enter Yes (`_DAT_00643650=6`) prompt outcomes.
 
 ### 2026-07-16
 

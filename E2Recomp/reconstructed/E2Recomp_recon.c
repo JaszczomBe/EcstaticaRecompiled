@@ -45,6 +45,15 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
 {
   ushort requester_id = E2R_WORD_AT(DAT_0047a45e,2);
 
+  if (action == (uintptr_t)&LAB_0043c594) {
+    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643dc4) {
+      _DAT_006443d2 = (_DAT_006443d2 & 0xffff) | 0x10000;
+      if (_DAT_00643430 == (short *)0x00643dc4) {
+        _DAT_00643650 = 6;
+      }
+      return 1;
+    }
+  }
   if (action == (uintptr_t)&LAB_0043d458) {
     _DAT_00643650 = 0;
     return 1;
@@ -67,10 +76,26 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
     _DAT_00643650 = 4;
     return 1;
   }
+  if (action == (uintptr_t)&DAT_0043d49c) {
+    uintptr_t prompt = 0x004729b8;
+    if (DAT_00479e00 != 0 && !IsBadReadPtr((void *)0x0060aef0,4) &&
+        *(uintptr_t *)0x0060aef0 != 0) {
+      prompt = *(uintptr_t *)0x0060aef0;
+    }
+    _DAT_00643650 = ((int)FUN_0043c910((undefined4)prompt,0) != 0) ? 6 : 5;
+    return 1;
+  }
   if (action == (uintptr_t)&DAT_0043d4c0) {
     return 1;
   }
   if (action == (uintptr_t)&LAB_0043c4e8) {
+    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643c84) {
+      _DAT_006443d2 = _DAT_006443d2 & 0xffff;
+      if (_DAT_00643430 == (short *)0x00643c84) {
+        _DAT_00643650 = 5;
+      }
+      return 1;
+    }
     if (requester_id == 0x27 || requester_id == 0x28) {
       _DAT_00643650 = 5;
       return 1;
@@ -850,6 +875,22 @@ static void E2R_InitRequesterMainMenuItems(void)
   }
   E2R_InitRequesterItem(0x00643780,0x38,-0x42,-0x14,0xc,(uintptr_t)s_Cancel_0047329c,
                         (uintptr_t)&LAB_0043c4e8,0x2000,0);
+}
+
+static void E2R_InitRequesterYesNoPromptItems(void)
+{
+  if (DAT_00479e00 == 0) {
+    E2R_InitRequesterItem(0x00643dc4,0x32,10,0xc,0xc,(uintptr_t)(char *)0x004732a4,
+                          (uintptr_t)&LAB_0043c594,0x2000,0);
+    E2R_InitRequesterItem(0x00643c84,0x32,-0x3c,0xc,0xc,(uintptr_t)(char *)0x004732a8,
+                          (uintptr_t)&LAB_0043c4e8,0x2000,0x00643dc4);
+  }
+  else {
+    E2R_InitRequesterItem(0x00643dc4,0x32,10,0xc,0xc,(uintptr_t)_DAT_0060ae78,
+                          (uintptr_t)&LAB_0043c594,0x2000,0);
+    E2R_InitRequesterItem(0x00643c84,0x32,-0x3c,0xc,0xc,(uintptr_t)_DAT_0060ae7c,
+                          (uintptr_t)&LAB_0043c4e8,0x2000,0x00643dc4);
+  }
 }
 
 
@@ -6930,7 +6971,8 @@ LAB_00416112:
       } while (_DAT_0064353c < iVar2);
       break;
     case 6:
-      FUN_00414e68();
+      _DAT_00643660 = 1;
+      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));
     }
     FUN_0041cfc0();
     param_1 = extraout_ECX_11;
@@ -29722,43 +29764,44 @@ LAB_0043c464:
 undefined8 __fastcall FUN_0043c910(undefined4 param_1,undefined4 param_2)
 
 {
-  char cVar1;
-  char *in_EAX;
-  uint uVar2;
-  int iVar3;
-  undefined4 extraout_EDX;
-  char *pcVar4;
-  char acStack_44 [50];
-  undefined1 local_12;
-  
+  static char prompt_text[0x34];
+  char *source;
+  uint i;
+  uint length;
+  short width;
+  undefined8 result;
+
+  source = (char *)(uintptr_t)param_1;
+  if ((uintptr_t)source < 0x10000u || (uintptr_t)source >= 0x70000000u ||
+      IsBadReadPtr(source,1)) {
+    source = "Quit?";
+  }
+  for (i = 0; i < 0x32; i = i + 1) {
+    if (IsBadReadPtr(source + i,1)) {
+      break;
+    }
+    prompt_text[i] = source[i];
+    if (source[i] == '\0') {
+      break;
+    }
+  }
+  if (i == 0x32 || prompt_text[i] != '\0') {
+    prompt_text[i] = '\0';
+  }
+
+  length = (uint)strlen(prompt_text);
+  width = (length < 0x17) ? 0x96 : E2R_clamp_short((int)length * 6 + 0x14);
   E2R_WORD_AT(DAT_0047a45e,2) = 0x14;
-  FUN_0045f22f(param_1,in_EAX);
-  local_12 = 0;
-  uVar2 = 0xffffffff;
-  pcVar4 = acStack_44;
-  do {
-    if (uVar2 == 0) break;
-    uVar2 = uVar2 - 1;
-    cVar1 = *pcVar4;
-    pcVar4 = pcVar4 + 1;
-  } while (cVar1 != '\0');
-  if (~uVar2 - 1 < 0x17) {
-    _DAT_0047a51c = 0x96;
-  }
-  else {
-    iVar3 = -1;
-    pcVar4 = acStack_44;
-    do {
-      if (iVar3 == 0) break;
-      iVar3 = iVar3 + -1;
-      cVar1 = *pcVar4;
-      pcVar4 = pcVar4 + 1;
-    } while (cVar1 != '\0');
-    _DAT_0047a51c = (~(ushort)iVar3 - 1) * 6 + 0x14;
-  }
+  *(undefined2 *)0x0047a51c = width;
+  *(uintptr_t *)0x0047a520 = (uintptr_t)prompt_text;
+  E2R_InitRequesterYesNoPromptItems();
+  E2R_InitRequesterRecord(0x0047a518,-1,-1,width,0x32,(uintptr_t)prompt_text,0x00643c84);
+  _DAT_00643430 = (short *)0x00643c84;
+  _DAT_00643428 = (short *)0x0;
+  _DAT_0064342c = 0;
   _DAT_006443d2 = _DAT_006443d2 & 0xffff;
-  _DAT_0047a520 = acStack_44;
-  FUN_0043b384(0,extraout_EDX);
+  result = FUN_0043b384(0x0047a518,0);
+  (void)result;
   return CONCAT44(param_2,(int)_DAT_006443d2 >> 0x10);
 }
 

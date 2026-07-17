@@ -2,6 +2,38 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-17 - Quit Confirmation Prompt Recovered
+
+Area: `FUN_0043c910`, `DAT_0043d49c`, requester id `0x14`, `_DAT_00643650`
+
+Symptom: Quit selection could safely take the original cancel/no branch, but the actual confirmation prompt was still unrecovered and confirmed Quit could not reach `_DAT_00643650=6`.
+
+Evidence: original disassembly at `0043c910..0043c995` builds requester id `0x14`, copies a bounded prompt string into a stack buffer, stores the prompt pointer at `0x0047a520`, sizes `0x0047a51c`, clears word `006443D4`, runs `FUN_0043b384`, and returns the high word of `_DAT_006443d2`. Original callbacks `LAB_0043c594` and `LAB_0043c4e8` set or clear that high word for id `0x14`. Original state switch case `6` at `0041638a..0041639a` sets `_DAT_00643660=1` and opens requester id `0x31`; the decompiler had reconstructed that arm as a fatal `FUN_00414e68()` call.
+
+Change: recovered `FUN_0043c910` with a stable hosted prompt buffer, initialized the fixed Yes/No prompt item records, wired id/item-aware prompt callbacks, made the Quit action call the prompt helper, fixed the native requester-sequence probe to wait per queued key, and corrected the original switch case `6` behavior. Mirrored generated-code repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. Debug and ASan `escape,num2,enter,enter` select Quit then default No and finish with `_DAT_00643650=5`. Debug and ASan `escape,num2,enter,num2,enter` move from No to Yes, dispatch the Yes callback, open requester id `0x31`, and finish with `_DAT_00643650=6` without sanitizer reports.
+
+Next Frontier: the prompt text at fixed English address `0x004729b8` is still unnamed in generated data, so the recovery uses the localized pointer at `0x0060aef0` when available and a bounded fallback string otherwise. Future work can recover the missing raw data symbol/text exactly.
+
+Regression Risk: confirmed Quit now reaches the original state `6` transition and id `0x31` requester path. That broadens executable behavior beyond the previous safe cancel fallback, but debug and ASan probes cover both No and Yes outcomes.
+
+## 2026-07-17 - Quit Callback No-Confirm Path Recovered
+
+Area: `DAT_0043d49c`, `E2R_InvokeRequesterAction`, main-menu requester callbacks
+
+Symptom: `escape,num2,enter` could select the fixed-address Quit item at `0x643ca4`, but the selected action `DAT_0043d49c` was still only recorded by the simple dispatcher and left unhandled.
+
+Evidence: original disassembly at `0043d49c..0043d4e4` shows the Quit action calls `FUN_0043c910` with localized text from `0x0060aef0` or fixed text at `0x004729b8`, then sets `_DAT_00643650=6` when the prompt returns nonzero and `_DAT_00643650=5` otherwise. The current reconstructed `FUN_0043c910` path still depends on unrecovered prompt/string-copy behavior, so the bounded safe branch is the original declined/cancel result.
+
+Change: added a `DAT_0043d49c` case to `E2R_InvokeRequesterAction` that applies the original no-confirm result by setting `_DAT_00643650=5` and returning handled. Mirrored the dispatcher case in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, `cmake --build build/linux-clang32-asan`, and `git diff --check` pass. Debug and ASan `escape,num2,enter` probes both select `0x643ca4`, record one action with `selected_action`/`last_action` pointing at `DAT_0043d49c`, keep `_DAT_00643650=5`, write surface 3 with hash `9042c4ed`, and finish without sanitizer reports.
+
+Next Frontier: recover the `FUN_0043c910` yes/no prompt helper and the source text at `0x004729b8`/`0x0060aef0` so Quit can display the original confirmation and take the `_DAT_00643650=6` branch only when the user confirms.
+
+Regression Risk: this intentionally preserves the original cancel/no outcome for Quit until prompt handling is recovered. It avoids crashing or exiting through an unrecovered confirmation path, but it does not yet implement confirmed quit behavior.
+
 ## 2026-07-17 - Requester Focus Movement Recovered
 
 Area: `FUN_0043bd4c`, fixed-address requester item records, `_DAT_00643430`

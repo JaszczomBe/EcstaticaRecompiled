@@ -263,8 +263,6 @@ static void *e2r_frame_dump_thread(void *arg)
 
     if (request->inject_key_count != 0 && request->inject_delay_seconds < remaining_delay) {
         unsigned key_index;
-        uintptr_t initial_action_count = E2R_requester_probe_action_count;
-
         if (request->wait_for_requester_ready) {
             unsigned waited_ms = e2r_wait_for_requester_ready(request->inject_delay_seconds);
             unsigned waited_seconds = (waited_ms + 999u) / 1000u;
@@ -281,6 +279,7 @@ static void *e2r_frame_dump_thread(void *arg)
         }
 
         for (key_index = 0; key_index < request->inject_key_count; key_index++) {
+            uintptr_t action_count_before_key = E2R_requester_probe_action_count;
             uintptr_t keydown_count_before = E2R_input_probe_keydown_count;
             unsigned inject_key = request->inject_keys[key_index];
             MSG msg;
@@ -338,24 +337,24 @@ static void *e2r_frame_dump_thread(void *arg)
                 request->inject_key_count > 1) {
                 e2r_wait_for_requester_dialog(request->inject_delay_seconds);
             }
-        }
-        if (request->wait_for_requester_ready) {
-            unsigned waited_ms = 0;
-            while (waited_ms < 1000 &&
-                   E2R_requester_probe_action_count == initial_action_count &&
-                   E2R_requester_probe_pending_key_read != E2R_requester_probe_pending_key_count) {
-                usleep(10000);
-                waited_ms += 10;
-            }
-            if (E2R_requester_probe_action_count != initial_action_count ||
-                E2R_requester_probe_pending_key_read == E2R_requester_probe_pending_key_count) {
-                fprintf(stderr,
-                        "requester probe completed after %u ms: pending=%lu/%lu actions=%lu\n",
-                        waited_ms,
-                        (unsigned long)E2R_requester_probe_pending_key_read,
-                        (unsigned long)E2R_requester_probe_pending_key_count,
-                        (unsigned long)E2R_requester_probe_action_count);
-                remaining_delay = 0;
+            if (request->wait_for_requester_ready) {
+                unsigned waited_ms = 0;
+                while (waited_ms < 1000 &&
+                       E2R_requester_probe_action_count == action_count_before_key &&
+                       E2R_requester_probe_pending_key_read != E2R_requester_probe_pending_key_count) {
+                    usleep(10000);
+                    waited_ms += 10;
+                }
+                if (E2R_requester_probe_action_count != action_count_before_key ||
+                    E2R_requester_probe_pending_key_read == E2R_requester_probe_pending_key_count) {
+                    fprintf(stderr,
+                            "requester probe completed after %u ms: pending=%lu/%lu actions=%lu\n",
+                            waited_ms,
+                            (unsigned long)E2R_requester_probe_pending_key_read,
+                            (unsigned long)E2R_requester_probe_pending_key_count,
+                            (unsigned long)E2R_requester_probe_action_count);
+                    remaining_delay = 0;
+                }
             }
         }
     }
