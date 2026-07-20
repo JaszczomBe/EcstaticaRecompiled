@@ -103,26 +103,42 @@ Original disassembly shows `FUN_00444c10` preserves the FAN stream in `ESI`, but
 
 The 2026-07-20 continuation recovered the original stream/input contracts for the next version-gated parser helpers. Original disassembly showed `FUN_004448e4` keeps the FAN stream in `ESI` and tests the decoded record type, `FUN_00445000` reads through the same stream and feeds `FUN_004173c8`, and `FUN_004451a8` keeps the stream in `ECX` while allocating bitmap payload storage. The first `FUN_00447638` table load now writes its 128x128 word table through the explicit destination pointer instead of stale `extraout_ECX` state. The packed-name lookup wrappers now walk the hosted packed-name tables directly, `FUN_0045fae0` compares its explicit input pointers, and the remaining `FUN_00447638`/remap-table accesses use literal legacy addresses instead of generated global fragments.
 
-Current debug and ASan probes still diverge. Debug reports the same bounded ordinal-4 unknown-record diagnostic after the first three validated terminators:
+The 2026-07-20 continuation removed the debug/ASan parser divergence. Hosted streams now preserve the original binary/text byte behavior instead of using a blunt raw-word shortcut, and `FUN_00444c10` has an explicit action-node parser that maps action ids, installs action nodes into the fixed `0x006297c0` table, appends bytecode tokens into `_DAT_006366a0`, allocates child nodes, and normalizes `"NOT Present"` child names to `"CheckActor"`. The stale hidden-register terminator test in `FUN_00444668` was also repaired; it was repeatedly consuming zero section terminators and then treating the first action-section words as a fourth record.
 
 ```text
-build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-47638-debug escape,enter 8 250 5
+build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-44668term-debug escape,enter 8 250 5
 
-FAN record: ordinal=4 offset=104855 fields=0761,0701,0000,0001,0001
-FAN unknown record: ordinal=4 offset=104855 remaining=1994317 fields=0761,0701,0000,0001,0001
-```
-
-ASan advances beyond the previous `FUN_004448e4 -> FUN_0043cac0`, `FUN_00445000`, `FUN_004451a8`, lookup, and fixed-table stops. The latest ASan probe exits cleanly and dumps the title surface, but the requester/action state is still empty:
-
-```text
-build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-remaptables-asan escape,enter 30 250 5
-
-FAN record: ordinal=4 offset=259093 fields=0000,0000,3a33,004d,3a51
-wrote surface dump: /tmp/e2-step10-remaptables-asan-s3.pgm (surface 3 nonblank=1 hash=6e39f5ea)
+FAN record: ordinal=3 ... fields=0000,0000,3a33,004d,3a51
+FAN dispatch: ordinal=3 type=0000 version=55 offset=104845
+FAN 44c10: offset=104847 count=1793 version=55 remaining=1994325
+wrote surface dump: /tmp/e2-step10-44668term-debug-s3.pgm (surface 3 nonblank=1 hash=6e39f5ea)
 start_game=[entries=0 player=0 mode=0 startup_scan=0 startup_match=0 action_scan=0 action_match=0 dispatch=0 ...]
 ```
 
-The next implementation step is to recover the remaining `FUN_00444c10` action-node parsing state so `_DAT_00637250` is populated before `FUN_0043a39c` scans StartUp and Start Game action codes. Original disassembly shows this function preserves the stream in `ESI` while using stack-held action node pointers and bytecode cursors; the current decompiled body still reuses several `extraout_*` temporaries in that section. Keep the first-sixteen-record, first-sixty-four-word, and unknown-record diagnostics bounded until all FAN sections align, then remove them before closing Step 10.
+The matching ASan probe follows the same section transition and exits without a sanitizer report:
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-44668term-asan escape,enter 30 250 5
+
+FAN 44c10: offset=104847 count=1793 version=55 remaining=1994325
+wrote surface dump: /tmp/e2-step10-44668term-asan-s3.pgm (surface 3 nonblank=1 hash=6e39f5ea)
+start_game=[entries=0 player=0 mode=0 startup_scan=0 startup_match=0 action_scan=0 action_match=0 dispatch=0 ...]
+```
+
+The next continuation advanced the loader beyond the old action-dispatch suspicion. `FUN_00444c10` now reports `list=1793`, `table=456`, and `pool=15002`; `FUN_004448e4` recognizes the ordinal-4 type-zero terminator; `FUN_00447638` parses its `49650` terrain/path entries, `1200` segment records, and tail node list; the invalid low actor-list head is dropped before post-FAN cleanup; and startup opens the hosted `Files/ECSTATIC` archive through `FUN_004452e0`.
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-fun45eb05-path-debug escape,enter 8 250 5
+gdb --batch ... /tmp/e2-step10-path-gdb
+
+FAN 44c10 summary: list=1793 table=456 pool=15002
+FAN 47638 entries done: count=49650 offset=2079269 remaining=19903
+FAN 47638 segment count: count=1200 offset=2079271 remaining=19901
+FUN_00447d94 -> FUN_0043cac0 -> FUN_0043b384 -> FUN_0041ab4c -> FUN_0041ad54
+SEGV at FUN_0041ad54, *row = color, param_1=43899, param_2=0, param_3=479
+```
+
+The next implementation step is to recover the `FUN_00447d94` archive/scene-data loader handoff after `Files/ECSTATIC` opens. The immediate crash is a bad framebuffer fill rectangle flowing through `FUN_0043cac0`; verify whether `FUN_00447d94` is invoking the error/render path because hosted archive-table reads are still stale, then repair the first explicit bad read or stale register handoff. Keep the bounded FAN diagnostics until this scene/archive loader frontier is stable, then prune the noisy entry-loop logs.
 
 ## Acceptance Criteria
 
@@ -165,3 +181,6 @@ Exact English Quit prompt text recovery at `0x004729b8` remains a Step 9 fidelit
 4. Recovered the `FUN_00444c10` owner/list helper cluster, raw hosted FAN word reads, `FUN_004435e8` token input, and fixed remap-table reads. ASan advanced to the later `FUN_004448e4` frontier; debug still reports ordinal 4 as unknown.
 5. Recovered `FUN_004448e4`, `FUN_00445000`, `FUN_004451a8`, `FUN_00452a58`, and the first `FUN_00447638` stream/destination contracts.
 6. Recovered packed-name lookup wrappers, `FUN_0045fae0`, and the remaining fixed-address `FUN_00447638`/remap-table accesses. ASan now reaches and dumps the title surface without a sanitizer report, while debug still stops at the ordinal-4 unknown-record diagnostic and ASan still reports `start_game entries=0`.
+7. Recovered hosted binary/text stream byte semantics, replaced the remaining `FUN_00444c10` action-node parser body, and fixed the stale `FUN_00444668` terminator test. Debug and ASan now both enter `FUN_00444c10`, parse past the old ordinal-4 boundary, and dump the title surface without sanitizer reports.
+8. Recovered the ordinal-4 terminator path, the `FUN_00447638` terrain/path table loops, tail-node allocation, post-FAN invalid actor-head guard, hosted literal path handling, and stable `Files/ECSTATIC` startup archive path. Debug now reaches `FUN_00447d94` after FAN parsing.
+9. Current frontier: `FUN_00447d94` enters `FUN_0043cac0 -> FUN_0043b384 -> FUN_0041ab4c -> FUN_0041ad54` and crashes writing a framebuffer fill row with bad rectangle state (`param_1=43899`, `param_2=0`, `param_3=479`).

@@ -13,6 +13,7 @@
 #define NAN(x) isnan((double)(x))
 
 static uint E2R_file_flags[256];
+static uint E2R_open_diag_count;
 #define E2R_STREAM_MAGIC 0xe25eed01u
 
 static int E2R_round_to_int(double value)
@@ -47,6 +48,73 @@ static int *E2R_fan_parse_stream;
 static short *E2R_fan_parse_record;
 static uint E2R_fan_parse_record_count;
 static uint E2R_fan_word_read_diag_count;
+static uint E2R_fan_action_read_diag_count;
+static uint E2R_fan_dispatch_diag_count;
+static uint E2R_fan_actor_diag_count;
+static uint E2R_fan_action_summary_diag_count;
+static uint E2R_fan_phase_diag_count;
+
+static uint E2R_FanStreamOffset(void)
+{
+  if (E2R_fan_parse_stream == (int *)0x0 || IsBadReadPtr(E2R_fan_parse_stream,0x1c)) {
+    return 0;
+  }
+  return (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -
+                (byte *)(uintptr_t)E2R_fan_parse_stream[5]);
+}
+
+static int E2R_ReadHostedStreamByte(undefined4 *stream)
+{
+  byte *cursor;
+  int value;
+
+  if (stream == (undefined4 *)0x0 || IsBadReadPtr(stream,0x1c)) {
+    return -1;
+  }
+  if ((int)stream[1] < 1) {
+    *(byte *)(stream + 3) = *(byte *)(stream + 3) | 0x10;
+    return -1;
+  }
+  cursor = (byte *)(uintptr_t)stream[0];
+  value = (int)*cursor;
+  stream[0] = (undefined4)(uintptr_t)(cursor + 1);
+  stream[1] = stream[1] + -1;
+  if ((*(byte *)(stream + 3) & 0x40) == 0) {
+    if (value == '\r') {
+      if ((int)stream[1] < 1) {
+        *(byte *)(stream + 3) = *(byte *)(stream + 3) | 0x10;
+        return -1;
+      }
+      cursor = (byte *)(uintptr_t)stream[0];
+      value = (int)*cursor;
+      stream[0] = (undefined4)(uintptr_t)(cursor + 1);
+      stream[1] = stream[1] + -1;
+    }
+    if (value == '\x1a') {
+      *(byte *)(stream + 3) = *(byte *)(stream + 3) | 0x10;
+      return -1;
+    }
+  }
+  return value;
+}
+
+static int E2R_ReadFanWordByte(int *stream)
+{
+  byte *cursor;
+
+  if (stream == (int *)0x0 || IsBadReadPtr(stream,0x1c)) {
+    return -1;
+  }
+  if (0 < stream[1] && ((*(byte *)(stream + 3) & 4) == 0)) {
+    cursor = (byte *)(uintptr_t)stream[0];
+    if (!IsBadReadPtr(cursor,1) && *cursor != '\r' && *cursor != '\x1a') {
+      stream[0] = (int)(uintptr_t)(cursor + 1);
+      stream[1] = stream[1] + -1;
+      return (int)*cursor;
+    }
+  }
+  return E2R_ReadHostedStreamByte((undefined4 *)stream);
+}
 
 static short E2R_InternPackedName(char *input,char *table,uint capacity,short max_names)
 {
@@ -139,22 +207,17 @@ static short E2R_FindPackedNameIndex(char *input,char *table,uint capacity,short
   return -1;
 }
 
-static char *E2R_ActionCodeName(short *action)
+static char *E2R_ActionNameByIndex(short index)
 {
   char *cursor = (char *)(uintptr_t)_DAT_00636698;
-  int index;
   int item;
   uint length;
 
-  if (action == (short *)0x0 || IsBadReadPtr(action,0xe) ||
-      (uintptr_t)cursor < 0x10000u || (uintptr_t)cursor >= 0x70000000u) {
+  if (index < 0 || 0x4000 < index || (uintptr_t)cursor < 0x10000u ||
+      (uintptr_t)cursor >= 0x70000000u || IsBadReadPtr(cursor,1)) {
     return (char *)0x0;
   }
-  index = (int)*action;
-  if (index < 0 || 0x4000 < index) {
-    return (char *)0x0;
-  }
-  for (item = 0; item < index; item = item + 1) {
+  for (item = 0; item < (int)index; item = item + 1) {
     for (length = 0; length < 0x100; length = length + 1) {
       if (IsBadReadPtr(cursor + length,1)) {
         return (char *)0x0;
@@ -177,6 +240,154 @@ static char *E2R_ActionCodeName(short *action)
     }
   }
   return (char *)0x0;
+}
+
+static char *E2R_ActionCodeName(short *action)
+{
+  if (action == (short *)0x0 || IsBadReadPtr(action,0xe)) {
+    return (char *)0x0;
+  }
+  return E2R_ActionNameByIndex(*action);
+}
+
+static int E2R_ascii_lower(int value)
+{
+  if ('A' <= value && value <= 'Z') {
+    return value + ('a' - 'A');
+  }
+  return value;
+}
+
+static int E2R_CaseEqualBounded(char *left,char *right,uint limit)
+{
+  uint i;
+
+  if (left == (char *)0x0 || right == (char *)0x0) {
+    return 0;
+  }
+  for (i = 0; i < limit; i = i + 1) {
+    int l;
+    int r;
+
+    if (IsBadReadPtr(left + i,1) || IsBadReadPtr(right + i,1)) {
+      return 0;
+    }
+    l = (byte)left[i];
+    r = (byte)right[i];
+    if (E2R_ascii_lower(l) != E2R_ascii_lower(r)) {
+      return 0;
+    }
+    if (l == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int E2R_FanActionPassesFilter(short action_index)
+{
+  char *filter = (char *)0x0047a458;
+  char *name;
+
+  if (IsBadReadPtr(filter,1) || filter[0] == '\0') {
+    return 1;
+  }
+  name = E2R_ActionNameByIndex(action_index);
+  return E2R_CaseEqualBounded(filter,name,0x100);
+}
+
+static uint E2R_CountActionList(short *head)
+{
+  short *node = head;
+  uint count = 0;
+
+  while (node != (short *)0x0 && count < 0x4000 && !IsBadReadPtr(node,0xe)) {
+    count = count + 1;
+    node = *(short **)(node + 5);
+  }
+  return count;
+}
+
+static uint E2R_CountActionTable(void)
+{
+  short **table = (short **)0x006297c0;
+  uint count = 0;
+  uint index;
+
+  if (IsBadReadPtr(table,0x4000 * sizeof(short *))) {
+    return 0;
+  }
+  for (index = 0; index < 0x4000; index = index + 1) {
+    if (table[index] != (short *)0x0) {
+      count = count + 1;
+    }
+  }
+  return count;
+}
+
+static int E2R_ReadFanTextByte(int *stream)
+{
+  byte *cursor;
+  int value;
+  undefined8 read;
+
+  if (stream == (int *)0x0 || IsBadReadPtr(stream,0x1c)) {
+    return 0;
+  }
+  if (0 < stream[1] && ((*(byte *)(stream + 3) & 4) == 0)) {
+    cursor = (byte *)(uintptr_t)stream[0];
+    if (!IsBadReadPtr(cursor,1) && *cursor != '\r' && *cursor != '\x1a') {
+      value = (int)*cursor;
+      stream[0] = (int)(uintptr_t)(cursor + 1);
+      stream[1] = stream[1] + -1;
+      return value;
+    }
+  }
+  read = FUN_0045f38a((undefined4)(uintptr_t)stream,(undefined4)(uintptr_t)stream);
+  return (int)read & 0xff;
+}
+
+static void E2R_SkipFanTextString(int *stream)
+{
+  while (E2R_ReadFanTextByte(stream) != 0) {
+  }
+}
+
+static void E2R_ReadFanChildName(int *stream,char *target,uint target_size)
+{
+  uint length = 0;
+  int value;
+
+  if (target != (char *)0x0 && target_size != 0 && !E2R_IsBadWritePtr(target,target_size)) {
+    memset(target,' ',target_size);
+  }
+  do {
+    value = E2R_ReadFanTextByte(stream);
+    if (value != 0 && target != (char *)0x0 && length < target_size &&
+        !E2R_IsBadWritePtr(target + length,1)) {
+      target[length] = (char)value;
+    }
+    length = length + 1;
+  } while (value != 0);
+}
+
+static void E2R_NormalizeFanChildName(char *target,uint target_size)
+{
+  static char not_present[] = "NOT Present";
+  static char check_actor[] = "CheckActor";
+  uint offset;
+  uint needle_length = (uint)strlen(not_present);
+
+  if (target == (char *)0x0 || target_size <= needle_length ||
+      E2R_IsBadWritePtr(target,target_size)) {
+    return;
+  }
+  for (offset = 0; offset < target_size - needle_length; offset = offset + 1) {
+    if (memcmp(target + offset,not_present,needle_length) == 0) {
+      memcpy(target + offset,check_actor,strlen(check_actor) + 1);
+      return;
+    }
+  }
 }
 
 static int E2R_ActionCodeMatches(short *action,char *suffix)
@@ -249,6 +460,32 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
   if (action == (uintptr_t)&DAT_0043d4c0) {
     return 1;
   }
+  if (action == (uintptr_t)&LAB_0043d83c) {
+    if (DAT_0047d0c4 == 0) {
+      return 1;
+    }
+    FUN_0044e5b0();
+    if (DAT_0047a43c != 0) {
+      FUN_0043acec();
+    }
+    else {
+      FUN_0043ac60();
+    }
+    DAT_0047a440 = DAT_0047a43c;
+    FUN_0044e5b0();
+    FUN_004559bc();
+    FUN_00456f94();
+    FUN_004211c8(0,0);
+    FUN_00421a14();
+    FUN_00421f54(0);
+    FUN_00422238(0,0);
+    FUN_0043d8ec();
+    FUN_0043d934();
+    FUN_0043d9a0();
+    FUN_0043da04();
+    FUN_0043da80();
+    return 1;
+  }
   if (action == (uintptr_t)&LAB_0043c4e8) {
     if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643c84) {
       _DAT_006443d2 = _DAT_006443d2 & 0xffff;
@@ -300,10 +537,18 @@ static undefined4 E2R_OpenReadStream(LPCSTR path)
 
   file = CreateFileA(path,0x80000000,3,(LPSECURITY_ATTRIBUTES)0x0,3,0x80,(HANDLE)0x0);
   if (file == INVALID_HANDLE_VALUE) {
+    if (E2R_open_diag_count < 12) {
+      E2R_open_diag_count = E2R_open_diag_count + 1;
+      fprintf(stderr,"E2R open failed: path=%s\n",path);
+    }
     return 0;
   }
   size = SetFilePointer(file,0,(PLONG)0x0,2);
   if (size == 0xffffffff) {
+    if (E2R_open_diag_count < 12) {
+      E2R_open_diag_count = E2R_open_diag_count + 1;
+      fprintf(stderr,"E2R size failed: path=%s\n",path);
+    }
     CloseHandle(file);
     return 0;
   }
@@ -311,6 +556,11 @@ static undefined4 E2R_OpenReadStream(LPCSTR path)
   buffer = (char *)LocalAlloc(0x40,size == 0 ? 1 : size);
   stream = (undefined4 *)LocalAlloc(0x40,0x1c);
   if (buffer == (char *)0x0 || stream == (undefined4 *)0x0) {
+    if (E2R_open_diag_count < 12) {
+      E2R_open_diag_count = E2R_open_diag_count + 1;
+      fprintf(stderr,"E2R alloc failed: path=%s size=%u buffer=%p stream=%p\n",
+              path,size,(void *)buffer,(void *)stream);
+    }
     if (buffer != (char *)0x0) {
       LocalFree(buffer);
     }
@@ -321,6 +571,10 @@ static undefined4 E2R_OpenReadStream(LPCSTR path)
     return 0;
   }
   if (size != 0 && ReadFile(file,buffer,size,&bytes_read,(LPOVERLAPPED)0x0) == 0) {
+    if (E2R_open_diag_count < 12) {
+      E2R_open_diag_count = E2R_open_diag_count + 1;
+      fprintf(stderr,"E2R read failed: path=%s size=%u read=%u\n",path,size,bytes_read);
+    }
     LocalFree(buffer);
     LocalFree(stream);
     CloseHandle(file);
@@ -330,7 +584,7 @@ static undefined4 E2R_OpenReadStream(LPCSTR path)
   stream[0] = (undefined4)(uintptr_t)buffer;
   stream[1] = (undefined4)bytes_read;
   stream[2] = (undefined4)(uintptr_t)(buffer + bytes_read);
-  stream[3] = 0;
+  stream[3] = 0x41;
   stream[4] = 0xffffffff;
   stream[5] = (undefined4)(uintptr_t)buffer;
   stream[6] = E2R_STREAM_MAGIC;
@@ -1504,7 +1758,7 @@ LAB_00410779:
   }
   else {
     E2R_FormatOneString((char *)auStack_9c,s_files_ECSTATIC_0047049c,(char *)0x00479e24);
-    uVar11 = FUN_004452e0((undefined4)(uintptr_t)auStack_9c,extraout_EDX_20);
+    uVar11 = FUN_004452e0((undefined4)(uintptr_t)"Files/ECSTATIC",extraout_EDX_20);
     uVar7 = (undefined4)((ulonglong)uVar11 >> 0x20);
     uVar6 = extraout_ECX_49;
     if ((int)uVar11 == 0) {
@@ -7443,16 +7697,10 @@ undefined8 __fastcall FUN_004171b8(undefined4 param_1,undefined4 param_2)
     return CONCAT44(param_2,0xffff);
   }
   if ((uint)in_EAX[6] == E2R_STREAM_MAGIC) {
-    if (in_EAX[1] < 2) {
-      *(byte *)(in_EAX + 3) = *(byte *)(in_EAX + 3) | 0x10;
-      uVar3 = 0xffff;
-    }
-    else {
-      pbVar2 = (byte *)(uintptr_t)in_EAX[0];
-      uVar3 = ((uint)pbVar2[0] << 8) | (uint)pbVar2[1];
-      in_EAX[0] = (int)(uintptr_t)(pbVar2 + 2);
-      in_EAX[1] = in_EAX[1] + -2;
-    }
+    iVar4 = E2R_ReadFanWordByte(in_EAX);
+    uVar3 = (uint)((iVar4 << 8) & 0xff00);
+    iVar4 = E2R_ReadFanWordByte(in_EAX);
+    uVar3 = uVar3 | ((uint)iVar4 & 0xff);
     if (E2R_fan_word_read_diag_count < 64) {
       E2R_fan_word_read_diag_count = E2R_fan_word_read_diag_count + 1;
       fprintf(stderr,"FAN word: ordinal=%u offset=%u value=%04x remaining=%d\n",
@@ -32801,8 +33049,9 @@ undefined8 __fastcall FUN_004413fc(undefined4 param_1,undefined4 param_2)
   E2R_fan_parse_record = (short *)puVar1;
   E2R_fan_parse_record_count = E2R_fan_parse_record_count + 1;
   if (E2R_fan_parse_record_count <= 16) {
-    fprintf(stderr,"FAN record: ordinal=%u offset=%u fields=%04x,%04x,%04x,%04x,%04x\n",
+    fprintf(stderr,"FAN record: ordinal=%u caller=%p offset=%u fields=%04x,%04x,%04x,%04x,%04x\n",
             E2R_fan_parse_record_count,
+            __builtin_return_address(0),
             (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -
                    (byte *)(uintptr_t)E2R_fan_parse_stream[5]),
             (ushort)puVar1[0],(ushort)puVar1[1],(ushort)puVar1[2],
@@ -34491,6 +34740,11 @@ void __fastcall FUN_00444330(undefined4 param_1)
   psVar1 = DAT_0047a470;
   uVar7 = 0;
   DAT_0047a470 = (short *)0x0;
+  if (E2R_fan_phase_diag_count < 16) {
+    E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+    fprintf(stderr,"FAN 44330 enter: offset=%u record=%u\n",
+            E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+  }
   do {
     uVar10 = FUN_004413fc(param_1,uVar7);
     iVar4 = (int)uVar10;
@@ -34500,6 +34754,13 @@ void __fastcall FUN_00444330(undefined4 param_1)
     }
     FUN_00447090();
     sVar9 = *(short *)(iVar4 + 2);
+    if (E2R_fan_actor_diag_count < 8) {
+      E2R_fan_actor_diag_count = E2R_fan_actor_diag_count + 1;
+      fprintf(stderr,"FAN 44330: ordinal=%u local_type=%04x version=%d offset=%u\n",
+              E2R_fan_parse_record_count,(ushort)sVar9,(int)_DAT_0067bc92,
+              (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -
+                     (byte *)(uintptr_t)E2R_fan_parse_stream[5]));
+    }
     iVar5 = extraout_EDX;
     if (((sVar9 == 8) || (sVar9 == 0)) &&
        ((DAT_0047a470 != (short *)0x0 &&
@@ -34514,6 +34775,18 @@ void __fastcall FUN_00444330(undefined4 param_1)
     {
       FUN_00442ca4();
       iVar5 = extraout_EDX_02;
+    }
+    if (sVar9 == 0) {
+      FUN_00453264();
+      if ((DAT_0047a34a != 0) && (DAT_0047a470 == (short *)0x0)) {
+        DAT_0047a470 = psVar1;
+      }
+      if (E2R_fan_phase_diag_count < 16) {
+        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+        fprintf(stderr,"FAN 44330 terminator: offset=%u record=%u\n",
+                E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+      }
+      return;
     }
 LAB_00444418:
     if (sVar9 == 8) {
@@ -34541,7 +34814,7 @@ LAB_00444418:
         uVar10 = FUN_004413fc(extraout_ECX_05,extraout_EDX_04);
         iVar4 = (int)uVar10;
         FUN_00447090();
-        sVar9 = *(short *)(extraout_EDX_05 + 2);
+        sVar9 = *(short *)(iVar4 + 2);
         iVar6 = extraout_ECX_06;
         iVar5 = extraout_EDX_05;
         if (sVar9 == 8) break;
@@ -34614,6 +34887,11 @@ LAB_004444a9:
       if ((DAT_0047a34a != 0) && (DAT_0047a470 == (short *)0x0)) {
         DAT_0047a470 = psVar1;
       }
+      if (E2R_fan_phase_diag_count < 16) {
+        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+        fprintf(stderr,"FAN 44330 post-terminator: offset=%u record=%u\n",
+                E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+      }
       return;
     }
   } while( true );
@@ -34668,6 +34946,11 @@ void __fastcall FUN_00444668(undefined4 param_1,undefined4 param_2)
   psVar3 = (short *)((ulonglong)uVar5 >> 0x20);
   uVar2 = extraout_ECX;
   local_14 = psVar3;
+  if (E2R_fan_phase_diag_count < 16) {
+    E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+    fprintf(stderr,"FAN 44668 enter: offset=%u record=%u\n",
+            E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+  }
   do {
     uVar5 = FUN_004413fc(uVar2,psVar3);
     psVar3 = (short *)uVar5;
@@ -34704,8 +34987,8 @@ LAB_004446b0:
         uVar5 = FUN_004413fc(extraout_ECX_03,extraout_EDX_03);
         psVar3 = (short *)uVar5;
         FUN_00447090();
-        sVar1 = *(short *)(extraout_EDX_04 + 2);
-        uVar2 = CONCAT22(extraout_var_00,sVar1);
+        sVar1 = psVar3[1];
+        uVar2 = (undefined4)(uint)(ushort)sVar1;
         iVar4 = extraout_EDX_04;
         if (sVar1 == 0xb) break;
       } while (sVar1 != 0);
@@ -34753,9 +35036,14 @@ LAB_00444743:
       uVar2 = extraout_ECX_09;
       psVar3 = extraout_EDX_09;
     }
-    if ((short)uVar2 == 0) {
+    if (sVar1 == 0) {
       if ((DAT_0047a34a != 0) && (local_14 != (short *)0x0)) {
         _DAT_0047a478 = local_14;
+      }
+      if (E2R_fan_phase_diag_count < 16) {
+        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+        fprintf(stderr,"FAN 44668 terminator: offset=%u record=%u\n",
+                E2R_FanStreamOffset(),E2R_fan_parse_record_count);
       }
       return;
     }
@@ -34861,6 +35149,15 @@ LAB_004448f9:
   do {
     uVar7 = FUN_004413fc((undefined4)(uintptr_t)E2R_fan_parse_stream,uVar5);
     psVar1 = (short *)uVar7;
+    if (psVar1[1] == 0) {
+      FUN_00453264();
+      if (E2R_fan_phase_diag_count < 16) {
+        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+        fprintf(stderr,"FAN 448e4 terminator: offset=%u record=%u\n",
+                E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+      }
+      return;
+    }
     FUN_00447090();
     uVar4 = (undefined4)(uint)(ushort)psVar1[1];
     iVar2 = DAT_0047a714;
@@ -34892,6 +35189,10 @@ LAB_00444928:
           FUN_00453264();
           uVar7 = FUN_004413fc((undefined4)(uintptr_t)E2R_fan_parse_stream,extraout_EDX_04);
           psVar1 = (short *)uVar7;
+          if (psVar1[1] == 0) {
+            sVar3 = 0;
+            break;
+          }
           FUN_00447090();
           sVar3 = psVar1[1];
           uVar4 = (undefined4)(uint)(ushort)sVar3;
@@ -34904,6 +35205,10 @@ LAB_00444928:
           FUN_00453264();
           uVar7 = FUN_004413fc((undefined4)(uintptr_t)E2R_fan_parse_stream,extraout_EDX_00);
           psVar1 = (short *)uVar7;
+          if (psVar1[1] == 0) {
+            sVar3 = 0;
+            break;
+          }
           FUN_00447090();
           sVar3 = psVar1[1];
           uVar4 = (undefined4)(uint)(ushort)sVar3;
@@ -35004,306 +35309,130 @@ LAB_004449f5:
 void __fastcall FUN_00444c10(undefined4 param_1,undefined4 param_2)
 
 {
-  char cVar1;
-  short sVar2;
-  byte *pbVar3;
-  int *in_EAX;
-  int iVar4;
-  short *psVar5;
-  undefined4 extraout_ECX;
-  int extraout_ECX_00;
-  undefined2 extraout_var;
-  undefined4 extraout_ECX_01;
-  undefined4 extraout_ECX_02;
-  int extraout_ECX_03;
-  int extraout_ECX_04;
-  int extraout_ECX_05;
-  byte *extraout_ECX_06;
-  byte *pbVar6;
-  byte *extraout_ECX_07;
-  byte *extraout_ECX_08;
-  undefined4 extraout_ECX_09;
-  undefined4 extraout_ECX_10;
-  short *extraout_ECX_11;
-  int extraout_ECX_12;
-  int extraout_ECX_13;
-  short *extraout_ECX_14;
-  short *psVar7;
-  int extraout_ECX_15;
-  undefined4 extraout_ECX_16;
-  undefined4 extraout_ECX_17;
-  undefined4 extraout_ECX_18;
-  uint uVar8;
-  undefined4 uVar9;
-  undefined4 extraout_EDX;
-  undefined4 uVar10;
-  int iVar11;
-  int iVar12;
-  undefined2 uVar14;
-  undefined2 extraout_var_00;
-  undefined4 extraout_EDX_00;
-  undefined4 extraout_EDX_01;
-  undefined1 *puVar13;
-  int iVar15;
-  char *pcVar16;
-  undefined8 uVar17;
-  undefined8 uVar18;
-  undefined8 uVar19;
-  ulonglong uVar20;
-  int local_30;
-  uint local_2c;
-  int local_1c;
-  undefined2 uStack_16;
+  int *stream;
+  short outer_count;
+  short outer_index;
+  short raw_index;
+  short action_index;
+  short token;
+  short child_count;
+  short child_index;
+  short *action;
+  short *existing;
+  char *child;
+  char *previous_child;
+  short *pool;
+  int repeat_count;
+  int repeat_index;
 
-  in_EAX = E2R_fan_parse_stream;
-  if (in_EAX == (int *)0x0 || IsBadReadPtr(in_EAX,0x1c)) {
+  (void)param_1;
+  stream = E2R_fan_parse_stream;
+  if (stream == (int *)0x0 || IsBadReadPtr(stream,0x1c)) {
     return;
   }
-  
-  uVar17 = FUN_0041ba7c(param_1,param_2);
-  uVar17 = FUN_004171b8(extraout_ECX,(int)((ulonglong)uVar17 >> 0x20));
-  local_2c = 0;
-  local_1c = 0;
-  iVar4 = extraout_ECX_00;
-  if (0 < (short)uVar17) {
-    do {
-      uVar18 = FUN_004171b8(iVar4,local_2c);
-      uVar9 = (undefined4)((ulonglong)uVar18 >> 0x20);
-      uVar10 = CONCAT22(extraout_var,*(undefined2 *)((undefined1 *)0x006769f8 + (short)uVar18 * 2));
-      if (DAT_0047a458 == '\0') {
-LAB_00444d5d:
-        uVar18 = FUN_004268a4(uVar10,uVar9);
-        uVar14 = (undefined2)((ulonglong)uVar18 >> 0x30);
-        psVar5 = (short *)uVar18;
-        uStack_16 = (undefined2)((ulonglong)uVar18 >> 0x10);
-        *psVar5 = (short)uVar10;
-        iVar4 = *(int *)((short)uVar10 * 4 + 0x6297c0);
-        if (iVar4 != 0) {
-          FUN_004526e4((short *)(uintptr_t)iVar4);
+  FUN_0041ba7c((undefined4)(uintptr_t)stream,param_2);
+  outer_count = (short)FUN_004171b8((undefined4)(uintptr_t)stream,param_2);
+  if (E2R_fan_action_read_diag_count < 8) {
+    E2R_fan_action_read_diag_count = E2R_fan_action_read_diag_count + 1;
+    fprintf(stderr,"FAN 44c10: offset=%u count=%d version=%d remaining=%d\n",
+            (uint)((byte *)(uintptr_t)stream[0] - (byte *)(uintptr_t)stream[5]),
+            (int)outer_count,(int)_DAT_0067bc92,stream[1]);
+  }
+  if (outer_count <= 0) {
+    return;
+  }
+  pool = (short *)(uintptr_t)_DAT_006366a0;
+  for (outer_index = 0; outer_index < outer_count; outer_index = outer_index + 1) {
+    raw_index = (short)FUN_004171b8((undefined4)(uintptr_t)stream,0);
+    action_index = *(short *)((undefined1 *)0x006769f8 + raw_index * 2);
+    if (!E2R_FanActionPassesFilter(action_index)) {
+      token = (short)FUN_004171b8((undefined4)(uintptr_t)stream,0);
+      while (token != 0) {
+        if (((ushort)token & 0xf000) == 0xe000) {
+          repeat_count = ((((int)(short)((ushort)token & 0x0fff)) + 1) / 2);
+          for (repeat_index = 0; repeat_index < repeat_count; repeat_index = repeat_index + 1) {
+            FUN_004171b8((undefined4)(uintptr_t)stream,0);
+          }
         }
-        sVar2 = *psVar5;
-        psVar7 = (short *)CONCAT22(uVar14,sVar2);
-        if (-1 < sVar2) {
-          *(short **)(sVar2 * 4 + 0x6297c0) = psVar5;
-          psVar7 = psVar5;
-        }
-        uVar18 = FUN_004171b8(uVar10,psVar7);
-        iVar12 = (int)uVar18;
-        psVar7 = extraout_ECX_11;
-        iVar4 = iVar12;
-        if ((short)uVar18 != 0) {
-          *(int *)(psVar5 + 3) = DAT_00479d94;
-          do {
-            if (DAT_00479d94 < 19999) {
-              uVar20 = FUN_004435e8((undefined4)(uint)(ushort)iVar12,iVar12);
-              uVar10 = (undefined4)(uVar20 >> 0x20);
-              iVar4 = DAT_00479d94 * 2;
-              DAT_00479d94 = DAT_00479d94 + 1;
-              *(short *)(iVar4 + _DAT_006366a0) = (short)uVar20;
-            }
-            else {
-              fprintf(stderr,
-                      "FAN 44c10 pool full: count=%d token=%04x object=%04x offset=%u remaining=%d\n",
-                      DAT_00479d94,(ushort)iVar12,(ushort)*psVar5,
-                      (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -
-                             (byte *)(uintptr_t)E2R_fan_parse_stream[5]),
-                      E2R_fan_parse_stream[1]);
-              FUN_00414e68();
-              iVar4 = extraout_ECX_12;
-              uVar10 = extraout_EDX_00;
-            }
-            if (((byte)((uint)uVar10 >> 8) & 0xf0) == 0xe0) {
-              uVar14 = (undefined2)uVar10;
-              if ((int)((((int)(CONCAT22(uVar14,uStack_16) & 0xfffffff) >> 0x10) + 1U) / 2 +
-                       DAT_00479d94) < 19999) {
-                for (iVar12 = 0; uVar10 = 0,
-                    iVar12 < (int)((((int)(CONCAT22(uVar14,uStack_16) & 0xfffffff) >> 0x10) + 1U) /
-                                  2); iVar12 = iVar12 + 1) {
-                  uVar18 = FUN_004171b8(iVar4,0);
-                  iVar4 = DAT_00479d94 * 2;
-                  DAT_00479d94 = DAT_00479d94 + 1;
-                  *(short *)(iVar4 + _DAT_006366a0) = (short)uVar18;
-                }
-              }
-              else {
-                fprintf(stderr,
-                        "FAN 44c10 repeat overflow: count=%d token=%04x object=%04x offset=%u remaining=%d\n",
-                        DAT_00479d94,(ushort)uVar10,(ushort)*psVar5,
-                        (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -
-                               (byte *)(uintptr_t)E2R_fan_parse_stream[5]),
-                        E2R_fan_parse_stream[1]);
-                FUN_00414e68();
-                iVar4 = extraout_ECX_13;
-                uVar10 = extraout_EDX_01;
-              }
-            }
-            uVar18 = FUN_004171b8(iVar4,uVar10);
-            iVar4 = _DAT_006366a0;
-            iVar12 = (int)uVar18;
-            psVar5 = extraout_ECX_14;
-          } while ((short)uVar18 != 0);
-          iVar12 = DAT_00479d94 * 2;
+        token = (short)FUN_004171b8((undefined4)(uintptr_t)stream,0);
+      }
+      child_count = (short)FUN_004171b8((undefined4)(uintptr_t)stream,0);
+      for (child_index = 0; child_index < child_count; child_index = child_index + 1) {
+        E2R_SkipFanTextString(stream);
+      }
+      continue;
+    }
+    action = (short *)(uintptr_t)(uint)FUN_004268a4(0,0);
+    if (action == (short *)0x0 || E2R_IsBadWritePtr(action,0xe)) {
+      return;
+    }
+    action[0] = action_index;
+    existing = (short *)0x0;
+    if (-1 < action_index) {
+      existing = ((short **)0x006297c0)[action_index];
+    }
+    if (existing != (short *)0x0) {
+      FUN_004526e4(existing);
+    }
+    if (-1 < action[0]) {
+      ((short **)0x006297c0)[action[0]] = action;
+    }
+    token = (short)FUN_004171b8((undefined4)(uintptr_t)stream,(undefined4)(uintptr_t)action);
+    if (token != 0) {
+      *(int *)(action + 3) = DAT_00479d94;
+      while (token != 0) {
+        if ((int)DAT_00479d94 < 19999 && pool != (short *)0x0) {
+          pool[DAT_00479d94] =
+              (short)FUN_004435e8((undefined4)(uint)(ushort)token,(undefined4)(uint)(ushort)token);
           DAT_00479d94 = DAT_00479d94 + 1;
-          *(undefined2 *)(_DAT_006366a0 + iVar12) = 0;
-          psVar7 = extraout_ECX_14;
         }
-        uVar18 = FUN_004171b8(psVar7,iVar4);
-        local_2c = (uint)((ulonglong)uVar18 >> 0x20);
-        local_30 = 0;
-        iVar4 = extraout_ECX_15;
-        if (0 < (short)uVar18) {
-LAB_00444eca:
-          if (local_30 == 0) {
-            uVar19 = FUN_004268e4((undefined4)(uintptr_t)psVar5,local_2c);
-            uVar9 = (undefined4)uVar19;
-            uVar10 = extraout_ECX_16;
+        else {
+          FUN_00414e68();
+        }
+        if (((ushort)token & 0xf000) == 0xe000) {
+          repeat_count = ((((int)(short)((ushort)token & 0x0fff)) + 1) / 2);
+          if ((int)DAT_00479d94 + repeat_count < 19999 && pool != (short *)0x0) {
+            for (repeat_index = 0; repeat_index < repeat_count; repeat_index = repeat_index + 1) {
+              pool[DAT_00479d94] =
+                  (short)FUN_004171b8((undefined4)(uintptr_t)stream,0);
+              DAT_00479d94 = DAT_00479d94 + 1;
+            }
           }
           else {
-            uVar19 = FUN_0042692c(uVar9,local_2c);
-            uVar9 = (undefined4)uVar19;
-            uVar10 = extraout_ECX_17;
+            FUN_00414e68();
           }
-          iVar4 = in_EAX[1];
-          iVar12 = 0;
-          if ((0 < iVar4) && ((*(byte *)(in_EAX + 3) & 4) == 0)) {
-            cVar1 = *(char *)*in_EAX;
-            iVar4 = CONCAT22((short)((uint)iVar4 >> 0x10),CONCAT11(cVar1,(char)iVar4));
-            if ((cVar1 != '\r') && (cVar1 != '\x1a')) {
-              pbVar6 = (byte *)*in_EAX;
-              in_EAX[1] = in_EAX[1] + -1;
-              *in_EAX = (int)(pbVar6 + 1);
-              uVar8 = (uint)*pbVar6;
-              goto LAB_00444f23;
-            }
-          }
-          uVar19 = FUN_0045f38a(uVar10,iVar4);
-          uVar8 = (uint)uVar19;
-LAB_00444f23:
-          if (uVar8 != 0) {
-            uVar19 = CONCAT44(uVar9,uVar8);
-            do {
-              puVar13 = (undefined1 *)((ulonglong)uVar19 >> 0x20);
-              uVar10 = (undefined4)uVar19;
-              if (iVar12 < 0x35) {
-                *puVar13 = (char)uVar19;
-              }
-              puVar13 = puVar13 + 1;
-              iVar12 = iVar12 + 1;
-              if ((in_EAX[1] < 1) || ((*(byte *)(in_EAX + 3) & 4) != 0)) {
-LAB_00444f53:
-                uVar19 = FUN_0045f38a(uVar10,puVar13);
-              }
-              else {
-                cVar1 = *(char *)*in_EAX;
-                uVar10 = CONCAT31((int3)((ulonglong)uVar19 >> 8),cVar1);
-                if ((cVar1 == '\r') || (cVar1 == '\x1a')) goto LAB_00444f53;
-                in_EAX[1] = in_EAX[1] + -1;
-                pbVar6 = (byte *)*in_EAX;
-                *in_EAX = (int)(pbVar6 + 1);
-                uVar19 = CONCAT44(puVar13,(uint)*pbVar6);
-              }
-            } while ((int)uVar19 != 0);
-          }
-          local_2c = 0;
-          do {
-            uVar8 = 0xffffffff;
-            pcVar16 = s_NOT_Present_004742d8;
-            do {
-              if (uVar8 == 0) break;
-              uVar8 = uVar8 - 1;
-              cVar1 = *pcVar16;
-              pcVar16 = pcVar16 + 1;
-            } while (cVar1 != '\0');
-            iVar4 = ~uVar8 - 1;
-            if (0x35U - iVar4 <= local_2c) goto code_r0x00444fd0;
-            iVar4 = FUN_0045e90e(iVar4,(byte *)s_NOT_Present_004742d8);
-            if (iVar4 == 0) {
-              FUN_0045f22f(extraout_ECX_18,s_CheckActor_004742e4);
-            }
-            local_2c = local_2c + 1;
-          } while( true );
         }
+        token = (short)FUN_004171b8((undefined4)(uintptr_t)stream,0);
+      }
+      if ((int)DAT_00479d94 < 19999 && pool != (short *)0x0) {
+        pool[DAT_00479d94] = 0;
+        DAT_00479d94 = DAT_00479d94 + 1;
+      }
+    }
+    child_count = (short)FUN_004171b8((undefined4)(uintptr_t)stream,0);
+    previous_child = (char *)0x0;
+    for (child_index = 0; child_index < child_count; child_index = child_index + 1) {
+      if (child_index == 0) {
+        child = (char *)(uintptr_t)(uint)FUN_004268e4((undefined4)(uintptr_t)action,0);
       }
       else {
-        uVar18 = FUN_00442128(uVar10,uVar9);
-        iVar4 = FUN_0045fa88(extraout_ECX_01,(undefined1 *)uVar18);
-        uVar10 = extraout_ECX_02;
-        uVar9 = extraout_EDX;
-        if (iVar4 == 0) goto LAB_00444d5d;
-        uVar18 = FUN_004171b8(extraout_ECX_02,extraout_EDX);
-        uVar10 = (undefined4)((ulonglong)uVar18 >> 0x20);
-        iVar4 = extraout_ECX_03;
-        if ((short)uVar18 != 0) {
-          iVar4 = 2;
-          while( true ) {
-            uVar10 = (undefined4)((ulonglong)uVar18 >> 0x20);
-            if ((ushort)uVar18 == 0) break;
-            iVar12 = ((uint3)((ulonglong)uVar18 >> 8) & 0xfffff0) << 8;
-            if ((short)iVar12 == -0x2000) {
-              for (iVar15 = 0; iVar11 = (short)((ushort)uVar18 & 0xfff) + 1, iVar12 = iVar11 % iVar4
-                  , iVar15 < iVar11 / iVar4; iVar15 = iVar15 + 1) {
-                FUN_004171b8(iVar4,iVar12);
-                iVar4 = extraout_ECX_04;
-              }
-            }
-            uVar18 = FUN_004171b8(iVar4,iVar12);
-            iVar4 = extraout_ECX_05;
-          }
-        }
-        uVar18 = FUN_004171b8(iVar4,uVar10);
-        local_2c = 0;
-        pbVar6 = extraout_ECX_06;
-        if (0 < (short)uVar18) {
-LAB_00444cd9:
-          if ((0 < in_EAX[1]) && ((*(byte *)(in_EAX + 3) & 4) == 0)) {
-            cVar1 = *(char *)*in_EAX;
-            pbVar6 = (byte *)CONCAT31((int3)((uint)pbVar6 >> 8),cVar1);
-            if ((cVar1 != '\r') && (cVar1 != '\x1a')) {
-              pbVar3 = (byte *)*in_EAX;
-              pbVar6 = pbVar3 + 1;
-              in_EAX[1] = in_EAX[1] + -1;
-              *in_EAX = (int)pbVar6;
-              uVar19 = CONCAT44(local_2c,(uint)*pbVar3);
-              goto joined_r0x00444d12;
-            }
-          }
-          uVar19 = FUN_0045f38a(pbVar6,local_2c);
-          pbVar6 = extraout_ECX_07;
-joined_r0x00444d12:
-          do {
-            iVar4 = (int)((ulonglong)uVar19 >> 0x20);
-            if ((int)uVar19 == 0) goto LAB_00444d4f;
-            if ((0 < in_EAX[1]) && ((*(byte *)(in_EAX + 3) & 4) == 0)) {
-              cVar1 = *(char *)*in_EAX;
-              pbVar6 = (byte *)CONCAT31((int3)((uint)pbVar6 >> 8),cVar1);
-              if ((cVar1 != '\r') && (cVar1 != '\x1a')) {
-                pbVar3 = (byte *)*in_EAX;
-                in_EAX[1] = in_EAX[1] + -1;
-                pbVar6 = pbVar3 + 1;
-                *in_EAX = (int)pbVar6;
-                uVar19 = CONCAT44(iVar4,(uint)*pbVar3);
-                goto joined_r0x00444d12;
-              }
-            }
-            uVar19 = FUN_0045f38a(pbVar6,iVar4);
-            pbVar6 = extraout_ECX_08;
-          } while( true );
-        }
+        child = (char *)(uintptr_t)(uint)FUN_0042692c((undefined4)(uintptr_t)previous_child,0);
       }
-LAB_00444fe3:
-      iVar4 = local_1c + 1;
-      local_1c = iVar4;
-    } while (iVar4 < (short)uVar17);
+      if (child == (char *)0x0 || E2R_IsBadWritePtr(child,0x39)) {
+        return;
+      }
+      E2R_ReadFanChildName(stream,child,0x35);
+      E2R_NormalizeFanChildName(child,0x35);
+      previous_child = child;
+    }
+  }
+  if (E2R_fan_action_summary_diag_count < 8) {
+    E2R_fan_action_summary_diag_count = E2R_fan_action_summary_diag_count + 1;
+    fprintf(stderr,"FAN 44c10 summary: list=%u table=%u pool=%d head=0x%x\n",
+            E2R_CountActionList(_DAT_00637250),E2R_CountActionTable(),DAT_00479d94,
+            (uint)(uintptr_t)_DAT_00637250);
   }
   return;
-code_r0x00444fd0:
-  local_30 = local_30 + 1;
-  if ((short)uVar18 <= local_30) goto LAB_00444fe3;
-  goto LAB_00444eca;
-LAB_00444d4f:
-  local_2c = iVar4 + 1;
-  if ((int)(short)uVar18 <= (int)local_2c) goto LAB_00444fe3;
-  goto LAB_00444cd9;
 }
 
 
@@ -36511,7 +36640,17 @@ LAB_00445f3a:
 LAB_00446012:
   if (_DAT_0067bc92 < 4) {
     FUN_00444330(iVar12);
+    if (E2R_fan_phase_diag_count < 16) {
+      E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+      fprintf(stderr,"FAN phase after 44330: offset=%u record=%u\n",
+              E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+    }
     FUN_00444668(extraout_ECX_63,local_18);
+    if (E2R_fan_phase_diag_count < 16) {
+      E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+      fprintf(stderr,"FAN phase after 44668: offset=%u record=%u\n",
+              E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+    }
     uVar10 = extraout_ECX_64;
     uVar13 = extraout_EDX_22;
     if (_DAT_0067bc92 < 3) {
@@ -36530,15 +36669,47 @@ LAB_00446012:
   }
   else {
     FUN_00444668(iVar12,local_18);
+    if (E2R_fan_phase_diag_count < 16) {
+      E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+      fprintf(stderr,"FAN phase after 44668: offset=%u record=%u\n",
+              E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+    }
     FUN_00444330(extraout_ECX_61);
+    if (E2R_fan_phase_diag_count < 16) {
+      E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+      fprintf(stderr,"FAN phase after 44330: offset=%u record=%u\n",
+              E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+    }
     uVar10 = extraout_ECX_62;
     uVar13 = extraout_EDX_21;
   }
   do {
     uVar15 = FUN_004413fc(uVar10,uVar13);
     psVar8 = (short *)uVar15;
+    if (E2R_fan_phase_diag_count < 16) {
+      E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+      fprintf(stderr,"FAN dispatch record-read: ordinal=%u type=%04x offset=%u\n",
+              E2R_fan_parse_record_count,(ushort)psVar8[1],E2R_FanStreamOffset());
+    }
+    if (E2R_fan_dispatch_diag_count < 8) {
+      E2R_fan_dispatch_diag_count = E2R_fan_dispatch_diag_count + 1;
+      fprintf(stderr,"FAN dispatch pre: ordinal=%u type=%04x version=%d offset=%u\n",
+              E2R_fan_parse_record_count,(ushort)psVar8[1],(int)_DAT_0067bc92,
+              (uint)((byte *)(uintptr_t)in_EAX[0] - (byte *)(uintptr_t)in_EAX[5]));
+    }
     FUN_00447090();
-    uVar10 = CONCAT22(extraout_var,psVar8[1]);
+    uVar10 = (undefined4)(uint)(ushort)psVar8[1];
+    if (E2R_fan_phase_diag_count < 16) {
+      E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+      fprintf(stderr,"FAN dispatch normalized: ordinal=%u type=%04x offset=%u\n",
+              E2R_fan_parse_record_count,(ushort)psVar8[1],E2R_FanStreamOffset());
+    }
+    if (E2R_fan_dispatch_diag_count < 8) {
+      E2R_fan_dispatch_diag_count = E2R_fan_dispatch_diag_count + 1;
+      fprintf(stderr,"FAN dispatch: ordinal=%u type=%04x version=%d offset=%u\n",
+              E2R_fan_parse_record_count,(ushort)psVar8[1],(int)_DAT_0067bc92,
+              (uint)((byte *)(uintptr_t)in_EAX[0] - (byte *)(uintptr_t)in_EAX[5]));
+    }
     iVar7 = extraout_EDX_24;
     iVar12 = local_2c;
     if ((DAT_0047a714 != 0) && (psVar8[1] == 0x19)) {
@@ -36565,8 +36736,8 @@ LAB_004460f9:
         uVar15 = FUN_004413fc(extraout_ECX_69,extraout_EDX_28);
         psVar8 = (short *)uVar15;
         FUN_00447090();
-        sVar9 = *(short *)(extraout_EDX_29 + 2);
-        uVar10 = CONCAT22(extraout_var_00,sVar9);
+        sVar9 = psVar8[1];
+        uVar10 = (undefined4)(uint)(ushort)sVar9;
         iVar7 = extraout_EDX_29;
         if (sVar9 == 0x19) break;
       } while (sVar9 != 0);
@@ -36691,39 +36862,95 @@ LAB_00446189:
     if (sVar9 == 0) {
       if (5 < _DAT_0067bc92) {
         FUN_00444c10(uVar10,local_18);
+        if (E2R_fan_phase_diag_count < 32) {
+          E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+          fprintf(stderr,"FAN tail after 44c10: offset=%u record=%u\n",
+                  E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+        }
         uVar10 = extraout_ECX_82;
         uVar13 = extraout_EDX_39;
       }
       if (0xc < _DAT_0067bc92) {
         FUN_004448e4(local_4c,local_18);
+        if (E2R_fan_phase_diag_count < 32) {
+          E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+          fprintf(stderr,"FAN tail after 448e4: offset=%u record=%u\n",
+                  E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+        }
         uVar10 = extraout_ECX_83;
         uVar13 = extraout_EDX_40;
       }
       if (0xf < _DAT_0067bc92) {
         FUN_00445000(local_4c,local_18);
+        if (E2R_fan_phase_diag_count < 32) {
+          E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+          fprintf(stderr,"FAN tail after 45000: offset=%u record=%u\n",
+                  E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+        }
         uVar10 = extraout_ECX_84;
         uVar13 = extraout_EDX_41;
       }
       if (0x25 < _DAT_0067bc92) {
         FUN_004451a8(uVar10,local_18);
+        if (E2R_fan_phase_diag_count < 32) {
+          E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+          fprintf(stderr,"FAN tail after 451a8: offset=%u record=%u\n",
+                  E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+        }
         uVar10 = extraout_ECX_85;
         uVar13 = extraout_EDX_42;
       }
       if (8 < _DAT_0067bc92) {
+        if (E2R_fan_phase_diag_count < 32) {
+          E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+          fprintf(stderr,"FAN tail before marker: offset=%u record=%u ecx=%08x edx=%08x\n",
+                  E2R_FanStreamOffset(),E2R_fan_parse_record_count,(uint)uVar10,(uint)uVar13);
+        }
         uVar15 = FUN_004171b8(uVar10,uVar13);
         uVar13 = (undefined4)((ulonglong)uVar15 >> 0x20);
         uVar10 = extraout_ECX_86;
+        if (E2R_fan_phase_diag_count < 32) {
+          E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+          fprintf(stderr,"FAN tail marker: value=%04x offset=%u record=%u\n",
+                  (ushort)uVar15,E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+        }
         if ((short)uVar15 != 0) {
           FUN_00447638((undefined4)(uintptr_t)E2R_fan_parse_stream);
+          if (E2R_fan_phase_diag_count < 32) {
+            E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+            fprintf(stderr,"FAN tail after 47638: offset=%u record=%u\n",
+                    E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+          }
           uVar10 = extraout_ECX_87;
           uVar13 = extraout_EDX_43;
         }
       }
       if (DAT_0047a714 != 0) {
+        if (E2R_fan_phase_diag_count < 32) {
+          E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+          fprintf(stderr,"FAN tail before DAT_0047a714 cleanup: offset=%u record=%u\n",
+                  E2R_FanStreamOffset(),E2R_fan_parse_record_count);
+        }
         FUN_0045ec6c(uVar10,uVar13);
       }
       iVar12 = _DAT_00637270;
       if (local_2c == 0) {
+        if (_DAT_00637248 != 0 &&
+           ((uint)_DAT_00637248 < 0x10000u || 0x70000000u <= (uint)_DAT_00637248 ||
+            IsBadReadPtr((void *)(uintptr_t)_DAT_00637248,0x54))) {
+          if (E2R_fan_phase_diag_count < 64) {
+            E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+            fprintf(stderr,"FAN tail dropping invalid actor head: actors=%p links=%p\n",
+                    (void *)(uintptr_t)_DAT_00637248,(void *)(uintptr_t)_DAT_00637270);
+          }
+          _DAT_00637248 = 0;
+        }
+        if (E2R_fan_phase_diag_count < 32) {
+          E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+          fprintf(stderr,"FAN tail before object cleanup: offset=%u record=%u actors=%p links=%p\n",
+                  E2R_FanStreamOffset(),E2R_fan_parse_record_count,
+                  (void *)(uintptr_t)_DAT_00637248,(void *)(uintptr_t)_DAT_00637270);
+        }
         local_2c = 0;
         for (iVar12 = _DAT_00637248; iVar12 != 0; iVar12 = *(int *)(iVar12 + 0x50)) {
           if (*(int *)(iVar12 + 0x1e) != 0) {
@@ -36762,6 +36989,12 @@ LAB_00446189:
       }
       for (; iVar12 != 0; iVar12 = *(int *)(iVar12 + 8)) {
         *(byte *)(iVar12 + 0xd) = *(byte *)(iVar12 + 0xd) & 0xfd;
+      }
+      if (E2R_fan_phase_diag_count < 32) {
+        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+        fprintf(stderr,"FAN parse complete: offset=%u record=%u actors=%p links=%p\n",
+                E2R_FanStreamOffset(),E2R_fan_parse_record_count,
+                (void *)(uintptr_t)_DAT_00637248,(void *)(uintptr_t)_DAT_00637270);
       }
       return 1;
     }
@@ -38080,6 +38313,11 @@ void __fastcall FUN_00447638(undefined4 param_1)
   if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x1c)) {
     return;
   }
+  if (E2R_fan_phase_diag_count < 32) {
+    E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+    fprintf(stderr,"FAN 47638 enter: offset=%u remaining=%d\n",
+            E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
+  }
   uVar16 = FUN_004418fc((undefined4)(uintptr_t)"sondoor1",in_EAX);
   _DAT_00ac4ae8 = (int)uVar16;
   uVar10 = extraout_ECX;
@@ -38114,7 +38352,13 @@ void __fastcall FUN_00447638(undefined4 param_1)
   uVar17 = FUN_004171b8(extraout_ECX_03,(int)((ulonglong)uVar16 >> 0x20));
   piVar11 = (int *)((ulonglong)uVar17 >> 0x20);
   DAT_0047a77c = CONCAT22((short)uVar16,(short)uVar17);
+  piVar11 = E2R_fan_parse_stream;
   iVar8 = extraout_ECX_04;
+  if (E2R_fan_phase_diag_count < 32) {
+    E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+    fprintf(stderr,"FAN 47638 count: entries=%d offset=%u remaining=%d\n",
+            DAT_0047a77c,E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
+  }
   if ((0x21 < _DAT_0067bc92) && (_DAT_0067bc92 < 0x28)) {
     uVar16 = FUN_004171b8(extraout_ECX_04,piVar11);
     uVar16 = FUN_004171b8(extraout_ECX_05,(int)((ulonglong)uVar16 >> 0x20));
@@ -38125,6 +38369,12 @@ void __fastcall FUN_00447638(undefined4 param_1)
   if (0 < DAT_0047a77c) {
     puVar7 = (undefined1 *)0x0068cd68;
     do {
+      if ((E2R_fan_phase_diag_count < 32) &&
+         ((iVar14 < 4 || ((iVar14 & 0x1fffU) == 0)))) {
+        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+        fprintf(stderr,"FAN 47638 entry: index=%d/%d offset=%u remaining=%d\n",
+                iVar14,DAT_0047a77c,E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
+      }
       if ((piVar11[1] < 1) || ((*(byte *)(piVar11 + 3) & 4) != 0)) {
 LAB_00447718:
         uVar16 = FUN_0045f38a(iVar8,piVar11);
@@ -38276,7 +38526,7 @@ LAB_004478ab:
         do {
           uVar16 = FUN_004173c8(uVar5,piVar11);
           piVar11 = (int *)((ulonglong)uVar16 >> 0x20);
-          uVar5 = extraout_ECX_18 + 1;
+          uVar5 = uVar5 + 1;
         } while ((int)uVar5 < 7);
       }
       uVar9 = (undefined2)(uVar5 >> 0x10);
@@ -38321,11 +38571,21 @@ LAB_0044796b:
       iVar8 = DAT_0047a77c;
     } while (iVar14 < DAT_0047a77c);
   }
+  if (E2R_fan_phase_diag_count < 32) {
+    E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+    fprintf(stderr,"FAN 47638 entries done: count=%d offset=%u remaining=%d\n",
+            DAT_0047a77c,E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
+  }
   uVar16 = FUN_004173c8(iVar8,piVar11);
   piVar11 = (int *)((ulonglong)uVar16 >> 0x20);
   iVar14 = 0;
   _DAT_0073ccb6 = CONCAT22((short)uVar16,_DAT_0073ccb6);
   iVar8 = extraout_ECX_19;
+  if (E2R_fan_phase_diag_count < 32) {
+    E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+    fprintf(stderr,"FAN 47638 segment count: count=%d offset=%u remaining=%d\n",
+            _DAT_0073ccb6 >> 0x10,E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
+  }
   for (iVar15 = 0; iVar15 < _DAT_0073ccb6 >> 0x10; iVar15 = iVar15 + 1) {
     if (iVar15 < 0x4b0) {
       uVar16 = FUN_004173c8(iVar8,piVar11);
@@ -38372,7 +38632,17 @@ LAB_0044796b:
     }
     iVar14 = iVar14 + 0x1c;
   }
+  if (E2R_fan_phase_diag_count < 32) {
+    E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+    fprintf(stderr,"FAN 47638 segments done: offset=%u remaining=%d\n",
+            E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
+  }
   if (0x13 < _DAT_0067bc92) {
+    if (E2R_fan_phase_diag_count < 64) {
+      E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+      fprintf(stderr,"FAN 47638 tail begin: offset=%u remaining=%d\n",
+              E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
+    }
     while( true ) {
       if (((piVar11[1] < 1) || ((*(byte *)(piVar11 + 3) & 4) != 0)) ||
          ((*(char *)*piVar11 == '\r' || (*(char *)*piVar11 == '\x1a')))) {
@@ -38385,8 +38655,19 @@ LAB_0044796b:
         *piVar11 = (int)(pbVar3 + 1);
         uVar16 = CONCAT44(piVar11,(uint)*pbVar3);
       }
+      if (E2R_fan_phase_diag_count < 64) {
+        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+        fprintf(stderr,"FAN 47638 tail tag: value=%02x offset=%u remaining=%d\n",
+                (uint)(byte)uVar16,E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
+      }
       if ((int)uVar16 == 0) break;
-      uVar16 = FUN_00426a30(iVar8,(int)((ulonglong)uVar16 >> 0x20));
+      uVar16 = FUN_00426a30(1,(int)((ulonglong)uVar16 >> 0x20));
+      extraout_ECX_36 = (short *)(uintptr_t)(uint)uVar16;
+      if (E2R_fan_phase_diag_count < 64) {
+        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+        fprintf(stderr,"FAN 47638 tail alloc: node=%p offset=%u remaining=%d\n",
+                (void *)extraout_ECX_36,E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
+      }
       uVar16 = FUN_004173c8((int)uVar16,(int)((ulonglong)uVar16 >> 0x20));
       sVar13 = *(short *)((undefined1 *)0x0064c888 + (short)uVar16 * 2);
       *extraout_ECX_36 = sVar13;
@@ -38395,18 +38676,28 @@ LAB_0044796b:
       piVar11 = (int *)((ulonglong)uVar16 >> 0x20);
       iVar14 = 0;
       iVar8 = extraout_ECX_37;
+      if (E2R_fan_phase_diag_count < 64) {
+        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+        fprintf(stderr,"FAN 47638 tail node: mapped=%d child_count=%d offset=%u remaining=%d\n",
+                sVar13,(short)uVar16,E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
+      }
       if (0 < (short)uVar16) {
         do {
           uVar17 = FUN_004173c8(iVar8,piVar11);
           piVar11 = (int *)((ulonglong)uVar17 >> 0x20);
           if (iVar14 < 10) {
-            *(short *)(extraout_ECX_38 + 2) = (short)uVar17;
+            extraout_ECX_36[iVar14 + 1] = (short)uVar17;
           }
           iVar14 = iVar14 + 1;
-          iVar8 = extraout_ECX_38 + 2;
+          iVar8 = (int)(uintptr_t)piVar11;
         } while (iVar14 < (short)uVar16);
       }
     }
+  }
+  if (E2R_fan_phase_diag_count < 32) {
+    E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+    fprintf(stderr,"FAN 47638 complete: offset=%u remaining=%d\n",
+            E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
   }
   return;
 }
@@ -53734,10 +54025,10 @@ undefined4 __fastcall FUN_0045eb05(undefined4 param_1,undefined4 param_2)
   LPCSTR path;
   
   path = (LPCSTR)(uintptr_t)param_1;
-  if ((uintptr_t)path < 0x10000 || IsBadReadPtr(path,1)) {
+  if ((uintptr_t)path < 0x10000) {
     path = (LPCSTR)(uintptr_t)param_2;
   }
-  if ((uintptr_t)path < 0x10000 || IsBadReadPtr(path,1)) {
+  if ((uintptr_t)path < 0x10000) {
     return 0;
   }
   return E2R_OpenReadStream(path);
@@ -54422,7 +54713,6 @@ undefined8 __fastcall FUN_0045f38a(undefined4 param_1,undefined4 param_2)
   undefined8 uVar5;
   
   undefined4 *stream;
-  byte *cursor;
   
   (void)param_1;
   stream = (undefined4 *)(uintptr_t)param_2;
@@ -54431,14 +54721,7 @@ undefined8 __fastcall FUN_0045f38a(undefined4 param_1,undefined4 param_2)
     return CONCAT44(param_2,0xffffffff);
   }
   if (stream[6] == E2R_STREAM_MAGIC) {
-    if ((int)stream[1] < 1) {
-      *(byte *)(stream + 3) = *(byte *)(stream + 3) | 0x10;
-      return CONCAT44(param_2,0xffffffff);
-    }
-    cursor = (byte *)(uintptr_t)stream[0];
-    stream[0] = (undefined4)(uintptr_t)(cursor + 1);
-    stream[1] = stream[1] + -1;
-    return CONCAT44(param_2,(uint)*cursor);
+    return CONCAT44(param_2,E2R_ReadHostedStreamByte(stream));
   }
   (*(code *)PTR_FUN_0047d3a0)();
   if ((*(byte *)(extraout_EDX + 3) & 1) == 0) {

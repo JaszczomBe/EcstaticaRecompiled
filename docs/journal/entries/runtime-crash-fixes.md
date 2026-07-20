@@ -2,6 +2,38 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-20 - FAN Tail Reaches Startup Archive Loader
+
+Area: `FUN_004448e4`, `FUN_004453a4`, `FUN_00447638`, `FUN_0045eb05`, startup `Files/ECSTATIC`
+
+Symptom: after the action parser populated its fixed tables, debug still timed out before requester/startup state changed. The parser reached the tail marker after `FUN_004451a8`, then stalled or crashed inside `FUN_00447638` and post-FAN cleanup.
+
+Evidence: bounded diagnostics showed `FUN_00444c10` completed with `list=1793`, `table=456`, and `pool=15002`. The tail marker was `0001`, entering `FUN_00447638`. Raw FAN bytes confirmed the `49650` entry count was real. The first stall was a stale `extraout_ECX_18` loop counter in a seven-word versioned skip; after fixing it, the parser advanced through `49650` entries and `1200` segment records. GDB then showed the next crash moved to post-FAN cleanup with `_DAT_00637248=0xde66`, then to startup after guarding that invalid actor head. The hosted data tree contains `Files/ECSTATIC`, and the later gdb run reached `FUN_00447d94`.
+
+Change: added bounded FAN tail diagnostics; repaired `FUN_004448e4` type-zero terminator handling; re-anchored `FUN_00447638` to the active FAN stream after the initial height/path table; fixed the seven-word skip counter; captured the tail-node allocation pointer from `FUN_00426a30`; forced tail-node allocation to one `0x1a` record; wrote tail child ids through the allocated node; guarded invalid post-FAN actor-list heads; allowed hosted literal paths through `FUN_0045eb05`; and passed stable `Files/ECSTATIC` into the startup archive open. Mirrored the C repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `git diff --check`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. Debug probe `/tmp/e2-step10-fun45eb05-path-debug` and gdb probe `/tmp/e2-step10-path-gdb` show the FAN tail completing far enough for startup to call `FUN_00447d94`. The current crash is no longer in FAN parsing: `FUN_00447d94 -> FUN_0043cac0 -> FUN_0043b384 -> FUN_0041ab4c -> FUN_0041ad54`, with `FUN_0041ad54(param_1=43899,param_2=0,param_3=479)` crashing at `*row = color`.
+
+Next Frontier: recover the `FUN_00447d94` archive/scene-data loader handoff. Determine whether the loader is calling `FUN_0043cac0` as an error path because archive table reads are stale, or whether the render/fill rectangle setup before `FUN_0041ad54` needs another explicit hidden-register repair.
+
+Regression Risk: the `FUN_00447638` entry/tail diagnostics are intentionally noisy and temporary. The invalid actor-head guard is defensive around a known bogus low pointer and should be revisited after actor construction is recovered enough to populate `_DAT_00637248` with real nodes.
+
+## 2026-07-20 - FAN Action Parser Enters In Debug And ASan
+
+Area: `FUN_004171b8`, `FUN_00444330`, `FUN_00444668`, `FUN_00444c10`, `FUN_0045f38a`
+
+Symptom: ASan could parse through the version-gated FAN action section and dump the Ecstatica II title surface, but debug stopped at the bounded ordinal-4 unknown-record diagnostic. Both builds still reported empty Start Game action state.
+
+Evidence: caller-address diagnostics showed records 1-4 were being consumed by `FUN_00444668`; the helper decoded type `0`, assigned `uVar2 = extraout_ECX_07`, then tested `(short)uVar2 == 0` instead of the decoded `sVar1`. Original stream reads also route sentinel bytes through `FUN_0045f38a`, with binary-mode flag `0x40` preserving embedded `0x1a` bytes. Original `FUN_00444c10` preserves the FAN stream in `ESI`, maps action ids through `0x006769f8`, installs action nodes through fixed table `0x006297c0`, appends bytecode tokens into `_DAT_006366a0`, and allocates child action nodes.
+
+Change: added hosted binary/text stream byte semantics and binary stream flags, replaced `FUN_00444c10` with a recovered action-node parser, fixed `FUN_00444668` to test `sVar1 == 0` for terminators, and added bounded section/action diagnostics. Mirrored the repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `git diff --check`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. Debug probe `/tmp/e2-step10-44668term-debug` and ASan probe `/tmp/e2-step10-44668term-asan` both enter `FUN_00444c10` at offset `104847`, parse past the old ordinal-4 frontier, dump the title surface on surface 3 with hash `6e39f5ea`, and exit without a sanitizer report. The requester/action state is still empty: `start_game entries=0`, `startup_scan=0`, `action_scan=0`, and `dispatch=0`.
+
+Next Frontier: instrument and recover the handoff from the parsed action nodes/fixed `0x006297c0` table into `_DAT_00637250` and the StartUp/Start Game action scan before `FUN_0043a39c`.
+
+Regression Risk: `FUN_00444330`, `FUN_00444668`, and `FUN_00444c10` now have bounded diagnostics and hand-recovered terminator/action parsing. Keep probes in both debug and ASan until the action dispatch state is populated, then remove temporary diagnostics before closing Step 10.
+
 ## 2026-07-20 - Version-Gated FAN Parsers Reach Title Surface
 
 Area: `FUN_004173c8`, `FUN_004448e4`, `FUN_00445000`, `FUN_004451a8`, `FUN_00452a58`, `FUN_00447638`, `FUN_004418fc`, `FUN_00441958`, `FUN_0045fae0`
