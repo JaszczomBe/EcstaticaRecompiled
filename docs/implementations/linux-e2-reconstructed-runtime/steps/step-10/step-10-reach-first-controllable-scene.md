@@ -138,7 +138,60 @@ FUN_00447d94 -> FUN_0043cac0 -> FUN_0043b384 -> FUN_0041ab4c -> FUN_0041ad54
 SEGV at FUN_0041ad54, *row = color, param_1=43899, param_2=0, param_3=479
 ```
 
-The next implementation step is to recover the `FUN_00447d94` archive/scene-data loader handoff after `Files/ECSTATIC` opens. The immediate crash is a bad framebuffer fill rectangle flowing through `FUN_0043cac0`; verify whether `FUN_00447d94` is invoking the error/render path because hosted archive-table reads are still stale, then repair the first explicit bad read or stale register handoff. Keep the bounded FAN diagnostics until this scene/archive loader frontier is stable, then prune the noisy entry-loop logs.
+The archive-loader continuation replaced `FUN_00441444` with a hosted dword reader and made `FUN_00447d94` consume the already-open `DAT_0047a724` stream. Debug now prints `archive 47d94 loaded: cursor=56240 remaining=33019366`. The guarded `FUN_0043a39c` scan avoids the bad action-list tail, falls back through the installed `0x006297c0` action table, finds `StartGame`, and dispatches it. Hosted `FUN_0045f296` seeking then moves action execution past the stale seek crash. Direct archive parses now install `DAT_0047a724` as `E2R_fan_parse_stream`; when the table gives a small positive value that is not a byte offset, the wrapper treats it as an embedded `FANT` ordinal.
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-fant-ordinal-debug escape,enter 8 250 5
+
+archive 47d94 loaded: cursor=56240 remaining=33019366
+E2R_InvokeActionCode(action=0x566d634c)
+FAN record: ordinal=5 caller=... offset=19358 fields=0000,0000,fa00,bffb,4277
+FAN record: ordinal=6 caller=... offset=19368 fields=0000,0000,fa00,bffb,4277
+FAN dispatch: ordinal=7 type=0019 version=55 offset=19378
+```
+
+The archive actor-load continuation showed the decompiler was losing the opcode actor id before `FUN_00451f5c`: at the first loader breakpoint, `EAX=0x0064a178` (the actor flags table), not the 12-bit actor operand. Opcode `0x54/0x55` now feeds that decoded operand through a scoped loader override, while direct archive parse failures avoid the original DOS error-renderer path. Hosted allocation and software-buffer guards now keep the runtime from installing `0xa0000`/high mapped pointers as writable surfaces, and invalid hosted fills return instead of crashing.
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-fill-guard escape,enter 8 250 5
+
+archive 47d94 loaded: cursor=56240 remaining=33019366
+requester-ready wait satisfied after 7840 ms
+FAN header mismatch: value=00000000 offset=3997764
+archive resource parse: input=3997760 mapped=3997760 result=0 final=3997764 remaining=29077842
+requester-dialog wait satisfied after 550 ms: _DAT_00643650=5 b9bc 0->6 bd4c=1
+requester probe completed after 740 ms: pending=1/1 actions=1
+start-game entry observed: entries 1->2 player=0 mode=0
+failed to write surface dumps with prefix: /tmp/e2-step10-fill-guard
+```
+
+The archive resource-table continuation resolved that zero-header miss. A gdb snapshot at the first actor loader hit showed `actor_override=0`, `table0=3997760`, `table14=1`, and archive cursor `56240`; raw archive bytes showed `3997760` is inside the resource whose nearest previous `FANT` header is `3993260`. `E2R_ParseArchiveFanResource` now keeps the small-ordinal mapping for offsets like `1`, and for large non-header cursors maps back to the nearest prior `FANT` in the archive stream. Opcode `0x54` also clears actor flags through the decoded 12-bit operand instead of stale `puVar13`.
+
+The first backscan probe parsed actor record type `0x08` from `3993260`, then crashed in `FUN_00426478` because the decompiler wrote the newly allocated actor defaults through stale `extraout_EDX=0x13`. That initializer now writes through the allocated actor pointer returned by `FUN_00453414`, and the same repair is mirrored in the generator.
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-actor-init escape,enter 8 250 5
+
+archive 47d94 loaded: cursor=56240 remaining=33019366
+FAN record: ordinal=5 caller=... offset=3993304 fields=0000,0000,fa00,bffb,4277
+FAN record: ordinal=6 caller=... offset=3993314 fields=0000,0008,0725,0726,0727
+FAN 44330: ordinal=6 local_type=0008 version=55 offset=3993314
+FAN record: ordinal=16 caller=... offset=3993414 fields=0000,000a,0000,0001,0002
+requester-dialog wait timed out after 8000 ms: _DAT_00643650=0 b9bc 0->0 bd4c=0
+failed to write surface dumps with prefix: /tmp/e2-step10-actor-init
+```
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-actor-init-asan escape,enter 8 250 3
+
+requester-ready wait timed out after 8000 ms: DAT_0047a76c=0 DAT_00479de8=0 _DAT_00643650=0
+wrote surface dump: /tmp/e2-step10-actor-init-asan-s0.pgm (surface 0 nonblank=0 hash=b6005dc5)
+wrote surface dump: /tmp/e2-step10-actor-init-asan-s1.pgm (surface 1 nonblank=0 hash=b6005dc5)
+wrote surface dump: /tmp/e2-step10-actor-init-asan-s2.pgm (surface 2 nonblank=0 hash=b6005dc5)
+wrote surface dump: /tmp/e2-step10-actor-init-asan-s3.pgm (surface 3 nonblank=1 hash=6e39f5ea)
+```
+
+The current frontier is post-actor-load readiness, not archive table lookup. Loading actor `0` now makes real parser progress and produces one nonblank ASan surface, but debug no longer opens the requester dialog after Escape and still cannot dump surfaces. Inspect `FUN_00444330`/`FUN_0042b880` post-record side effects and the actor/list globals that gate `DAT_0047a76c`, requester state, StartGame entry observation, and debug surface dumping. Keep the bounded FAN diagnostics until this scene/archive loader frontier is stable, then prune the noisy entry-loop logs.
 
 ## Acceptance Criteria
 
@@ -183,4 +236,8 @@ Exact English Quit prompt text recovery at `0x004729b8` remains a Step 9 fidelit
 6. Recovered packed-name lookup wrappers, `FUN_0045fae0`, and the remaining fixed-address `FUN_00447638`/remap-table accesses. ASan now reaches and dumps the title surface without a sanitizer report, while debug still stops at the ordinal-4 unknown-record diagnostic and ASan still reports `start_game entries=0`.
 7. Recovered hosted binary/text stream byte semantics, replaced the remaining `FUN_00444c10` action-node parser body, and fixed the stale `FUN_00444668` terminator test. Debug and ASan now both enter `FUN_00444c10`, parse past the old ordinal-4 boundary, and dump the title surface without sanitizer reports.
 8. Recovered the ordinal-4 terminator path, the `FUN_00447638` terrain/path table loops, tail-node allocation, post-FAN invalid actor-head guard, hosted literal path handling, and stable `Files/ECSTATIC` startup archive path. Debug now reaches `FUN_00447d94` after FAN parsing.
-9. Current frontier: `FUN_00447d94` enters `FUN_0043cac0 -> FUN_0043b384 -> FUN_0041ab4c -> FUN_0041ad54` and crashes writing a framebuffer fill row with bad rectangle state (`param_1=43899`, `param_2=0`, `param_3=479`).
+9. Recovered `FUN_00447d94` startup archive table loading, guarded the bad action-list tail in `FUN_0043a39c`, added a fixed-table `StartGame` fallback, and replaced `FUN_0045f296` with hosted stream seeking.
+10. Direct archive resource parsing now wraps `FUN_004453a4(...,1)` with `E2R_fan_parse_stream` and maps small table values to embedded `FANT` ordinals; debug reaches the first embedded resource at offset `19314`.
+11. Recovered opcode-local actor id delivery into `FUN_00451f5c`, hosted allocator/backbuffer safety, quiet hosted bad-`FANT`/missing-actor archive misses, and invalid hosted fill guards. Debug now reaches requester-ready, dispatches the requester dialog, observes a second StartGame entry, and exits without a segfault.
+12. Recovered archive actor cursor mapping for table offset `3997760` by backscanning to the containing `FANT` at `3993260`, fixed stale opcode `0x54` actor flag clearing, and recovered `FUN_00426478` actor initializer writes through the allocated actor pointer. Debug parses actor resource records without crashing; ASan writes a nonblank surface.
+13. Current frontier: post-actor-load readiness diverges. Debug no longer opens the requester dialog after Escape and cannot dump surfaces, while ASan times out before requester-ready but dumps one nonblank surface. Recover `FUN_00444330`/`FUN_0042b880` post-record side effects and the actor/list globals gating requester/start-game readiness.
