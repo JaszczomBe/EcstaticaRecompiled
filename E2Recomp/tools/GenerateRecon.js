@@ -480,6 +480,49 @@ static short E2R_InternPackedName(char *input,char *table,uint capacity,short ma
   }
   return -1;
 }
+
+static short E2R_FindPackedNameIndex(char *input,char *table,uint capacity,short max_names)
+{
+  uint input_length;
+  uint length;
+  uint offset = 0;
+  short index = 0;
+
+  if (input == (char *)0x0 || table == (char *)0x0 || IsBadReadPtr(input,1) ||
+      IsBadReadPtr(table,1)) {
+    return -1;
+  }
+  for (input_length = 0; input_length < 0x100; input_length = input_length + 1) {
+    if (IsBadReadPtr(input + input_length,1)) {
+      return -1;
+    }
+    if (input[input_length] == '\\0') {
+      break;
+    }
+  }
+  if (input_length == 0x100) {
+    return -1;
+  }
+  while (index < max_names && offset < capacity) {
+    for (length = 0; offset + length < capacity; length = length + 1) {
+      if (table[offset + length] == '\\0') {
+        break;
+      }
+    }
+    if (offset + length == capacity) {
+      return -1;
+    }
+    if (length == input_length && memcmp(table + offset,input,length + 1) == 0) {
+      return index;
+    }
+    if (length == 0) {
+      return -1;
+    }
+    offset = offset + length + 1;
+    index = index + 1;
+  }
+  return -1;
+}
 `;
 const actionCodeState = `
 static short *E2R_action_dispatch_node;
@@ -1019,6 +1062,8 @@ source = source.replace(
   "undefined8 __fastcall FUN_0041ce88(undefined4 param_1,undefined4 param_2)\n\n{\n  byte *data;\n  undefined4 *stream;\n  int x;\n  int y;\n  \n  (void)param_1;\n  stream = (undefined4 *)(uintptr_t)E2R_OpenReadStream(\"shademap.dat\");\n  if (stream == (undefined4 *)0x0) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  if ((uint)stream[1] < 0xc000) {\n    FUN_0045ec6c(0,(undefined4)(uintptr_t)stream);\n    return (ulonglong)param_2 << 0x20;\n  }\n  data = (byte *)(uintptr_t)stream[5];\n  for (y = 0; y < 0x80; y = y + 1) {\n    for (x = 0; x < 0x80; x = x + 1) {\n      *(byte *)(0x0061d030 + y * 0x80 + x) = data[0];\n      *(short *)(0x00621630 + y * 0x100 + x * 2) = (short)((uint)data[1] << 8 | (uint)data[2]);\n      data = data + 3;\n    }\n  }\n  FUN_0045ec6c(0,(undefined4)(uintptr_t)stream);\n  return CONCAT44(param_2,1);\n}\n\n\n\n/* 0041cf44 */"
 );
 source = source.replace("(&DAT_0068cd68)[iVar5] = 0;", "*(undefined1 *)(0x0068cd68 + iVar5) = 0;");
+source = source.replace(/&DAT_0068cd68/g, "(undefined1 *)0x0068cd68");
+source = source.replace(/&DAT_0068cd6f/g, "(undefined1 *)0x0068cd6f");
 source = source.replace(
   /undefined4 __fastcall FUN_0045eb05\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045ebf1 \*\//,
   "undefined4 __fastcall FUN_0045eb05(undefined4 param_1,undefined4 param_2)\n\n{\n  LPCSTR path;\n  \n  path = (LPCSTR)(uintptr_t)param_1;\n  if ((uintptr_t)path < 0x10000 || IsBadReadPtr(path,1)) {\n    path = (LPCSTR)(uintptr_t)param_2;\n  }\n  if ((uintptr_t)path < 0x10000 || IsBadReadPtr(path,1)) {\n    return 0;\n  }\n  return E2R_OpenReadStream(path);\n}\n\n\n\n/* 0045ebf1 */"
@@ -1050,6 +1095,10 @@ source = source.replace(
 source = source.replace(
   "  uVar7 = FUN_0045f38a(iVar4,piVar5);",
   "  uVar7 = FUN_0045f38a((undefined4)(uintptr_t)piVar5,piVar5);"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_004173c8\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined8 uVar7;\r?\n\s*)if \(\(\(\(in_EAX\[1\] < 1\)/,
+  "$1if (E2R_fan_parse_stream != (int *)0x0) {\n    in_EAX = E2R_fan_parse_stream;\n  }\n  else {\n    in_EAX = (int *)(uintptr_t)param_1;\n  }\n  if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr(in_EAX,0x1c)) {\n    return CONCAT44(param_2,0xffff);\n  }\n  if ((((in_EAX[1] < 1)"
 );
 source = source.replace(
   /(undefined4 __fastcall FUN_004453a4\(undefined4 param_1,int param_2\)[\s\S]*?\r?\n  int local_18;\r?\n\s*)local_20 = \(short \*\)0x0;/,
@@ -1098,6 +1147,78 @@ source = source.replace(
 source = source.replace(
   "              uVar20 = FUN_004435e8(psVar5,iVar12);",
   "              uVar20 = FUN_004435e8((undefined4)(uint)(ushort)iVar12,iVar12);"
+);
+source = source.replace(
+  "    uVar7 = FUN_004413fc(uVar4,uVar5);\n    psVar1 = (short *)uVar7;\n    FUN_00447090();\n    uVar4 = CONCAT22(extraout_var,psVar1[1]);",
+  "    uVar7 = FUN_004413fc((undefined4)(uintptr_t)E2R_fan_parse_stream,uVar5);\n    psVar1 = (short *)uVar7;\n    FUN_00447090();\n    uVar4 = (undefined4)(uint)(ushort)psVar1[1];"
+);
+source = source.replace(
+  "          uVar7 = FUN_004413fc(extraout_ECX_05,extraout_EDX_04);\n          psVar1 = (short *)uVar7;\n          FUN_00447090();\n          sVar3 = *(short *)(extraout_ECX_06 + 2);\n          uVar4 = CONCAT22((short)((uint)extraout_ECX_06 >> 0x10),sVar3);",
+  "          uVar7 = FUN_004413fc((undefined4)(uintptr_t)E2R_fan_parse_stream,extraout_EDX_04);\n          psVar1 = (short *)uVar7;\n          FUN_00447090();\n          sVar3 = psVar1[1];\n          uVar4 = (undefined4)(uint)(ushort)sVar3;"
+);
+source = source.replace(
+  "          uVar7 = FUN_004413fc(extraout_ECX_01,extraout_EDX_00);\n          psVar1 = (short *)uVar7;\n          FUN_00447090();\n          sVar3 = *(short *)(extraout_ECX_02 + 2);\n          uVar4 = CONCAT22((short)((uint)extraout_ECX_02 >> 0x10),sVar3);",
+  "          uVar7 = FUN_004413fc((undefined4)(uintptr_t)E2R_fan_parse_stream,extraout_EDX_00);\n          psVar1 = (short *)uVar7;\n          FUN_00447090();\n          sVar3 = psVar1[1];\n          uVar4 = (undefined4)(uint)(ushort)sVar3;"
+);
+source = source.replace(
+  "      FUN_00453264();\n      uVar4 = extraout_ECX_07;\n      uVar5 = extraout_EDX_06;",
+  "      FUN_00453264();\n      goto LAB_004448f9;"
+);
+source = source.replace(
+  "        FUN_00453264();\n        uVar4 = extraout_ECX_08;\n        uVar5 = extraout_EDX_07;\n        if ((short)extraout_ECX_08 == 0) {\n          return;\n        }\n        goto LAB_004448f9;",
+  "        FUN_00453264();\n        goto LAB_004448f9;"
+);
+source = source.replace(
+  "        FUN_00453264();\n        uVar4 = extraout_ECX_09;\n        uVar5 = extraout_EDX_08;\n        if ((short)extraout_ECX_09 == 0) {\n          return;\n        }\n        goto LAB_004448f9;",
+  "        FUN_00453264();\n        return;"
+);
+source = source.replace(
+  "          FUN_00447638(extraout_ECX_86);",
+  "          FUN_00447638((undefined4)(uintptr_t)E2R_fan_parse_stream);"
+);
+source = source.replace(
+  /(void __fastcall FUN_00445000\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined8 uVar10;\r?\n\s*)uVar10 = FUN_0041ba7c\(param_1,param_2\);/,
+  "$1in_EAX = E2R_fan_parse_stream;\n  if (in_EAX == (int *)0x0) {\n    in_EAX = (int *)(uintptr_t)param_1;\n  }\n  if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr(in_EAX,0x1c)) {\n    return;\n  }\n  uVar10 = FUN_0041ba7c(param_1,param_2);"
+);
+source = source.replace(
+  "      uVar10 = FUN_0045f38a(uVar8,uVar7);\n      uVar8 = extraout_ECX_00;",
+  "      uVar10 = FUN_0045f38a((undefined4)(uintptr_t)in_EAX,(undefined4)(uintptr_t)in_EAX);\n      uVar8 = extraout_ECX_00;"
+);
+source = source.replace(
+  "    FUN_00458d18(extraout_ECX_17,in_EAX);",
+  "    FUN_00458d18((undefined4)(uintptr_t)psVar6,(undefined4)(uintptr_t)in_EAX);"
+);
+source = source.replace(
+  "  uVar13 = FUN_0041ba7c(in_EAX,param_2);\n  puVar10 = (undefined1 *)((ulonglong)uVar13 >> 0x20);\n  piVar7 = extraout_ECX;",
+  "  piVar7 = E2R_fan_parse_stream;\n  if (piVar7 == (int *)0x0) {\n    piVar7 = (int *)(uintptr_t)param_1;\n  }\n  if ((uintptr_t)piVar7 < 0x10000u || IsBadReadPtr(piVar7,0x1c)) {\n    return;\n  }\n  in_EAX = (undefined4)(uintptr_t)piVar7;\n  uVar13 = FUN_0041ba7c(in_EAX,param_2);\n  puVar10 = (undefined1 *)((ulonglong)uVar13 >> 0x20);"
+);
+source = source.replace(
+  "      uVar13 = FUN_0045f38a(piVar7,puVar10);\n      piVar7 = extraout_ECX_00;",
+  "      uVar13 = FUN_0045f38a((undefined4)(uintptr_t)piVar7,(undefined4)(uintptr_t)piVar7);"
+);
+source = source.replace(
+  "    uVar13 = FUN_00452a58(extraout_ECX_06,(int)((ulonglong)uVar13 >> 0x20));\n    puVar10 = (undefined1 *)uVar13;\n    *(undefined1 **)((int)piVar5 + 6) = puVar10;\n    piVar7 = extraout_ECX_07;",
+  "    uVar13 = FUN_00452a58((undefined4)(uintptr_t)iVar12,(int)((ulonglong)uVar13 >> 0x20));\n    puVar10 = (undefined1 *)uVar13;\n    *(undefined1 **)((int)piVar5 + 6) = puVar10;"
+);
+source = source.replace(
+  "          uVar13 = FUN_0045f38a(piVar7,puVar10);\n          piVar7 = extraout_ECX_08;",
+  "          uVar13 = FUN_0045f38a((undefined4)(uintptr_t)piVar7,(undefined4)(uintptr_t)piVar7);"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_00452a58\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined8 uVar2;\r?\n\s*)while \(0 < DAT_00479e48 \+ in_EAX\)/,
+  "$1in_EAX = (int)(uintptr_t)param_1;\n  while (0 < DAT_00479e48 + in_EAX)"
+);
+source = source.replace(
+  "  uVar16 = FUN_004418fc(param_1,in_EAX);",
+  "  in_EAX = (undefined4)(uintptr_t)E2R_fan_parse_stream;\n  if (E2R_fan_parse_stream == (int *)0x0) {\n    in_EAX = param_1;\n  }\n  if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x1c)) {\n    return;\n  }\n  uVar16 = FUN_004418fc((undefined4)(uintptr_t)\"sondoor1\",in_EAX);"
+);
+source = source.replace(
+  "  uVar16 = FUN_00441958(uVar10,(int)((ulonglong)uVar16 >> 0x20));",
+  "  uVar16 = FUN_00441958((undefined4)(uintptr_t)\"sorclear\",(int)((ulonglong)uVar16 >> 0x20));"
+);
+source = source.replace(
+  "      uVar16 = FUN_004173c8(puVar7 + 2,(int)((ulonglong)uVar16 >> 0x20));\n      uVar10 = (undefined4)((ulonglong)uVar16 >> 0x20);\n      sVar12 = sVar12 + 1;\n      *(short *)(extraout_ECX_02 + -2) = (short)uVar16;\n      uVar16 = CONCAT44(uVar10,_DAT_00ac4af0);\n      puVar7 = extraout_ECX_02;",
+  "      uVar16 = FUN_004173c8(in_EAX,(int)((ulonglong)uVar16 >> 0x20));\n      uVar10 = (undefined4)((ulonglong)uVar16 >> 0x20);\n      sVar12 = sVar12 + 1;\n      *(short *)puVar7 = (short)uVar16;\n      uVar16 = CONCAT44(uVar10,_DAT_00ac4af0);\n      puVar7 = puVar7 + 2;"
 );
 source = source.replace(
   /undefined8 __fastcall FUN_004268e4\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0042692c \*\//,
@@ -1178,6 +1299,24 @@ for (const [name, table, capacity, maxNames, oldCall, newCall] of fanNameInternS
     `$1return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,\n                                                       ${table},${capacity},${maxNames}));\n  \n  local_1c = 0;`
   );
 }
+const fanNameLookupSpecs = [
+  ["004418fc", "_DAT_006366b4", "10000", "5000"],
+  ["00441958", "(char *)_DAT_00636694", "0x177", "100"],
+  ["00441a10", "_DAT_0063668c", "1000", "500"],
+  ["00441ac8", "_DAT_006366b8", "0x1117", "2000"],
+  ["00441ea4", "_DAT_006366bc", "5000", "0x9c4"],
+  ["00441f00", "_DAT_00636698", "6000", "2000"],
+];
+for (const [name, table, capacity, maxNames] of fanNameLookupSpecs) {
+  source = source.replace(
+    new RegExp(`undefined8 __fastcall FUN_${name}\\(undefined4 param_1,undefined4 param_2\\)\\s*\\r?\\n\\s*\\{[\\s\\S]*?\\r?\\n\\}\\s*\\r?\\n\\s*\\r?\\n\\/\\*`),
+    `undefined8 __fastcall FUN_${name}(undefined4 param_1,undefined4 param_2)\n\n{\n  return CONCAT44(param_2,(int)E2R_FindPackedNameIndex((char *)(uintptr_t)param_1,\n                                                       ${table},${capacity},${maxNames}));\n}\n\n\n\n/*`
+  );
+}
+source = source.replace(
+  /uint __fastcall FUN_0045fae0\(undefined4 param_1,uint \*param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045fba5 \*\//,
+  "uint __fastcall FUN_0045fae0(undefined4 param_1,uint *param_2)\n\n{\n  byte *left;\n  byte *right;\n  byte l;\n  byte r;\n  \n  left = (byte *)(uintptr_t)param_1;\n  right = (byte *)param_2;\n  if (left == right) {\n    return 0;\n  }\n  if ((uintptr_t)left < 0x10000u || (uintptr_t)right < 0x10000u ||\n      IsBadReadPtr(left,1) || IsBadReadPtr(right,1)) {\n    return 1;\n  }\n  do {\n    l = *left;\n    r = *right;\n    if (l != r) {\n      return -(uint)(l < r) | 1;\n    }\n    if (l == 0) {\n      return 0;\n    }\n    left = left + 1;\n    right = right + 1;\n  } while( true );\n}\n\n\n\n/* 0045fba5 */"
+);
 const fanTableIndexReplacements = [
   ["      *(short *)(&DAT_0067b83c + (short)extraout_ECX_09 * 2) = (short)uVar15;",
    "      ((short *)0x0067b83c)[e2r_table_indices[0]] = (short)uVar15;\n      e2r_table_indices[0]++;"],

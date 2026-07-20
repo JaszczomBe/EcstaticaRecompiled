@@ -2,6 +2,22 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-20 - Version-Gated FAN Parsers Reach Title Surface
+
+Area: `FUN_004173c8`, `FUN_004448e4`, `FUN_00445000`, `FUN_004451a8`, `FUN_00452a58`, `FUN_00447638`, `FUN_004418fc`, `FUN_00441958`, `FUN_0045fae0`
+
+Symptom: after the actor-list fixes, ASan reached `FUN_004453a4 -> FUN_004448e4 -> FUN_0043cac0` from stale record-type state. Once that parser advanced, ASan exposed the same hidden stream/register artifact in `FUN_00445000` and `FUN_004451a8`, then stale fixed-address table artifacts in `FUN_00447638`, packed-name lookup, and remap-table reads. Debug continued to report the bounded ordinal-4 unknown-record diagnostic at offset `104855`.
+
+Evidence: original `004448E4` preserves the stream in `ESI`, reads records through `004413FC`, and loops or returns from the decoded record type rather than `extraout_ECX`. Original `00445000` also stores the stream in `ESI` and calls `004173C8` with that stream before building records. Original `004451A8` stores the stream in `ECX`, keeps it across `00452A58`, and reads payload bytes through that same pointer. Original `00452A58` takes its allocation size in `EAX`. Original `00447638` stores the stream in `EDX`, writes the initial `128x128` word table through the explicit `0x00684d68` destination pointer, and uses the fixed `0x0068cd68/0x0068cd6f` record table. ASan then showed the remap lookup at `0x006769f8` and the other generated remap-table globals needed the same fixed-address treatment. The previous `FUN_004418fc -> FUN_0045fae0` heap-use-after-free was caused by decompiled lookup wrappers using stale `extraout_CX` advancement and a `strcmp` shim that ignored its explicit left pointer.
+
+Change: bound hosted `FUN_004173c8` to the active FAN stream; recovered `FUN_004448e4` record reads, skip-loop reads, and terminator handling; bound `FUN_00445000` and `FUN_004451a8` to the active stream; passed the bitmap payload size explicitly into `FUN_00452a58`; fixed the first `FUN_00447638` stream argument/table destination; added direct packed-name lookup wrappers; repaired `FUN_0045fae0` to compare explicit inputs; and redirected the remaining fixed record/remap-table accesses to literal legacy addresses. Mirrored new generator-backed repairs in `E2Recomp/tools/GenerateRecon.js`; the remap-table broad rewrite already existed and the reconstructed C was brought into line with it.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `git diff --check`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. Debug probe `/tmp/e2-step10-remaptables-debug` still reports ordinal 4 at offset `104855`. ASan probe `/tmp/e2-step10-remaptables-asan` exits with code `0`, dumps the Ecstatica II title surface on surface 3 with hash `6e39f5ea`, and no longer reports the packed-name use-after-free or fixed-table global overflows. The requester/action state is still empty: `start_game entries=0`, `startup_scan=0`, and `dispatch=0`.
+
+Next Frontier: recover the remaining `FUN_00444c10` action-node parser state so `_DAT_00637250` is populated before `FUN_0043a39c` scans StartUp and Start Game action codes. Original disassembly keeps the stream in `ESI` while preserving action node pointers and bytecode cursors on the stack; the current decompiled body still has `extraout_*` artifacts in that section.
+
+Regression Risk: `FUN_00447638` and `FUN_00444c10` are still only partially recovered; ASan can render the title surface, but Start Game action dispatch is not restored. The bounded FAN diagnostics are still temporary and should remain until debug and ASan section alignment converge.
+
 ## 2026-07-20 - FAN Actor Lists And Hosted Word Reads Advance
 
 Area: `FUN_004171b8`, `FUN_004268a4`, `FUN_004268e4`, `FUN_0042692c`, `FUN_004435e8`, `FUN_00444c10`, `FUN_004526e4`

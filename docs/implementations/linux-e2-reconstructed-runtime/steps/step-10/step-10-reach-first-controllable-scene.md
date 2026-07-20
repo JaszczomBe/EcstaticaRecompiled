@@ -101,20 +101,28 @@ EAX = 0x00000002
 
 Original disassembly shows `FUN_00444c10` preserves the FAN stream in `ESI`, but calls `004268E4` with the owner pointer from `[esp+18h]` and `0042692C` with the previous nested node pointer from `[esp+0Ch]`. That owner-pointer contract is now recovered, along with sibling allocation/count fixes in `FUN_004268a4`, `FUN_004268e4`, and `FUN_0042692c`, explicit object replacement through `FUN_004526e4`, token input recovery for `FUN_004435e8`, raw two-byte reads for hosted FAN streams in `FUN_004171b8`, and fixed-address remap-table reads for the actor-token name tables.
 
-The current ASan frontier has moved past the earlier `FUN_00444c10` crash. A short ASan probe can now run long enough to dump surfaces without a sanitizer report while startup parsing is still in progress. A longer ASan probe advances to later FAN records and stops here:
+The 2026-07-20 continuation recovered the original stream/input contracts for the next version-gated parser helpers. Original disassembly showed `FUN_004448e4` keeps the FAN stream in `ESI` and tests the decoded record type, `FUN_00445000` reads through the same stream and feeds `FUN_004173c8`, and `FUN_004451a8` keeps the stream in `ECX` while allocating bitmap payload storage. The first `FUN_00447638` table load now writes its 128x128 word table through the explicit destination pointer instead of stale `extraout_ECX` state. The packed-name lookup wrappers now walk the hosted packed-name tables directly, `FUN_0045fae0` compares its explicit input pointers, and the remaining `FUN_00447638`/remap-table accesses use literal legacy addresses instead of generated global fragments.
+
+Current debug and ASan probes still diverge. Debug reports the same bounded ordinal-4 unknown-record diagnostic after the first three validated terminators:
 
 ```text
-build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-long-asan escape,enter 30 250 5
+build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-47638-debug escape,enter 8 250 5
 
-FAN record: ordinal=4 offset=259093 fields=0000,0000,3a33,004d,3a51
-FAN record: ordinal=5 offset=259103 fields=0001,0000,ffff,ffff,ffff
-FAN record: ordinal=6 offset=259113 fields=ffff,ffff,ffff,ffff,ffff
-FAN unknown record: ordinal=6 offset=259113 remaining=1840059 fields=ffff,ffff,ffff,ffff,ffff
-FUN_004453a4 -> FUN_004448e4 -> FUN_0043cac0
-SEGV reading address 0x00000001
+FAN record: ordinal=4 offset=104855 fields=0761,0701,0000,0001,0001
+FAN unknown record: ordinal=4 offset=104855 remaining=1994317 fields=0761,0701,0000,0001,0001
 ```
 
-Debug still reports the old ordinal-4 unknown-record diagnostic on the matching 8-second probe, so debug/ASan parser parity remains unresolved. Keep the first-sixteen-record, first-sixty-four-word, and unknown-record diagnostics bounded until all FAN sections align, then remove them before closing Step 10.
+ASan advances beyond the previous `FUN_004448e4 -> FUN_0043cac0`, `FUN_00445000`, `FUN_004451a8`, lookup, and fixed-table stops. The latest ASan probe exits cleanly and dumps the title surface, but the requester/action state is still empty:
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-remaptables-asan escape,enter 30 250 5
+
+FAN record: ordinal=4 offset=259093 fields=0000,0000,3a33,004d,3a51
+wrote surface dump: /tmp/e2-step10-remaptables-asan-s3.pgm (surface 3 nonblank=1 hash=6e39f5ea)
+start_game=[entries=0 player=0 mode=0 startup_scan=0 startup_match=0 action_scan=0 action_match=0 dispatch=0 ...]
+```
+
+The next implementation step is to recover the remaining `FUN_00444c10` action-node parsing state so `_DAT_00637250` is populated before `FUN_0043a39c` scans StartUp and Start Game action codes. Original disassembly shows this function preserves the stream in `ESI` while using stack-held action node pointers and bytecode cursors; the current decompiled body still reuses several `extraout_*` temporaries in that section. Keep the first-sixteen-record, first-sixty-four-word, and unknown-record diagnostics bounded until all FAN sections align, then remove them before closing Step 10.
 
 ## Acceptance Criteria
 
@@ -154,4 +162,6 @@ Exact English Quit prompt text recovery at `0x004729b8` remains a Step 9 fidelit
 1. Reran the bounded Start Game probes. Sandboxed runs exit with code `159`, so host runtime probes must run outside the sandbox.
 2. Confirmed debug still reports the ordinal-4 unknown-record diagnostic after three zero terminators, while ASan reaches `FUN_00444c10 -> FUN_004268e4` and dies reading through hidden owner `EAX=0x2`.
 3. Identified the next concrete recovery from original disassembly: preserve the owner pointer passed from `FUN_00444c10` into `FUN_004268e4`/`FUN_0042692c` and keep their allocator count fixed at one 0x39-byte record.
-4. Recovered the `FUN_00444c10` owner/list helper cluster, raw hosted FAN word reads, `FUN_004435e8` token input, and fixed remap-table reads. ASan now advances to the later `FUN_004448e4` frontier; debug still reports ordinal 4 as unknown.
+4. Recovered the `FUN_00444c10` owner/list helper cluster, raw hosted FAN word reads, `FUN_004435e8` token input, and fixed remap-table reads. ASan advanced to the later `FUN_004448e4` frontier; debug still reports ordinal 4 as unknown.
+5. Recovered `FUN_004448e4`, `FUN_00445000`, `FUN_004451a8`, `FUN_00452a58`, and the first `FUN_00447638` stream/destination contracts.
+6. Recovered packed-name lookup wrappers, `FUN_0045fae0`, and the remaining fixed-address `FUN_00447638`/remap-table accesses. ASan now reaches and dumps the title surface without a sanitizer report, while debug still stops at the ordinal-4 unknown-record diagnostic and ASan still reports `start_game entries=0`.
