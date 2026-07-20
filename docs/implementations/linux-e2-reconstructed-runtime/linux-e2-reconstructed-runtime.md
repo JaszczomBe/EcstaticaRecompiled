@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-17
+Last Updated: 2026-07-20
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -60,7 +60,9 @@ The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been c
 
 ## Active Steps
 
-Step 8 is complete. Step 9 is active. Its input bridge maps `WM_KEYDOWN` through the compatibility message queue into recovered input globals, feeds legacy key queues, and polls X11 keypresses into the same path. Requester-ready probes now reach requester rendering, keyboard focus movement, and action selection in both debug and ASan. The dispatcher handles simple requester callback labels, the `DAT_0043d49c` Quit callback, and the recovered `FUN_0043c910` yes/no confirmation prompt; both cancel and confirmed Quit outcomes are verified. The remaining prompt frontier is exact recovery of the unnamed fixed English confirmation text at `0x004729b8`.
+Step 9 is complete. Its input bridge maps `WM_KEYDOWN` through the compatibility message queue into recovered input globals, feeds legacy key queues, and polls X11 keypresses into the same path. Requester-ready probes reach rendering, keyboard focus movement, action selection, and nested Quit confirmation outcomes in both debug and ASan. Exact recovery of the unnamed fixed English confirmation text at `0x004729b8` remains a fidelity backlog item.
+
+Step 10 is active. The original requester `0x27/0x28` record selects Start Game item `0x00643b30`, and matching debug/ASan probes prove entry into `FUN_0043a39c`. Start-code probes showed `_DAT_00637250` was null because hosted `FUN_00445378` opened and immediately closed `Code/ECSTATIC.FAN` without calling the original parser. The parser handoff, packed name tables, table ordinals, Start-code lookup, and action-node interpreter handoff are now explicit and generator-backed. FAN record allocation, five-word reads, name normalization, pool release, and actor-record handoff now preserve the original hidden-register state. The `FUN_00444c10` owner/list helper cluster, hosted FAN raw word reads, actor token input, and fixed remap-table reads are now recovered far enough for ASan to advance beyond the earlier `FUN_004268e4`/`FUN_004526e4`/`FUN_004435e8` stops. The active frontier is now parser alignment and lost input state around `FUN_004453a4 -> FUN_004448e4 -> FUN_0043cac0`; debug still reports the bounded ordinal-4 unknown-record diagnostic after the three terminators.
 
 ## Step Roadmap
 
@@ -74,8 +76,8 @@ Each step should be scoped so it can preferably be completed in one context wind
 6. [Resolve Post Main Loop Config Open Crash](steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - completed; old `"e_config"` file/CRT crash is cleared and the `FUN_00453920` no-op has been verified under ASan.
 7. [Sustain Main Loop Heartbeat](steps/step-07/step-07-sustain-main-loop-heartbeat.md) - completed; recovered HUD icon clearing, damage-rectangle table access, and loop requester-id handoff, then verified 90 seconds under ASan.
 8. [Present Inspectable Title Or Menu Frame](steps/step-08/step-08-present-inspectable-title-or-menu-frame.md) - completed; added bounded frame dumping and captured a real Ecstatica II title-logo frame from ASan surface 3.
-9. [Wire Menu Input Path](steps/step-09/step-09-wire-menu-input-path.md) - active; message-queue `WM_KEYDOWN`, X11 host-key poll, legacy key queues, key-sequence probes, debug/ASan requester action selection, simple callback dispatch, requester focus movement, Quit confirmation No/Yes dispatch, and original state case `6` are verified; exact fixed English prompt text recovery remains open.
-10. Reach First Controllable Scene - planned; load a gameplay scene and prove basic player-control or camera-control progression.
+9. [Wire Menu Input Path](steps/step-09/step-09-wire-menu-input-path.md) - completed; message-queue `WM_KEYDOWN`, X11 host-key poll, legacy key queues, requester navigation/action selection, and Quit confirmation No/Yes outcomes are verified in debug and ASan.
+10. [Reach First Controllable Scene](steps/step-10/step-10-reach-first-controllable-scene.md) - active; restore the original Start Game menu path, enter scene loading, capture a gameplay frame, and prove one control-driven state change.
 11. Harden Runtime Loop Regression Checks - planned; make debug/ASan/GDB probes repeatable for the stabilized loop path.
 12. Define Replaceable Host Backend Boundary - planned; isolate window, input, timing, presentation, and audio backend calls below the compatibility layer.
 13. Add SDL Host Backend - planned; replace or supplement Linux/X11 scaffolding with SDL once loop, frame, and compatibility semantics are stable enough to specify.
@@ -155,3 +157,15 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 6. Recovered requester focus movement by locally initializing the fixed-address main-menu item chain, seeding `_DAT_00643430`, and fixing selected-item pointer arithmetic; debug and ASan now verify one-step and two-step Down/Enter requester probes.
 7. Recovered the `DAT_0043d49c` Quit callback's original no-confirm branch; debug and ASan `escape,num2,enter` now select the Quit item and return through `_DAT_00643650=5`, leaving `FUN_0043c910` yes/no prompt recovery as the active frontier.
 8. Recovered the `FUN_0043c910` Quit confirmation prompt path and original state switch case `6`; debug and ASan now verify default No (`_DAT_00643650=5`) and Down+Enter Yes (`_DAT_00643650=6`) outcomes.
+
+### 2026-07-18
+
+1. Closed Step 9 after all input-path acceptance criteria passed and retained exact English Quit prompt text recovery as a fidelity backlog item.
+2. Opened Step 10 with an initial bounded target: restore requester `0x27/0x28` from original executable data, select Start Game, and record the first `FUN_0043a39c` scene-loading frontier.
+3. Restored the original Start Game requester record and verified debug/ASan `escape,enter` probes enter `FUN_0043a39c`; recorded the action-name lookup/dispatch cluster as the next frontier.
+
+### 2026-07-20
+
+1. Reran bounded Start Game probes outside the sandbox after sandboxed runs exited with code `159`.
+2. Confirmed ASan reaches `FUN_00444c10 -> FUN_004268e4` and dies reading through hidden owner `EAX=0x2`; original disassembly shows the helper needs the owner pointer from `FUN_00444c10` stack state, not the stale generated argument.
+3. Recovered the `FUN_00444c10` owner/list helper cluster, raw hosted FAN word reads, token remapping input, and fixed remap-table reads; ASan now reaches the later `FUN_004448e4` frontier while debug remains at the ordinal-4 unknown-record diagnostic.

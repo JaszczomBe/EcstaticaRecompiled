@@ -1,104 +1,70 @@
 # EcstaticaRecompiled Handoff
 
-This is the root documentation anchor for future context windows. Start here, then follow the active implementation or plan links below.
+This is the durable root road sign for future context windows. It explains where project truth lives and how to resume work; it is intentionally not a timeline or a copy of the current crash frontier.
 
-## Current Objective
+## Project Objective
 
-Run the decompiled Ecstatica II reconstructed runtime on Linux using CMake and Clang, with development driven by repeatable builds, GDB/Ghidra evidence, and journaled exploratory fixes.
+Run the decompiled Ecstatica II reconstructed runtime on Linux using original game data, while preserving recovered game behavior and isolating host services behind compatibility boundaries suitable for later replacement.
 
-## Active Implementation
+Development is evidence-driven: use repeatable CMake builds, bounded runtime probes, ASan/GDB observations, original disassembly or Ghidra evidence, and concise journal entries.
 
-- [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md)
-- Current recommended step: [Resolve Post Main Loop Config Open Crash](implementations/linux-e2-reconstructed-runtime/steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - continue only with a tightly scoped verification/frontier pass.
-- Current runtime journal: [Runtime crash fixes](journal/entries/runtime-crash-fixes.md)
+## Resume Here
 
-## Journal
+Read these sources in order:
 
+1. [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md) - authoritative rollout state, active step, roadmap, and verification commands.
+2. The active step linked from that implementation - current scope, acceptance criteria, evidence, and next frontier.
+3. [Runtime crash fixes](journal/entries/runtime-crash-fixes.md) and any journal linked by the active step - historical reasoning and regression risks.
+4. [Runtime Milestones](plans/runtime-milestones.md) - durable milestone order and architecture direction.
+5. `git status --short` and `git log -1 --oneline` - worktree and latest-commit state.
+
+Do not infer the current step from this file. The active implementation document owns changing execution state so this root anchor cannot drift out of sync.
+
+## Blank Context Protocol
+
+When a fresh context is given only an instruction to read this file:
+
+1. Follow the resume order above before proposing code changes.
+2. Report the active step and concrete frontier from the implementation and step documents.
+3. Summarize scope and acceptance criteria in no more than three bullets each.
+4. State the next bounded action and its verification.
+5. Wait for confirmation before substantial implementation unless the user already said to proceed.
+
+If the user already selected a step or said to proceed, restate the bounded scope briefly and continue without asking them to choose again.
+
+## Repository Invariants
+
+1. Read the active implementation and relevant journal before changing reconstructed code.
+2. Prefer original disassembly or Ghidra-backed recovery over speculative defensive behavior.
+3. Mirror reconstructed C hand fixes in `E2Recomp/tools/GenerateRecon.js` so regeneration preserves them.
+4. Keep reconstructed game logic original-shaped. Linux/X11, Win32, DirectDraw, DirectSound, CRT, and future SDL behavior belongs in compatibility or host-backend layers.
+5. Build and run after each runtime fix when feasible; use bounded probes for unstable paths.
+6. Journal fixes that advance the runtime frontier, including evidence, result, next frontier, and regression risk.
+7. Preserve user changes in a dirty worktree. Do not revert unrelated work.
+8. Do not commit or push unless explicitly asked.
+9. Respect the active implementation usage budget recorded in its documentation.
+
+## Stable Development Coordinates
+
+- Repository branch used for this effort: `linux-e2-reconstructed-runtime`
+- Original game data: `/home/rgrabowski/Games/Ecstatica2/`
+- Build-tree data link name: `Ecstatica2`
+- Debug build: `cmake --build --preset linux-clang32-debug`
+- ASan build: `cmake --build build/linux-clang32-asan`
+- Reconstructed runtime entry: `./e2recomp --run-recon` from a build directory
+- Generator syntax check: `node --check E2Recomp/tools/GenerateRecon.js`
+
+## Documentation Map
+
+- [Implementation workflow](templates/implementation-workflow.template.md)
 - [Journal index](journal/journal.md)
 - [Runtime crash fixes](journal/entries/runtime-crash-fixes.md)
 - [Generated code repairs](journal/entries/generated-code-repairs.md)
 - [Linux portability](journal/entries/linux-portability.md)
 - [Reverse engineering workflow](journal/entries/reverse-engineering-workflow.md)
-
-## Plans
-
-- [Runtime Milestones](plans/runtime-milestones.md)
-
-## Templates
-
-- [Implementation workflow](templates/implementation-workflow.template.md)
-- [Implementation plan template](templates/implementation-workflow.template/plan.template.md)
-- [Implementation step template](templates/implementation-workflow.template/step.template.md)
-- [Implementation task template](templates/implementation-workflow.template/task.template.md)
-- [Journal template](templates/journal.template.md)
+- [Runtime milestones](plans/runtime-milestones.md)
 - [Commit message template](templates/commit-message.template.md)
 
-## Current Runtime State
+## Anchor Policy
 
-- Branch: `linux-e2-reconstructed-runtime`
-- Current recommended step: [Resolve Post Main Loop Config Open Crash](implementations/linux-e2-reconstructed-runtime/steps/step-06/step-06-resolve-post-main-loop-config-open-crash.md) - verify the latest `FUN_00453920` no-op and record the next ASan frontier, without broad new investigation.
-- Data path: `/home/rgrabowski/Games/Ecstatica2/`
-- Build data symlink should resolve under build directories as `Ecstatica2`.
-- Debug build command: `cmake --build --preset linux-clang32-debug`
-- ASan build command: `cmake --build build/linux-clang32-asan`
-- Run command from debug build: `./e2recomp --run-recon`
-- Latest proven milestone: startup advances past the old post-main-loop `"e_config"` and CDPath/file-open blockers into menu/framebuffer and quick-save code paths under ASan.
-- Latest verified ASan frontier before the final stop: `FUN_0045fd2c` writing through an invalid destination from `FUN_00453920`.
-- Latest code change after that frontier: `FUN_00453920` is reduced to a hosted no-op and mirrored in `E2Recomp/tools/GenerateRecon.js`.
-- Verification after the `FUN_00453920` no-op: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build build/linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. ASan was not rerun after this final no-op by explicit stop request.
-
-## Blank Context Startup Protocol
-
-When a fresh context is given only this instruction:
-
-```text
-Read /home/rgrabowski/Work/EcstaticaRecompiled/docs/HANDOFF.md
-```
-
-it must read this file and follow the protocol below before making code changes.
-
-First response requirements:
-
-1. State the active next implementation step.
-2. Summarize its scope in 3 bullets or fewer.
-3. Summarize its acceptance criteria in 3 bullets or fewer.
-4. State whether it is ready to proceed or needs the user to choose from task options.
-
-Before substantial investigation or implementation, a fresh context must do one of these:
-
-1. Outline the next implementation step it intends to execute, including scope, acceptance criteria, and verification.
-2. Provide a short list of next task options for the user to choose from.
-
-The user should confirm the scope before substantial investigation or implementation continues. If the user has already explicitly chosen a step in the current conversation, proceed with that step and restate the chosen scope briefly.
-
-## Operating Rules
-
-1. Read the active implementation before coding.
-2. Read the relevant journal entries before changing reconstructed code.
-3. Mirror hand fixes in `E2Recomp/tools/GenerateRecon.js` when they affect generated C.
-4. Build and run after each runtime fix when feasible.
-5. Add or update a journal entry when a fix advances the crash frontier.
-6. Respect the active step usage budget: no more than 5% of weekly usage per day unless the user explicitly approves continuing.
-7. Do not commit or push unless explicitly asked.
-
-## Documentation Edit Policy
-
-Most implementation and journal files are mutable working documents. Constant anchor files require explicit user permission before edits, and every proposed edit must include a valid reason.
-
-Constant anchor files:
-
-1. `docs/HANDOFF.md` - root context anchor for blank contexts.
-2. `docs/templates/implementation-workflow.template.md` - workflow rules for implementation documentation.
-3. `docs/templates/implementation-workflow.template/plan.template.md` - implementation plan shape.
-4. `docs/templates/implementation-workflow.template/step.template.md` - implementation step shape.
-5. `docs/templates/implementation-workflow.template/task.template.md` - implementation task shape.
-6. `docs/templates/journal.template.md` - journal entry conventions.
-7. `docs/templates/commit-message.template.md` - commit message convention.
-8. `docs/plans/runtime-milestones.md` - current milestone ordering and project direction.
-
-Mutable working files:
-
-1. `docs/implementations/**`
-2. `docs/journal/journal.md`
-3. `docs/journal/entries/**`
-4. `docs/style/**`
+This file changes only when its navigation, durable project objective, resume protocol, or invariants become incorrect. Runtime milestones, active steps, crash addresses, probe results, and recent fixes belong in implementation, step, and journal documents. Any edit to this anchor requires explicit user permission and a stated structural reason.

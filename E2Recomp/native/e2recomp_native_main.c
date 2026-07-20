@@ -18,6 +18,7 @@ typedef struct E2R_FrameDumpRequest {
     unsigned inject_keys[16];
     unsigned inject_key_count;
     unsigned inject_interval_ms;
+    unsigned post_action_delay_seconds;
     int wait_for_requester_ready;
     int dump_all_surfaces;
 } E2R_FrameDumpRequest;
@@ -56,6 +57,17 @@ extern uintptr_t E2R_requester_probe_last_fed_char;
 extern uintptr_t E2R_requester_probe_last_fed_scan;
 extern uintptr_t E2R_requester_probe_action_count;
 extern uintptr_t E2R_requester_probe_last_action;
+extern uintptr_t E2R_start_game_probe_count;
+extern uintptr_t E2R_start_game_probe_last_player;
+extern uintptr_t E2R_start_game_probe_last_mode;
+extern uintptr_t E2R_start_code_probe_startup_scans;
+extern uintptr_t E2R_start_code_probe_startup_matches;
+extern uintptr_t E2R_start_code_probe_action_scans;
+extern uintptr_t E2R_start_code_probe_action_matches;
+extern uintptr_t E2R_start_code_probe_dispatches;
+extern uintptr_t E2R_start_code_probe_last_node;
+extern uintptr_t E2R_start_code_probe_last_name_index;
+extern uintptr_t E2R_start_code_probe_last_bytecode_offset;
 
 static uintptr_t e2r_surface_framebuffer(unsigned surface)
 {
@@ -280,6 +292,7 @@ static void *e2r_frame_dump_thread(void *arg)
 
         for (key_index = 0; key_index < request->inject_key_count; key_index++) {
             uintptr_t action_count_before_key = E2R_requester_probe_action_count;
+            uintptr_t start_game_count_before_key = E2R_start_game_probe_count;
             uintptr_t keydown_count_before = E2R_input_probe_keydown_count;
             unsigned inject_key = request->inject_keys[key_index];
             MSG msg;
@@ -353,6 +366,38 @@ static void *e2r_frame_dump_thread(void *arg)
                             (unsigned long)E2R_requester_probe_pending_key_read,
                             (unsigned long)E2R_requester_probe_pending_key_count,
                             (unsigned long)E2R_requester_probe_action_count);
+                }
+                if ((E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d458 ||
+                     E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d464) &&
+                    E2R_start_game_probe_count == start_game_count_before_key) {
+                    waited_ms = 0;
+                    while (waited_ms < 2000 &&
+                           E2R_start_game_probe_count == start_game_count_before_key) {
+                        usleep(10000);
+                        waited_ms += 10;
+                    }
+                    fprintf(stderr,
+                            "start-game probe wait finished after %u ms: entries %lu->%lu "
+                            "player=%lu mode=%lu\n",
+                            waited_ms, (unsigned long)start_game_count_before_key,
+                            (unsigned long)E2R_start_game_probe_count,
+                            (unsigned long)E2R_start_game_probe_last_player,
+                            (unsigned long)E2R_start_game_probe_last_mode);
+                }
+                if ((E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d458 ||
+                     E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d464) &&
+                    E2R_start_game_probe_count != start_game_count_before_key) {
+                    fprintf(stderr,
+                            "start-game entry observed: entries %lu->%lu player=%lu mode=%lu; "
+                            "waiting %u second(s) before dump\n",
+                            (unsigned long)start_game_count_before_key,
+                            (unsigned long)E2R_start_game_probe_count,
+                            (unsigned long)E2R_start_game_probe_last_player,
+                            (unsigned long)E2R_start_game_probe_last_mode,
+                            request->post_action_delay_seconds);
+                    remaining_delay = request->post_action_delay_seconds;
+                }
+                else {
                     remaining_delay = 0;
                 }
             }
@@ -376,6 +421,9 @@ static void *e2r_frame_dump_thread(void *arg)
                     "moves=%lu move_key=0x%lx move_from=0x%lx move_to=0x%lx "
                     "pending=%lu/%lu fed=%lu fed_key=0x%lx fed_char=0x%lx fed_scan=0x%lx "
                     "actions=%lu last_action=0x%lx] "
+                    "start_game=[entries=%lu player=%lu mode=%lu "
+                    "startup_scan=%lu startup_match=%lu action_scan=%lu action_match=%lu "
+                    "dispatch=%lu node=0x%lx name=%lu code=0x%lx] "
                     "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu]\n",
                     (unsigned long)DAT_00636844, (unsigned long)DAT_00636853,
                     (unsigned long)_DAT_00643650, (unsigned long)DAT_00479de8,
@@ -412,6 +460,17 @@ static void *e2r_frame_dump_thread(void *arg)
                     (unsigned long)E2R_requester_probe_last_fed_scan,
                     (unsigned long)E2R_requester_probe_action_count,
                     (unsigned long)E2R_requester_probe_last_action,
+                    (unsigned long)E2R_start_game_probe_count,
+                    (unsigned long)E2R_start_game_probe_last_player,
+                    (unsigned long)E2R_start_game_probe_last_mode,
+                    (unsigned long)E2R_start_code_probe_startup_scans,
+                    (unsigned long)E2R_start_code_probe_startup_matches,
+                    (unsigned long)E2R_start_code_probe_action_scans,
+                    (unsigned long)E2R_start_code_probe_action_matches,
+                    (unsigned long)E2R_start_code_probe_dispatches,
+                    (unsigned long)E2R_start_code_probe_last_node,
+                    (unsigned long)E2R_start_code_probe_last_name_index,
+                    (unsigned long)E2R_start_code_probe_last_bytecode_offset,
                     (unsigned long)DAT_00636859,
                     (unsigned long)DAT_00636858, (unsigned long)DAT_0063685b,
                     (unsigned long)DAT_00636854, (unsigned long)DAT_00636856,
@@ -465,6 +524,7 @@ static int e2r_start_frame_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.inject_keys[0] = inject_key;
     e2r_frame_dump_request.inject_key_count = inject_key != 0 ? 1 : 0;
     e2r_frame_dump_request.inject_interval_ms = 250;
+    e2r_frame_dump_request.post_action_delay_seconds = 0;
     e2r_frame_dump_request.wait_for_requester_ready = 0;
     e2r_frame_dump_request.dump_all_surfaces = dump_all_surfaces;
     if (pthread_create(&thread, NULL, e2r_frame_dump_thread, &e2r_frame_dump_request) != 0) {
@@ -556,7 +616,8 @@ static unsigned e2r_parse_virtual_key_sequence(const char *value, unsigned *keys
 static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
                                        unsigned inject_delay_seconds, const unsigned *keys,
                                        unsigned key_count, unsigned interval_ms,
-                                       int dump_all_surfaces, int wait_for_requester_ready)
+                                       int dump_all_surfaces, int wait_for_requester_ready,
+                                       unsigned post_action_delay_seconds)
 {
     pthread_t thread;
     unsigned i;
@@ -567,6 +628,7 @@ static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.inject_key = key_count != 0 ? keys[0] : 0;
     e2r_frame_dump_request.inject_key_count = key_count;
     e2r_frame_dump_request.inject_interval_ms = interval_ms == 0 ? 250 : interval_ms;
+    e2r_frame_dump_request.post_action_delay_seconds = post_action_delay_seconds;
     e2r_frame_dump_request.wait_for_requester_ready = wait_for_requester_ready;
     e2r_frame_dump_request.dump_all_surfaces = dump_all_surfaces;
     for (i = 0; i < key_count && i < 16; i++) {
@@ -695,7 +757,7 @@ int main(int argc, char **argv)
             return 3;
         }
         if (!e2r_start_key_sequence_dump(argv[2], delay_seconds, inject_delay_seconds, keys,
-                                         key_count, interval_ms, 1, 0)) {
+                                         key_count, interval_ms, 1, 0, 0)) {
             return 3;
         }
         fflush(stdout);
@@ -721,7 +783,7 @@ int main(int argc, char **argv)
             return 3;
         }
         if (!e2r_start_key_sequence_dump(argv[2], total_seconds, ready_timeout_seconds, keys,
-                                         key_count, interval_ms, 1, 1)) {
+                                         key_count, interval_ms, 1, 1, dump_seconds)) {
             return 3;
         }
         fflush(stdout);

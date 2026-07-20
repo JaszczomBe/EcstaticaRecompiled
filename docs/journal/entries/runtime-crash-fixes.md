@@ -2,6 +2,86 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-20 - FAN Actor Lists And Hosted Word Reads Advance
+
+Area: `FUN_004171b8`, `FUN_004268a4`, `FUN_004268e4`, `FUN_0042692c`, `FUN_004435e8`, `FUN_00444c10`, `FUN_004526e4`
+
+Symptom: the first 2026-07-20 ASan probe reached `FUN_00444c10 -> FUN_004268e4` with hidden owner `EAX=0x2`. After recovering that helper, subsequent probes exposed the same decompiler artifact class in `FUN_004526e4`, `FUN_004435e8`, and `FUN_004268a4`. Once those were cleared, hosted FAN word reads stuck on an embedded `0x1a` byte and filled the script pool with repeated `0xffff` tokens. After raw hosted word reads were recovered, ASan exposed fixed-address remap-table reads in `FUN_004435e8`.
+
+Evidence: original disassembly at `00444ED0..00444EDF` passes owner pointers from `[esp+18h]` and `[esp+0Ch]` into `004268E4`/`0042692C`. Original `004268A4`, `004268E4`, and `0042692C` all allocate a single object/list node after preserving incoming state. Original `00444D66..00444D7B` writes the current `CX` object id, looks up an existing object through `006297C0`, and passes that object pointer in `EAX` to `004526E4`. Original `00444DCB..00444DD0` zero-extends the current token into `EAX` before calling `004435E8`, while preserving the original token in `EDX` for repeat handling. A bounded word trace showed hosted `FUN_004171b8` stuck at offset `104855` on an embedded `0x1a`; reading two raw bytes for hosted `E2R_STREAM_MAGIC` streams advanced past that point. ASan then stopped on `FUN_004435e8` remap-table reads through generated globals instead of literal fixed addresses.
+
+Change: recovered the hidden owner pointer and one-record allocation contracts for `FUN_004268a4`, `FUN_004268e4`, and `FUN_0042692c`; made `FUN_004526e4` accept the object pointer explicitly; restored the `FUN_00444c10` object-id write and existing-object removal call; passed current tokens explicitly into `FUN_004435e8`; added raw two-byte hosted FAN word reads for `FUN_004171b8`; and redirected the immediate actor-token remap-table reads to fixed legacy addresses. Mirrored generated-code repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. A short ASan Start Game readiness probe now exits without a sanitizer report while parsing is still in progress and dumps nonblank surfaces. A longer ASan probe advances beyond the earlier `FUN_00444c10` frontiers to records near offset `259113`, then stops through `FUN_004453a4 -> FUN_004448e4 -> FUN_0043cac0` with `EAX=0x1`. The matching debug probe still reports the ordinal-4 unknown-record diagnostic after the three zero terminators.
+
+Next Frontier: recover the original input/register contract for `FUN_004448e4` and reconcile debug/ASan parser alignment after the third zero terminator.
+
+Regression Risk: hosted raw word reads are scoped to native `E2R_STREAM_MAGIC` FAN streams and bypass the CRT text-mode `0x1a` behavior only for those hosted buffers. The first-sixty-four-word diagnostic is temporary and should be removed once the FAN section alignment is stable.
+
+## 2026-07-20 - FAN Actor String Owner Frontier Recorded
+
+Area: `FUN_004453a4`, `FUN_00444c10`, `FUN_004268e4`, `FUN_0042692c`
+
+Symptom: after three validated zero section terminators, sandboxed bounded game probes exit immediately with code `159`. Running the same probes outside the sandbox reaches the FAN version-gated section. The debug probe still reports bounded ordinal-4 unknown-record diagnostics, and the ASan probe stops in `FUN_004268e4` while reading through hidden `EAX=0x2`.
+
+Evidence: original disassembly at `00444C10` preserves the FAN stream in `ESI`. At `00444ED0..00444EDF`, it loads `EAX` from `[esp+18h]` before calling `004268E4` for the first nested node, and from `[esp+0Ch]` before calling `0042692C` for subsequent nodes. Original `004268E4` and `0042692C` save incoming `EAX` in `ESI`, then allocate exactly one `0x39`-byte record with `FUN_0045F1FF`. The generated C instead passed stale state into the helpers and let `FUN_004268e4` dereference `in_EAX == 0x2`.
+
+Change: no code change in the progress-check pass. Documentation was updated before continuing with the recovered owner-pointer repair.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass before the repair. Host debug probe reports ordinal 4 at offset `104855`; host ASan probe reports `FUN_004453a4 -> FUN_00444c10 -> FUN_004268e4` with a zero-page read at `0x00000002`.
+
+Next Frontier: recover the hidden owner-pointer input and fixed allocation count for `FUN_004268e4` and `FUN_0042692c`, then rerun the bounded Start Game ASan probe.
+
+Regression Risk: the ordinal-4 diagnostic is still temporary. The next code change touches actor string/node linking during FAN parsing, so it must be generator-backed and verified with both debug and ASan probes.
+
+## 2026-07-18 - FAN Record Sections Preserve Hidden State
+
+Area: `FUN_004413fc`, `FUN_0045326c`, `FUN_00453264`, `FUN_00447090`, `FUN_0042b880`, `FUN_004453a4`
+
+Symptom: after all packed FAN name tables loaded, ASan first reported a use-after-free write in `FUN_004413fc`, then stale-pointer failures in record normalization and actor construction. Once those were cleared, the top-level loop decoded payload bytes as unknown record type `0x0701`.
+
+Evidence: original disassembly shows `FUN_0045326c` returns the pool slot from `FUN_0045328c`; `FUN_004413fc` preserves the stream in `EDX`, reads five words, and returns the slot in `EAX`; callers pass that record in `EAX` to `FUN_00447090`, `FUN_0042b880`, and `FUN_00453264`. A bounded record probe reported three consecutive type-zero records at offsets `104825`, `104835`, and `104845`. The parser then tested stale `uVar10` rather than decoded `sVar9`, ignored the third terminator, and read mixed payload at offset `104855`.
+
+Change: returned the actual pool slot from `FUN_0045326c`; made the five-word stream read explicit; preserved the current FAN record across normalization, actor construction, and pool release; bound `FUN_0042b880` to that record; added bounded record diagnostics; and changed the top-level terminator condition to use `sVar9`. Mirrored all generated-code repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: debug and ASan builds pass, generator syntax validation passes, and ASan consumes all three zero terminators without treating payload as an unknown record. The runtime now enters the next version-gated FAN section.
+
+Next Frontier: recover the original entry/input contract for `FUN_00444c10`, currently reached from `FUN_004453a4` and failing with a global-buffer-overflow near `_DAT_0047a47c`.
+
+Regression Risk: current-record state is scoped to active FAN parsing and models a register lifetime lost by decompilation. The first-sixteen-record and unknown-record stderr diagnostics are temporary and must be removed once section alignment is stable.
+
+## 2026-07-18 - FAN Parser Reaches Object Records
+
+Area: `FUN_00445378`, `FUN_004453a4`, FAN packed name tables, `FUN_0043a39c`, `FUN_0044f508`
+
+Symptom: recovered Start Game selection entered `FUN_0043a39c` but returned to the requester. New boundary counters reported `startup_scan=0`, `action_scan=0`, and `dispatch=0`, proving `_DAT_00637250` was never populated.
+
+Evidence: original `FUN_00445378` disassembly opens the FAN stream, preserves it in `EAX`, calls `FUN_004453a4` with mode in `EDX`, then closes the stream. The hosted reconstruction only opened and closed the file. After restoring the parser call, `Code/ECSTATIC.FAN` passed its `FANT` header and exposed repeated lost token-pointer, packed-table length, source-ordinal, and scalar-global array artifacts. Original helper bounds identify eleven packed name-table capacities and entry limits.
+
+Change: restored explicit FAN stream handoff through `FUN_00445378`, `FUN_004453a4`, and `FUN_004171b8`; replaced the eleven hidden-register string intern paths with one bounded packed-name helper; preserved source table ordinals in dedicated counters; wrote mappings to literal DGROUP addresses; recovered Start-code name matching and action-node handoff into `FUN_0044f508`; and added bounded lookup/dispatch counters. Mirrored the repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: generator syntax validation and the ASan build pass. An isolated generated `E2Recomp_recon.c` also compiles. ASan progresses through all FAN name tables and now stops in the first object-record phase at `FUN_004453a4 -> FUN_00444668 -> FUN_004413fc`, rather than returning from an empty action list.
+
+Next Frontier: recover the original object pointer passed in `EAX` from `FUN_00444668` to `FUN_004413fc`. The current decompile writes through a stale freed pointer at reconstructed line 32711.
+
+Regression Risk: FAN parsing is now active during startup, so the bounded runtime currently reaches the new ASan frontier before requester readiness. Packed-name comparison is explicit and case-sensitive; `FUN_00446afc` used a distinct original comparison helper and may require case-folding if later evidence shows mismatched names.
+
+## 2026-07-18 - Start Game Requester Record Recovered
+
+Area: requester ids `0x27/0x28`, record `0x0047a588`, item `0x00643b30`, `FUN_0043a39c`
+
+Symptom: Step 9 could navigate reconstructed requester input but initialized requester `0x27/0x28` with first item `0x00643ad0`, exposing Uninstall/Quit/Cancel and leaving Start Game unreachable.
+
+Evidence: `E2WIN95.EXE` DGROUP bytes at `0x0047a588` decode as `{-1, -1, 0xd2, 0xb4, 0, 0x00643b30}`. Original menu construction links `0x00643b30` to Save, Load, Settings, Quit, and Cancel. The Start Game callback `LAB_0043d458` sets `_DAT_00643650=0`, whose main-loop switch enters `FUN_0043a39c(..., 0)`.
+
+Change: initialized requester `0x0047a588` from the original dimensions and first-item pointer, mirrored the recovery in `E2Recomp/tools/GenerateRecon.js`, added `FUN_0043a39c` entry counters, and made ready-sequence probes preserve a bounded post-Start observation delay.
+
+Result: generator syntax validation and debug/ASan builds pass. Debug and ASan `escape,enter` probes select `0x00643b30`, dispatch one action, advance the `FUN_0043a39c` entry count from `1` to `2` with player/mode `0`, and remain free of sanitizer reports for five seconds. Both produce nonblank surface-3 hash `d8293730` but return to the menu with `_DAT_00643650=5` rather than loading a scene.
+
+Next Frontier: recover the Start-code action-name lookup/dispatch cluster in `FUN_0043a39c`. `Code/ECSTATIC.FAN` contains `mar:StartGame`, but the reconstructed path loses the original string index passed in `EAX` to `FUN_00442128`, crosses the hosted no-op `FUN_0045f22f`, and does not preserve the selected action-node `EAX` into `FUN_0044f2fc`.
+
+Regression Risk: requester ids `0x27/0x28` now expose the original full Start Game chain instead of the narrower Step 9 test chain. Quit remains reachable through the restored links, and debug/ASan Start Game probes cover the new default action.
+
 ## 2026-07-17 - Quit Confirmation Prompt Recovered
 
 Area: `FUN_0043c910`, `DAT_0043d49c`, requester id `0x14`, `_DAT_00643650`

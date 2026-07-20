@@ -1,8 +1,8 @@
 # Wire Menu Input Path
 
-Status: active
+Status: completed
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
-Last Updated: 2026-07-17
+Last Updated: 2026-07-18
 
 ## Goal
 
@@ -136,6 +136,8 @@ Focus/selection fidelity has also advanced. The requester path now initializes t
 
 `DAT_0043d49c` now reaches the recovered `FUN_0043c910` yes/no prompt path. The prompt helper seeds requester id `0x14`, stores a stable prompt string at `0x0047a520`, sizes the prompt record, initializes the fixed Yes/No item chain, and dispatches the original affirmative/decline callbacks. Debug and ASan `escape,num2,enter,enter` select Quit then default No and finish with `_DAT_00643650=5`. Debug and ASan `escape,num2,enter,num2,enter` move from No to Yes and finish with `_DAT_00643650=6`; original switch case `6` has also been corrected to open requester id `0x31` instead of calling the decompiler's bad `FUN_00414e68()` arm. The remaining prompt-text frontier is the unnamed fixed English source at `0x004729b8`; the current recovery uses the localized pointer at `0x0060aef0` when available and a bounded fallback string otherwise.
 
+Step 9 is complete because the host event, compatibility queue, recovered input globals, requester navigation, action dispatch, and nested confirmation paths all have bounded debug and ASan proof. Exact recovery of the English prompt text at `0x004729b8` is retained as a fidelity backlog item rather than an input-path blocker.
+
 ## Acceptance Criteria
 
 1. Debug and ASan builds compile.
@@ -188,6 +190,10 @@ Focus/selection fidelity has also advanced. The requester path now initializes t
 16. Initialized the fixed-address main-menu item chain at requester open, seeded keyboard focus from the requester record, marked local menu items focusable for `FUN_0043bd4c`, and fixed `_DAT_00643430` pointer arithmetic. Debug and ASan now verify one-step movement to `0x643ca4` and two-step movement to cancel `0x643780`.
 17. Recovered the `DAT_0043d49c` Quit callback's original no-confirm branch in the dispatcher. Debug and ASan `escape,num2,enter` select `0x643ca4`, record the Quit action, keep `_DAT_00643650=5`, and leave `FUN_0043c910` prompt recovery as the next frontier.
 18. Recovered the `FUN_0043c910` Quit confirmation prompt path, initialized the fixed Yes/No prompt items, fixed the requester probe's per-key wait, and corrected original state switch case `6` to open requester id `0x31`. Debug and ASan now verify both default No (`_DAT_00643650=5`) and Down+Enter Yes (`_DAT_00643650=6`) prompt outcomes.
+
+### 2026-07-18
+
+1. Marked Step 9 complete after all acceptance criteria passed and moved exact English Quit prompt text recovery to the fidelity backlog.
 
 ### 2026-07-16
 
