@@ -6,6 +6,7 @@
 #include "E2Recomp_recon.h"
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #ifdef NAN
 #undef NAN
@@ -29,6 +30,23 @@ static uint E2R_fan_actor_diag_count;
 static uint E2R_fan_action_summary_diag_count;
 static uint E2R_fan_phase_diag_count;
 static int E2R_actor_calc_context;
+
+static void E2R_InitDiagnostics(void) __attribute__((constructor));
+static void E2R_InitDiagnostics(void)
+{
+  char *fan_diag = getenv("E2R_FAN_DIAG");
+
+  if (fan_diag != (char *)0x0 && fan_diag[0] != '\0' && fan_diag[0] != '0') {
+    return;
+  }
+
+  E2R_fan_word_read_diag_count = 0x7fffffff;
+  E2R_fan_action_read_diag_count = 0x7fffffff;
+  E2R_fan_dispatch_diag_count = 0x7fffffff;
+  E2R_fan_actor_diag_count = 0x7fffffff;
+  E2R_fan_action_summary_diag_count = 0x7fffffff;
+  E2R_fan_phase_diag_count = 0x7fffffff;
+}
 
 static uint E2R_FanStreamOffset(void)
 {
@@ -7893,6 +7911,13 @@ undefined8 __fastcall FUN_004173c8(undefined4 param_1,undefined4 param_2)
   }
   if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr(in_EAX,0x1c)) {
     return CONCAT44(param_2,0xffff);
+  }
+  if ((uint)in_EAX[6] == E2R_STREAM_MAGIC) {
+    iVar4 = E2R_ReadFanWordByte(in_EAX);
+    uVar3 = (uint)iVar4 & 0xff;
+    iVar4 = E2R_ReadFanWordByte(in_EAX);
+    uVar3 = uVar3 | (((uint)iVar4 & 0xff) << 8);
+    return CONCAT44(param_2,uVar3);
   }
   if ((((in_EAX[1] < 1) || ((*(byte *)(in_EAX + 3) & 4) != 0)) || (*(char *)*in_EAX == '\r')) ||
      (*(char *)*in_EAX == '\x1a')) {
@@ -33240,7 +33265,7 @@ undefined8 __fastcall FUN_004413fc(undefined4 param_1,undefined4 param_2)
   puVar1[4] = (short)uVar2;
   E2R_fan_parse_record = (short *)puVar1;
   E2R_fan_parse_record_count = E2R_fan_parse_record_count + 1;
-  if (E2R_fan_parse_record_count <= 64) {
+  if (E2R_fan_phase_diag_count < 64 && E2R_fan_parse_record_count <= 64) {
     fprintf(stderr,"FAN record: ordinal=%u caller=%p offset=%u fields=%04x,%04x,%04x,%04x,%04x\n",
             E2R_fan_parse_record_count,__builtin_return_address(0),
             (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -

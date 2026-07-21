@@ -20,6 +20,7 @@ typedef struct E2R_FrameDumpRequest {
     unsigned inject_interval_ms;
     unsigned post_action_delay_seconds;
     int wait_for_requester_ready;
+    int wait_for_gameplay_frame;
     int dump_all_surfaces;
 } E2R_FrameDumpRequest;
 
@@ -289,6 +290,33 @@ static unsigned e2r_wait_for_requester_dialog(unsigned timeout_seconds)
     return waited_ms;
 }
 
+static unsigned e2r_wait_for_gameplay_frame(unsigned timeout_seconds)
+{
+    unsigned waited_ms = 0;
+    unsigned timeout_ms = timeout_seconds * 1000u;
+
+    while (waited_ms < timeout_ms) {
+        if (E2R_start_game_probe_count != 0 && DAT_00479de8 != 0 && _DAT_0073cc3c != 0) {
+            fprintf(stderr,
+                    "gameplay-frame wait satisfied after %u ms: start_game=%lu "
+                    "DAT_00479de8=%lu DAT_0047a76c=%lu _DAT_0073cc3c=0x%lx\n",
+                    waited_ms, (unsigned long)E2R_start_game_probe_count,
+                    (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
+                    (unsigned long)_DAT_0073cc3c);
+            return waited_ms;
+        }
+        usleep(10000);
+        waited_ms += 10;
+    }
+    fprintf(stderr,
+            "gameplay-frame wait timed out after %u ms: start_game=%lu "
+            "DAT_00479de8=%lu DAT_0047a76c=%lu _DAT_0073cc3c=0x%lx\n",
+            waited_ms, (unsigned long)E2R_start_game_probe_count,
+            (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
+            (unsigned long)_DAT_0073cc3c);
+    return waited_ms;
+}
+
 static void *e2r_frame_dump_thread(void *arg)
 {
     E2R_FrameDumpRequest *request = (E2R_FrameDumpRequest *)arg;
@@ -425,7 +453,10 @@ static void *e2r_frame_dump_thread(void *arg)
             }
         }
     }
-    if (remaining_delay != 0) {
+    if (request->wait_for_gameplay_frame && remaining_delay != 0) {
+        e2r_wait_for_gameplay_frame(remaining_delay);
+    }
+    else if (remaining_delay != 0) {
         sleep(remaining_delay);
     }
     if (request->dump_all_surfaces) {
@@ -553,6 +584,7 @@ static int e2r_start_frame_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.inject_interval_ms = 250;
     e2r_frame_dump_request.post_action_delay_seconds = 0;
     e2r_frame_dump_request.wait_for_requester_ready = 0;
+    e2r_frame_dump_request.wait_for_gameplay_frame = 0;
     e2r_frame_dump_request.dump_all_surfaces = dump_all_surfaces;
     if (pthread_create(&thread, NULL, e2r_frame_dump_thread, &e2r_frame_dump_request) != 0) {
         fprintf(stderr, "failed to start frame dump thread\n");
@@ -644,7 +676,8 @@ static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
                                        unsigned inject_delay_seconds, const unsigned *keys,
                                        unsigned key_count, unsigned interval_ms,
                                        int dump_all_surfaces, int wait_for_requester_ready,
-                                       unsigned post_action_delay_seconds)
+                                       unsigned post_action_delay_seconds,
+                                       int wait_for_gameplay_frame)
 {
     pthread_t thread;
     unsigned i;
@@ -657,6 +690,7 @@ static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.inject_interval_ms = interval_ms == 0 ? 250 : interval_ms;
     e2r_frame_dump_request.post_action_delay_seconds = post_action_delay_seconds;
     e2r_frame_dump_request.wait_for_requester_ready = wait_for_requester_ready;
+    e2r_frame_dump_request.wait_for_gameplay_frame = wait_for_gameplay_frame;
     e2r_frame_dump_request.dump_all_surfaces = dump_all_surfaces;
     for (i = 0; i < key_count && i < 16; i++) {
         e2r_frame_dump_request.inject_keys[i] = keys[i];
@@ -784,7 +818,32 @@ int main(int argc, char **argv)
             return 3;
         }
         if (!e2r_start_key_sequence_dump(argv[2], delay_seconds, inject_delay_seconds, keys,
-                                         key_count, interval_ms, 1, 0, 0)) {
+                                         key_count, interval_ms, 1, 0, 0, 0)) {
+            return 3;
+        }
+        fflush(stdout);
+        E2R_WinMainThunk();
+        return 0;
+#endif
+    }
+
+    if (argc > 3 && strcmp(argv[1], "--inject-key-sequence-gameplay-surfaces") == 0) {
+#if UINTPTR_MAX > UINT32_MAX
+        fprintf(stderr,
+                "--inject-key-sequence-gameplay-surfaces needs a 32-bit build. Use the linux-clang32-debug CMake preset.\n");
+        return 2;
+#else
+        unsigned keys[16];
+        unsigned key_count = e2r_parse_virtual_key_sequence(argv[3], keys, 16);
+        unsigned inject_delay_seconds = argc > 4 ? (unsigned)strtoul(argv[4], NULL, 10) : 2;
+        unsigned interval_ms = argc > 5 ? (unsigned)strtoul(argv[5], NULL, 10) : 250;
+        unsigned timeout_seconds = argc > 6 ? (unsigned)strtoul(argv[6], NULL, 10) : 120;
+        if (key_count == 0) {
+            fprintf(stderr, "unknown key sequence for --inject-key-sequence-gameplay-surfaces: %s\n", argv[3]);
+            return 3;
+        }
+        if (!e2r_start_key_sequence_dump(argv[2], timeout_seconds, inject_delay_seconds, keys,
+                                         key_count, interval_ms, 1, 0, 0, 1)) {
             return 3;
         }
         fflush(stdout);
@@ -810,7 +869,7 @@ int main(int argc, char **argv)
             return 3;
         }
         if (!e2r_start_key_sequence_dump(argv[2], total_seconds, ready_timeout_seconds, keys,
-                                         key_count, interval_ms, 1, 1, dump_seconds)) {
+                                         key_count, interval_ms, 1, 1, dump_seconds, 0)) {
             return 3;
         }
         fflush(stdout);
@@ -825,6 +884,7 @@ int main(int argc, char **argv)
     puts("Pass --inject-key-dump <path.pgm> <key|vk> [inject_seconds] [dump_seconds] to probe input.");
     puts("Pass --inject-key-surfaces <prefix> <key|vk> [inject_seconds] [dump_seconds] to probe input surfaces.");
     puts("Pass --inject-key-sequence-surfaces <prefix> <key[,key...]> [inject_seconds] [interval_ms] [dump_seconds] to probe input sequences.");
+    puts("Pass --inject-key-sequence-gameplay-surfaces <prefix> <key[,key...]> [inject_seconds] [interval_ms] [gameplay_timeout_seconds] to wait for first gameplay frame.");
     puts("Pass --inject-key-sequence-ready-surfaces <prefix> <key[,key...]> [ready_timeout_seconds] [interval_ms] [dump_seconds] to inject when requester-ready state appears.");
     return 0;
 }

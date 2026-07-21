@@ -224,7 +224,45 @@ move=[1,0,0,0,0,0,0,0,0]
 
 This satisfies the Step 10 gameplay-readiness proof for the debug build: the surface is a rendered 3D scene, the runtime is in gameplay state, and a movement key changes the movement-state array.
 
-The matching ASan probe exits cleanly without a sanitizer report, accepts the same movement key into `move[0]`, and dumps a nonblank surface, but it has not reached gameplay flags yet. Its current divergence is earlier in the FAN tail after `FUN_00444c10`: the tail parser reports an implausible `FUN_00447638 count=437055755` at offset `259247`, then exits the bounded run with `DAT_00479de8=0`, `DAT_0047a76c=0`, and `start_game entries=0`. The remaining closure work is to fix that ASan parser-alignment frontier, then decide which temporary diagnostics can be gated or removed.
+The matching ASan probe previously exited cleanly without a sanitizer report, accepted the same movement key into `move[0]`, and dumped a nonblank surface, but it did not reach gameplay flags because it diverged earlier in the FAN tail after `FUN_00444c10`: the tail parser reported an implausible `FUN_00447638 count=437055755` at offset `259247`.
+
+The next 2026-07-21 continuation fixed that ASan tail alignment by giving hosted `FUN_004173c8` the same binary-stream fast path as `FUN_004171b8`, preserving `FUN_004173c8`'s little-endian word order. ASan now reaches the same terrain/path count as debug:
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-surfaces /tmp/e2-step10-asan-173c8-space-num8 space,num8 6 10000 60
+
+FAN tail marker: value=0001 offset=259097 record=4
+FAN 47638 count: entries=49650 offset=291869 remaining=1807303
+FAN 47638 entry: index=0/49650 offset=291869 remaining=1807303
+...
+move=[1,0,0,0,0,0,0,0,0]
+```
+
+A longer ASan window (`180s`) still exits cleanly without a sanitizer report, but expires mid-table around `index=16384/49650`; this is now a runtime-cost/observation-window frontier rather than the former bad-count parser bug.
+
+One apparent current-build visual regression was only a too-early dump. Fixed-second dumps remain timing-sensitive, so the probe harness now has a gameplay-state wait that watches for StartGame entry, `DAT_00479de8`, and a live `_DAT_0073cc3c` actor pointer before dumping surfaces. A fresh debug run reaches the SCENES actor load, observes StartGame entry, accepts movement, and dumps the 3D village frame:
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-debug-gameplay-wait-space-num8 space,num8 6 10000 180
+
+gameplay-frame wait satisfied after 13630 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_0073cc3c=0x5664bff4
+wrote surface dump: /tmp/e2-step10-debug-gameplay-wait-space-num8-s3.pgm (surface 3 nonblank=1 hash=3615add9)
+DAT_00479de8=1 DAT_0047a76c=1 DAT_0047a43c=4 _DAT_0073cc3c=0x5664bff4
+start_game=[entries=1 player=0 mode=0 startup_scan=1793 startup_match=4 action_scan=148 action_match=2 dispatch=6 ...]
+move=[1,0,0,0,0,0,0,0,0]
+```
+
+Normal probes now suppress the high-volume FAN word/record/action parser diagnostics by default; set `E2R_FAN_DIAG=1` to restore those parser logs when chasing stream-alignment bugs. The same gameplay-waiting ASan probe exits `0` without sanitizer output, but still times out before StartGame in a `240s` window:
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-asan-gameplay-wait-space-num8 space,num8 6 10000 240
+
+gameplay-frame wait timed out after 234000 ms: start_game=0 DAT_00479de8=0 DAT_0047a76c=0 _DAT_0073cc3c=0x0
+wrote surface dump: /tmp/e2-step10-asan-gameplay-wait-space-num8-s3.pgm (surface 3 nonblank=1 hash=6e39f5ea)
+move=[1,0,0,0,0,0,0,0,0]
+```
+
+The remaining ASan frontier is therefore before StartGame entry in the pre-gameplay load path, with no sanitizer finding yet.
 
 ## Original Runtime Video Workflow Evidence
 

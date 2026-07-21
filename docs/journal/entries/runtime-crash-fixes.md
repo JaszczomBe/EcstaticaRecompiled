@@ -8,22 +8,23 @@ Area: original-video-shaped Step 10 quickstart, raw/title image loading, actor r
 
 Symptom: after `Space` skipped the intro path, the runtime alternated between raw-loader crashes, representation lookup crashes, opcode `0x54` actor reload crashes, FAN actor-child-table crashes, and post-load actor initialization crashes before the first controllable scene could be proven.
 
-Evidence: the final debug probe exits cleanly and dumps a nonblank rendered scene:
+Evidence: the final debug probe exits cleanly and dumps a nonblank rendered scene. After the ASan `FUN_004173c8` binary-reader fix, the reliable current-build debug visual proof uses the gameplay-state wait command rather than a fixed dump timestamp:
 
 ```text
-build/linux-clang32-debug/e2recomp --inject-key-sequence-surfaces /tmp/e2-step10-final-space-num8 space,num8 6 10000 25
+build/linux-clang32-debug/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-debug-gameplay-wait-space-num8 space,num8 6 10000 180
 
+gameplay-frame wait satisfied after 13630 ms
 surface 3 nonblank=1 hash=3615add9
-DAT_00479de8=1 DAT_0047a76c=1 DAT_0047a43c=4
+DAT_00479de8=1 DAT_0047a76c=1 DAT_0047a43c=4 _DAT_0073cc3c=0x5664bff4
 start_game=[entries=1 ... startup_scan=1793 startup_match=4 action_scan=148 action_match=2 dispatch=6 ...]
 move=[1,0,0,0,0,0,0,0,0]
 ```
 
-Change: replaced decompiler-lost `FUN_00449b4c` raw/title reads with explicit hosted file reads and explicit RLE expander source/destination pointers; recovered the hidden representation id through `FUN_00451998 -> FUN_00442420`; made opcode `0x54/0x55` carry the decoded actor id into `FUN_00451f5c`; guarded actor-load diagnostics against invalid ids; skipped unavailable FAN actor child-table links in record type `0x7`; and routed `FUN_00420dcc` through `E2R_actor_calc_context`. Mirrored the repairs in `E2Recomp/tools/GenerateRecon.js`.
+Change: replaced decompiler-lost `FUN_00449b4c` raw/title reads with explicit hosted file reads and explicit RLE expander source/destination pointers; recovered the hidden representation id through `FUN_00451998 -> FUN_00442420`; made opcode `0x54/0x55` carry the decoded actor id into `FUN_00451f5c`; guarded actor-load diagnostics against invalid ids; skipped unavailable FAN actor child-table links in record type `0x7`; routed `FUN_00420dcc` through `E2R_actor_calc_context`; added `--inject-key-sequence-gameplay-surfaces`; and gated high-volume FAN parser diagnostics behind `E2R_FAN_DIAG=1`. Mirrored the reconstructed repairs in `E2Recomp/tools/GenerateRecon.js`.
 
-Result: `node --check E2Recomp/tools/GenerateRecon.js`, `git diff --check`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. The debug `space,num8` probe now proves the original fast path reaches a rendered gameplay scene and accepts movement. The ASan `space,num8` probe exits `0` without a sanitizer report and accepts the movement key, but remains before gameplay (`DAT_00479de8=0`, `DAT_0047a76c=0`) after a FAN tail alignment divergence reports `FUN_00447638 count=437055755`.
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `git diff --check`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. The debug `space,num8` probe proved the original fast path reaches gameplay state and accepts movement. A follow-up ASan fix gave hosted `FUN_004173c8` a binary-stream fast path, resolving the ASan FAN tail divergence: ASan now reports `FUN_00447638 count=49650 offset=291869` instead of `437055755 offset=259247`. A `180s` ASan probe exits `0` without a sanitizer report and reaches `index=16384/49650` before the bounded dump.
 
-Next Frontier: fix the ASan FAN tail alignment divergence after `FUN_00444c10`, then rerun the same `Space`/freeing-animation/gameplay probe and prune or gate the noisy FAN/action/actor diagnostics once both builds agree.
+Next Frontier: debug has a stable gameplay-frame proof. ASan is now quiet and exits `0` without sanitizer output, but the gameplay-wait probe still times out before StartGame in a `240s` window (`start_game=0`, logo hash `6e39f5ea`). Continue from the ASan pre-StartGame load path or optimize the ASan probe enough to reach the same state.
 
 Regression Risk: the actor-child-table type `0x7` guard skips a link when the parent child table is not yet available, rather than fully reconstructing the intended link timing. This is acceptable for the first-control proof, but actor hierarchy fidelity should be revisited after Step 10 closure.
 
