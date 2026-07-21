@@ -68,6 +68,10 @@ extern uintptr_t E2R_start_code_probe_dispatches;
 extern uintptr_t E2R_start_code_probe_last_node;
 extern uintptr_t E2R_start_code_probe_last_name_index;
 extern uintptr_t E2R_start_code_probe_last_bytecode_offset;
+extern uintptr_t E2R_action_opcode_count;
+extern uintptr_t E2R_action_last_opcode;
+extern uintptr_t E2R_action_last_cursor;
+extern uintptr_t E2R_action_hit_75_count;
 
 static uintptr_t e2r_surface_framebuffer(unsigned surface)
 {
@@ -193,6 +197,24 @@ static int e2r_write_surface_set(const char *prefix)
 {
     unsigned surface;
     int wrote = 0;
+    unsigned width = (unsigned)_DAT_006401ec;
+    unsigned height = (unsigned)_DAT_006401d4;
+    size_t bytes = 0;
+
+    if (width != 0 && height != 0 && width <= 4096 && height <= 4096) {
+        bytes = (size_t)width * (size_t)height;
+    }
+
+    fprintf(stderr,
+            "surface dump state: width=%u height=%u visible=%u "
+            "fb=[0x%lx,0x%lx,0x%lx,0x%lx] bad=[%d,%d,%d,%d]\n",
+            width, height, (unsigned)(DAT_0047a279 >> 24) & 3u,
+            (unsigned long)_DAT_00636150, (unsigned long)_DAT_00636154,
+            (unsigned long)_DAT_00636158, (unsigned long)_DAT_0063615c,
+            bytes == 0 ? 1 : IsBadReadPtr((const void *)_DAT_00636150, bytes),
+            bytes == 0 ? 1 : IsBadReadPtr((const void *)_DAT_00636154, bytes),
+            bytes == 0 ? 1 : IsBadReadPtr((const void *)_DAT_00636158, bytes),
+            bytes == 0 ? 1 : IsBadReadPtr((const void *)_DAT_0063615c, bytes));
 
     for (surface = 0; surface < 4; surface++) {
         char path[512];
@@ -423,7 +445,8 @@ static void *e2r_frame_dump_thread(void *arg)
                     "actions=%lu last_action=0x%lx] "
                     "start_game=[entries=%lu player=%lu mode=%lu "
                     "startup_scan=%lu startup_match=%lu action_scan=%lu action_match=%lu "
-                    "dispatch=%lu node=0x%lx name=%lu code=0x%lx] "
+                    "dispatch=%lu node=0x%lx name=%lu code=0x%lx "
+                    "opcodes=%lu last_opcode=0x%lx last_cursor=0x%lx hit75=%lu] "
                     "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu]\n",
                     (unsigned long)DAT_00636844, (unsigned long)DAT_00636853,
                     (unsigned long)_DAT_00643650, (unsigned long)DAT_00479de8,
@@ -471,6 +494,10 @@ static void *e2r_frame_dump_thread(void *arg)
                     (unsigned long)E2R_start_code_probe_last_node,
                     (unsigned long)E2R_start_code_probe_last_name_index,
                     (unsigned long)E2R_start_code_probe_last_bytecode_offset,
+                    (unsigned long)E2R_action_opcode_count,
+                    (unsigned long)E2R_action_last_opcode,
+                    (unsigned long)E2R_action_last_cursor,
+                    (unsigned long)E2R_action_hit_75_count,
                     (unsigned long)DAT_00636859,
                     (unsigned long)DAT_00636858, (unsigned long)DAT_0063685b,
                     (unsigned long)DAT_00636854, (unsigned long)DAT_00636856,

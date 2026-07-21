@@ -49,6 +49,10 @@ uintptr_t E2R_start_code_probe_dispatches;
 uintptr_t E2R_start_code_probe_last_node;
 uintptr_t E2R_start_code_probe_last_name_index;
 uintptr_t E2R_start_code_probe_last_bytecode_offset;
+uintptr_t E2R_action_opcode_count;
+uintptr_t E2R_action_last_opcode;
+uintptr_t E2R_action_last_cursor;
+uintptr_t E2R_action_hit_75_count;
 static uintptr_t E2R_requester_probe_pending_keys[16];
 
 static unsigned char *E2R_legacy_queue(unsigned address) {

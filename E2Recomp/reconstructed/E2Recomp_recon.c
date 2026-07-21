@@ -16,7 +16,28 @@ static uint E2R_file_flags[256];
 static uint E2R_open_diag_count;
 static uint E2R_archive_read_diag_count;
 static uint E2R_archive_resource_diag_count;
+static uint E2R_archive_parse_summary_count;
+static uint E2R_actor_load_diag_count;
 static int E2R_actor_load_id_override = -1;
+static int *E2R_fan_parse_stream;
+static short *E2R_fan_parse_record;
+static uint E2R_fan_parse_record_count;
+static uint E2R_fan_word_read_diag_count;
+static uint E2R_fan_action_read_diag_count;
+static uint E2R_fan_dispatch_diag_count;
+static uint E2R_fan_actor_diag_count;
+static uint E2R_fan_action_summary_diag_count;
+static uint E2R_fan_phase_diag_count;
+static int E2R_actor_calc_context;
+
+static uint E2R_FanStreamOffset(void)
+{
+  if (E2R_fan_parse_stream == (int *)0x0 || IsBadReadPtr(E2R_fan_parse_stream,0x1c)) {
+    return 0;
+  }
+  return (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -
+                (byte *)(uintptr_t)E2R_fan_parse_stream[5]);
+}
 #define E2R_STREAM_MAGIC 0xe25eed01u
 
 static int E2R_round_to_int(double value)
@@ -44,26 +65,6 @@ static short E2R_clamp_short(int value)
     return 32767;
   }
   return (short)value;
-}
-
-static short *E2R_action_dispatch_node;
-static int *E2R_fan_parse_stream;
-static short *E2R_fan_parse_record;
-static uint E2R_fan_parse_record_count;
-static uint E2R_fan_word_read_diag_count;
-static uint E2R_fan_action_read_diag_count;
-static uint E2R_fan_dispatch_diag_count;
-static uint E2R_fan_actor_diag_count;
-static uint E2R_fan_action_summary_diag_count;
-static uint E2R_fan_phase_diag_count;
-
-static uint E2R_FanStreamOffset(void)
-{
-  if (E2R_fan_parse_stream == (int *)0x0 || IsBadReadPtr(E2R_fan_parse_stream,0x1c)) {
-    return 0;
-  }
-  return (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -
-                (byte *)(uintptr_t)E2R_fan_parse_stream[5]);
 }
 
 static int E2R_ReadHostedStreamByte(undefined4 *stream)
@@ -117,446 +118,6 @@ static int E2R_ReadFanWordByte(int *stream)
     }
   }
   return E2R_ReadHostedStreamByte((undefined4 *)stream);
-}
-
-static short E2R_InternPackedName(char *input,char *table,uint capacity,short max_names)
-{
-  uint input_length;
-  uint length;
-  uint offset = 0;
-  short index = 0;
-
-  if (input == (char *)0x0 || table == (char *)0x0 || IsBadReadPtr(input,1) ||
-      IsBadReadPtr(table,capacity)) {
-    return -1;
-  }
-  for (input_length = 0; input_length < 0x100; input_length = input_length + 1) {
-    if (IsBadReadPtr(input + input_length,1)) {
-      return -1;
-    }
-    if (input[input_length] == '\0') {
-      break;
-    }
-  }
-  if (input_length == 0x100) {
-    return -1;
-  }
-  while (index < max_names && offset < capacity) {
-    for (length = 0; offset + length < capacity; length = length + 1) {
-      if (table[offset + length] == '\0') {
-        break;
-      }
-    }
-    if (offset + length == capacity) {
-      return -1;
-    }
-    if (length == input_length && memcmp(table + offset,input,length + 1) == 0) {
-      return index;
-    }
-    if (length == 0) {
-      if (capacity - offset < input_length + 2) {
-        return -1;
-      }
-      memcpy(table + offset,input,input_length + 1);
-      table[offset + input_length + 1] = '\0';
-      return index;
-    }
-    offset = offset + length + 1;
-    index = index + 1;
-  }
-  return -1;
-}
-
-static short E2R_FindPackedNameIndex(char *input,char *table,uint capacity,short max_names)
-{
-  uint input_length;
-  uint length;
-  uint offset = 0;
-  short index = 0;
-
-  if (input == (char *)0x0 || table == (char *)0x0 || IsBadReadPtr(input,1) ||
-      IsBadReadPtr(table,1)) {
-    return -1;
-  }
-  for (input_length = 0; input_length < 0x100; input_length = input_length + 1) {
-    if (IsBadReadPtr(input + input_length,1)) {
-      return -1;
-    }
-    if (input[input_length] == '\0') {
-      break;
-    }
-  }
-  if (input_length == 0x100) {
-    return -1;
-  }
-  while (index < max_names && offset < capacity) {
-    for (length = 0; offset + length < capacity; length = length + 1) {
-      if (table[offset + length] == '\0') {
-        break;
-      }
-    }
-    if (offset + length == capacity) {
-      return -1;
-    }
-    if (length == input_length && memcmp(table + offset,input,length + 1) == 0) {
-      return index;
-    }
-    if (length == 0) {
-      return -1;
-    }
-    offset = offset + length + 1;
-    index = index + 1;
-  }
-  return -1;
-}
-
-static char *E2R_ActionNameByIndex(short index)
-{
-  char *cursor = (char *)(uintptr_t)_DAT_00636698;
-  int item;
-  uint length;
-
-  if (index < 0 || 0x4000 < index || (uintptr_t)cursor < 0x10000u ||
-      (uintptr_t)cursor >= 0x70000000u || IsBadReadPtr(cursor,1)) {
-    return (char *)0x0;
-  }
-  for (item = 0; item < (int)index; item = item + 1) {
-    for (length = 0; length < 0x100; length = length + 1) {
-      if (IsBadReadPtr(cursor + length,1)) {
-        return (char *)0x0;
-      }
-      if (cursor[length] == '\0') {
-        cursor = cursor + length + 1;
-        break;
-      }
-    }
-    if (length == 0x100) {
-      return (char *)0x0;
-    }
-  }
-  for (length = 0; length < 0x100; length = length + 1) {
-    if (IsBadReadPtr(cursor + length,1)) {
-      return (char *)0x0;
-    }
-    if (cursor[length] == '\0') {
-      return cursor;
-    }
-  }
-  return (char *)0x0;
-}
-
-static char *E2R_ActionCodeName(short *action)
-{
-  if (action == (short *)0x0 || IsBadReadPtr(action,0xe)) {
-    return (char *)0x0;
-  }
-  return E2R_ActionNameByIndex(*action);
-}
-
-static int E2R_ascii_lower(int value)
-{
-  if ('A' <= value && value <= 'Z') {
-    return value + ('a' - 'A');
-  }
-  return value;
-}
-
-static int E2R_CaseEqualBounded(char *left,char *right,uint limit)
-{
-  uint i;
-
-  if (left == (char *)0x0 || right == (char *)0x0) {
-    return 0;
-  }
-  for (i = 0; i < limit; i = i + 1) {
-    int l;
-    int r;
-
-    if (IsBadReadPtr(left + i,1) || IsBadReadPtr(right + i,1)) {
-      return 0;
-    }
-    l = (byte)left[i];
-    r = (byte)right[i];
-    if (E2R_ascii_lower(l) != E2R_ascii_lower(r)) {
-      return 0;
-    }
-    if (l == 0) {
-      return 1;
-    }
-  }
-  return 0;
-}
-
-static int E2R_FanActionPassesFilter(short action_index)
-{
-  char *filter = (char *)0x0047a458;
-  char *name;
-
-  if (IsBadReadPtr(filter,1) || filter[0] == '\0') {
-    return 1;
-  }
-  name = E2R_ActionNameByIndex(action_index);
-  return E2R_CaseEqualBounded(filter,name,0x100);
-}
-
-static uint E2R_CountActionList(short *head)
-{
-  short *node = head;
-  uint count = 0;
-
-  while (node != (short *)0x0 && count < 0x4000 && !IsBadReadPtr(node,0xe)) {
-    count = count + 1;
-    node = *(short **)(node + 5);
-  }
-  return count;
-}
-
-static uint E2R_CountActionTable(void)
-{
-  short **table = (short **)0x006297c0;
-  uint count = 0;
-  uint index;
-
-  if (IsBadReadPtr(table,0x4000 * sizeof(short *))) {
-    return 0;
-  }
-  for (index = 0; index < 0x4000; index = index + 1) {
-    if (table[index] != (short *)0x0) {
-      count = count + 1;
-    }
-  }
-  return count;
-}
-
-static int E2R_ReadFanTextByte(int *stream)
-{
-  byte *cursor;
-  int value;
-  undefined8 read;
-
-  if (stream == (int *)0x0 || IsBadReadPtr(stream,0x1c)) {
-    return 0;
-  }
-  if (0 < stream[1] && ((*(byte *)(stream + 3) & 4) == 0)) {
-    cursor = (byte *)(uintptr_t)stream[0];
-    if (!IsBadReadPtr(cursor,1) && *cursor != '\r' && *cursor != '\x1a') {
-      value = (int)*cursor;
-      stream[0] = (int)(uintptr_t)(cursor + 1);
-      stream[1] = stream[1] + -1;
-      return value;
-    }
-  }
-  read = FUN_0045f38a((undefined4)(uintptr_t)stream,(undefined4)(uintptr_t)stream);
-  return (int)read & 0xff;
-}
-
-static void E2R_SkipFanTextString(int *stream)
-{
-  while (E2R_ReadFanTextByte(stream) != 0) {
-  }
-}
-
-static void E2R_ReadFanChildName(int *stream,char *target,uint target_size)
-{
-  uint length = 0;
-  int value;
-
-  if (target != (char *)0x0 && target_size != 0 && !E2R_IsBadWritePtr(target,target_size)) {
-    memset(target,' ',target_size);
-  }
-  do {
-    value = E2R_ReadFanTextByte(stream);
-    if (value != 0 && target != (char *)0x0 && length < target_size &&
-        !E2R_IsBadWritePtr(target + length,1)) {
-      target[length] = (char)value;
-    }
-    length = length + 1;
-  } while (value != 0);
-}
-
-static void E2R_NormalizeFanChildName(char *target,uint target_size)
-{
-  static char not_present[] = "NOT Present";
-  static char check_actor[] = "CheckActor";
-  uint offset;
-  uint needle_length = (uint)strlen(not_present);
-
-  if (target == (char *)0x0 || target_size <= needle_length ||
-      E2R_IsBadWritePtr(target,target_size)) {
-    return;
-  }
-  for (offset = 0; offset < target_size - needle_length; offset = offset + 1) {
-    if (memcmp(target + offset,not_present,needle_length) == 0) {
-      memcpy(target + offset,check_actor,strlen(check_actor) + 1);
-      return;
-    }
-  }
-}
-
-static int E2R_ActionCodeMatches(short *action,char *suffix)
-{
-  char *name = E2R_ActionCodeName(action);
-  size_t length;
-
-  if (name == (char *)0x0) {
-    return 0;
-  }
-  length = strlen(name);
-  return 4 < length && strcmp(name + 4,suffix) == 0;
-}
-
-static short *E2R_FindActionCodeBySuffix(char *suffix)
-{
-  short *node;
-  short **table;
-  uint guard;
-  uint index;
-
-  node = _DAT_00637250;
-  for (guard = 0; node != (short *)0x0 && guard < 0x4000 &&
-       !IsBadReadPtr(node,0xe); guard = guard + 1) {
-    if (E2R_ActionCodeMatches(node,suffix)) {
-      return node;
-    }
-    node = *(short **)(node + 5);
-  }
-
-  table = (short **)0x006297c0;
-  if (!IsBadReadPtr(table,0x4000 * sizeof(short *))) {
-    for (index = 0; index < 0x4000; index = index + 1) {
-      node = table[index];
-      if (node != (short *)0x0 && (uintptr_t)node < 0x70000000u &&
-          !IsBadReadPtr(node,0xe) && E2R_ActionCodeMatches(node,suffix)) {
-        return node;
-      }
-    }
-  }
-  return (short *)0x0;
-}
-
-static void E2R_InvokeActionCode(short *action)
-{
-  E2R_start_code_probe_dispatches++;
-  E2R_start_code_probe_last_node = (uintptr_t)action;
-  E2R_start_code_probe_last_name_index = (ushort)action[0];
-  E2R_start_code_probe_last_bytecode_offset = *(uint *)(action + 3);
-  E2R_action_dispatch_node = action;
-  FUN_0044f2fc();
-  E2R_action_dispatch_node = (short *)0x0;
-}
-
-static int E2R_InvokeRequesterAction(uintptr_t action)
-{
-  ushort requester_id = E2R_WORD_AT(DAT_0047a45e,2);
-
-  if (action == (uintptr_t)&LAB_0043c594) {
-    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643dc4) {
-      _DAT_006443d2 = (_DAT_006443d2 & 0xffff) | 0x10000;
-      if (_DAT_00643430 == (short *)0x00643dc4) {
-        _DAT_00643650 = 6;
-      }
-      return 1;
-    }
-  }
-  if (action == (uintptr_t)&LAB_0043d458) {
-    _DAT_00643650 = 0;
-    return 1;
-  }
-  if (action == (uintptr_t)&LAB_0043d464) {
-    _DAT_00643650 = 1;
-    return 1;
-  }
-  if (action == (uintptr_t)&LAB_0043d470) {
-    _DAT_00643650 = 2;
-    return 1;
-  }
-  if (action == (uintptr_t)&LAB_0043d47c) {
-    if (DAT_0047a76c == 0) {
-      _DAT_00643650 = 3;
-    }
-    return 1;
-  }
-  if (action == (uintptr_t)&LAB_0043d490) {
-    _DAT_00643650 = 4;
-    return 1;
-  }
-  if (action == (uintptr_t)&DAT_0043d49c) {
-    uintptr_t prompt = 0x004729b8;
-    if (DAT_00479e00 != 0 && !IsBadReadPtr((void *)0x0060aef0,4) &&
-        *(uintptr_t *)0x0060aef0 != 0) {
-      prompt = *(uintptr_t *)0x0060aef0;
-    }
-    _DAT_00643650 = ((int)FUN_0043c910((undefined4)prompt,0) != 0) ? 6 : 5;
-    return 1;
-  }
-  if (action == (uintptr_t)&DAT_0043d4c0) {
-    return 1;
-  }
-  if (action == (uintptr_t)&LAB_0043d83c) {
-    if (DAT_0047d0c4 == 0) {
-      return 1;
-    }
-    FUN_0044e5b0();
-    if (DAT_0047a43c != 0) {
-      FUN_0043acec();
-    }
-    else {
-      FUN_0043ac60();
-    }
-    DAT_0047a440 = DAT_0047a43c;
-    FUN_0044e5b0();
-    FUN_004559bc();
-    FUN_00456f94();
-    FUN_004211c8(0,0);
-    FUN_00421a14();
-    FUN_00421f54(0);
-    FUN_00422238(0,0);
-    FUN_0043d8ec();
-    FUN_0043d934();
-    FUN_0043d9a0();
-    FUN_0043da04();
-    FUN_0043da80();
-    return 1;
-  }
-  if (action == (uintptr_t)&LAB_0043c4e8) {
-    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643c84) {
-      _DAT_006443d2 = _DAT_006443d2 & 0xffff;
-      if (_DAT_00643430 == (short *)0x00643c84) {
-        _DAT_00643650 = 5;
-      }
-      return 1;
-    }
-    if (requester_id == 0x27 || requester_id == 0x28) {
-      _DAT_00643650 = 5;
-      return 1;
-    }
-    if (requester_id == 0x2a) {
-      _DAT_0064353c = 0;
-      return 1;
-    }
-  }
-  return 0;
-}
-
-static short *E2R_RequesterFirstSelectable(short *item)
-{
-  uint guard = 0;
-  short *first_readable = (short *)0x0;
-
-  while (item != (short *)0x0 && guard < 0x80) {
-    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {
-      return (short *)0x0;
-    }
-    if (first_readable == (short *)0x0) {
-      first_readable = item;
-    }
-    if ((*(byte *)((int)item + 0x11) & 0x10) != 0) {
-      return item;
-    }
-    item = *(short **)(item + 9);
-    guard++;
-  }
-  return first_readable;
 }
 
 static undefined4 E2R_OpenReadStream(LPCSTR path)
@@ -698,6 +259,122 @@ static void E2R_UseHostedCdPath(char *path)
   if ((path[0] != '\0' && path[1] == ':') || path[0] == '\\' || path[0] == '/') {
     path[0] = '\0';
   }
+}
+
+
+static int E2R_InvokeRequesterAction(uintptr_t action)
+{
+  ushort requester_id = E2R_WORD_AT(DAT_0047a45e,2);
+
+  if (action == (uintptr_t)&LAB_0043c594) {
+    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643dc4) {
+      _DAT_006443d2 = (_DAT_006443d2 & 0xffff) | 0x10000;
+      if (_DAT_00643430 == (short *)0x00643dc4) {
+        _DAT_00643650 = 6;
+      }
+      return 1;
+    }
+  }
+  if (action == (uintptr_t)&LAB_0043d458) {
+    _DAT_00643650 = 0;
+    return 1;
+  }
+  if (action == (uintptr_t)&LAB_0043d464) {
+    _DAT_00643650 = 1;
+    return 1;
+  }
+  if (action == (uintptr_t)&LAB_0043d470) {
+    _DAT_00643650 = 2;
+    return 1;
+  }
+  if (action == (uintptr_t)&LAB_0043d47c) {
+    if (DAT_0047a76c == 0) {
+      _DAT_00643650 = 3;
+    }
+    return 1;
+  }
+  if (action == (uintptr_t)&LAB_0043d490) {
+    _DAT_00643650 = 4;
+    return 1;
+  }
+  if (action == (uintptr_t)&DAT_0043d49c) {
+    uintptr_t prompt = 0x004729b8;
+    if (DAT_00479e00 != 0 && !IsBadReadPtr((void *)0x0060aef0,4) &&
+        *(uintptr_t *)0x0060aef0 != 0) {
+      prompt = *(uintptr_t *)0x0060aef0;
+    }
+    _DAT_00643650 = ((int)FUN_0043c910((undefined4)prompt,0) != 0) ? 6 : 5;
+    return 1;
+  }
+  if (action == (uintptr_t)&DAT_0043d4c0) {
+    return 1;
+  }
+  if (action == (uintptr_t)&LAB_0043d83c) {
+    if (DAT_0047d0c4 == 0) {
+      return 1;
+    }
+    FUN_0044e5b0();
+    if (DAT_0047a43c != 0) {
+      FUN_0043acec();
+    }
+    else {
+      FUN_0043ac60();
+    }
+    DAT_0047a440 = DAT_0047a43c;
+    FUN_0044e5b0();
+    FUN_004559bc();
+    FUN_00456f94();
+    FUN_004211c8(0,0);
+    FUN_00421a14();
+    FUN_00421f54(0);
+    FUN_00422238(0,0);
+    FUN_0043d8ec();
+    FUN_0043d934();
+    FUN_0043d9a0();
+    FUN_0043da04();
+    FUN_0043da80();
+    return 1;
+  }
+  if (action == (uintptr_t)&LAB_0043c4e8) {
+    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643c84) {
+      _DAT_006443d2 = _DAT_006443d2 & 0xffff;
+      if (_DAT_00643430 == (short *)0x00643c84) {
+        _DAT_00643650 = 5;
+      }
+      return 1;
+    }
+    if (requester_id == 0x27 || requester_id == 0x28) {
+      _DAT_00643650 = 5;
+      return 1;
+    }
+    if (requester_id == 0x2a) {
+      _DAT_0064353c = 0;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
+static short *E2R_RequesterFirstSelectable(short *item)
+{
+  uint guard = 0;
+  short *first_readable = (short *)0x0;
+
+  while (item != (short *)0x0 && guard < 0x80) {
+    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {
+      return (short *)0x0;
+    }
+    if (first_readable == (short *)0x0) {
+      first_readable = item;
+    }
+    if ((*(byte *)((int)item + 0x11) & 0x10) != 0) {
+      return item;
+    }
+    item = *(short **)(item + 9);
+    guard++;
+  }
+  return first_readable;
 }
 
 
@@ -1340,6 +1017,335 @@ static void E2R_InitRequesterYesNoPromptItems(void)
   }
 }
 
+static short E2R_InternPackedName(char *input,char *table,uint capacity,short max_names)
+{
+  uint input_length;
+  uint length;
+  uint offset = 0;
+  short index = 0;
+
+  if (input == (char *)0x0 || table == (char *)0x0 || IsBadReadPtr(input,1) ||
+      IsBadReadPtr(table,capacity)) {
+    return -1;
+  }
+  for (input_length = 0; input_length < 0x100; input_length = input_length + 1) {
+    if (IsBadReadPtr(input + input_length,1)) {
+      return -1;
+    }
+    if (input[input_length] == '\0') {
+      break;
+    }
+  }
+  if (input_length == 0x100) {
+    return -1;
+  }
+  while (index < max_names && offset < capacity) {
+    for (length = 0; offset + length < capacity; length = length + 1) {
+      if (table[offset + length] == '\0') {
+        break;
+      }
+    }
+    if (offset + length == capacity) {
+      return -1;
+    }
+    if (length == input_length && memcmp(table + offset,input,length + 1) == 0) {
+      return index;
+    }
+    if (length == 0) {
+      if (capacity - offset < input_length + 2) {
+        return -1;
+      }
+      memcpy(table + offset,input,input_length + 1);
+      table[offset + input_length + 1] = '\0';
+      return index;
+    }
+    offset = offset + length + 1;
+    index = index + 1;
+  }
+  return -1;
+}
+
+static short E2R_FindPackedNameIndex(char *input,char *table,uint capacity,short max_names)
+{
+  uint input_length;
+  uint length;
+  uint offset = 0;
+  short index = 0;
+
+  if (input == (char *)0x0 || table == (char *)0x0 || IsBadReadPtr(input,1) ||
+      IsBadReadPtr(table,1)) {
+    return -1;
+  }
+  for (input_length = 0; input_length < 0x100; input_length = input_length + 1) {
+    if (IsBadReadPtr(input + input_length,1)) {
+      return -1;
+    }
+    if (input[input_length] == '\0') {
+      break;
+    }
+  }
+  if (input_length == 0x100) {
+    return -1;
+  }
+  while (index < max_names && offset < capacity) {
+    for (length = 0; offset + length < capacity; length = length + 1) {
+      if (table[offset + length] == '\0') {
+        break;
+      }
+    }
+    if (offset + length == capacity) {
+      return -1;
+    }
+    if (length == input_length && memcmp(table + offset,input,length + 1) == 0) {
+      return index;
+    }
+    if (length == 0) {
+      return -1;
+    }
+    offset = offset + length + 1;
+    index = index + 1;
+  }
+  return -1;
+}
+
+
+static short *E2R_action_dispatch_node;
+
+static char *E2R_ActionNameByIndex(short index)
+{
+  char *cursor = (char *)(uintptr_t)_DAT_00636698;
+  int item;
+  uint length;
+
+  if (index < 0 || 0x4000 < index || (uintptr_t)cursor < 0x10000u ||
+      (uintptr_t)cursor >= 0x70000000u || IsBadReadPtr(cursor,1)) {
+    return (char *)0x0;
+  }
+  for (item = 0; item < (int)index; item = item + 1) {
+    for (length = 0; length < 0x100; length = length + 1) {
+      if (IsBadReadPtr(cursor + length,1)) {
+        return (char *)0x0;
+      }
+      if (cursor[length] == '\0') {
+        cursor = cursor + length + 1;
+        break;
+      }
+    }
+    if (length == 0x100) {
+      return (char *)0x0;
+    }
+  }
+  for (length = 0; length < 0x100; length = length + 1) {
+    if (IsBadReadPtr(cursor + length,1)) {
+      return (char *)0x0;
+    }
+    if (cursor[length] == '\0') {
+      return cursor;
+    }
+  }
+  return (char *)0x0;
+}
+
+static char *E2R_ActionCodeName(short *action)
+{
+  if (action == (short *)0x0 || IsBadReadPtr(action,0xe)) {
+    return (char *)0x0;
+  }
+  return E2R_ActionNameByIndex(*action);
+}
+
+static int E2R_ascii_lower(int value)
+{
+  if ('A' <= value && value <= 'Z') {
+    return value + ('a' - 'A');
+  }
+  return value;
+}
+
+static int E2R_CaseEqualBounded(char *left,char *right,uint limit)
+{
+  uint i;
+
+  if (left == (char *)0x0 || right == (char *)0x0) {
+    return 0;
+  }
+  for (i = 0; i < limit; i = i + 1) {
+    int l;
+    int r;
+
+    if (IsBadReadPtr(left + i,1) || IsBadReadPtr(right + i,1)) {
+      return 0;
+    }
+    l = (byte)left[i];
+    r = (byte)right[i];
+    if (E2R_ascii_lower(l) != E2R_ascii_lower(r)) {
+      return 0;
+    }
+    if (l == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int E2R_FanActionPassesFilter(short action_index)
+{
+  char *filter = (char *)0x0047a458;
+  char *name;
+
+  if (IsBadReadPtr(filter,1) || filter[0] == '\0') {
+    return 1;
+  }
+  name = E2R_ActionNameByIndex(action_index);
+  return E2R_CaseEqualBounded(filter,name,0x100);
+}
+
+static uint E2R_CountActionList(short *head)
+{
+  short *node = head;
+  uint count = 0;
+
+  while (node != (short *)0x0 && count < 0x4000 && !IsBadReadPtr(node,0xe)) {
+    count = count + 1;
+    node = *(short **)(node + 5);
+  }
+  return count;
+}
+
+static uint E2R_CountActionTable(void)
+{
+  short **table = (short **)0x006297c0;
+  uint count = 0;
+  uint index;
+
+  if (IsBadReadPtr(table,0x4000 * sizeof(short *))) {
+    return 0;
+  }
+  for (index = 0; index < 0x4000; index = index + 1) {
+    if (table[index] != (short *)0x0) {
+      count = count + 1;
+    }
+  }
+  return count;
+}
+
+static int E2R_ReadFanTextByte(int *stream)
+{
+  byte *cursor;
+  int value;
+  undefined8 read;
+
+  if (stream == (int *)0x0 || IsBadReadPtr(stream,0x1c)) {
+    return 0;
+  }
+  if (0 < stream[1] && ((*(byte *)(stream + 3) & 4) == 0)) {
+    cursor = (byte *)(uintptr_t)stream[0];
+    if (!IsBadReadPtr(cursor,1) && *cursor != '\r' && *cursor != '\x1a') {
+      value = (int)*cursor;
+      stream[0] = (int)(uintptr_t)(cursor + 1);
+      stream[1] = stream[1] + -1;
+      return value;
+    }
+  }
+  read = FUN_0045f38a((undefined4)(uintptr_t)stream,(undefined4)(uintptr_t)stream);
+  return (int)read & 0xff;
+}
+
+static void E2R_SkipFanTextString(int *stream)
+{
+  while (E2R_ReadFanTextByte(stream) != 0) {
+  }
+}
+
+static void E2R_ReadFanChildName(int *stream,char *target,uint target_size)
+{
+  uint length = 0;
+  int value;
+
+  if (target != (char *)0x0 && target_size != 0 && !E2R_IsBadWritePtr(target,target_size)) {
+    memset(target,' ',target_size);
+  }
+  do {
+    value = E2R_ReadFanTextByte(stream);
+    if (value != 0 && target != (char *)0x0 && length < target_size &&
+        !E2R_IsBadWritePtr(target + length,1)) {
+      target[length] = (char)value;
+    }
+    length = length + 1;
+  } while (value != 0);
+}
+
+static void E2R_NormalizeFanChildName(char *target,uint target_size)
+{
+  static char not_present[] = "NOT Present";
+  static char check_actor[] = "CheckActor";
+  uint offset;
+  uint needle_length = (uint)strlen(not_present);
+
+  if (target == (char *)0x0 || target_size <= needle_length ||
+      E2R_IsBadWritePtr(target,target_size)) {
+    return;
+  }
+  for (offset = 0; offset < target_size - needle_length; offset = offset + 1) {
+    if (memcmp(target + offset,not_present,needle_length) == 0) {
+      memcpy(target + offset,check_actor,strlen(check_actor) + 1);
+      return;
+    }
+  }
+}
+
+static int E2R_ActionCodeMatches(short *action,char *suffix)
+{
+  char *name = E2R_ActionCodeName(action);
+  size_t length;
+
+  if (name == (char *)0x0) {
+    return 0;
+  }
+  length = strlen(name);
+  return 4 < length && strcmp(name + 4,suffix) == 0;
+}
+
+static short *E2R_FindActionCodeBySuffix(char *suffix)
+{
+  short *node;
+  short **table;
+  uint guard;
+  uint index;
+
+  node = _DAT_00637250;
+  for (guard = 0; node != (short *)0x0 && guard < 0x4000 &&
+       !IsBadReadPtr(node,0xe); guard = guard + 1) {
+    if (E2R_ActionCodeMatches(node,suffix)) {
+      return node;
+    }
+    node = *(short **)(node + 5);
+  }
+
+  table = (short **)0x006297c0;
+  if (!IsBadReadPtr(table,0x4000 * sizeof(short *))) {
+    for (index = 0; index < 0x4000; index = index + 1) {
+      node = table[index];
+      if (node != (short *)0x0 && (uintptr_t)node < 0x70000000u &&
+          !IsBadReadPtr(node,0xe) && E2R_ActionCodeMatches(node,suffix)) {
+        return node;
+      }
+    }
+  }
+  return (short *)0x0;
+}
+
+static void E2R_InvokeActionCode(short *action)
+{
+  E2R_start_code_probe_dispatches++;
+  E2R_start_code_probe_last_node = (uintptr_t)action;
+  E2R_start_code_probe_last_name_index = (ushort)action[0];
+  E2R_start_code_probe_last_bytecode_offset = *(uint *)(action + 3);
+  E2R_action_dispatch_node = action;
+  FUN_0044f2fc();
+  E2R_action_dispatch_node = (short *)0x0;
+}
+
 
 /* 00410078 */
 
@@ -1467,7 +1473,7 @@ void __fastcall FUN_0041007c(undefined4 param_1)
   byte bStack_52;
   undefined1 auStack_48 [32];
   char acStack_28 [9];
-  
+
   _DAT_0063667c = 0;
   _DAT_00636690 = 0;
   _DAT_00636684 = 0;
@@ -1881,7 +1887,7 @@ void __fastcall FUN_00410a48(undefined4 param_1)
   int local_40;
   int local_34;
   int local_28;
-  
+
   uVar11 = FUN_00457fe0(param_1,1);
   DAT_0047a43c = (undefined4)((ulonglong)uVar11 >> 0x20);
   FUN_00439408();
@@ -6066,7 +6072,7 @@ void __fastcall FUN_00413ea4(undefined4 param_1)
   int iVar1;
   int in_EAX;
   int unaff_EBX;
-  
+
   iVar1 = DAT_00479dbc;
   if ((((*(int *)(in_EAX + 8) != 0) && (*(int *)(in_EAX + 0xc) != 0)) &&
       ((DAT_0047a34a == 0 || (DAT_0047a348 == 1)))) &&
@@ -6086,7 +6092,7 @@ undefined8 __fastcall FUN_004142b8(undefined4 param_1,undefined4 param_2)
   undefined4 in_EAX;
   undefined4 extraout_ECX;
   undefined8 uVar1;
-  
+
   (void)param_1;
   (void)in_EAX;
   (void)extraout_ECX;
@@ -6155,7 +6161,7 @@ longlong __fastcall FUN_004142e4(undefined4 param_1,uint param_2)
   undefined1 local_58 [52];
   char local_24 [8];
   undefined1 local_1c;
-  
+
   (void)param_1;
   if (DAT_00479e3c == (char *)0x0) {
     FUN_004142b8(0xc350,param_2);
@@ -6437,7 +6443,7 @@ void __fastcall FUN_00414690(undefined4 param_1,undefined4 param_2)
 {
   byte bVar1;
   int iVar2;
-  
+
   if (DAT_0047a43c == 0) {
     do {
       bVar1 = in(0x3da);
@@ -6480,7 +6486,7 @@ undefined8 __fastcall FUN_004146c0(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX_01;
   undefined4 extraout_EDX_02;
   undefined8 uVar5;
-  
+
   if (DAT_0047a43c != 0) {
     uVar2 = DAT_0047a2b0;
     if (DAT_0047a2b0 < 2) goto LAB_004147d4;
@@ -6537,7 +6543,7 @@ void __fastcall FUN_004147dc(undefined4 param_1)
   undefined4 extraout_ECX_03;
   undefined4 extraout_ECX_04;
   undefined4 uVar1;
-  
+
   _DAT_00636154 = 0xa0000;
   _DAT_00636150 = 0xa0000;
   _DAT_00636158 = FUN_0045f1ff(1,0x4b281);
@@ -6583,7 +6589,7 @@ void __fastcall FUN_004148ac(undefined4 param_1)
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   undefined4 uVar1;
-  
+
   if (DAT_00479e04 == 0) {
     DAT_00479e04 = FUN_0045f1ff(1,0x4b281);
     uVar1 = extraout_ECX;
@@ -6626,7 +6632,7 @@ void __fastcall FUN_00414998(undefined4 param_1)
   undefined4 extraout_EDX_01;
   uint unaff_EBP;
   undefined8 uVar3;
-  
+
   in_EAX = param_1;
   if (DAT_0047a43c == 0) {
     FUN_0043ac60();
@@ -6672,7 +6678,7 @@ undefined8 __fastcall FUN_00414a94(undefined4 param_1,undefined4 param_2)
   undefined4 uVar3;
   undefined8 uVar4;
   uint uVar5;
-  
+
   pcVar3 = s_pallette_raw_004712b4;
   uVar5 = E2R_READ4(s_pallette_raw_004712b4,0);
   if (DAT_00479d74 != '\0') {
@@ -6739,7 +6745,7 @@ undefined8 __fastcall FUN_00414b24(undefined4 param_1,undefined4 param_2)
   int local_30;
   int local_2c;
   int local_28;
-  
+
   uVar4 = param_2;
   if (DAT_0047a43c == 0) {
     FUN_0043ac60();
@@ -6865,7 +6871,7 @@ void __fastcall FUN_00414e5c(undefined4 param_1)
   undefined4 extraout_EDX_00;
   char *pcVar5;
   longlong lVar6;
-  
+
   FUN_0043cbb4(param_1);
   uVar3 = extraout_ECX;
   iVar2 = _DAT_00637258;
@@ -6932,7 +6938,7 @@ undefined4 FUN_00414e68(void)
   int extraout_EDX;
   undefined4 extraout_EDX_00;
   longlong lVar5;
-  
+
   iVar2 = _DAT_00637258;
   while (iVar2 != 0) {
     FUN_00458bec(in_ECX,iVar2);
@@ -7049,7 +7055,7 @@ undefined8 __fastcall FUN_00415b78(undefined4 param_1,undefined4 param_2)
   int iVar7;
   int iVar8;
   undefined8 uVar9;
-  
+
   piVar3 = (int *)FUN_0045eb05(0,"shadow.dat");
   pbVar4 = extraout_ECX;
   if (piVar3 == (int *)0x0) {
@@ -7121,7 +7127,7 @@ undefined8 __fastcall FUN_00415c68(undefined4 param_1,undefined4 param_2)
   int iVar8;
   undefined8 uVar9;
   byte *local_1c;
-  
+
   piVar2 = (int *)FUN_0045eb05(param_1,&DAT_0047007c);
   uVar3 = 0;
   if (piVar2 != (int *)0x0) {
@@ -7201,7 +7207,7 @@ void __fastcall FUN_00415d40(undefined4 param_1,undefined4 param_2)
   bool bVar3;
   int requester_id;
   undefined8 uVar4;
-  
+
   if (_DAT_00636690 != 0) {
     if (DAT_0047a398 == 0) {
       if (((((DAT_0063685c != '\0') || (DAT_0063685a != '\0')) || (DAT_00636855 != '\0')) ||
@@ -7468,7 +7474,7 @@ void __fastcall FUN_0041643c(int param_1)
 {
   bool bVar1;
   int iVar2;
-  
+
   if (_DAT_00ac4fd8 < 2) {
     if (_DAT_00ac4fd8 == 1) {
       DAT_00479dac = _DAT_00ac4db0;
@@ -7743,7 +7749,7 @@ undefined8 __fastcall FUN_004171b8(undefined4 param_1,undefined4 param_2)
     }
     return CONCAT44(param_2,uVar3);
   }
-  
+
   if ((((in_EAX[1] < 1) || ((*(byte *)(in_EAX + 3) & 4) != 0)) || (*(char *)*in_EAX == '\r')) ||
      (*(char *)*in_EAX == '\x1a')) {
     uVar6 = FUN_0045f38a((undefined4)(uintptr_t)in_EAX,in_EAX);
@@ -7771,8 +7777,7 @@ undefined8 __fastcall FUN_004171b8(undefined4 param_1,undefined4 param_2)
   uVar7 = FUN_0045f38a((undefined4)(uintptr_t)piVar5,piVar5);
   uVar3 = (uint)uVar7;
 LAB_00417234:
-  uVar3 = (uint)(ushort)((int)(short)((int)uVar6 << 8) | uVar3 & 0xff);
-  return CONCAT44(param_2,uVar3);
+  return CONCAT44(param_2,(int)(short)((int)uVar6 << 8) | uVar3 & 0xff);
 }
 
 
@@ -7786,7 +7791,7 @@ void __fastcall FUN_00417248(undefined4 param_1,int *param_2)
   undefined4 in_EAX;
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
-  
+
   if (((*(byte *)((int)param_2 + 0xd) & 4) == 0) && (1 < (uint)(param_2[5] - param_2[1]))) {
     cVar1 = (char)((uint)in_EAX >> 8);
     *(char *)*param_2 = cVar1;
@@ -7830,7 +7835,7 @@ void __fastcall FUN_00417308(undefined4 param_1,int *param_2)
   undefined2 in_AX;
   undefined2 extraout_CX;
   undefined2 extraout_CX_00;
-  
+
   if (((*(byte *)((int)param_2 + 0xd) & 4) == 0) && (1 < (uint)(param_2[5] - param_2[1]))) {
     *(char *)*param_2 = (char)in_AX;
     if ((char)in_AX == '\n') {
@@ -7879,7 +7884,7 @@ undefined8 __fastcall FUN_004173c8(undefined4 param_1,undefined4 param_2)
   int *piVar5;
   undefined8 uVar6;
   undefined8 uVar7;
-  
+
   if (E2R_fan_parse_stream != (int *)0x0) {
     in_EAX = E2R_fan_parse_stream;
   }
@@ -7960,7 +7965,7 @@ FUN_0041760c(int param_1,uint param_2,uint param_3,int param_4,undefined1 *param
   uint local_18;
   uint local_14;
   uint local_10;
-  
+
   bVar2 = true;
   if (DAT_0047a43c == 0) {
     if ((DAT_0047a279 >> 0x18 == param_1) || (DAT_0047a279 >> 0x18 == in_EAX)) {
@@ -8197,7 +8202,7 @@ FUN_00417b20(int param_1,int param_2,undefined4 param_3,int param_4,int param_5,
   int local_18;
   int local_14;
   int local_10;
-  
+
   E2R_InitCursorMaskState();
   unaff_EBX = param_4;
   local_24 = 1;
@@ -8303,7 +8308,7 @@ void __fastcall FUN_00418134(int param_1,int param_2,int param_3,int param_4)
   char *pcVar3;
   undefined2 *puVar4;
   uint local_10;
-  
+
   bVar1 = true;
   if (DAT_0047a43c == 0) {
     iVar2 = param_2;
@@ -8396,7 +8401,7 @@ void __fastcall FUN_0041831c(undefined4 param_1,int param_2,int param_3,int para
   int local_18;
   int local_14;
   int local_10;
-  
+
   local_18 = 1;
   local_14 = param_2;
   if (DAT_0047a279 >> 0x18 == param_2) {
@@ -8474,7 +8479,7 @@ void __fastcall FUN_00418484(int param_1,int param_2,int param_3)
   undefined1 *puVar5;
   undefined1 *puVar6;
   int iVar7;
-  
+
   if (DAT_0047a43c == 0) {
     iVar1 = (param_1 + param_2 + 3 >> 2) - (param_2 >> 2);
     FUN_0045cf10();
@@ -8527,7 +8532,7 @@ void __fastcall FUN_00418514(int param_1,int param_2,int param_3)
   int local_1c;
   int local_18;
   int local_10;
-  
+
   local_10 = param_1;
   local_18 = FUN_00418a04(param_1,&local_1c);
   puVar3 = (undefined1 *)(DAT_00477060 * unaff_EBX + _DAT_00636158 + param_2);
@@ -8575,7 +8580,7 @@ void __fastcall FUN_0041868c(int param_1,int param_2,int param_3,int param_4)
   undefined4 *puVar5;
   undefined4 *puVar6;
   int iVar7;
-  
+
   iVar2 = param_1 * _DAT_006401ec * 2;
   puVar4 = (undefined4 *)(unaff_EBX * 2 + *(int *)(&DAT_00636668 + param_2 * 4) + iVar2);
   iVar7 = 0;
@@ -8633,7 +8638,7 @@ void __fastcall FUN_00418770(undefined4 param_1,byte *param_2)
   short local_28;
   short local_24;
   int iVar11;
-  
+
   sVar9 = 0;
   bVar4 = true;
   if (DAT_0047a43c == 0) {
@@ -8753,7 +8758,7 @@ undefined4 __fastcall FUN_00418a04(undefined4 param_1,undefined4 *param_2)
   int in_EAX;
   int iVar1;
   int extraout_ECX;
-  
+
   in_EAX = (int)(uintptr_t)param_1;
   if (1 < in_EAX) {
     *param_2 = _DAT_006401ec;
@@ -8801,7 +8806,7 @@ void __fastcall FUN_00418b00(undefined4 param_1,undefined4 param_2)
 {
   int in_EAX;
   int iVar1;
-  
+
   if (in_EAX < 2) {
     if (in_EAX == DAT_0047a279 >> 0x18) {
       iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 0x80))(DAT_0047d0cc,param_2);
@@ -8857,7 +8862,7 @@ undefined4 __fastcall FUN_00418b98(undefined4 param_1,char *param_2)
   short sStack_24;
   undefined4 local_20;
   int local_1c;
-  
+
   local_1c = 0;
   local_20 = 1;
   if (DAT_0047a43c != 0) {
@@ -8957,7 +8962,7 @@ int FUN_0041929c(void)
 
 {
   int in_EAX;
-  
+
   if ((0x1f < in_EAX) && (in_EAX < 0x7f)) {
     return in_EAX + -0x20;
   }
@@ -9100,7 +9105,7 @@ void __fastcall FUN_004194a8(undefined4 param_1,undefined4 param_2)
   short sStack_24;
   short sStack_20;
   short sStack_1c;
-  
+
   sStack_24 = 0;
   if (DAT_0047a43c == 0) {
     iVar4 = in_EAX * 2;
@@ -9281,7 +9286,7 @@ void __fastcall FUN_0041987c(undefined4 param_1,undefined4 param_2)
   undefined4 local_1c;
   undefined1 local_18;
   undefined1 local_14;
-  
+
   E2R_READ2(local_2c,0) = 0;
   E2R_READ2(local_2c,2) = 0;
   local_24 = 10000;
@@ -9421,7 +9426,7 @@ int __fastcall FUN_00419af4(int param_1,byte *param_2,undefined4 param_3,int par
   undefined4 local_18;
   undefined1 local_14;
   undefined1 local_10;
-  
+
   in_EAX = DAT_0047a279 >> 0x18;
   if (DAT_0047a43c != 0) {
     in_EAX = in_EAX + 2;
@@ -9843,7 +9848,7 @@ void __fastcall FUN_0041ab4c(int param_1,uint param_2,int param_3)
   undefined1 *puVar7;
   int iVar8;
   short local_18;
-  
+
   bVar2 = true;
   iVar8 = param_1;
   if (_DAT_006401ec + -1 < param_1) {
@@ -9929,7 +9934,7 @@ void __fastcall FUN_0041ad54(undefined4 param_1,int param_2,int param_3)
   int surface;
   undefined1 color;
   undefined1 *row;
-  
+
   x2 = (int)(uintptr_t)param_1;
   y1 = 0;
   surface = DAT_0047a279 >> 0x18;
@@ -9977,7 +9982,7 @@ undefined4 __fastcall FUN_0041af88(undefined4 param_1,undefined4 param_2)
   char *in_EAX;
   int iVar1;
   int iVar2;
-  
+
   in_EAX = (char *)(uintptr_t)param_1;
   if ((uintptr_t)in_EAX < 0x10000u || (uintptr_t)in_EAX >= 0x01000000u ||
       IsBadReadPtr(in_EAX,0x300)) return 0;
@@ -10017,7 +10022,7 @@ void __fastcall FUN_0041b078(undefined4 param_1,undefined2 param_2)
 
 {
   int surface;
-  
+
   surface = DAT_0047a279 >> 0x18;
   if (DAT_0047a43c != 0) {
     surface = surface + 2;
@@ -10053,7 +10058,7 @@ void __fastcall FUN_0041b34c(undefined4 param_1,int param_2)
   int y1;
   undefined1 *pixel;
   undefined1 color;
-  
+
   surface = DAT_0047a279 >> 0x18;
   if (DAT_0047a43c != 0) {
     surface = surface + 2;
@@ -10133,7 +10138,7 @@ void __fastcall FUN_0041b920(undefined4 param_1,uint param_2)
   int extraout_ECX;
   int unaff_EBX;
   int local_10;
-  
+
   if (DAT_0047a43c == 0) {
     if (in_EAX < 3) {
       FUN_0045ce94(param_2);
@@ -10163,7 +10168,7 @@ uint __fastcall FUN_0041b994(undefined4 param_1,int param_2)
   int unaff_EBX;
   uint unaff_EDI;
   int local_10;
-  
+
   if (DAT_0047a43c == 0) {
     FUN_0043cac0(in_EAX,param_2);
   }
@@ -10189,7 +10194,7 @@ void __fastcall FUN_0041b9d8(undefined4 param_1,uint param_2)
   uint uVar4;
   undefined4 extraout_ECX;
   int unaff_EBX;
-  
+
   iVar2 = in_EAX * 2;
   if (DAT_0047a43c == 0) {
     if (in_EAX < 3) {
@@ -10218,7 +10223,7 @@ undefined8 __fastcall FUN_0041ba68(undefined4 param_1,undefined4 param_2)
 
 {
   int iVar1;
-  
+
   iVar1 = ShowCursor(0);
   return CONCAT44(param_2,iVar1);
 }
@@ -10260,7 +10265,7 @@ undefined8 __fastcall FUN_0041ba7c(undefined4 param_1,undefined4 param_2)
   int iVar5;
   tagMSG local_3c;
   tagPOINT local_20;
-  
+
   sVar1 = _DAT_0063683e;
   iVar5 = DAT_00479e8a >> 0x10;
   GetCursorPos(&local_20);
@@ -10369,7 +10374,7 @@ undefined4 __fastcall FUN_0041bcfc(undefined4 param_1)
 
 {
   undefined4 extraout_ECX;
-  
+
   if (DAT_00479e74 != 0) {
     FUN_0041c884(param_1);
     FUN_0041ca90(extraout_ECX);
@@ -10395,7 +10400,7 @@ void __fastcall FUN_0041bd1c(undefined4 param_1)
   undefined *puVar6;
   int iVar7;
   int local_1c;
-  
+
   if (DAT_0047a43c == 0) {
     if ((DAT_00479e74 != 0) && (uVar2 = E2R_READ2(DAT_00479e8a,2), -1 < DAT_00479e8a)) {
       iVar3 = DAT_0047a279 >> 0x18;
@@ -10474,7 +10479,7 @@ void __fastcall FUN_0041be94(undefined4 param_1)
   int iVar9;
   int local_20;
   int local_1c;
-  
+
   if ((DAT_00479e74 != 0) && (-1 < DAT_00479e8a)) {
     if (-1 < *(short *)((undefined1 *)0x00479e8e + (DAT_0047a279 >> 0x18) * 2)) {
       _DAT_00479da8 = 1;
@@ -10544,7 +10549,7 @@ void __fastcall FUN_0041bffc(undefined4 param_1)
   int iVar9;
   int local_20;
   int local_1c;
-  
+
   if ((DAT_00479e74 != 0) && (-1 < DAT_00479e8a)) {
     if (-1 < *(short *)((undefined1 *)0x00479e8e + (1 - (DAT_0047a279 >> 0x18)) * 2)) {
       _DAT_00479da8 = 1;
@@ -10607,7 +10612,7 @@ void __fastcall FUN_0041c184(undefined4 param_1)
   int iVar5;
   int local_20;
   int local_1c;
-  
+
   if ((DAT_00479e74 != 0) && (-1 < *(short *)((undefined1 *)0x00479e8e + (DAT_0047a279 >> 0x18) * 2))) {
     local_1c = FUN_00418a04(param_1,&local_20);
     iVar2 = DAT_0047a279 >> 0x18;
@@ -10652,7 +10657,7 @@ void __fastcall FUN_0041c280(undefined4 param_1)
   int iVar5;
   int local_20;
   int local_1c;
-  
+
   if ((DAT_00479e74 != 0) && (-1 < *(short *)((undefined1 *)0x00479e8e + (1 - (DAT_0047a279 >> 0x18)) * 2))) {
     local_1c = FUN_00418a04(param_1,&local_20);
     iVar3 = 1 - (DAT_0047a279 >> 0x18);
@@ -10699,7 +10704,7 @@ undefined4 __fastcall FUN_0041c518(undefined4 param_1)
   undefined *puVar5;
   int iVar6;
   int local_1c;
-  
+
   if (DAT_0047a43c == 0) {
     if ((DAT_00479e74 != 0) && (-1 < DAT_00479e8a)) {
       iVar2 = 1 - (DAT_0047a279 >> 0x18);
@@ -10772,7 +10777,7 @@ void __fastcall FUN_0041c884(undefined4 param_1)
   undefined *puVar4;
   int iVar5;
   int local_1c;
-  
+
   if (DAT_0047a43c == 0) {
     if (DAT_00479e74 != 0) {
       iVar2 = DAT_0047a279 >> 0x18;
@@ -10834,7 +10839,7 @@ void __fastcall FUN_0041ca90(undefined4 param_1)
   undefined *puVar4;
   int iVar5;
   int local_1c;
-  
+
   if (DAT_0047a43c == 0) {
     if (DAT_00479e74 != 0) {
       iVar1 = 1 - (DAT_0047a279 >> 0x18);
@@ -10890,7 +10895,7 @@ void FUN_0041ccf0(void)
 
 {
   undefined1 *in_EAX = (undefined1 *)0x00684a68;
-  
+
   *in_EAX = 0;
   in_EAX[1] = 0;
   in_EAX[2] = 0;
@@ -10929,7 +10934,7 @@ undefined8 __fastcall FUN_0041ce88(undefined4 param_1,undefined4 param_2)
   undefined4 *stream;
   int x;
   int y;
-  
+
   (void)param_1;
   stream = (undefined4 *)(uintptr_t)E2R_OpenReadStream("shademap.dat");
   if (stream == (undefined4 *)0x0) {
@@ -10959,7 +10964,7 @@ undefined8 __fastcall FUN_0041cf44(undefined4 param_1,undefined4 param_2)
 
 {
   DWORD DVar1;
-  
+
   DVar1 = timeGetTime();
   return CONCAT44(param_2,DVar1 / 0x37);
 }
@@ -10972,7 +10977,7 @@ undefined8 __fastcall FUN_0041cf5c(undefined4 param_1,undefined4 param_2)
 
 {
   int iVar1;
-  
+
   iVar1 = thunk_FUN_004620db(param_1,param_2);
   return CONCAT44(param_2,(uint)(iVar1 * 0x46) / 100);
 }
@@ -10986,7 +10991,7 @@ undefined4 FUN_0041cfc0(void)
 {
   int iVar1;
   int iVar2;
-  
+
   iVar2 = 0;
   do {
     iVar1 = iVar2 + 1;
@@ -11035,7 +11040,7 @@ void __fastcall FUN_0041db48(undefined4 param_1,undefined4 param_2)
   int iVar1;
   undefined1 local_3c [52];
   undefined4 uStack_8;
-  
+
   uStack_8 = param_2;
   E2R_FormatOneString((char *)local_3c,s__sSCENES_00471b58,(char *)0x00479e24);
   iVar1 = FUN_00445378((undefined4)(uintptr_t)local_3c,0);
@@ -11055,7 +11060,7 @@ undefined8 __fastcall FUN_0041db98(undefined4 param_1,undefined4 param_2)
   byte bVar2;
   int iVar3;
   uint uVar4;
-  
+
   in_EAX = *(ushort *)(uintptr_t)param_1;
   uVar4 = 0;
   iVar3 = 0;
@@ -11083,7 +11088,7 @@ uint __fastcall FUN_0041dc20(undefined4 param_1,uint param_2)
   int iVar1;
   uint uVar2;
   uint uVar3;
-  
+
   in_EAX = (int)(uintptr_t)param_1;
   uVar2 = (param_2 & 0xff) << 8 | (int)(short)param_2 >> 8 & 0xffU;
   if (in_EAX < 0) {
@@ -11120,7 +11125,7 @@ void FUN_0041dc8c(void)
   int extraout_ECX_03;
   undefined2 *puVar4;
   undefined8 uVar5;
-  
+
   E2R_MirrorGlyphTableData();
   puVar3 = (undefined1 *)0x00477068;
   do {
@@ -11565,7 +11570,7 @@ undefined8 __fastcall FUN_0041e85c(undefined4 param_1,undefined4 param_2)
   undefined1 auStack_220 [406];
   char acStack_8a [110];
   undefined4 local_1c;
-  
+
   local_1c = 0xffffffff;
   iVar12 = 0;
   do {
@@ -11831,7 +11836,7 @@ undefined8 __fastcall FUN_0041eb30(undefined4 param_1,undefined4 param_2)
   int local_24;
   int local_20;
   int local_1c;
-  
+
   local_28 = 0;
   local_20 = 0;
   if (DAT_00479d74 == '\0') {
@@ -12771,7 +12776,7 @@ undefined8 __fastcall FUN_00420578(undefined4 param_1,undefined4 param_2)
   undefined4 local_24;
   undefined4 local_20;
   int local_1c;
-  
+
   uVar8 = FUN_0045eb05(param_1,&DAT_0047007c);
   if ((int)uVar8 == 0) {
     uVar8 = FUN_0043cac0(extraout_ECX,(int)((ulonglong)uVar8 >> 0x20));
@@ -12936,7 +12941,7 @@ void FUN_00420a10(void)
   int iVar1;
   int iVar2;
   int extraout_EDX;
-  
+
   _DAT_0063726c = 0;
   _DAT_00637248 = 0;
   _DAT_0063724c = 0;
@@ -13034,7 +13039,7 @@ void FUN_00420b8c(int in_EAX)
   byte bVar2;
   int iVar3;
   int iVar4;
-  
+
   if (in_EAX < 0 || 2500 <= in_EAX) return;
   bVar2 = ((undefined1 *)0x0064a178)[in_EAX * 2];
   *(undefined2 *)(in_EAX * 2 + 0x671fc0) = 0xfffe;
@@ -13063,7 +13068,7 @@ void FUN_00420c10(void)
 
 {
   int extraout_EDX;
-  
+
   FUN_00420b8c(extraout_EDX);
   if (*(int *)((undefined1 *)0x00630b60 + extraout_EDX * 4) != 0) {
     FUN_00420dcc();
@@ -13086,7 +13091,7 @@ void FUN_00420c34(void)
   int iVar3;
   int iVar5;
   int iVar4;
-  
+
   _DAT_0063726c = 0;
   _DAT_00637248 = 0;
   _DAT_0063724c = 0;
@@ -13186,8 +13191,9 @@ void FUN_00420dcc(void)
 {
   int iVar1;
   int in_EAX;
-  
-  if (in_EAX != 0) {
+
+  in_EAX = E2R_actor_calc_context;
+  if (in_EAX != 0 && !IsBadReadPtr((void *)(uintptr_t)in_EAX,0x148)) {
     *(ushort *)(in_EAX + 2) = *(ushort *)(in_EAX + 2) & 0xf3f6;
     *(undefined2 *)(in_EAX + 0x82) = 0;
     *(undefined2 *)(in_EAX + 0xea) = 0x7fff;
@@ -13238,7 +13244,7 @@ void __fastcall FUN_00420ec4(undefined4 param_1,short *param_2)
   short local_20;
   undefined2 uStack_1e;
   short local_1c;
-  
+
   sVar1 = 0;
   do {
     iVar3 = (int)sVar1;
@@ -13324,9 +13330,17 @@ void __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)
   int iVar5;
   short *extraout_EDX;
   short *psVar6;
-  
+
+  in_EAX = (short *)(uintptr_t)param_1;
+  if (in_EAX == (short *)0x0 || (uintptr_t)in_EAX < 0x10000u ||
+      0x1000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,0x17c)) {
+    return;
+  }
   FUN_00457818(param_1,param_2);
   psVar6 = *(short **)(in_EAX + 0x79);
+  if (psVar6 != (short *)0x0 && IsBadReadPtr(psVar6,0x17c)) {
+    psVar6 = (short *)0x0;
+  }
   if (psVar6 == (short *)0x0) {
     FUN_00422330();
     uVar4 = extraout_ECX_01;
@@ -13345,9 +13359,8 @@ void __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)
   else {
     uVar4 = extraout_ECX;
     if ((*(byte *)(*(int *)(psVar6 + 0x11) + 0x146) & 0x80) == 0) {
-      FUN_00421074(extraout_ECX,psVar6);
+      FUN_00421074((undefined4)(uintptr_t)psVar6,param_2);
       uVar4 = extraout_ECX_00;
-      psVar6 = extraout_EDX;
     }
     FUN_00420ec4(uVar4,psVar6);
     *(undefined2 *)(*in_EAX * 2 + 0x666ff8) = 0;
@@ -13364,7 +13377,7 @@ void __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)
     }
     _DAT_006368d8 = 0;
     _DAT_00637240 = 0;
-    FUN_00423858(0,0);
+    FUN_00423858((undefined4)(uintptr_t)in_EAX,0);
     iVar5 = extraout_ECX_04;
     do {
       if (*(int *)(&DAT_006368d8 + _DAT_00637240 * 4) == 0) break;
@@ -13412,11 +13425,21 @@ void __fastcall FUN_004211c8(int param_1,undefined4 param_2)
   int extraout_EDX_03;
   int extraout_EDX_04;
   undefined4 uVar6;
-  
+
+  if (DAT_0047a470 != 0 &&
+     ((uint)DAT_0047a470 < 0x10000u || 0x70000000u <= (uint)DAT_0047a470 ||
+      IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,0x136))) {
+    DAT_0047a470 = 0;
+  }
   if ((((DAT_0047a34a == 0) && (DAT_0047a72c == 0)) && (DAT_0047a366 == 0)) && (DAT_0047a740 == 0))
   {
-    if (((DAT_0047a470 == 0) || (param_1 = *(int *)(DAT_0047a470 + 0xa6), param_1 == 0)) ||
-       ((*(byte *)(param_1 + 0xc) & 2) == 0)) {
+    param_1 = DAT_0047a470 == 0 ? 0 : *(int *)(DAT_0047a470 + 0xa6);
+    if (param_1 != 0 &&
+       ((uint)param_1 < 0x10000u || 0x70000000u <= (uint)param_1 ||
+        IsBadReadPtr((void *)(uintptr_t)param_1,0x10))) {
+      param_1 = 0;
+    }
+    if ((param_1 == 0) || ((*(byte *)(param_1 + 0xc) & 2) == 0)) {
       if (DAT_0047a3b4 == 0) {
         FUN_0044c224(param_1);
         param_1 = extraout_ECX;
@@ -13449,7 +13472,7 @@ void __fastcall FUN_004211c8(int param_1,undefined4 param_2)
   }
   for (; iVar5 != 0; iVar5 = *(int *)(iVar5 + 0x4c)) {
     if ((*(byte *)(iVar5 + 0x146) & 0x80) == 0) {
-      FUN_00421074(param_1,param_2);
+      FUN_00421074((undefined4)(uintptr_t)iVar5,param_2);
       param_1 = extraout_ECX_02;
       param_2 = extraout_EDX_01;
     }
@@ -13589,7 +13612,7 @@ void FUN_00421684(void)
   int iVar6;
   uint uVar7;
   int iVar8;
-  
+
   sVar2 = DAT_0047a34a;
   piVar3 = (int *)(in_EAX + 0x112);
   *(int **)(in_EAX + 0xe4) = piVar3;
@@ -13659,7 +13682,7 @@ void FUN_00421850(void)
   uint uVar4;
   int *piVar5;
   int iVar6;
-  
+
   iVar3 = in_EAX * 8;
   piVar5 = (int *)((undefined1 *)0x00ac49b4 + iVar3);
   if (DAT_0047a34a == 0) {
@@ -13736,7 +13759,7 @@ void FUN_00421a14(void)
   int local_28;
   int local_24;
   int local_20;
-  
+
   if ((DAT_0047a3e0 == 0) && (iVar10 = _DAT_0063726c, DAT_0047a34a == 0)) {
     for (; iVar10 != 0; iVar10 = *(int *)(iVar10 + 0x4c)) {
       if (((((*(byte *)(iVar10 + 3) & 4) != 0) && ((*(byte *)(iVar10 + 3) & 8) == 0)) &&
@@ -13749,7 +13772,7 @@ void FUN_00421a14(void)
         iVar9 = *(int *)(iVar10 + 0xe4);
         *(undefined2 *)(iVar9 + 6) = 0x8001;
         *(undefined2 *)(*(int *)(iVar10 + 0xe4) + 2) = *(undefined2 *)(iVar9 + 6);
-        FUN_004249f4();
+        FUN_004249f4((undefined4)(uintptr_t)iVar10);
         FUN_00424d58();
         FUN_00424d14();
         FUN_00424dd8(extraout_ECX);
@@ -13893,7 +13916,7 @@ void __fastcall FUN_00421f54(undefined4 param_1)
   int iVar4;
   int extraout_EDX_04;
   short local_1c;
-  
+
   _DAT_00640204 = 1;
   iVar2 = _DAT_0063726c;
   iVar4 = _DAT_0063726c;
@@ -13989,7 +14012,7 @@ void __fastcall FUN_00421f54(undefined4 param_1)
 LAB_00422061:
         *(undefined4 *)(iVar4 + 0xe4) = 0x6368d0;
       }
-      FUN_004249f4();
+      FUN_004249f4((undefined4)(uintptr_t)iVar4);
       iVar4 = extraout_EDX_00;
     }
     iVar4 = *(int *)(iVar4 + 0x4c);
@@ -14019,7 +14042,7 @@ undefined8 __fastcall FUN_00422238(undefined4 param_1,undefined4 param_2)
   undefined8 uVar5;
   undefined4 uStack_14;
   undefined1 local_10 [4];
-  
+
   uVar3 = param_2;
   if ((DAT_0047a786 != 0) || (DAT_0047a2a8 != 0)) {
     if (DAT_0047ab30 == 0) {
@@ -14144,7 +14167,7 @@ void __fastcall FUN_00422368(undefined4 param_1,uint param_2)
   int iVar2;
   int iVar3;
   int iVar4;
-  
+
   in_EAX = (int *)(uintptr_t)param_1;
   if (E2R_IsBadWritePtr(in_EAX,0x14) || (uintptr_t)in_EAX >= 0x70000000u) return;
   iVar1 = *(int *)((int)in_EAX + 6) >> 0x10;
@@ -14177,7 +14200,7 @@ void __fastcall FUN_00422460(undefined4 param_1,uint param_2)
   short *in_EAX;
   int iVar4;
   int iVar5;
-  
+
   in_EAX = (short *)(uintptr_t)param_1;
   if (E2R_IsBadWritePtr(in_EAX,0x14) || (uintptr_t)in_EAX >= 0x70000000u) return;
   iVar5 = *(int *)((param_2 & 0xffff) * 2 + 0x59b58e) >> 0x10;
@@ -14206,7 +14229,7 @@ void __fastcall FUN_00422538(undefined4 param_1,uint param_2)
   int iVar2;
   int iVar3;
   int iVar4;
-  
+
   in_EAX = (int *)(uintptr_t)param_1;
   if (E2R_IsBadWritePtr(in_EAX,0x14) || (uintptr_t)in_EAX >= 0x70000000u) return;
   iVar3 = *(int *)((param_2 & 0xffff) * 2 + 0x59b58e) >> 0x10;
@@ -14233,7 +14256,7 @@ void __fastcall FUN_00422628(undefined4 param_1,undefined2 *param_2)
 
 {
   undefined2 *in_EAX;
-  
+
   in_EAX = (undefined2 *)(uintptr_t)param_1;
   if (E2R_IsBadWritePtr(in_EAX,0x14) || IsBadReadPtr(param_2,0x14) ||
       (uintptr_t)in_EAX >= 0x70000000u || (uintptr_t)param_2 >= 0x70000000u) return;
@@ -14260,7 +14283,7 @@ void __fastcall FUN_00422674(undefined4 param_1,short param_2)
   int in_EAX;
   int iVar2;
   undefined2 local_1c [4];
-  
+
   FUN_004228b8(0,(int)param_2);
   FUN_0045de8b();
   sVar1 = 0;
@@ -14283,7 +14306,7 @@ void FUN_004226bc(void)
   int in_EAX;
   int iVar2;
   undefined2 local_1c [4];
-  
+
   FUN_004228b8(0,0);
   FUN_0045de8b();
   sVar1 = 0;
@@ -14306,7 +14329,7 @@ void __fastcall FUN_00422704(undefined4 param_1,short param_2)
   int in_EAX;
   int iVar2;
   undefined2 local_1c [4];
-  
+
   FUN_004228b8((int)param_2,0);
   FUN_0045de8b();
   sVar1 = 0;
@@ -14329,7 +14352,7 @@ void __fastcall FUN_0042274c(undefined4 param_1,short param_2)
   int iVar1;
   undefined4 *puVar2;
   undefined4 auStack_3c [10];
-  
+
   FUN_004228b8(0,(int)param_2);
   FUN_0045dd04();
   puVar2 = auStack_3c;
@@ -14353,7 +14376,7 @@ void FUN_00422790(void)
   int iVar1;
   undefined4 *puVar2;
   undefined4 auStack_3c [10];
-  
+
   FUN_004228b8(0,0);
   FUN_0045dd04();
   puVar2 = auStack_3c;
@@ -14389,7 +14412,7 @@ void __fastcall FUN_004228b8(undefined4 param_1,uint param_2)
   short local_1a;
   ushort local_18;
   uint local_14;
-  
+
   local_14 = param_2;
   FUN_00422330();
   if (extraout_CX != 0) {
@@ -14457,7 +14480,7 @@ undefined4 __fastcall FUN_00422a48(undefined4 param_1,short *param_2)
 
 {
   short *in_EAX;
-  
+
   *in_EAX = *in_EAX + *param_2;
   in_EAX[1] = in_EAX[1] + param_2[1];
   in_EAX[2] = in_EAX[2] + param_2[2];
@@ -14472,7 +14495,12 @@ void __fastcall FUN_00422aa0(undefined4 param_1,undefined2 *param_2)
 
 {
   undefined2 *in_EAX;
-  
+
+  in_EAX = (undefined2 *)(uintptr_t)param_1;
+  if (in_EAX == (undefined2 *)0x0 || param_2 == (undefined2 *)0x0 ||
+      E2R_IsBadWritePtr(in_EAX,6) || IsBadReadPtr(param_2,6)) {
+    return;
+  }
   *in_EAX = *param_2;
   in_EAX[1] = param_2[1];
   in_EAX[2] = param_2[2];
@@ -14512,7 +14540,7 @@ void FUN_00422abc(void)
   short local_2c [4];
   short local_24 [4];
   short local_1c [4];
-  
+
   if ((DAT_0047a34a == 0) || (DAT_0047a366 != 0)) {
     E2R_SetIdentityMatrix((undefined2 *)0x006372aa);
     uVar4 = 0x006372aa;
@@ -14673,7 +14701,7 @@ void FUN_00422f44(void)
   short *extraout_ECX_01;
   short *psVar1;
   int extraout_EDX;
-  
+
   FUN_00422330();
   psVar1 = extraout_ECX;
   if (*(short *)(extraout_EDX + 2) != 0) {
@@ -14701,7 +14729,7 @@ void __fastcall FUN_00422fd8(undefined4 param_1,int param_2)
   int iVar1;
   short sVar2;
   short local_1c [4];
-  
+
   if ((DAT_0047a34a == 0) || (DAT_0047a366 == 1)) {
     sVar2 = 0;
     do {
@@ -14741,7 +14769,7 @@ void FUN_00423070(void)
   int iVar1;
   int iVar2;
   int iVar3;
-  
+
   iVar1 = DAT_0047a2a4 / (*(int *)((int)in_EAX + 2) >> 0x10);
   iVar2 = iVar1 - (iVar1 >> 3);
   if (DAT_0047a43c != 0) {
@@ -14792,7 +14820,7 @@ void FUN_00423674(void)
   short local_2c;
   short sStack_2a;
   short local_28;
-  
+
   if ((*(byte *)(in_EAX + 3) & 1) == 0) {
     psVar1 = (short *)(in_EAX + 0x18);
     if ((*(byte *)(in_EAX + 3) & 2) == 0) {
@@ -14937,7 +14965,12 @@ void __fastcall FUN_00423858(undefined4 param_1,undefined4 param_2)
   short local_20;
   undefined2 uStack_1c;
   undefined4 local_18;
-  
+
+  in_EAX = (short *)(uintptr_t)param_1;
+  if (in_EAX == (short *)0x0 || (uintptr_t)in_EAX < 0x10000u ||
+      0x1000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,0x17c)) {
+    return;
+  }
   local_3c = in_EAX;
   local_18 = param_2;
   if (*(short *)(in_EAX + 4) != 7) {
@@ -15236,7 +15269,7 @@ void __fastcall FUN_00424164(undefined4 param_1,int param_2)
   uint extraout_ECX_00;
   ushort *puVar4;
   ushort *puVar5;
-  
+
   if ((*(byte *)(param_2 + 2) & 0x10) == 0) {
     puVar4 = (ushort *)(in_EAX + 6);
   }
@@ -15334,7 +15367,7 @@ undefined4 FUN_00424318(void)
   short local_24;
   undefined2 local_20;
   undefined4 local_1e;
-  
+
   if (*(short **)(in_EAX + 0xf2) == (short *)0x0) {
     FUN_00422330();
     local_34 = extraout_ECX_00;
@@ -15539,7 +15572,7 @@ void FUN_00424858(void)
   uint extraout_ECX_03;
   ushort *puVar5;
   ushort *puVar6;
-  
+
   FUN_00422330();
   uVar2 = extraout_ECX;
   if (*(short *)(in_EAX + 0x92) != 0) {
@@ -15593,7 +15626,7 @@ void FUN_00424858(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void FUN_004249f4(void)
+void FUN_004249f4(undefined4 param_1)
 
 {
   int iVar1;
@@ -15605,7 +15638,12 @@ void FUN_004249f4(void)
   int extraout_ECX;
   int extraout_ECX_00;
   int iVar6;
-  
+
+  in_EAX = (int)(uintptr_t)param_1;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x1000000u <= (uint)in_EAX ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x17c)) {
+    return;
+  }
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0xca)) {
     FUN_00424ed0();
     iVar6 = extraout_ECX;
@@ -15632,7 +15670,7 @@ void FUN_004249f4(void)
         }
       }
     }
-    FUN_004249f4();
+    FUN_004249f4((undefined4)(uintptr_t)iVar1);
   }
   return;
 }
@@ -15648,7 +15686,7 @@ void FUN_00424b48(void)
   int iVar2;
   int iVar3;
   int iVar4;
-  
+
   iVar4 = 0;
   for (iVar3 = 0; iVar2 = 1 - (DAT_0047a279 >> 0x18), iVar3 < *(int *)((undefined1 *)0x0047a29c + iVar2 * 4);
       iVar3 = iVar3 + 1) {
@@ -15678,7 +15716,7 @@ void FUN_00424bd8(void)
   int iVar4;
   int iVar5;
   int iVar6;
-  
+
   iVar4 = 0;
   for (iVar6 = 0; iVar5 = DAT_0047a279 >> 0x18, iVar6 < *(int *)((undefined1 *)0x0047a29c + iVar5 * 4);
       iVar6 = iVar6 + 1) {
@@ -15717,7 +15755,7 @@ void FUN_00424cbc(void)
   int extraout_EDX;
   int extraout_EDX_00;
   int iVar1;
-  
+
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
     if (((*(byte *)(iVar1 + 3) & 4) == 0) &&
        (((DAT_0047a3e0 == 0 || (DAT_0047a414 != 0)) || ((*(byte *)(iVar1 + 3) & 0x20) != 0)))) {
@@ -15748,7 +15786,7 @@ void FUN_00424d14(void)
   int extraout_EDX;
   int extraout_EDX_00;
   int iVar1;
-  
+
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
     if (((*(byte *)(iVar1 + 3) & 4) == 0) && ((*(byte *)(iVar1 + 2) & 0x42) == 0)) {
       if ((*(byte *)(iVar1 + 2) & 1) == 0) {
@@ -15777,7 +15815,7 @@ void FUN_00424d58(void)
   int in_EAX;
   int extraout_EDX;
   int iVar1;
-  
+
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
     if ((((*(byte *)(iVar1 + 3) & 4) == 0) && ((*(byte *)(iVar1 + 2) & 0x42) != 0)) &&
        (*(short *)(iVar1 + 0xce) == 0)) {
@@ -15801,7 +15839,7 @@ void FUN_00424d98(void)
   int in_EAX;
   int extraout_EDX;
   int iVar1;
-  
+
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
     if ((((*(byte *)(iVar1 + 3) & 4) == 0) && ((*(byte *)(iVar1 + 2) & 0x42) != 0)) &&
        (*(short *)(iVar1 + 0xce) != 0)) {
@@ -15827,7 +15865,7 @@ void __fastcall FUN_00424dd8(int param_1)
   int extraout_ECX;
   int extraout_EDX;
   int iVar2;
-  
+
   iVar2 = *(int *)(in_EAX + 0xd8);
   do {
     if (iVar2 == 0) {
@@ -15865,7 +15903,7 @@ void __fastcall FUN_00424e44(int param_1)
 {
   int in_EAX;
   int iVar1;
-  
+
   if (-1 < *(short *)(in_EAX + 0x1c)) {
     param_1 = (*(int *)(in_EAX + 0x1a) >> 0x10) * 4;
   }
@@ -15892,7 +15930,7 @@ void FUN_00424ed0(void)
   int iVar2;
   short sVar3;
   short local_20 [4];
-  
+
   if ((DAT_0047a34a == 0) || (DAT_0047a366 != 0)) {
     sVar3 = 0;
     do {
@@ -15983,7 +16021,7 @@ void FUN_00425018(void)
   int local_24;
   int local_20;
   short *local_1c;
-  
+
   local_76 = 0;
   local_56 = *(undefined4 *)(in_EAX + 0x22);
   local_68 = *(undefined2 *)(in_EAX + 0xce);
@@ -16127,7 +16165,7 @@ void FUN_00425538(void)
   undefined4 *local_24;
   undefined4 *local_20;
   undefined4 *local_1c;
-  
+
   if (*(short *)(in_EAX + 0x96) != 0) {
     FUN_00423070();
   }
@@ -16247,7 +16285,7 @@ void FUN_00426010(void)
   int iVar2;
   int iVar4;
   int iVar3;
-  
+
   iVar1 = *(int *)(in_EAX + 0x1e);
   *(undefined2 *)(in_EAX + 0x122) = *(undefined2 *)(in_EAX + 0x124);
   for (; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
@@ -16266,9 +16304,11 @@ void FUN_00426010(void)
     *(undefined2 *)(iVar1 + 2) = *(undefined2 *)(iVar1 + 200);
     *(undefined2 *)(iVar1 + 4) = *(undefined2 *)(iVar1 + 0xc2);
     *(undefined2 *)(iVar1 + 0xce) = *(undefined2 *)(iVar1 + 0xc4);
+    E2R_actor_calc_context = iVar1;
     FUN_00432e08();
     FUN_00442954();
     FUN_004429e0();
+    E2R_actor_calc_context = 0;
     for (iVar3 = *(int *)(iVar1 + 0x11e); iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x26)) {
       iVar2 = iVar3;
       do {
@@ -16298,7 +16338,7 @@ void FUN_00426124(void)
   int iVar2;
   int iVar4;
   int iVar3;
-  
+
   iVar1 = *(int *)(in_EAX + 0x1e);
   *(undefined2 *)(in_EAX + 0x122) = *(undefined2 *)(in_EAX + 0x124);
   for (; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
@@ -16315,9 +16355,11 @@ void FUN_00426124(void)
       iVar3 = iVar2;
     } while (iVar2 != iVar1 + 6);
     *(undefined2 *)(iVar1 + 4) = *(undefined2 *)(iVar1 + 0xc2);
+    E2R_actor_calc_context = iVar1;
     FUN_00432e08();
     FUN_00442954();
     FUN_004429e0();
+    E2R_actor_calc_context = 0;
     for (iVar3 = *(int *)(iVar1 + 0x11e); iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x26)) {
       iVar2 = iVar3;
       do {
@@ -16347,7 +16389,11 @@ void FUN_00426220(void)
   int iVar2;
   int iVar4;
   int iVar3;
-  
+
+  in_EAX = E2R_actor_calc_context;
+  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x126)) {
+    return;
+  }
   iVar1 = *(int *)(in_EAX + 0x1e);
   *(undefined2 *)(in_EAX + 0x124) = *(undefined2 *)(in_EAX + 0x122);
   for (; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
@@ -16399,7 +16445,7 @@ undefined8 __fastcall FUN_00426320(undefined4 param_1,undefined4 param_2)
   undefined2 *puVar4;
   int iVar5;
   undefined8 uVar6;
-  
+
   uVar6 = FUN_00453588(param_1,param_2);
   puVar4 = (undefined2 *)uVar6;
   *puVar4 = 0xffff;
@@ -16442,7 +16488,7 @@ undefined8 __fastcall FUN_004263ac(undefined4 param_1,undefined4 param_2)
   int in_EAX;
   undefined2 *puVar3;
   undefined8 uVar4;
-  
+
   uVar4 = FUN_004533ac(param_1,param_2);
   puVar3 = (undefined2 *)uVar4;
   *puVar3 = 0xffff;
@@ -16481,7 +16527,7 @@ undefined8 __fastcall FUN_00426410(undefined4 param_1,undefined4 param_2)
   undefined4 uVar3;
   int iVar4;
   undefined8 uVar5;
-  
+
   uVar5 = FUN_00453338(param_1,param_2);
   iVar4 = (int)uVar5;
   *(undefined2 *)(iVar4 + 2) = 0x100;
@@ -16518,7 +16564,7 @@ undefined8 __fastcall FUN_00426478(int param_1,undefined4 param_2)
 {
   int iVar1;
   undefined8 uVar2;
-  
+
   uVar2 = FUN_00453414(param_1,param_2);
   iVar1 = (int)uVar2;
   *(undefined2 *)(iVar1 + 2) = 1;
@@ -16574,9 +16620,13 @@ undefined8 __fastcall FUN_004265ac(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX;
   int iVar5;
   undefined8 uVar6;
-  
-  uVar6 = FUN_00453510(param_1,param_2);
+
+  in_EAX = (int)(uintptr_t)param_1;
+  uVar6 = FUN_00453510(0,param_2);
   iVar4 = (int)uVar6;
+  if (iVar4 == 0 || in_EAX == 0) {
+    return CONCAT44(param_2,0);
+  }
   uVar1 = *(undefined4 *)(in_EAX + 0x22);
   *(undefined2 *)(iVar4 + 2) = 0;
   *(undefined4 *)(iVar4 + 0x22) = uVar1;
@@ -16666,10 +16716,12 @@ undefined8 __fastcall FUN_004265ac(undefined4 param_1,undefined4 param_2)
   *(undefined2 *)(iVar4 + 200) = *(undefined2 *)(iVar4 + 2);
   *(undefined2 *)(iVar4 + 0xc2) = *(undefined2 *)(iVar4 + 4);
   *(undefined2 *)(iVar4 + 0xc4) = *(undefined2 *)(iVar4 + 0xce);
+  E2R_actor_calc_context = iVar4;
   FUN_00432e08();
   FUN_00442954();
   FUN_004429e0();
-  return CONCAT44(param_2,extraout_EDX);
+  E2R_actor_calc_context = 0;
+  return CONCAT44(param_2,iVar4);
 }
 
 
@@ -16686,12 +16738,17 @@ undefined2 * __fastcall FUN_00426798(undefined4 param_1,undefined4 *param_2)
   undefined2 *puVar4;
   int extraout_ECX;
   undefined8 uVar5;
-  
-  uVar5 = FUN_004536e0(in_EAX,param_2);
+
+  in_EAX = (undefined4)(uintptr_t)param_1;
+  uVar5 = FUN_004536e0(0,param_2);
   puVar4 = (undefined2 *)uVar5;
-  iVar1 = *(int *)(extraout_ECX + 0xd8);
+  if (puVar4 == (undefined2 *)0x0 || in_EAX == 0 ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0xdc)) {
+    return (undefined2 *)0x0;
+  }
+  iVar1 = *(int *)((int)(uintptr_t)in_EAX + 0xd8);
   if (iVar1 == 0) {
-    *(undefined2 **)(extraout_ECX + 0xd8) = puVar4;
+    *(undefined2 **)((int)(uintptr_t)in_EAX + 0xd8) = puVar4;
   }
   else {
     iVar2 = *(int *)(iVar1 + 0x1e);
@@ -16739,9 +16796,14 @@ undefined8 __fastcall FUN_00426858(undefined4 param_1,undefined4 param_2)
   int in_EAX;
   undefined2 *puVar3;
   undefined8 uVar4;
-  
-  uVar4 = FUN_00453674(param_1,param_2);
+
+  in_EAX = (int)(uintptr_t)param_1;
+  uVar4 = FUN_00453674(0,param_2);
   puVar3 = (undefined2 *)uVar4;
+  if (puVar3 == (undefined2 *)0x0 || in_EAX == 0 ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x122)) {
+    return CONCAT44(param_2,0);
+  }
   iVar1 = *(int *)(in_EAX + 0x11e);
   if (iVar1 == 0) {
     *(undefined2 **)(in_EAX + 0x11e) = puVar3;
@@ -16772,7 +16834,7 @@ undefined8 __fastcall FUN_004268a4(undefined4 param_1,undefined4 param_2)
   undefined2 *puVar1;
   undefined2 *puVar2;
   undefined2 *extraout_EDX;
-  
+
   puVar2 = (undefined2 *)FUN_0045f1ff(1,0xe);
   if (puVar2 == (undefined2 *)0x0) {
     FUN_00414e68();
@@ -16795,7 +16857,7 @@ undefined8 __fastcall FUN_004268e4(undefined4 param_1,undefined4 param_2)
 {
   int iVar1;
   int iVar2;
-  
+
   iVar2 = (int)(uintptr_t)param_1;
   iVar1 = FUN_0045f1ff(1,0x39);
   if (iVar1 == 0) {
@@ -16816,7 +16878,7 @@ undefined8 __fastcall FUN_0042692c(undefined4 param_1,undefined4 param_2)
 {
   int iVar1;
   int iVar2;
-  
+
   iVar2 = (int)(uintptr_t)param_1;
   iVar1 = FUN_0045f1ff(1,0x39);
   if (iVar1 == 0) {
@@ -16841,7 +16903,7 @@ undefined8 __fastcall FUN_00426974(undefined4 param_1,undefined4 param_2)
   undefined2 *puVar2;
   undefined2 *puVar3;
   undefined8 uVar4;
-  
+
   uVar4 = FUN_00453600(param_1,param_2);
   puVar3 = (undefined2 *)uVar4;
   *puVar3 = 0xffff;
@@ -16868,7 +16930,7 @@ undefined4 __fastcall FUN_004269d4(undefined4 param_1,undefined4 param_2)
 {
   undefined2 *puVar1;
   undefined8 uVar2;
-  
+
   uVar2 = FUN_004537d8(param_1,param_2);
   puVar1 = (undefined2 *)uVar2;
   *puVar1 = 0xffff;
@@ -16891,7 +16953,7 @@ undefined4 __fastcall FUN_00426a04(undefined4 param_1,undefined4 param_2)
 {
   undefined2 *puVar1;
   undefined8 uVar2;
-  
+
   uVar2 = FUN_0045384c(param_1,param_2);
   puVar1 = (undefined2 *)uVar2;
   *puVar1 = 0xffff;
@@ -16913,7 +16975,7 @@ undefined8 __fastcall FUN_00426a30(undefined4 param_1,undefined4 param_2)
 {
   undefined2 *puVar1;
   undefined2 *puVar2;
-  
+
   puVar2 = (undefined2 *)FUN_0045f1ff(param_1,0x1a);
   if (puVar2 == (undefined2 *)0x0) {
     FUN_00414e68();
@@ -16936,7 +16998,7 @@ void FUN_00426a80(void)
   int iVar1;
   int iVar2;
   int *in_EAX;
-  
+
   iVar1 = *in_EAX;
   if (iVar1 != 0) {
     *(undefined2 *)((int)in_EAX + 6) = 0;
@@ -16964,7 +17026,7 @@ void __fastcall FUN_00426ac4(undefined4 param_1,int param_2)
   int iVar1;
   int in_EAX;
   int iVar2;
-  
+
   iVar1 = *(int *)(param_2 + 6);
   if (iVar1 == 0) {
     *(int *)(param_2 + 6) = in_EAX;
@@ -17007,7 +17069,7 @@ ushort * __fastcall FUN_00426b54(undefined4 param_1,undefined4 param_2)
   ushort *puVar4;
   ushort uVar5;
   undefined8 uVar6;
-  
+
   uVar6 = FUN_00453754(param_1,param_2);
   puVar4 = (ushort *)uVar6;
   puVar1 = *(ushort **)(in_EAX + 4);
@@ -17081,7 +17143,11 @@ void FUN_00426c3c(void)
 {
   int iVar1;
   int in_EAX;
-  
+
+  in_EAX = E2R_actor_calc_context;
+  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x136)) {
+    return;
+  }
   for (iVar1 = _DAT_0063726c; (iVar1 != 0 && (iVar1 != in_EAX)); iVar1 = *(int *)(iVar1 + 0x4c)) {
   }
   if (iVar1 == 0) {
@@ -17114,7 +17180,11 @@ void FUN_00426ca4(void)
   int extraout_ECX;
   short *extraout_ECX_00;
   short *extraout_ECX_01;
-  
+
+  in_EAX = (short *)(uintptr_t)E2R_actor_calc_context;
+  if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,0x136)) {
+    return;
+  }
   bVar4 = false;
   if (in_EAX != (short *)0x0) {
     if (_DAT_0063726c != (short *)0x0) {
@@ -17137,14 +17207,13 @@ void FUN_00426ca4(void)
       }
     }
     if (bVar4) {
-      FUN_00422aa0(in_EAX,in_EAX + 0x42);
-      FUN_00422aa0(extraout_ECX,(undefined2 *)(extraout_ECX + 0x90));
-      *(short *)(*extraout_ECX_00 * 2 + 0x671fc0) = extraout_ECX_00[0x91];
-      *(short *)(*extraout_ECX_00 * 2 + 0x647a68) = extraout_ECX_00[0x76];
-      *(char *)(*extraout_ECX_00 + 0x64c950) = (char)extraout_ECX_00[0xc2];
-      in_EAX = extraout_ECX_00;
-      if ((*(int *)(extraout_ECX_00 + 0x53) != 0) && (DAT_0047a34a == 0)) {
-        for (iVar2 = *(int *)(extraout_ECX_00 + 0x57); iVar2 != 0; iVar2 = *(int *)(iVar2 + 2)) {
+      FUN_00422aa0((undefined4)(uintptr_t)in_EAX,in_EAX + 0x42);
+      FUN_00422aa0((undefined4)(uintptr_t)in_EAX,(undefined2 *)((undefined1 *)in_EAX + 0x90));
+      *(short *)(*in_EAX * 2 + 0x671fc0) = in_EAX[0x91];
+      *(short *)(*in_EAX * 2 + 0x647a68) = in_EAX[0x76];
+      *(char *)(*in_EAX + 0x64c950) = (char)in_EAX[0xc2];
+      if ((*(int *)(in_EAX + 0x53) != 0) && (DAT_0047a34a == 0)) {
+        for (iVar2 = *(int *)(in_EAX + 0x57); iVar2 != 0; iVar2 = *(int *)(iVar2 + 2)) {
           for (iVar3 = *(int *)(iVar2 + 6); iVar3 != 0; iVar3 = *(int *)(iVar3 + 10)) {
             if ((((*(short *)(iVar3 + 2) == 0x2e) && (*(short *)(iVar3 + 4) == 4)) &&
                 (*(short *)(iVar3 + 6) != 0)) &&
@@ -17181,7 +17250,7 @@ void FUN_00426df8(void)
   undefined4 extraout_ECX_01;
   undefined4 extraout_EDX;
   undefined8 uVar3;
-  
+
   DAT_0047a394 = 1;
   do {
     do {
@@ -17255,7 +17324,7 @@ void FUN_0042700c(void)
   undefined4 extraout_ECX;
   byte *pbVar5;
   byte abStack_4c [56];
-  
+
   iVar3 = DAT_0047a279 >> 0x18;
   *(undefined2 *)(iVar3 * 2 + 0x6366a8) = 2;
   *(undefined2 *)((undefined1 *)0x006366dc + iVar3 * 2) = 0;
@@ -17302,7 +17371,7 @@ undefined4 __fastcall FUN_00427160(undefined4 param_1,short *param_2)
   short sVar3;
   int iVar4;
   short unaff_BX;
-  
+
   uVar1 = FUN_00432c64(param_1,(short)param_1);
   if ((unaff_BX == 0) && (extraout_CX == 0)) {
     *in_EAX = (short)uVar1;
@@ -17358,7 +17427,7 @@ void __fastcall FUN_00427214(undefined4 param_1,undefined2 *param_2)
   short extraout_CX;
   int iVar3;
   short unaff_BX;
-  
+
   uVar1 = FUN_00432c64(param_1,unaff_BX);
   *in_EAX = (short)uVar1;
   if ((unaff_BX == 0) && (extraout_CX == 0)) {
@@ -17403,7 +17472,7 @@ void __fastcall FUN_004272a8(int param_1,short *param_2)
   int unaff_EBX;
   int iVar5;
   undefined2 uVar6;
-  
+
   bVar1 = false;
   while( true ) {
     iVar5 = unaff_EBX;
@@ -17490,7 +17559,7 @@ void __fastcall FUN_004273cc(undefined4 param_1)
   undefined4 extraout_EDX;
   undefined1 local_e0 [104];
   undefined1 local_78 [104];
-  
+
   iVar2 = *(int *)(in_EAX + 0x8f);
   if ((iVar2 != 0) &&
      (((-1 < *(short *)(iVar2 + 0xa2) || (-1 < *(short *)(iVar2 + 0x14))) &&
@@ -17663,7 +17732,12 @@ undefined4 __fastcall FUN_00427584(undefined4 param_1,int param_2)
   uint local_24;
   short local_1c [2];
   short sStack_18;
-  
+
+  in_EAX = (short *)(uintptr_t)param_1;
+  if (in_EAX == (short *)0x0 || (uintptr_t)in_EAX < 0x10000u ||
+      0x1000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,0x17c)) {
+    return 0;
+  }
   uVar13 = 0;
   local_58 = 0;
   local_5c = 0;
@@ -17818,7 +17892,7 @@ switchD_0042763f_default:
   else {
     psVar8 = *(short **)(local_6c + 0x8f);
     if (psVar8 == (short *)0x0) {
-      FUN_00451998(param_1,psVar15);
+      FUN_00451998((int)local_6c[0x91],psVar15);
       *(undefined4 *)(local_6c + 0x8f) =
            *(undefined4 *)((undefined1 *)0x00635980 + (*(int *)(local_6c + 0x90) >> 0x10) * 4);
       iVar7 = extraout_ECX_05;
@@ -17829,7 +17903,7 @@ switchD_0042763f_default:
       iVar7 = CONCAT22((short)((uint)param_1 >> 0x10),local_6c[0x91]);
       if (*psVar8 != local_6c[0x91]) {
         *(byte *)(psVar8 + 0xd5) = *(byte *)(psVar8 + 0xd5) & 0xfd;
-        FUN_00451998(iVar7,psVar15);
+        FUN_00451998((int)local_6c[0x91],psVar15);
         *(undefined4 *)(local_6c + 0x8f) =
              *(undefined4 *)((undefined1 *)0x00635980 + (*(int *)(local_6c + 0x90) >> 0x10) * 4);
         iVar7 = extraout_ECX_04;
@@ -19635,7 +19709,7 @@ undefined8 __fastcall FUN_0042a098(undefined4 param_1,undefined4 param_2)
   undefined4 unaff_ESI;
   int iVar5;
   undefined8 uVar6;
-  
+
   iVar2 = (*(int *)((uint)*(ushort *)(in_EAX + 0x92) * 2 + 0x59b58e) >> 0x10) *
           (*(int *)(in_EAX + 0x98) >> 0x10) >> 0xe;
   if (*(short *)(in_EAX + 0x98) != 0) {
@@ -19756,7 +19830,7 @@ undefined8 __fastcall FUN_0042a3f0(undefined4 param_1,undefined4 param_2)
   undefined4 unaff_ESI;
   int iVar5;
   undefined8 uVar6;
-  
+
   iVar2 = (*(int *)((uint)*(ushort *)(in_EAX + 0x92) * 2 + 0x59b58e) >> 0x10) *
           (*(int *)(in_EAX + 0x98) >> 0x10) >> 0xf;
   if (*(short *)(in_EAX + 0x98) != 0) {
@@ -19913,7 +19987,7 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
   undefined1 local_1f;
   undefined1 local_1e;
   undefined4 local_1c;
-  
+
   iVar7 = _DAT_0063737c;
   DAT_0047a428 = 0;
   _DAT_00637374 = 0;
@@ -19979,7 +20053,7 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
       ;
       *(byte *)(iVar8 + 2) = *(byte *)(iVar8 + 2) & 0x7f;
       if (*(short *)(iVar8 + 0x82) != 0xe) {
-        lVar15 = FUN_00427584(psVar10,iVar7);
+        lVar15 = FUN_00427584((undefined4)(uintptr_t)iVar8,iVar7);
         psVar10 = extraout_ECX_10;
       }
     }
@@ -20149,7 +20223,7 @@ void __fastcall FUN_0042ad60(undefined4 param_1,int param_2)
   int *extraout_ECX_03;
   int unaff_EBX;
   uint uVar1;
-  
+
   if (*in_EAX != 0) {
     if ((*(byte *)(*in_EAX + 0xc) & 2) == 0) {
       uVar1 = (uint)*(ushort *)((int)in_EAX + 6) +
@@ -20220,7 +20294,7 @@ void __fastcall FUN_0042ae80(undefined4 param_1,int param_2)
   ushort uVar4;
   undefined4 extraout_EDX;
   int unaff_EBX;
-  
+
   if (*in_EAX == 0) {
     if (DAT_0047a3b4 == 0) {
       *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) | 4;
@@ -20296,7 +20370,7 @@ void FUN_0042b004(void)
   int iVar2;
   int *in_EAX;
   short *in_EDX;
-  
+
   for (iVar1 = in_EAX[2]; iVar1 != 0; iVar1 = *(int *)(iVar1 + 2)) {
     for (iVar2 = *(int *)(iVar1 + 6); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {
       FUN_0042b880(*in_EAX,in_EDX);
@@ -20322,7 +20396,7 @@ void __fastcall FUN_0042b074(undefined4 param_1,short param_2)
   undefined4 extraout_ECX_00;
   undefined4 extraout_ECX_01;
   undefined4 uVar1;
-  
+
   *(short *)(in_EAX + 0x92) = *(short *)(in_EAX + 0x92) + param_2;
   *(byte *)(in_EAX + 0x146) = *(byte *)(in_EAX + 0x146) | 2;
   FUN_00422330();
@@ -20364,7 +20438,7 @@ undefined4 FUN_0042b0f4(void)
   int extraout_EDX_00;
   ushort *puVar6;
   ushort *puVar7;
-  
+
   if ((*(byte *)(in_EAX + 0x146) & 1) == 0) {
     for (iVar3 = *(int *)(in_EAX + 0x1e); iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x4c)) {
       if ((*(byte *)(iVar3 + 3) & 2) != 0) {
@@ -20476,7 +20550,7 @@ void __fastcall FUN_0042b338(undefined4 param_1,ushort param_2)
   uint uVar4;
   uint extraout_ECX;
   short *unaff_EBX;
-  
+
   if (param_2 < *(ushort *)((int)in_EAX + 6)) {
     FUN_0042b004();
   }
@@ -20523,7 +20597,7 @@ void __fastcall FUN_0042b490(undefined4 param_1,int param_2)
   int extraout_EDX_00;
   int extraout_EDX_01;
   uint uVar4;
-  
+
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
     if (*(ushort *)(iVar1 + 0x138) != 0) {
       *(ushort *)(iVar1 + 0x138) = *(ushort *)(iVar1 + 0x138) & ~*(ushort *)(iVar1 + 0x136);
@@ -20607,7 +20681,7 @@ void FUN_0042b5fc(void)
   int iVar2;
   int iVar3;
   uint uVar4;
-  
+
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
     if (*(ushort *)(iVar1 + 0x138) != 0) {
       *(ushort *)(iVar1 + 0x138) = *(ushort *)(iVar1 + 0x138) & ~*(ushort *)(iVar1 + 0x136);
@@ -20706,7 +20780,10 @@ short * __fastcall FUN_0042b880(int param_1,short *param_2)
   if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,10)) {
     return (short *)0x0;
   }
-  
+  unaff_ESI = param_2;
+  local_14 = param_2;
+  local_18 = param_2;
+
   if ((DAT_0047a7e0 != 0) && ((*(byte *)((int)(uint)(ushort)in_EAX[1] * 2 + 0x63679f) & 1) == 0)) {
     return (short *)(uint)(ushort)in_EAX[1];
   }
@@ -20822,7 +20899,9 @@ LAB_0042b9e1:
       psVar7[0x16] = *psVar1;
       psVar7 = psVar7 + 1;
     } while (in_EAX != psVar8);
+    E2R_actor_calc_context = (int)(uintptr_t)unaff_ESI;
     psVar7 = (short *)FUN_00442954();
+    E2R_actor_calc_context = 0;
     *(byte *)(unaff_ESI + 0x9b) = *(byte *)(unaff_ESI + 0x9b) | 4;
     return psVar7;
   case 0x3:
@@ -20839,7 +20918,9 @@ LAB_0042b9e1:
       psVar7[0x34] = *psVar1;
       psVar7 = psVar7 + 1;
     } while (in_EAX != psVar8);
+    E2R_actor_calc_context = (int)(uintptr_t)unaff_ESI;
     FUN_00432e08();
+    E2R_actor_calc_context = 0;
     psVar7 = (short *)FUN_0042ce70();
     *(byte *)(unaff_ESI + 0x9b) = *(byte *)(unaff_ESI + 0x9b) | 0x10;
     return psVar7;
@@ -20852,16 +20933,34 @@ LAB_0042b9e1:
       psVar7[0x37] = *psVar1;
       psVar7 = psVar7 + 1;
     } while (in_EAX != psVar8);
+    E2R_actor_calc_context = (int)(uintptr_t)unaff_ESI;
     psVar7 = (short *)FUN_004429e0();
+    E2R_actor_calc_context = 0;
     *(byte *)(unaff_ESI + 0x9b) = *(byte *)(unaff_ESI + 0x9b) | 8;
     return psVar7;
   case 0x7:
     psVar7 = (short *)(*(int *)(in_EAX + 1) >> 0x10);
-    if (*(int *)(*(int *)(*(int *)(unaff_ESI + 0x11) + 0x54) + (int)psVar7 * 4) == 0) {
-      uVar12 = FUN_004265ac(param_1,*(int *)(*(int *)(unaff_ESI + 0x11) + 0x54));
+    if ((unaff_ESI == (short *)0x0 || IsBadReadPtr(unaff_ESI,0x26) ||
+         *(int *)(unaff_ESI + 0x11) == 0 ||
+         IsBadReadPtr((void *)(uintptr_t)*(int *)(unaff_ESI + 0x11),0x58)) &&
+        param_2 != (short *)0x0) {
+      unaff_ESI = param_2;
+    }
+    if (unaff_ESI == (short *)0x0 || IsBadReadPtr(unaff_ESI,0x26) ||
+        *(int *)(unaff_ESI + 0x11) == 0 ||
+        IsBadReadPtr((void *)(uintptr_t)*(int *)(unaff_ESI + 0x11),0x58)) {
+      return (short *)0x0;
+    }
+    iVar10 = *(int *)(unaff_ESI + 0x11);
+    iVar11 = *(int *)(iVar10 + 0x54);
+    if (iVar11 == 0 || IsBadReadPtr((void *)(uintptr_t)iVar11,(int)psVar7 * 4 + 4)) {
+      return (short *)0x0;
+    }
+    if (*(int *)(iVar11 + (int)psVar7 * 4) == 0) {
+      uVar12 = FUN_004265ac((undefined4)(uintptr_t)unaff_ESI,iVar11);
       psVar7 = (short *)uVar12;
       *psVar7 = in_EAX[2];
-      *(short **)(*(int *)(*(int *)(psVar7 + 0x11) + 0x54) + *psVar7 * 4) = psVar7;
+      *(short **)(iVar11 + *psVar7 * 4) = psVar7;
       return psVar7;
     }
     break;
@@ -20869,7 +20968,7 @@ LAB_0042b9e1:
     uVar12 = FUN_00426478(param_1,iVar9);
     psVar7 = (short *)uVar12;
     DAT_0047a470 = psVar7;
-    *psVar7 = in_EAX[2];
+    *psVar7 = *in_EAX;
     psVar7[0xb9] = DAT_00479e4c;
     *(short **)((undefined1 *)0x00630b60 + *psVar7 * 4) = psVar7;
     return psVar7;
@@ -20878,7 +20977,7 @@ LAB_0042b9e1:
     unaff_ESI[2] = uVar4;
     return (short *)(uint)uVar4;
   case 0xa:
-    uVar12 = FUN_004265ac(param_1,iVar9);
+    uVar12 = FUN_004265ac((undefined4)(uintptr_t)unaff_ESI,iVar9);
     psVar7 = (short *)uVar12;
     sVar6 = in_EAX[2];
     *psVar7 = sVar6;
@@ -21082,8 +21181,11 @@ LAB_0042c113:
     *(byte *)((int)unaff_ESI + 3) = *(byte *)((int)unaff_ESI + 3) | 0x42;
     return in_EAX;
   case 0x29:
-    uVar12 = FUN_00426858(param_1,iVar9);
+    uVar12 = FUN_00426858((undefined4)(uintptr_t)unaff_ESI,iVar9);
     psVar7 = (short *)uVar12;
+    if (psVar7 == (short *)0x0) {
+      return (short *)0x0;
+    }
     *psVar7 = in_EAX[2];
     *(short **)(*(int *)(*(int *)(*(int *)(psVar7 + 0x11) + 0x22) + 0xe0) + *psVar7 * 4) = psVar7;
     return psVar7;
@@ -21108,11 +21210,14 @@ LAB_0042c113:
         psVar7 = psVar7 + 1;
         *(undefined4 *)((int)local_38 + iVar9) =
              *(undefined4 *)(*(int *)(param_2 + 0x70) + (*piVar2 >> 0x10) * 4);
-        iVar9 = iVar10;
+          iVar9 = iVar10;
       } while (iVar10 != 0xc);
       psVar7 = (short *)0xc;
       if (((local_38[0] != 0) && (local_38[1] != 0)) && (local_38[2] != 0)) {
-        psVar7 = FUN_00426798(param_1,local_38);
+        psVar7 = FUN_00426798((undefined4)(uintptr_t)unaff_ESI,local_38);
+        if (psVar7 == (short *)0x0) {
+          return (short *)0x0;
+        }
         sVar6 = *in_EAX;
         *psVar7 = sVar6;
         *(short **)(*(int *)(param_2 + 0x6e) + sVar6 * 4) = psVar7;
@@ -21442,7 +21547,7 @@ void __fastcall FUN_0042c790(int param_1,int param_2)
   short sStack_14;
   short local_12;
   short sStack_10;
-  
+
   if ((DAT_0047a7e0 != 0) && ((*(byte *)((uint)(ushort)in_EAX[1] * 2 + 0x63679f) & 1) == 0)) {
     return;
   }
@@ -21799,7 +21904,7 @@ undefined4 FUN_0042ce70(void)
   short sVar2;
   int in_EAX;
   int iVar3;
-  
+
   if ((*(byte *)(in_EAX + 2) & 8) == 0) {
     sVar2 = 0;
     do {
@@ -21838,7 +21943,7 @@ undefined8 __fastcall FUN_0042cf04(undefined4 param_1,undefined4 param_2)
   short sVar1;
   int iVar2;
   int iVar3;
-  
+
   sVar1 = 0;
   while( true ) {
     DAT_0047a3b8 = DAT_0047a3b8 + 1;
@@ -21872,7 +21977,7 @@ undefined4 __fastcall FUN_0042cf54(undefined4 param_1,int param_2)
   int *piVar3;
   int extraout_ECX;
   undefined8 uVar4;
-  
+
   uVar4 = FUN_0042cf04(param_1,param_2);
   piVar3 = (int *)uVar4;
   if (piVar3 == (int *)0x0) {
@@ -21916,7 +22021,7 @@ undefined4 FUN_0042d048(void)
   int iVar1;
   int in_EAX;
   int iVar2;
-  
+
   iVar1 = *(int *)(in_EAX + 0xa2);
   while ((iVar1 != 0 && ((*(byte *)(*(int *)(in_EAX + 0xa2) + 0xd) & 4) != 0))) {
     *(undefined2 *)(*(int *)(in_EAX + 0xa2) + 0xc) = 0;
@@ -21950,7 +22055,7 @@ undefined4 __fastcall FUN_0042d0d4(undefined4 param_1,int param_2)
   int extraout_ECX_00;
   int iVar3;
   int iVar4;
-  
+
   if (in_EAX != *(int *)(param_2 + 0xbc)) {
     iVar3 = *(int *)(param_2 + 0xbc);
     if (iVar3 != *(int *)(param_2 + 0x1e)) {
@@ -22013,7 +22118,7 @@ undefined4 FUN_0042d1a4(void)
   undefined4 *extraout_EDX;
   undefined4 *puVar3;
   undefined4 *puVar4;
-  
+
   if ((*(byte *)(in_EAX + 2) & 0x10) == 0) {
     iVar2 = *(int *)(in_EAX + 0x44);
     iVar1 = in_EAX;
@@ -22049,7 +22154,7 @@ undefined4 __fastcall FUN_0042d20c(undefined4 param_1)
   undefined4 extraout_ECX;
   undefined4 auStack_40 [5];
   ushort local_2c [10];
-  
+
   if ((*(byte *)(in_EAX + 2) & 0x10) != 0) {
     FUN_0042d250(param_1,auStack_40);
     FUN_0045dd04();
@@ -22079,7 +22184,7 @@ void __fastcall FUN_0042d250(undefined4 param_1,undefined4 *param_2)
   undefined4 *puVar4;
   undefined4 auStack_2c [5];
   int local_18;
-  
+
   local_18 = in_EAX;
   FUN_00422330();
   iVar3 = *(int *)(in_EAX + 0x44);
@@ -22162,7 +22267,7 @@ void __fastcall FUN_0042d36c(undefined4 param_1,ushort *param_2)
   undefined2 uStack_16;
   undefined1 local_14;
   char cStack_13;
-  
+
   puVar7 = auStack_2c;
   for (iVar4 = 4; iVar4 != 0; iVar4 = iVar4 + -1) {
     *(undefined4 *)puVar7 = *(undefined4 *)param_2;
@@ -22227,7 +22332,7 @@ void __fastcall FUN_0042d46c(undefined4 param_1,ushort *param_2)
   byte bVar6;
   ushort auStack_24 [8];
   short sStack_14;
-  
+
   puVar5 = auStack_24;
   for (iVar3 = 4; iVar3 != 0; iVar3 = iVar3 + -1) {
     *(undefined4 *)puVar5 = *(undefined4 *)param_2;
@@ -22286,7 +22391,7 @@ undefined4 FUN_0042d554(void)
   short local_2c [4];
   undefined2 local_24 [4];
   int local_1c;
-  
+
   iVar4 = *(int *)(in_EAX + 0x22);
   if (*(int *)(in_EAX + 0x1e) == 0) {
     FUN_00426f84();
@@ -22340,7 +22445,7 @@ undefined4 FUN_0042d61c(void)
   undefined2 *local_24;
   int local_20;
   int local_1c;
-  
+
   if ((*(byte *)(in_EAX + 2) & 0x20) != 0) {
     local_20 = *(int *)(in_EAX + 0x1e);
     if (local_20 == 0) {
@@ -22395,7 +22500,7 @@ void FUN_0042d72c(void)
   int extraout_ECX_03;
   ushort *extraout_EDX;
   int iVar3;
-  
+
   if ((*(byte *)(in_EAX + 3) & 2) == 0) {
     iVar3 = *(int *)(in_EAX + 0x22);
     FUN_00422330();
@@ -22441,7 +22546,7 @@ void FUN_0042d7c0(void)
   ushort local_3c [10];
   short local_28 [4];
   undefined2 local_20 [4];
-  
+
   if ((*(byte *)(in_EAX + 3) & 2) == 0) {
     iVar3 = *(int *)(in_EAX + 0x22);
     FUN_00423674();
@@ -22487,7 +22592,7 @@ void FUN_0042d860(void)
   ushort local_3c [10];
   undefined2 local_28 [4];
   short local_20 [4];
-  
+
   if ((*(byte *)(in_EAX + 3) & 2) != 0) {
     iVar4 = *(int *)(in_EAX + 0x22);
     FUN_00422330();
@@ -22556,7 +22661,7 @@ void FUN_0042d948(void)
   short local_28 [4];
   int local_20;
   int local_1c;
-  
+
   if (*(int *)(in_EAX + 0x1e) == 0) {
     FUN_00426f84();
   }
@@ -22657,7 +22762,7 @@ undefined4 __fastcall FUN_0042db74(undefined4 param_1,int param_2)
   int extraout_ECX_02;
   short *extraout_EDX;
   int iVar3;
-  
+
   if (*(int *)(in_EAX + 0x13a) != 0) {
     iVar2 = *(int *)(in_EAX + 0x44);
     iVar3 = in_EAX;
@@ -22731,7 +22836,7 @@ longlong __fastcall FUN_0042dc9c(undefined4 param_1,uint param_2)
   int local_24;
   int local_20;
   undefined4 local_1c;
-  
+
   uVar1 = *(int *)(in_EAX + 0x90) >> 0x10 & 0xffff;
   iVar4 = *(int *)(in_EAX + 0x98) >> 0x10;
   local_24 = ((*(int *)(uVar1 * 2 + 0x59b58e) >> 0x10) * iVar4 >> 0xe) +
@@ -22827,7 +22932,7 @@ undefined4 FUN_0042deb8(void)
   undefined1 local_e8 [104];
   undefined1 local_80 [102];
   undefined4 local_1a;
-  
+
   iVar8 = *(int *)(in_EAX + 0x22);
   psVar2 = in_EAX;
   while (iVar8 != 0) {
@@ -22935,7 +23040,7 @@ undefined8 __fastcall FUN_0042e684(undefined4 param_1,undefined4 param_2)
   int extraout_ECX;
   int iVar7;
   short *local_20;
-  
+
   iVar7 = 0x10000000;
   local_20 = (short *)0x0;
   psVar1 = _DAT_0063726c;
@@ -23026,7 +23131,7 @@ undefined8 __fastcall FUN_0042e7dc(undefined4 param_1,undefined4 param_2)
   int iVar8;
   short *local_24;
   int local_20;
-  
+
   local_24 = (short *)0x0;
   local_20 = 0x10000000;
   psVar1 = _DAT_0063726c;
@@ -23162,7 +23267,7 @@ int __fastcall FUN_0042ea00(undefined4 param_1,int param_2)
   int unaff_EBX;
   ushort *puVar8;
   undefined8 uVar9;
-  
+
   iVar2 = unaff_EBX * 100;
   iVar4 = iVar2;
   if (_DAT_0063726c != (ushort *)0x0) {
@@ -23316,7 +23421,7 @@ void __fastcall FUN_0042ed6c(undefined4 param_1,int param_2)
   uint local_1c;
   short local_18;
   short local_14;
-  
+
   local_2c = (short *)0x0;
   local_28 = 0x10000000;
   psVar2 = _DAT_0063726c;
@@ -23460,7 +23565,7 @@ void FUN_0042efdc(void)
   undefined8 uVar10;
   ushort *local_2c;
   undefined4 local_1c [2];
-  
+
   iVar7 = *(int *)(*(int *)(in_EAX + 0x22) + 0xf2);
   local_2c = (ushort *)0x0;
   puVar3 = _DAT_0063726c;
@@ -23656,7 +23761,7 @@ undefined8 __fastcall FUN_0042f49c(undefined4 param_1,undefined4 param_2)
   int local_28;
   short local_24 [4];
   int local_1c;
-  
+
   local_28 = 0;
   iVar8 = *(int *)(*(int *)(in_EAX + 0x22) + 0xf2);
   if (iVar8 != 0) {
@@ -23830,7 +23935,7 @@ undefined8 __fastcall FUN_0042f85c(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX_01;
   undefined4 extraout_EDX_02;
   undefined8 uVar5;
-  
+
   iVar1 = *(int *)(*(int *)(in_EAX + 0x22) + 0xf2);
   if (iVar1 != 0) {
     iVar2 = *(int *)(iVar1 + 0x44);
@@ -23892,7 +23997,7 @@ undefined4 __fastcall FUN_0042f9c0(int param_1,int param_2,int param_3)
   undefined4 extraout_EDX;
   int unaff_EBX;
   undefined8 uVar6;
-  
+
   iVar1 = *(int *)(*(int *)(in_EAX + 0x22) + 0xf2);
   if (iVar1 != 0) {
     iVar2 = *(int *)(iVar1 + 0x44);
@@ -23957,7 +24062,7 @@ undefined4 FUN_0042faf8(void)
   int iVar3;
   int in_EAX;
   undefined4 extraout_ECX;
-  
+
   if ((*(byte *)(in_EAX + 2) & 0x20) == 0) {
     iVar1 = *(int *)(in_EAX + 0x44);
     iVar2 = in_EAX;
@@ -24024,7 +24129,7 @@ undefined8 __fastcall FUN_0042fc84(undefined4 param_1,undefined4 param_2)
 
 {
   undefined4 uVar1;
-  
+
   uVar1 = 0;
   switch((int)(uintptr_t)(DAT_0047a7ec)) {
   case 0:
@@ -24076,7 +24181,7 @@ undefined4 __fastcall FUN_0042fce0(int param_1,int param_2,undefined4 param_3)
   int unaff_EBX;
   undefined8 uVar3;
   short local_14 [4];
-  
+
   if ((DAT_0047a4a0 != 0) && (DAT_00479dd0 != 0)) {
     iVar2 = param_1;
     if ((param_1 == 0) &&
@@ -24135,7 +24240,7 @@ void __fastcall FUN_00430568(undefined4 param_1,int param_2)
   int iVar1;
   int iVar2;
   int in_EAX;
-  
+
   *(undefined4 *)(in_EAX + 0xd) = 0;
   iVar1 = *(int *)(param_2 + 10);
   if (iVar1 != 0) {
@@ -24160,7 +24265,7 @@ int __fastcall FUN_0043059c(undefined4 param_1,undefined4 param_2)
 {
   int iVar1;
   undefined8 uVar2;
-  
+
   uVar2 = FUN_0045f0d1(param_1,param_2);
   iVar1 = (int)uVar2;
   if (iVar1 == 0) {
@@ -24198,7 +24303,7 @@ undefined8 __fastcall FUN_004305b8(undefined4 param_1,undefined4 param_2)
   uint in_stack_ffffff80;
   char local_18 [4];
   short asStack_14 [2];
-  
+
   iVar2 = 0;
   do {
     iVar1 = iVar2 + 0x1a;
@@ -24280,7 +24385,7 @@ undefined4 __fastcall FUN_004307d0(undefined4 param_1,int param_2)
   int local_38;
   undefined2 uStack_2e;
   short local_24;
-  
+
   FUN_00457818(param_1,param_2);
   if (DAT_0047a43c == 0) {
     if (*(short *)(in_EAX + 0x96) == 0) {
@@ -24541,7 +24646,7 @@ undefined4 __fastcall FUN_00430fd8(undefined4 param_1,int param_2)
   short sStack_20;
   short sStack_1c;
   short sStack_18;
-  
+
   local_48 = 0x280;
   if (*(short *)(in_EAX + 0x96) != 0) {
     local_58 = param_2;
@@ -24837,7 +24942,7 @@ void __fastcall FUN_00431a7c(undefined4 param_1,int param_2)
   int local_1c;
   int iStack_18;
   short sStack_14;
-  
+
   FUN_00457818(param_1,param_2);
   iVar10 = *(int *)(in_EAX + 4);
   local_6c = *(int *)(iVar10 + 0x18) >> 0x10;
@@ -25353,7 +25458,7 @@ int __fastcall FUN_00432c64(undefined4 param_1,short param_2)
   short sVar1;
   short in_AX;
   int iVar2;
-  
+
   if (in_AX < 1) {
     if (param_2 < 1) {
       if (param_2 < 0) {
@@ -25424,7 +25529,7 @@ undefined4 FUN_00432de4(void)
 
 {
   short in_AX;
-  
+
   if (0x3fff < in_AX) {
     return 0x4000;
   }
@@ -25446,7 +25551,11 @@ void FUN_00432e08(void)
   ushort uVar3;
   int in_EAX;
   ushort uVar4;
-  
+
+  in_EAX = E2R_actor_calc_context;
+  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xdc)) {
+    return;
+  }
   uVar1 = *(ushort *)(in_EAX + 0x68);
   uVar2 = *(ushort *)(in_EAX + 0x6a);
   uVar3 = *(ushort *)(in_EAX + 0x6c);
@@ -25539,7 +25648,7 @@ void FUN_00432ecc(void)
   int iStack_24;
   short sStack_20;
   undefined4 local_1e;
-  
+
   local_1e = CONCAT22(*(short *)(in_EAX + 0xd4),(undefined2)local_1e);
   sStack_20 = *(short *)(in_EAX + 0xd6);
   sStack_28 = *(short *)(in_EAX + 0xd8);
@@ -25679,7 +25788,7 @@ void __fastcall FUN_00433d30(undefined4 param_1,int param_2)
   int extraout_ECX_01;
   int extraout_ECX_02;
   int iVar8;
-  
+
   if (*(int *)(in_EAX + 0x28) != 0) {
     if (((*(short *)(in_EAX + 0x2c) < 0) || (DAT_0047a3e0 != 0)) || (DAT_0047a434 != 0)) {
       FUN_00431a7c(in_EAX,param_2);
@@ -25805,7 +25914,7 @@ void __fastcall FUN_00433e9c(int param_1,int param_2)
   int local_30;
   int local_28;
   int local_10;
-  
+
   iVar2 = *(int *)(in_EAX + 4);
   iVar6 = *(int *)(in_EAX + 8);
   local_10 = *(int *)(iVar2 + 0x18) >> 0x10;
@@ -26818,7 +26927,7 @@ float __fastcall FUN_0043574c(int param_1,float *param_2)
   int local_38;
   float local_1c;
   int local_18;
-  
+
   local_18 = param_1;
   if (param_1 < 6) {
     if (*param_2 <= *in_EAX) {
@@ -27544,7 +27653,7 @@ void __fastcall FUN_00437ae4(undefined4 param_1,int param_2)
   int local_1c;
   int local_18;
   short local_14;
-  
+
   FUN_004525f0(param_1,param_2);
   iVar10 = *(int *)((*(int *)(in_EAX + 0x2a) >> 0x10) * 4 + 0x62b700);
   if (iVar10 != 0) {
@@ -28285,7 +28394,7 @@ void FUN_0043a1fc(void)
   int iVar6;
   undefined8 uVar7;
   int iVar4;
-  
+
   FUN_00420c34();
   FUN_00452d3c(extraout_ECX);
   _DAT_0063726c = 0;
@@ -28369,6 +28478,9 @@ void FUN_0043a1fc(void)
 void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
 
 {
+  E2R_start_game_probe_count++;
+  E2R_start_game_probe_last_player = _DAT_0047a4dc;
+  E2R_start_game_probe_last_mode = (uintptr_t)param_2;
   int iVar1;
   int iVar2;
   uint uVar3;
@@ -28420,10 +28532,7 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
   undefined8 uVar7;
   uint action_guard;
 
-  E2R_start_game_probe_count++;
-  E2R_start_game_probe_last_player = _DAT_0047a4dc;
-  E2R_start_game_probe_last_mode = (uintptr_t)param_2;
-  
+
   DAT_0047a34a = 0;
   DAT_0047a366 = 0;
   DAT_0047a788 = 1;
@@ -28508,7 +28617,6 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
 
     E2R_start_code_probe_action_scans++;
     action_guard = action_guard + 1;
-
     if (DAT_00479e20 != 0 && action_name != (char *)0x0) {
       if (DAT_00479d74 == 0) {
         prefix_matches = strncmp(action_name,"___",3) == 0;
@@ -28578,7 +28686,7 @@ undefined8 __fastcall FUN_0043a6e0(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX;
   int extraout_EDX_00;
   undefined8 uVar2;
-  
+
   DAT_0047a788 = 1;
   DAT_0047a428 = 1;
   FUN_00413e88();
@@ -28614,7 +28722,21 @@ undefined8 __fastcall FUN_0043a800(undefined4 param_1,int param_2)
   int extraout_EDX;
   int extraout_EDX_00;
   undefined8 uVar5;
-  
+
+  in_EAX = (int)(uintptr_t)param_1;
+  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x54)) {
+    return CONCAT44(param_2,0);
+  }
+  if (_DAT_0063726c != 0 &&
+     ((uint)_DAT_0063726c < 0x10000u || 0x70000000u <= (uint)_DAT_0063726c ||
+      IsBadReadPtr((void *)(uintptr_t)_DAT_0063726c,0x50))) {
+    _DAT_0063726c = 0;
+  }
+  if (_DAT_00637248 != 0 &&
+     ((uint)_DAT_00637248 < 0x10000u || 0x70000000u <= (uint)_DAT_00637248 ||
+      IsBadReadPtr((void *)(uintptr_t)_DAT_00637248,0x54))) {
+    _DAT_00637248 = 0;
+  }
   iVar2 = _DAT_0063726c;
   iVar4 = param_2;
   if (DAT_0047a34a != 0) {
@@ -28627,6 +28749,8 @@ undefined8 __fastcall FUN_0043a800(undefined4 param_1,int param_2)
       iVar1 = *(int *)(_DAT_0063726c + 0x4c);
       iVar4 = _DAT_0063726c;
       while (iVar1 != 0) {
+        if (IsBadReadPtr((void *)(uintptr_t)iVar4,0x50) ||
+            IsBadReadPtr((void *)(uintptr_t)iVar1,0x50)) break;
         if (in_EAX == *(int *)(iVar4 + 0x4c)) {
           *(undefined4 *)(iVar4 + 0x4c) = *(undefined4 *)(*(int *)(iVar4 + 0x4c) + 0x4c);
           iVar2 = _DAT_0063726c;
@@ -28639,6 +28763,7 @@ undefined8 __fastcall FUN_0043a800(undefined4 param_1,int param_2)
   }
   do {
     if (iVar2 == 0) break;
+    if (IsBadReadPtr((void *)(uintptr_t)iVar2,0x50)) break;
     if (iVar2 == in_EAX) {
       uVar5 = FUN_0043cac0(in_EAX,iVar4);
       uVar3 = (undefined4)uVar5;
@@ -28654,6 +28779,8 @@ undefined8 __fastcall FUN_0043a800(undefined4 param_1,int param_2)
       iVar4 = *(int *)(_DAT_00637248 + 0x50);
       iVar2 = _DAT_00637248;
       while (iVar4 != 0) {
+        if (IsBadReadPtr((void *)(uintptr_t)iVar2,0x54) ||
+            IsBadReadPtr((void *)(uintptr_t)iVar4,0x54)) break;
         if (in_EAX == *(int *)(iVar2 + 0x50)) {
           *(undefined4 *)(iVar2 + 0x50) = *(undefined4 *)(*(int *)(iVar2 + 0x50) + 0x50);
           break;
@@ -28663,21 +28790,30 @@ undefined8 __fastcall FUN_0043a800(undefined4 param_1,int param_2)
       }
     }
   }
-  for (iVar4 = *(int *)(in_EAX + 0x1e); iVar4 != 0; iVar4 = *(int *)(iVar4 + 0x4c)) {
+  for (iVar4 = *(int *)(in_EAX + 0x1e); iVar4 != 0; iVar4 = iVar1) {
+    if ((uint)iVar4 < 0x10000u || 0x70000000u <= (uint)iVar4 ||
+        IsBadReadPtr((void *)(uintptr_t)iVar4,0x122)) break;
+    iVar1 = *(int *)(iVar4 + 0x4c);
     iVar2 = *(int *)(iVar4 + 0x11e);
     while (iVar2 != 0) {
-      FUN_0045366c();
-      iVar2 = *(int *)(extraout_EDX + 0x26);
+      if ((uint)iVar2 < 0x10000u || 0x70000000u <= (uint)iVar2 ||
+          IsBadReadPtr((void *)(uintptr_t)iVar2,0x2a)) break;
+      extraout_EDX = *(int *)(iVar2 + 0x26);
+      *(undefined2 *)(iVar2 + 2) = 1;
+      iVar2 = extraout_EDX;
     }
-    FUN_00453508();
-    in_EAX = extraout_ECX;
+    *(undefined2 *)(iVar4 + 4) = 0x8000;
   }
   iVar4 = *(int *)(in_EAX + 0xd8);
   while (iVar4 != 0) {
-    FUN_00453264();
-    iVar4 = *(int *)(extraout_EDX_00 + 0x1e);
+    if ((uint)iVar4 < 0x10000u || 0x70000000u <= (uint)iVar4 ||
+        IsBadReadPtr((void *)(uintptr_t)iVar4,0x44)) break;
+    extraout_EDX_00 = *(int *)(iVar4 + 0x1e);
+    *(undefined2 *)(iVar4 + 2) = 0x8000;
+    iVar4 = extraout_EDX_00;
   }
-  uVar3 = FUN_00453264();
+  *(undefined2 *)(in_EAX + 4) = 0x8000;
+  uVar3 = 0;
 LAB_0043a8f0:
   return CONCAT44(param_2,uVar3);
 }
@@ -28695,7 +28831,7 @@ undefined4 FUN_0043a8f8(void)
   int extraout_EDX;
   int extraout_EDX_00;
   int iVar2;
-  
+
   *(undefined4 *)(*(int *)(*(int *)(in_EAX + 0x11) + 0x54) + *in_EAX * 4) = 0;
   iVar1 = *(int *)(*(int *)(in_EAX + 0x11) + 0x1e);
   iVar2 = *(int *)(iVar1 + 0x4c);
@@ -28741,7 +28877,7 @@ void FUN_0043a9a8(void)
   short *psVar1;
   int iVar2;
   short *in_EAX;
-  
+
   psVar1 = *(short **)(*(int *)(in_EAX + 0x11) + 0xd8);
   if (in_EAX == psVar1) {
     *(undefined4 *)(*(int *)(in_EAX + 0x11) + 0xd8) = *(undefined4 *)(psVar1 + 0xf);
@@ -28775,7 +28911,7 @@ void FUN_0043aa14(void)
   int iVar2;
   short *in_EAX;
   int extraout_EDX;
-  
+
   if (_DAT_00637270 != (short *)0x0) {
     if (in_EAX == _DAT_00637270) {
       _DAT_00637270 = *(short **)(_DAT_00637270 + 4);
@@ -28816,7 +28952,7 @@ void FUN_0043aa98(void)
   int iVar2;
   int in_EAX;
   int extraout_EDX;
-  
+
   if (_DAT_0063725c != 0) {
     if (in_EAX == _DAT_0063725c) {
       _DAT_0063725c = *(int *)(_DAT_0063725c + 8);
@@ -28860,7 +28996,7 @@ void FUN_0043ab38(void)
   int in_EAX;
   int extraout_EDX;
   int extraout_EDX_00;
-  
+
   if (in_EAX != 0) {
     iVar1 = *(int *)(in_EAX + 6);
     while (iVar1 != 0) {
@@ -28890,7 +29026,7 @@ undefined8 __fastcall FUN_0043ab74(undefined4 param_1,undefined4 param_2)
   int in_EAX;
   undefined4 uVar2;
   undefined8 uVar3;
-  
+
   if ((((in_EAX != 0) && (iVar1 = *(int *)(in_EAX + 0x44), iVar1 != 0)) &&
       (*(short *)(iVar1 + 4) != 7)) &&
      (((*(byte *)(iVar1 + 2) & 0x20) != 0 && (in_EAX == *(int *)(iVar1 + 0x1e))))) {
@@ -28944,7 +29080,7 @@ void FUN_0043ac60(void)
   undefined4 extraout_ECX_01;
   undefined4 extraout_EDX;
   undefined4 extraout_EDX_00;
-  
+
   iVar1 = DAT_00479e74;
   FUN_00449b30();
   FUN_0041bcfc(extraout_ECX);
@@ -28988,7 +29124,7 @@ void FUN_0043acec(void)
   undefined4 extraout_ECX_01;
   undefined4 extraout_ECX_02;
   undefined4 extraout_EDX;
-  
+
   iVar1 = DAT_00479e74;
   FUN_00449b30();
   FUN_0041bcfc(extraout_ECX);
@@ -29029,7 +29165,7 @@ void FUN_0043adc0(void)
   int in_EAX;
   int iVar1;
   uint uVar2;
-  
+
   in_EAX = (int)(uintptr_t)_DAT_00643430;
   if (in_EAX == 0 || (uintptr_t)in_EAX >= 0x70000000u ||
       IsBadReadPtr((void *)(uintptr_t)in_EAX,0x20)) {
@@ -29142,7 +29278,7 @@ void FUN_0043af98(void)
   undefined4 uVar7;
   undefined4 extraout_ECX_08;
   char *pcVar8;
-  
+
   if ((E2R_WORD_AT(DAT_0047a45e,2) == 0) || (puVar3 = FUN_0043aeac(), puVar3 == (undefined2 *)0x0)) {
     return;
   }
@@ -29229,7 +29365,7 @@ undefined8 __fastcall FUN_0043b384(undefined4 param_1,undefined4 param_2)
   char *pcVar9;
   bool bVar10;
   ulonglong uVar11;
-  
+
   in_EAX = (short *)(uintptr_t)param_1;
   E2R_requester_probe_b384_count++;
   E2R_requester_probe_b384_last_ptr = (uintptr_t)in_EAX;
@@ -29399,7 +29535,7 @@ undefined4 __fastcall FUN_0043b708(undefined4 param_1,short *param_2)
   undefined2 uVar8;
   undefined2 extraout_DX_00;
   char *pcVar9;
-  
+
   uVar4 = _DAT_00643430;
   uVar3 = DAT_0047a45e;
   if ((((E2R_READ2(DAT_00479e8a,2) < param_2[0xb]) || (param_2[0xc] <= E2R_READ2(DAT_00479e8a,2))) ||
@@ -29508,7 +29644,7 @@ void __fastcall FUN_0043b96c(undefined4 param_1)
   int in_EAX;
   undefined4 extraout_ECX;
   uint uVar1;
-  
+
   if (-1 < *(short *)(in_EAX + 0x10)) {
     uVar1 = *(int *)(in_EAX + 0xe) >> 0x10;
     FUN_0041760c(DAT_0047a279 >> 0x18,uVar1,uVar1,*(int *)(in_EAX + 0x12) >> 0x10,
@@ -29548,7 +29684,7 @@ undefined4 __fastcall FUN_0043b9bc(undefined4 param_1,short *param_2)
   short sVar8;
   char *pcVar9;
   byte local_14 [4];
-  
+
   E2R_requester_probe_b9bc_count++;
   E2R_requester_probe_b9bc_last_item = (uintptr_t)param_2;
   in_EAX = (int)(uintptr_t)FUN_0043aeac();
@@ -29704,7 +29840,7 @@ undefined4 __fastcall FUN_0043bd4c(undefined4 param_1,short *param_2)
   undefined1 *puVar14;
   char *pcVar15;
   undefined4 local_18;
-  
+
   E2R_requester_probe_bd4c_count++;
   E2R_requester_probe_bd4c_last_cursor = (uintptr_t)_DAT_00643428;
   in_EAX = (int)(uintptr_t)FUN_0043aeac();
@@ -29784,8 +29920,6 @@ undefined4 __fastcall FUN_0043bd4c(undefined4 param_1,short *param_2)
           uVar8 = (ushort)(byte)local_18;
           local_18 = (short *)CONCAT22(uVar12,sVar7);
           ((undefined1 *)0x00507490)[sVar7] = 0;
-          E2R_requester_probe_bd4c_last_key = (ushort)sVar7;
-          E2R_requester_probe_bd4c_seen_key_count++;
           psVar10 = (short *)CONCAT22(uVar12,uVar8);
           break;
         }
@@ -30004,12 +30138,12 @@ undefined4 __fastcall FUN_0043bd4c(undefined4 param_1,short *param_2)
         *pbVar6 = (byte)local_18;
         FUN_0043b9bc(_DAT_00643428,param_2);
       }
-      }
     }
-    else {
-      E2R_requester_probe_bd4c_no_key_count++;
-    }
-    FUN_0041cfc0();
+  }
+  else {
+    E2R_requester_probe_bd4c_no_key_count++;
+  }
+  FUN_0041cfc0();
   return;
 code_r0x0043bf38:
   _DAT_00643428 = (short *)((int)_DAT_00643428 - 1);
@@ -30061,7 +30195,7 @@ longlong __fastcall FUN_0043c1b8(undefined4 param_1,uint param_2)
   int local_24;
   uint local_20;
   uint local_1c;
-  
+
   if (9 < in_EAX) {
     FUN_00414e68();
   }
@@ -30306,7 +30440,7 @@ undefined8 __fastcall FUN_0043c998(undefined4 param_1,undefined4 param_2)
   int iVar4;
   int local_1c;
   int iVar2;
-  
+
   E2R_WORD_AT(DAT_0047a45e,2) = 0x2f;
   iVar2 = 0;
   do {
@@ -30354,7 +30488,7 @@ undefined8 __fastcall FUN_0043ca84(undefined4 param_1)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = FUN_0043c998(param_1,0);
   return uVar1;
 }
@@ -30383,7 +30517,7 @@ undefined8 __fastcall FUN_0043cac0(undefined4 param_1,undefined4 param_2)
   undefined1 *local_20;
   char *local_1c;
   undefined4 local_18;
-  
+
   E2R_WORD_AT(DAT_0047a45e,2) = 0x15;
   uVar3 = 0xffffffff;
   pcVar4 = in_EAX;
@@ -30470,7 +30604,7 @@ undefined8 __fastcall FUN_0043cbb4(undefined4 param_1)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = FUN_0043cbf0(param_1,0);
   return uVar1;
 }
@@ -30483,7 +30617,7 @@ undefined8 __fastcall FUN_0043cbd0(undefined4 param_1)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = FUN_0043cbf0(param_1,0);
   return uVar1;
 }
@@ -30504,7 +30638,7 @@ undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)
   undefined8 uVar5;
   int iVar2;
   undefined4 local_single [2];
-  
+
   in_EAX = E2R_ResolveMenuStringList(param_1,param_2,local_single);
   if (in_EAX == (int *)0x0) {
     return (ulonglong)param_2 << 0x20;
@@ -30569,7 +30703,7 @@ int __fastcall FUN_0043ccc8(undefined4 param_1,int param_2)
   char *pcVar3;
   char acStack_44 [50];
   undefined1 local_12;
-  
+
   E2R_WORD_AT(DAT_0047a45e,2) = 0x2c;
   FUN_0045f22f(param_1,unaff_EBX);
   local_12 = 0;
@@ -30646,7 +30780,7 @@ undefined8 __fastcall FUN_0043ce58(undefined4 param_1,undefined4 param_2)
   char acStack_44 [2];
   char cStack_42;
   short sStack_1c;
-  
+
   in_EAX = (uint)(uintptr_t)param_1;
   E2R_requester_probe_ce58_count++;
   E2R_requester_probe_last_id = in_EAX;
@@ -30960,7 +31094,7 @@ void __fastcall FUN_0043d4e8(undefined4 param_1)
   undefined4 extraout_ECX_15;
   undefined4 uVar1;
   undefined8 uVar2;
-  
+
   uVar1 = 0;
   if (DAT_0047a724 != 0) {
     uVar2 = FUN_0045ec6c(param_1,DAT_0047a724);
@@ -31342,7 +31476,7 @@ undefined8 __fastcall FUN_0043db00(undefined4 param_1,undefined4 param_2)
   int local_24;
   char *local_20;
   uint local_1c;
-  
+
   iVar6 = -1;
   pcVar10 = (char *)0x00479e24;
   do {
@@ -32133,7 +32267,7 @@ int __fastcall FUN_0043eb98(undefined4 param_1,undefined4 param_2)
   undefined4 local_1c;
   undefined4 local_18;
   int local_10;
-  
+
   local_1c = param_1;
   local_18 = param_2;
   FUN_0041ba7c(param_1,param_2);
@@ -32326,7 +32460,7 @@ int __fastcall FUN_0043ef3c(undefined4 param_1,undefined4 param_2)
   char *local_24;
   undefined4 local_20;
   int local_10;
-  
+
   local_10 = 0;
   bVar2 = false;
   local_24 = in_EAX;
@@ -32506,7 +32640,7 @@ undefined4 __fastcall FUN_0043f300(undefined4 param_1,char *param_2)
   char *local_20;
   char *local_1c;
   int local_18;
-  
+
   local_20 = in_EAX;
   local_1c = param_2;
   FUN_0041ba7c(param_1,param_2);
@@ -32678,7 +32812,7 @@ undefined8 __fastcall FUN_0043fcf0(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX;
   int iVar2;
   undefined8 uVar3;
-  
+
   iVar2 = DAT_0047a279 >> 0x18;
   *(undefined2 *)(iVar2 * 2 + 0x6366a8) = 2;
   *(undefined2 *)((undefined1 *)0x006366dc + iVar2 * 2) = 0xe;
@@ -32710,7 +32844,7 @@ void FUN_0043fdc4(void)
   int iVar2;
   int extraout_ECX;
   int extraout_ECX_00;
-  
+
   iVar1 = (DAT_0047a279 >> 0x18) * 2;
   iVar2 = 0x108;
   *(undefined2 *)(iVar1 + 0x6366a8) = 2;
@@ -32829,7 +32963,7 @@ FUN_0043fe24(short param_1,short param_2,short param_3,undefined4 param_4,undefi
 {
   short *in_EAX;
   short unaff_BX;
-  
+
   if (!E2R_NextMenuRecordTarget(&in_EAX,&unaff_BX)) {
     return;
   }
@@ -32869,7 +33003,7 @@ void FUN_0043fea4(void)
   ushort uVar6;
   undefined *puVar7;
   char *pcVar8;
-  
+
   E2R_ResetMenuRecordBuilder();
   if (DAT_00479e00 == 0) {
     FUN_0043fe24(0x38,10,0xc,(char *)0x00473298,&LAB_0043c594,0x2000,0);
@@ -33071,7 +33205,7 @@ void __fastcall FUN_00441370(undefined4 param_1,int *param_2)
   undefined4 extraout_ECX_00;
   undefined4 extraout_ECX_01;
   undefined4 extraout_ECX_02;
-  
+
   FUN_00417248(in_EAX,param_2);
   FUN_00417248(extraout_ECX,param_2);
   FUN_00417248(extraout_ECX_00,param_2);
@@ -33089,7 +33223,7 @@ undefined8 __fastcall FUN_004413fc(undefined4 param_1,undefined4 param_2)
 {
   undefined2 *puVar1;
   undefined8 uVar2;
-  
+
   puVar1 = (undefined2 *)(uintptr_t)FUN_0045326c(param_1,param_2);
   if (puVar1 == (undefined2 *)0x0) {
     return (ulonglong)param_2 << 0x20;
@@ -33106,10 +33240,9 @@ undefined8 __fastcall FUN_004413fc(undefined4 param_1,undefined4 param_2)
   puVar1[4] = (short)uVar2;
   E2R_fan_parse_record = (short *)puVar1;
   E2R_fan_parse_record_count = E2R_fan_parse_record_count + 1;
-  if (E2R_fan_parse_record_count <= 16) {
+  if (E2R_fan_parse_record_count <= 64) {
     fprintf(stderr,"FAN record: ordinal=%u caller=%p offset=%u fields=%04x,%04x,%04x,%04x,%04x\n",
-            E2R_fan_parse_record_count,
-            __builtin_return_address(0),
+            E2R_fan_parse_record_count,__builtin_return_address(0),
             (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -
                    (byte *)(uintptr_t)E2R_fan_parse_stream[5]),
             (ushort)puVar1[0],(ushort)puVar1[1],(ushort)puVar1[2],
@@ -33176,7 +33309,7 @@ void FUN_0044146c(void)
   int iVar1;
   short sVar2;
   int iVar3;
-  
+
   for (iVar1 = _DAT_00637248; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x50)) {
     sVar2 = 0;
     do {
@@ -33206,7 +33339,7 @@ void FUN_004414c4(void)
   int *piVar4;
   int iVar5;
   undefined1 local_30 [32];
-  
+
   iVar2 = *(int *)((undefined1 *)0x00630b60 + *in_EAX * 4);
   uVar1 = in_EAX[1];
   uVar3 = in_EAX[2] & 0x1f;
@@ -33258,7 +33391,7 @@ void __fastcall FUN_00441600(undefined4 param_1,int *param_2)
 {
   undefined4 in_EAX;
   undefined4 extraout_ECX;
-  
+
   FUN_00417248(in_EAX,param_2);
   FUN_00417248(extraout_ECX,param_2);
   return;
@@ -33283,7 +33416,7 @@ undefined8 __fastcall FUN_00441678(undefined4 param_1,undefined4 param_2)
   char *extraout_EDX_00;
   short sVar5;
   char *pcVar6;
-  
+
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -33345,7 +33478,7 @@ undefined8 __fastcall FUN_00441890(undefined4 param_1,undefined4 param_2)
   char *extraout_EDX_00;
   short sVar5;
   char *pcVar6;
-  
+
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -33443,7 +33576,7 @@ undefined8 __fastcall FUN_00441a6c(undefined4 param_1,undefined4 param_2)
   byte *pbVar4;
   byte *pbVar5;
   short sStack_18;
-  
+
   sStack_18 = 0;
   pbVar4 = _DAT_00636678;
   do {
@@ -33508,7 +33641,7 @@ undefined8 __fastcall FUN_00441b24(undefined4 param_1,undefined4 param_2)
   char *pcVar6;
   undefined1 local_7c [52];
   undefined1 local_48 [52];
-  
+
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -33574,7 +33707,7 @@ undefined8 __fastcall FUN_00441e38(undefined4 param_1,undefined4 param_2)
   char *extraout_EDX_00;
   short sVar5;
   char *pcVar6;
-  
+
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -33662,7 +33795,7 @@ undefined8 __fastcall FUN_00442128(undefined4 param_1,undefined4 param_2)
   char *extraout_EDX_00;
   short sVar5;
   char *pcVar6;
-  
+
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -33711,7 +33844,7 @@ undefined8 __fastcall FUN_00442128(undefined4 param_1,undefined4 param_2)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-undefined8 __fastcall FUN_00442420(undefined4 param_1,undefined4 param_2)
+undefined8 __fastcall FUN_00442420(short param_1,undefined4 param_2)
 
 {
   char cVar1;
@@ -33724,7 +33857,8 @@ undefined8 __fastcall FUN_00442420(undefined4 param_1,undefined4 param_2)
   char *extraout_EDX_00;
   short sVar5;
   char *pcVar6;
-  
+
+  in_AX = param_1;
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -33786,7 +33920,7 @@ undefined8 __fastcall FUN_0044248c(undefined4 param_1,undefined4 param_2)
   char *extraout_EDX_00;
   short sVar5;
   char *pcVar6;
-  
+
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -33854,7 +33988,7 @@ undefined8 __fastcall FUN_00442564(undefined4 param_1,undefined4 param_2)
   char *pcVar6;
   undefined1 local_7c [52];
   undefined1 local_48 [52];
-  
+
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -33920,7 +34054,7 @@ undefined8 __fastcall FUN_00442728(undefined4 param_1,undefined4 param_2)
   char *extraout_EDX_00;
   short sVar5;
   char *pcVar6;
-  
+
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -33982,7 +34116,7 @@ undefined8 __fastcall FUN_004427f0(undefined4 param_1,undefined4 param_2)
   char *extraout_EDX_00;
   short sVar5;
   char *pcVar6;
-  
+
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -34038,7 +34172,7 @@ void FUN_00442880(void)
   int iVar2;
   int iVar3;
   short sVar4;
-  
+
   sVar4 = 0;
   do {
     iVar1 = sVar4 * 2 + in_EAX;
@@ -34093,7 +34227,11 @@ undefined4 FUN_00442954(void)
   int iVar2;
   int iVar3;
   short sVar4;
-  
+
+  in_EAX = E2R_actor_calc_context;
+  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xe6)) {
+    return 0;
+  }
   iVar1 = *(int *)(in_EAX + 0x44);
   if ((iVar1 != 0) && (*(short *)(iVar1 + 4) != 7)) {
     sVar4 = 0;
@@ -34132,7 +34270,11 @@ undefined4 FUN_004429e0(void)
   int in_EAX;
   short sVar1;
   int iVar2;
-  
+
+  in_EAX = E2R_actor_calc_context;
+  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xec)) {
+    return 0;
+  }
   sVar1 = 0;
   do {
     iVar2 = sVar1 * 2 + in_EAX;
@@ -34158,7 +34300,7 @@ void FUN_00442ca4(void)
   int in_EAX;
   undefined4 extraout_ECX;
   undefined4 extraout_EDX;
-  
+
   FUN_004600e9();
   switch((int)(uintptr_t)(*(undefined2 *)(in_EAX + 2))) {
   case 0:
@@ -34464,7 +34606,7 @@ void FUN_00443344(void)
 
 {
   short sVar1;
-  
+
   sVar1 = 0;
   do {
     *(short *)((undefined1 *)0x0067b83c + sVar1 * 2) = sVar1;
@@ -34535,7 +34677,7 @@ undefined8 __fastcall FUN_00443598(undefined4 param_1,undefined4 param_2)
   int in_EAX;
   int iVar1;
   int iVar2;
-  
+
   _DAT_0067bc94 = DAT_0047414c;
   _DAT_0067bc98 = DAT_00474150;
   _DAT_0067bc9c = DAT_00474154;
@@ -34568,7 +34710,7 @@ ulonglong __fastcall FUN_004435e8(undefined4 param_1,undefined4 param_2)
   undefined8 uVar4;
   undefined1 local_38 [52];
   undefined4 uStack_4;
-  
+
   in_EAX = (uint)(uintptr_t)param_1;
   uStack_4 = param_2;
   if ((in_EAX & 0xf000) == 0) goto LAB_004437e7;
@@ -34683,7 +34825,7 @@ void __fastcall FUN_004437f0(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX_18;
   undefined4 extraout_ECX_19;
   undefined4 uVar2;
-  
+
   FUN_00441370(param_2,(int *)param_2);
   FUN_00441370(extraout_ECX,(int *)extraout_ECX);
   FUN_00441370(extraout_ECX_00,(int *)extraout_ECX_00);
@@ -34754,7 +34896,7 @@ void __fastcall FUN_00443dbc(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX_15;
   undefined4 extraout_ECX_16;
   undefined4 extraout_ECX_17;
-  
+
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0xca)) {
     FUN_00441370(param_2,(int *)param_2);
     FUN_00441370(extraout_ECX,(int *)extraout_ECX);
@@ -34823,7 +34965,7 @@ void __fastcall FUN_00444330(undefined4 param_1)
   undefined8 uVar10;
   longlong lVar11;
   undefined1 local_84 [104];
-  
+
   psVar1 = DAT_0047a470;
   uVar7 = 0;
   DAT_0047a470 = (short *)0x0;
@@ -34851,7 +34993,8 @@ void __fastcall FUN_00444330(undefined4 param_1)
     iVar5 = extraout_EDX;
     if (((sVar9 == 8) || (sVar9 == 0)) &&
        ((DAT_0047a470 != (short *)0x0 &&
-        (FUN_00426220(), iVar5 = extraout_EDX_00, _DAT_0067bc92 < 0x16)))) {
+        (E2R_actor_calc_context = (int)(uintptr_t)DAT_0047a470, FUN_00426220(),
+         E2R_actor_calc_context = 0, iVar5 = extraout_EDX_00, _DAT_0067bc92 < 0x16)))) {
       FUN_00422aa0(extraout_ECX,DAT_0047a470 + 0x7e);
       FUN_00422aa0(extraout_ECX_00,DAT_0047a470 + 0x7b);
       iVar5 = extraout_EDX_01;
@@ -35027,7 +35170,7 @@ void __fastcall FUN_00444668(undefined4 param_1,undefined4 param_2)
   ushort *local_1c;
   undefined4 local_18;
   short *local_14;
-  
+
   local_18 = param_2;
   uVar5 = FUN_0041ba7c(param_1,0);
   psVar3 = (short *)((ulonglong)uVar5 >> 0x20);
@@ -35152,7 +35295,7 @@ void FUN_00444840(void)
   short *in_EAX;
   short *extraout_EDX;
   short *extraout_EDX_00;
-  
+
   if (*in_EAX < 0) {
     FUN_00414e68();
     in_EAX = extraout_EDX;
@@ -35228,7 +35371,7 @@ void __fastcall FUN_004448e4(undefined4 param_1,undefined4 param_2)
   short *unaff_EDI;
   undefined8 uVar7;
   undefined1 local_7c [104];
-  
+
   uVar7 = FUN_0041ba7c(param_1,param_2);
   uVar5 = (undefined4)((ulonglong)uVar7 >> 0x20);
   uVar4 = extraout_ECX;
@@ -35563,7 +35706,7 @@ void __fastcall FUN_00445000(undefined4 param_1,undefined4 param_2)
   uint uVar9;
   undefined4 extraout_EDX;
   undefined8 uVar10;
-  
+
   in_EAX = E2R_fan_parse_stream;
   if (in_EAX == (int *)0x0) {
     in_EAX = (int *)(uintptr_t)param_1;
@@ -35715,7 +35858,7 @@ void __fastcall FUN_004451a8(undefined4 param_1,undefined4 param_2)
   int iVar12;
   undefined8 uVar13;
   undefined1 local_14;
-  
+
   piVar7 = E2R_fan_parse_stream;
   if (piVar7 == (int *)0x0) {
     piVar7 = (int *)(uintptr_t)param_1;
@@ -35810,7 +35953,7 @@ undefined8 __fastcall FUN_004452e0(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   undefined8 uVar1;
-  
+
   if (DAT_0047a724 != 0) {
     uVar1 = FUN_0045ec6c(param_1,DAT_0047a724);
     FUN_0045e8e6(extraout_ECX,(int)((ulonglong)uVar1 >> 0x20));
@@ -35834,7 +35977,7 @@ undefined4 __fastcall FUN_00445330(undefined4 param_1)
 
 {
   undefined4 extraout_ECX;
-  
+
   if (DAT_0047a728 != 0) {
     FUN_0045ec6c(param_1,DAT_0047a728);
     param_1 = extraout_ECX;
@@ -35855,7 +35998,7 @@ int FUN_0044535c(void)
   undefined4 extraout_ECX;
   undefined4 in_EDX;
   undefined8 uVar2;
-  
+
   iVar1 = FUN_00445378(in_ECX,in_EDX);
   if (iVar1 == 0) {
     uVar2 = FUN_0043cbb4(extraout_ECX);
@@ -35873,7 +36016,7 @@ undefined4 __fastcall FUN_00445378(undefined4 param_1,undefined4 param_2)
 {
   int iVar1;
   undefined4 uVar2;
-  
+
   iVar1 = FUN_0045eb05(param_1,&DAT_00474388);
   uVar2 = 0;
   if (iVar1 != 0) {
@@ -36059,13 +36202,14 @@ undefined4 __fastcall FUN_004453a4(undefined4 param_1,int param_2)
   short *local_20;
   ushort *local_1c;
   int local_18;
+
   int e2r_table_indices[11] = {0};
 
   in_EAX = E2R_fan_parse_stream;
   if (in_EAX == (int *)0x0 || IsBadReadPtr(in_EAX,0x1c)) {
     return 0;
   }
-  
+
   local_20 = (short *)0x0;
   _DAT_0067b820 = 0;
   _DAT_0067b81c = 0;
@@ -37006,11 +37150,6 @@ LAB_00446189:
         }
         if ((short)uVar15 != 0) {
           FUN_00447638((undefined4)(uintptr_t)E2R_fan_parse_stream);
-          if (E2R_fan_phase_diag_count < 32) {
-            E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
-            fprintf(stderr,"FAN tail after 47638: offset=%u record=%u\n",
-                    E2R_FanStreamOffset(),E2R_fan_parse_record_count);
-          }
           uVar10 = extraout_ECX_87;
           uVar13 = extraout_EDX_43;
         }
@@ -37182,7 +37321,7 @@ undefined8 __fastcall FUN_004465dc(undefined4 param_1,undefined4 param_2)
   }
   return CONCAT44(param_2,(ushort)E2R_InternPackedName(in_EAX,(char *)_DAT_006366a4,
                                                        4000,0x22b));
-  
+
   local_1c = 0;
   puVar6 = _DAT_006366a4;
   sVar4 = local_1c;
@@ -37267,7 +37406,7 @@ undefined8 __fastcall FUN_004466c4(undefined4 param_1,undefined4 param_2)
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
                                                        _DAT_006366b4,10000,5000));
-  
+
   local_1c = 0;
   puVar5 = _DAT_006366b4;
   sVar3 = local_1c;
@@ -37350,7 +37489,7 @@ undefined8 __fastcall FUN_0044679c(undefined4 param_1,undefined4 param_2)
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
                                                        _DAT_006366b8,0x1117,2000));
-  
+
   local_1c = 0;
   puVar5 = _DAT_006366b8;
   sVar3 = local_1c;
@@ -37433,7 +37572,7 @@ undefined8 __fastcall FUN_00446874(undefined4 param_1,undefined4 param_2)
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
                                                        _DAT_006366bc,5000,0x9c4));
-  
+
   local_1c = 0;
   puVar5 = _DAT_006366bc;
   sVar3 = local_1c;
@@ -37516,7 +37655,7 @@ undefined8 __fastcall FUN_0044694c(undefined4 param_1,undefined4 param_2)
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
                                                        _DAT_00636698,6000,2000));
-  
+
   local_1c = 0;
   puVar5 = _DAT_00636698;
   sVar3 = local_1c;
@@ -37599,7 +37738,7 @@ undefined8 __fastcall FUN_00446a24(undefined4 param_1,undefined4 param_2)
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
                                                        _DAT_0063668c,1000,500));
-  
+
   local_1c = 0;
   puVar5 = _DAT_0063668c;
   sVar3 = local_1c;
@@ -37680,7 +37819,7 @@ undefined8 __fastcall FUN_00446afc(undefined4 param_1,undefined4 param_2)
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
                                                        (char *)_DAT_00636678,5000,700));
-  
+
   local_1c = 0;
   pbVar5 = _DAT_00636678;
   sVar2 = local_1c;
@@ -37763,7 +37902,7 @@ undefined8 __fastcall FUN_00446bd4(undefined4 param_1,undefined4 param_2)
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
                                                        (char *)_DAT_00636694,0x177,100));
-  
+
   local_1c = 0;
   puVar5 = _DAT_00636694;
   sVar3 = local_1c;
@@ -37846,7 +37985,7 @@ undefined8 __fastcall FUN_00446cac(undefined4 param_1,undefined4 param_2)
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
                                                        _DAT_00636680,500,200));
-  
+
   local_1c = 0;
   puVar5 = _DAT_00636680;
   sVar3 = local_1c;
@@ -37930,7 +38069,7 @@ undefined8 __fastcall FUN_00446d84(undefined4 param_1,undefined4 param_2)
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
                                                        (char *)_DAT_006366f4,0x271,500));
-  
+
   local_1c = 0;
   puVar6 = _DAT_006366f4;
   sVar4 = local_1c;
@@ -38016,7 +38155,7 @@ undefined8 __fastcall FUN_00446e6c(undefined4 param_1,undefined4 param_2)
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
                                                        (char *)_DAT_0063669c,0x271,500));
-  
+
   local_1c = 0;
   puVar6 = _DAT_0063669c;
   sVar4 = local_1c;
@@ -38139,8 +38278,8 @@ static undefined4 E2R_ParseArchiveFanResource(void)
   E2R_fan_parse_stream = stream;
   result = FUN_004453a4((undefined4)(uintptr_t)stream,1);
   E2R_fan_parse_stream = previous_stream;
-  if (E2R_archive_resource_diag_count < 16) {
-    E2R_archive_resource_diag_count = E2R_archive_resource_diag_count + 1;
+  if (E2R_archive_parse_summary_count < 32) {
+    E2R_archive_parse_summary_count = E2R_archive_parse_summary_count + 1;
     fprintf(stderr,
             "archive resource parse: input=%u mapped=%u result=%u final=%u remaining=%d\n",
             original_offset,mapped_offset,(uint)result,
@@ -38168,7 +38307,7 @@ void FUN_00447090(void)
   if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,10)) {
     return;
   }
-  
+
   switch((int)(uintptr_t)(in_EAX[1])) {
   case 0:
   case 0xc:
@@ -38468,18 +38607,13 @@ void __fastcall FUN_00447638(undefined4 param_1)
   int iVar15;
   undefined8 uVar16;
   undefined8 uVar17;
-  
+
   in_EAX = (undefined4)(uintptr_t)E2R_fan_parse_stream;
   if (E2R_fan_parse_stream == (int *)0x0) {
     in_EAX = param_1;
   }
   if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x1c)) {
     return;
-  }
-  if (E2R_fan_phase_diag_count < 32) {
-    E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
-    fprintf(stderr,"FAN 47638 enter: offset=%u remaining=%d\n",
-            E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
   }
   uVar16 = FUN_004418fc((undefined4)(uintptr_t)"sondoor1",in_EAX);
   _DAT_00ac4ae8 = (int)uVar16;
@@ -38752,20 +38886,20 @@ LAB_0044796b:
   for (iVar15 = 0; iVar15 < _DAT_0073ccb6 >> 0x10; iVar15 = iVar15 + 1) {
     if (iVar15 < 0x4b0) {
       uVar16 = FUN_004173c8(iVar8,piVar11);
-      *(short *)(&DAT_0067c728 + iVar14) = (short)uVar16;
+      *(short *)((undefined1 *)0x0067c728 + iVar14) = (short)uVar16;
       uVar16 = FUN_004173c8(extraout_ECX_20,(int)((ulonglong)uVar16 >> 0x20));
-      *(short *)(&DAT_0067c72a + iVar14) = (short)uVar16;
+      *(short *)((undefined1 *)0x0067c72a + iVar14) = (short)uVar16;
       uVar16 = FUN_004173c8(extraout_ECX_21,(int)((ulonglong)uVar16 >> 0x20));
-      *(short *)(&DAT_0067c72c + iVar14) = (short)uVar16;
+      *(short *)((undefined1 *)0x0067c72c + iVar14) = (short)uVar16;
       uVar16 = FUN_004173c8(extraout_ECX_22,(int)((ulonglong)uVar16 >> 0x20));
-      *(short *)(&DAT_0067c72e + iVar14) = (short)uVar16;
+      *(short *)((undefined1 *)0x0067c72e + iVar14) = (short)uVar16;
       uVar16 = FUN_004173c8(extraout_ECX_23,(int)((ulonglong)uVar16 >> 0x20));
-      *(short *)(&DAT_0067c730 + iVar14) = (short)uVar16;
+      *(short *)((undefined1 *)0x0067c730 + iVar14) = (short)uVar16;
       uVar16 = FUN_004173c8(extraout_ECX_24,(int)((ulonglong)uVar16 >> 0x20));
-      *(short *)(&DAT_0067c732 + iVar14) = (short)uVar16;
+      *(short *)((undefined1 *)0x0067c732 + iVar14) = (short)uVar16;
       uVar16 = FUN_004173c8(extraout_ECX_25,(int)((ulonglong)uVar16 >> 0x20));
       uVar10 = (undefined4)((ulonglong)uVar16 >> 0x20);
-      *(short *)(&DAT_0067c734 + iVar14) = (short)uVar16;
+      *(short *)((undefined1 *)0x0067c734 + iVar14) = (short)uVar16;
       if (_DAT_0067bc92 < 0x24) {
         uVar16 = CONCAT44(uVar10,-0x7f << (DAT_0047a738 & 0x1f));
       }
@@ -38817,11 +38951,6 @@ LAB_0044796b:
         pbVar3 = (byte *)*piVar11;
         *piVar11 = (int)(pbVar3 + 1);
         uVar16 = CONCAT44(piVar11,(uint)*pbVar3);
-      }
-      if (E2R_fan_phase_diag_count < 64) {
-        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
-        fprintf(stderr,"FAN 47638 tail tag: value=%02x offset=%u remaining=%d\n",
-                (uint)(byte)uVar16,E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
       }
       if ((int)uVar16 == 0) break;
       uVar16 = FUN_00426a30(1,(int)((ulonglong)uVar16 >> 0x20));
@@ -38965,33 +39094,37 @@ void FUN_004486d8(void)
 
 /* 00448744 */
 
-undefined8 __fastcall FUN_00448744(undefined4 param_1,undefined4 param_2)
+undefined8 __fastcall FUN_00448744(undefined4 param_1,ushort *param_2)
 
 {
   int iVar1;
   byte bVar2;
   bool bVar3;
-  ushort *in_EAX;
+  ushort *actor;
   int iVar4;
   uint uVar5;
   int iVar6;
   byte *pbVar7;
   uint local_28;
   uint local_20;
-  
+
   local_20 = 0xffffffff;
   local_28 = 0xffffffff;
+  actor = param_2;
+  if ((uintptr_t)actor < 0x10000u || IsBadReadPtr(actor,0x88)) {
+    return CONCAT44(param_2,0xffffffff);
+  }
   uVar5 = (uint)*(ushort *)
                  ((undefined1 *)0x00684d68 +
-                 (((int)(short)*in_EAX >> 9) + 0x40) * 2 +
-                 ((*(int *)(in_EAX + 1) >> 0x19) + 0x40) * 0x100);
-  iVar6 = (short)(*in_EAX & 0x1ff) + -0x100;
-  iVar4 = (short)(in_EAX[2] & 0x1ff) + -0x100;
+                 (((int)(short)*actor >> 9) + 0x40) * 2 +
+                 ((*(int *)(actor + 1) >> 0x19) + 0x40) * 0x100);
+  iVar6 = (short)(*actor & 0x1ff) + -0x100;
+  iVar4 = (short)(actor[2] & 0x1ff) + -0x100;
   if (uVar5 != 0xffff) {
     pbVar7 = (undefined1 *)0x0068cd68 + uVar5 * 0xc;
     do {
       bVar3 = false;
-      switch((int)(uintptr_t)(pbVar7[1])) {
+      switch((int)(uintptr_t)((int)(uintptr_t)(pbVar7[1]))) {
       case 0:
         break;
       case 1:
@@ -39028,7 +39161,7 @@ switchD_004487ea_caseD_1:
         if (bVar2 != 0) goto switchD_004487ea_caseD_1;
       }
       if (((bVar3) &&
-          ((int)(uint)pbVar7[5] <= (-(*(int *)in_EAX >> 0x10) >> (DAT_0047a738 & 0x1f)) + 0x84)) &&
+          ((int)(uint)pbVar7[5] <= (-(*(int *)actor >> 0x10) >> (DAT_0047a738 & 0x1f)) + 0x84)) &&
          ((int)local_28 < (int)(uint)*pbVar7)) {
         local_28 = (uint)*pbVar7;
         local_20 = uVar5;
@@ -39058,7 +39191,7 @@ undefined8 __fastcall FUN_004488a4(undefined4 param_1,undefined4 param_2)
   byte *pbVar7;
   uint local_28;
   uint local_20;
-  
+
   local_28 = 0xffffffff;
   local_20 = 0xffffffff;
   iVar6 = (short)(*in_EAX & 0x1ff) + -0x100;
@@ -39149,7 +39282,7 @@ int __fastcall FUN_00448a48(undefined4 param_1,undefined4 param_2)
   short *psVar6;
   int *unaff_EBX;
   undefined8 uVar7;
-  
+
   uVar7 = FUN_00448744(param_1,param_2);
   psVar6 = (short *)((ulonglong)uVar7 >> 0x20);
   iVar3 = (int)uVar7;
@@ -39161,8 +39294,8 @@ int __fastcall FUN_00448a48(undefined4 param_1,undefined4 param_2)
     return 0x7fff;
   }
   if (psVar6 != (short *)0x0) {
-    if (((((short)(*(ushort *)(&DAT_0068cd6a + iVar3 * 0xc) & 0x3fff) != 0) &&
-         (iVar4 = (short)(*(ushort *)(&DAT_0068cd6a + iVar3 * 0xc) & 0x3fff) + -1, -1 < iVar4)) &&
+    if (((((short)(*(ushort *)((undefined1 *)0x0068cd6a + iVar3 * 0xc) & 0x3fff) != 0) &&
+         (iVar4 = (short)(*(ushort *)((undefined1 *)0x0068cd6a + iVar3 * 0xc) & 0x3fff) + -1, -1 < iVar4)) &&
         (iVar4 = *(int *)(iVar4 * 4 + 0x6297c0), iVar4 != 0)) &&
        (iVar4 = *(int *)(iVar4 + 6), iVar4 != 0)) {
       piVar5 = (int *)(_DAT_006366a0 + iVar4 * 2);
@@ -39220,7 +39353,7 @@ undefined8 __fastcall FUN_00448be0(undefined4 param_1,undefined4 param_2)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = FUN_004488a4(param_1,param_2);
   if (-1 < (int)uVar1) {
     return CONCAT44(param_2,0x80 - (uint)(byte)((undefined1 *)0x0068cd6f)[(int)uVar1 * 0xc] <<
@@ -39244,7 +39377,7 @@ void __fastcall FUN_00448c1c(undefined4 param_1,int *param_2)
   short local_e;
   short local_c;
   undefined4 uStack_8;
-  
+
   sVar1 = (short)*param_2;
   uVar3 = CONCAT22((short)((uint)param_1 >> 0x10),sVar1);
   if (sVar1 < 1) {
@@ -39338,7 +39471,7 @@ void __fastcall FUN_00448cb4(undefined4 param_1,short *param_2)
   undefined4 local_22;
   int local_1c;
   undefined4 local_18;
-  
+
   local_18 = 0;
   FUN_004272a8(*(int *)(param_2 + 1) >> 0x10,(short *)(in_EAX + 0x170));
   if (((DAT_0047a34a != 0) && (DAT_0047a366 == 0)) && (DAT_0047a368 != 0)) {
@@ -39608,7 +39741,7 @@ void FUN_004495e0(void)
   int extraout_ECX;
   int extraout_ECX_00;
   int iVar2;
-  
+
   iVar1 = 0;
   iVar2 = _DAT_00637378;
   do {
@@ -39662,7 +39795,7 @@ undefined4 __fastcall FUN_00449680(undefined4 param_1,int param_2)
   short local_20;
   undefined4 local_1e;
   int local_18;
-  
+
   local_18 = FUN_00448a48(in_EAX,0);
   iVar4 = *(int *)(extraout_ECX + 0x84) >> 0x10;
   uVar6 = 0;
@@ -39804,7 +39937,7 @@ longlong __fastcall FUN_00449b4c(undefined4 param_1,uint param_2)
   int local_24;
   int local_20;
   short local_1c [2];
-  
+
   if ((DAT_0047a43c == 0) || (DAT_0047a42c == 0)) {
     if ((int)_DAT_0073ccb8 < 0) {
       FUN_0043cac0(param_1,param_2);
@@ -39860,7 +39993,7 @@ longlong __fastcall FUN_00449b4c(undefined4 param_1,uint param_2)
     else {
       pcVar8 = s_hires_XXXX_raw_004749b0;
     }
-    FUN_0045fd2c(iVar4,pcVar8);
+    snprintf(local_3c,24,"%s",pcVar8);
     uVar6 = _DAT_0073ccb8 >> 0x10;
     iVar4 = 9;
     do {
@@ -39875,8 +40008,8 @@ longlong __fastcall FUN_00449b4c(undefined4 param_1,uint param_2)
       if (DAT_0047a43c == 0) {
         pcVar8 = _DAT_006365e0;
       }
-      FUN_0045fd2c(uVar3,pcVar8);
-      uVar7 = extraout_ECX_02;
+      snprintf((char *)stack_ffffff98,0x200,"%s",pcVar8);
+      uVar7 = (undefined4)(uintptr_t)stack_ffffff98;
     }
     else {
       if (DAT_0047a43c == 0) {
@@ -39885,31 +40018,34 @@ longlong __fastcall FUN_00449b4c(undefined4 param_1,uint param_2)
       else {
         pcVar8 = (char *)0x004749c4;
       }
-      FUN_0045fd2c(uVar3,pcVar8);
-      uVar7 = extraout_ECX_01;
+      snprintf((char *)stack_ffffff98,0x200,"%s",pcVar8);
+      uVar7 = (undefined4)(uintptr_t)stack_ffffff98;
     }
-    FUN_0045fd4b(uVar7,local_3c);
-    uVar13 = FUN_0045e594(extraout_ECX_03,extraout_EDX,&stack_ffffff98,0x200,in_stack_ffffff98);
+    strncat((char *)stack_ffffff98,local_3c,0x1ff - strlen((char *)stack_ffffff98));
+    uVar13 = FUN_0045e594(extraout_ECX_03,extraout_EDX,(LPCSTR)stack_ffffff98,0x200,
+                           in_stack_ffffff98);
     if ((int)uVar13 != -1) {
-      FUN_0045e76f(extraout_ECX_04,(char *)local_1c);
+      iVar10 = (int)uVar13;
+      E2R_ReadOpenFileBytes(iVar10,(char *)local_1c,2);
       if (local_1c[0] == 0x686d) {
-        FUN_0045e76f(extraout_ECX_05,_DAT_0063615c);
-        FUN_0045e76f(extraout_ECX_06,_DAT_0063615c);
-        FUN_0045e76f(extraout_ECX_07,_DAT_0063615c);
-        FUN_0045e76f(extraout_ECX_08,_DAT_00636670);
-        uVar7 = extraout_ECX_09;
+        iVar2 = _DAT_006401ec * _DAT_006401d4;
+        E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,0x1e);
+        E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,0x300);
+        E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,iVar2);
+        E2R_ReadOpenFileBytes(iVar10,_DAT_00636670,iVar2 * 2);
+        uVar7 = (undefined4)iVar10;
         uVar9 = extraout_EDX_00;
       }
       else {
-        FUN_0045e76f(extraout_ECX_05,(char *)&local_20);
-        FUN_0045e76f(extraout_ECX_10,(char *)&local_24);
+        E2R_ReadOpenFileBytes(iVar10,(char *)&local_20,4);
+        E2R_ReadOpenFileBytes(iVar10,(char *)&local_24,4);
         if (_DAT_006401ec * _DAT_006401d4 * 2 <= local_20 + local_24) {
           FUN_00414e68();
         }
-        FUN_0045e76f(local_24,_DAT_00636668);
-        FUN_0045df96();
-        FUN_0045dff3();
-        uVar7 = extraout_ECX_11;
+        E2R_ReadOpenFileBytes(iVar10,_DAT_00636668,local_20 + local_24);
+        FUN_0045df96((byte *)_DAT_00636668,(byte *)_DAT_0063615c);
+        FUN_0045dff3((byte *)(_DAT_00636668 + local_20),(short *)_DAT_00636670);
+        uVar7 = (undefined4)iVar10;
         uVar9 = extraout_EDX_01;
       }
       uVar13 = FUN_0045e8e6(uVar7,uVar9);
@@ -40003,7 +40139,7 @@ undefined4 __fastcall FUN_0044a178(undefined4 param_1,int *param_2)
   byte local_2b;
   byte local_2a;
   byte local_29;
-  
+
   if (DAT_0047a43c == 0) {
     FUN_0045fd2c(param_1,_DAT_006365f8);
     pcVar3 = s_lowgraph__00474a28;
@@ -40074,7 +40210,7 @@ undefined8 __fastcall FUN_0044a318(undefined4 param_1,undefined4 param_2)
   char local_94 [96];
   char local_34 [24];
   int local_1c;
-  
+
   uVar3 = param_2;
   if (DAT_0047a43c == 0) {
 LAB_0044adc7:
@@ -40622,7 +40758,7 @@ undefined8 __fastcall FUN_0044add8(undefined4 param_1,undefined4 param_2)
   undefined2 uStack_1e;
   char cStack_1c;
   undefined1 uStack_1b;
-  
+
   if (((DAT_0047ab10 == 0) || (DAT_0047a76c != 0)) || (DAT_00479e1c != 0)) {
     if (DAT_00479e1c == 0) {
       if (DAT_0047a76c == 0) {
@@ -40848,7 +40984,7 @@ undefined8 __fastcall FUN_0044b0ac(undefined4 param_1,undefined4 param_2)
   char cStack_20;
   undefined1 uStack_1f;
   undefined4 local_1e;
-  
+
   local_3c = 0;
   local_2c = 0x8000;
   do {
@@ -41088,8 +41224,8 @@ void FUN_0044be20(void)
   int extraout_EDX_04;
   undefined4 *puVar7;
   longlong lVar8;
-  
-  if (&DAT_0067c728 + in_AX * 0x1c == _DAT_0073cc3c) {
+
+  if ((undefined1 *)0x0067c728 + in_AX * 0x1c == _DAT_0073cc3c) {
     return;
   }
   iVar2 = _DAT_0063726c;
@@ -41228,7 +41364,7 @@ void __fastcall FUN_0044c164(undefined4 param_1)
 {
   int iVar1;
   undefined8 uVar2;
-  
+
   if (((DAT_0047a470 != 0) && (*(short *)(DAT_0047a470 + 0x82) != 0xb)) && (DAT_0047a438 == 0)) {
     uVar2 = FUN_00448744(param_1,DAT_0047a470);
     if (((int)uVar2 < 0) ||
@@ -41239,7 +41375,7 @@ void __fastcall FUN_0044c164(undefined4 param_1)
     }
     else {
       DAT_0047a7ec = *(int *)(iVar1 + 0x68cd6b) >> 0x18;
-      iVar1 = (int)(short)(*(ushort *)(&DAT_0068cd6a + iVar1) & 0x3fff);
+      iVar1 = (int)(short)(*(ushort *)((undefined1 *)0x0068cd6a + iVar1) & 0x3fff);
     }
     if (((iVar1 != 0) && (-1 < iVar1 + -1)) && (*(int *)((iVar1 + -1) * 4 + 0x6297c0) != 0)) {
       FUN_0044f310();
@@ -41275,7 +41411,7 @@ void __fastcall FUN_0044c224(undefined4 param_1)
   int iVar6;
   undefined8 uVar7;
   longlong lVar8;
-  
+
   if (DAT_0047a470 == 0) {
     return;
   }
@@ -41287,18 +41423,18 @@ void __fastcall FUN_0044c224(undefined4 param_1)
     iVar1 = (int)uVar7 * 0xc;
     if ((int)(((-(*(int *)(DAT_0047a470 + 0x84) >> 0x10) >> (DAT_0047a738 & 0x1f)) + 0x80) -
              (uint)(byte)((undefined1 *)0x0068cd68)[iVar1]) < 8) {
-      uVar3 = CONCAT22(extraout_var,*(undefined2 *)(&DAT_0068cd70 + iVar1));
-      _DAT_0047a778 = (uint)*(ushort *)(&DAT_0068cd72 + iVar1);
+      uVar3 = CONCAT22(extraout_var,*(undefined2 *)((undefined1 *)0x0068cd70 + iVar1));
+      _DAT_0047a778 = (uint)*(ushort *)((undefined1 *)0x0068cd72 + iVar1);
     }
     else if ((int)_DAT_0047a778 < 0) {
-      uVar3 = CONCAT22(extraout_var,*(undefined2 *)(&DAT_0068cd70 + iVar1));
+      uVar3 = CONCAT22(extraout_var,*(undefined2 *)((undefined1 *)0x0068cd70 + iVar1));
     }
     else {
       uVar3 = CONCAT22(extraout_var,DAT_0047a778);
     }
   }
   sVar2 = (short)uVar3;
-  if (&DAT_0067c728 + sVar2 * 0x1c == _DAT_0073cc3c) {
+  if ((undefined1 *)0x0067c728 + sVar2 * 0x1c == _DAT_0073cc3c) {
     return;
   }
   if (sVar2 < 1) {
@@ -41420,7 +41556,7 @@ void FUN_0044c4e4(void)
   int local_44;
   int local_40;
   int local_3c;
-  
+
   local_3c = 0;
   local_40 = 0;
   local_48 = 0;
@@ -41499,7 +41635,7 @@ void FUN_0044c6bc(void)
   short sVar1;
   int in_EAX;
   int iVar2;
-  
+
   sVar1 = 0;
   do {
     iVar2 = (int)sVar1;
@@ -41577,7 +41713,7 @@ void FUN_0044c71c(void)
   uint local_24;
   int local_20;
   int local_1c;
-  
+
   iVar4 = 0;
   do {
     iVar3 = iVar4 + 0x1c;
@@ -41810,14 +41946,14 @@ void FUN_0044c71c(void)
     iVar4 = iVar4 + 1;
     iVar3 = iVar3 + 0xc;
   } while (iVar4 < 60000);
-  _DAT_0067c728 = 0;
-  _DAT_0067c72a = 0xfe70;
-  _DAT_0067c72c = 0x800;
-  _DAT_0067c72e = 0;
-  _DAT_0067c730 = 0x8000;
-  _DAT_0067c732 = 0;
+  *(undefined2 *)0x0067c728 = 0;
+  *(undefined2 *)0x0067c72a = 0xfe70;
+  *(undefined2 *)0x0067c72c = 0x800;
+  *(undefined2 *)0x0067c72e = 0;
+  *(undefined2 *)0x0067c730 = 0x8000;
+  *(undefined2 *)0x0067c732 = 0;
   _DAT_0073ccba = 0;
-  _DAT_0067c734 = 0x400;
+  *(undefined2 *)0x0067c734 = 0x400;
   _DAT_0073ccb8 = 1;
   return;
 }
@@ -41830,10 +41966,10 @@ longlong __fastcall FUN_0044d28c(undefined4 param_1,uint param_2)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = FUN_004488a4(param_1,param_2);
   if (-1 < (int)uVar1) {
-    return CONCAT44(param_2,(int)(short)((*(ushort *)(&DAT_0068cd6a + (int)uVar1 * 0xc) >> 8 & 0x40)
+    return CONCAT44(param_2,(int)(short)((*(ushort *)((undefined1 *)0x0068cd6a + (int)uVar1 * 0xc) >> 8 & 0x40)
                                         << 8));
   }
   return (ulonglong)param_2 << 0x20;
@@ -41853,7 +41989,7 @@ undefined4 __fastcall FUN_0044d2b4(undefined4 param_1)
   uint in_EAX;
   int iVar2;
   longlong lVar3;
-  
+
   if ((DAT_0047a34a == 0) &&
      ((*(int *)(in_EAX + 0xa6) == 0 || ((*(byte *)(*(int *)(in_EAX + 0xa6) + 0xc) & 2) == 0)))) {
     if ((*(byte *)(in_EAX + 2) & 8) == 0) {
@@ -41895,7 +42031,7 @@ void __fastcall FUN_0044d34c(undefined4 param_1)
   short sVar2;
   short *psVar3;
   undefined8 uVar4;
-  
+
   iVar1 = *(int *)((undefined1 *)0x00630b60 + in_AX * 4);
   if ((((iVar1 != 0) && (*(int *)(iVar1 + 0xf2) == 0)) && (iVar1 != DAT_0047a470)) &&
      ((*(int *)(iVar1 + 0xa6) == 0 || ((*(byte *)(*(int *)(iVar1 + 0xa6) + 0xc) & 2) == 0)))) {
@@ -41905,7 +42041,7 @@ void __fastcall FUN_0044d34c(undefined4 param_1)
       sVar2 = 0;
     }
     else {
-      sVar2 = (*(ushort *)(&DAT_0068cd6a + (int)uVar4 * 0xc) >> 8 & 0x40) << 8;
+      sVar2 = (*(ushort *)((undefined1 *)0x0068cd6a + (int)uVar4 * 0xc) >> 8 & 0x40) << 8;
     }
     if (((sVar2 == 0) &&
         (*(byte *)(psVar3 + 1) = *(byte *)(psVar3 + 1) & 0xf7,
@@ -41929,7 +42065,7 @@ void FUN_0044d3e8(void)
   undefined2 uVar1;
   int extraout_EDX;
   int iVar2;
-  
+
   FUN_00422aa0((int)*in_EAX,in_EAX + 0x42);
   FUN_00422aa0(extraout_ECX,in_EAX + 0x48);
   iVar2 = extraout_ECX_00 * 2;
@@ -41976,7 +42112,7 @@ void __fastcall FUN_0044d4b4(undefined4 param_1)
   int extraout_EDX_01;
   int extraout_EDX_02;
   undefined8 uVar4;
-  
+
   iVar3 = *(int *)((undefined1 *)0x00630b60 + in_AX * 4);
   if ((iVar3 == 0) || ((*(int *)(in_AX * 2 + 0x666ff6) >> 0x10 & 0xc000U) == 0xc000)) {
     uVar4 = FUN_004488a4(param_1,(int)in_AX);
@@ -41984,7 +42120,7 @@ void __fastcall FUN_0044d4b4(undefined4 param_1)
       sVar1 = 0;
     }
     else {
-      sVar1 = (*(ushort *)(&DAT_0068cd6a + (int)uVar4 * 0xc) >> 8 & 0x40) << 8;
+      sVar1 = (*(ushort *)((undefined1 *)0x0068cd6a + (int)uVar4 * 0xc) >> 8 & 0x40) << 8;
     }
     if ((sVar1 != 0) && (*(short *)(in_AX * 2 + 0x65feb0) < 0)) {
       FUN_0044d634();
@@ -42011,7 +42147,7 @@ void __fastcall FUN_0044d4b4(undefined4 param_1)
         sVar1 = 0;
       }
       else {
-        sVar1 = (*(ushort *)(&DAT_0068cd6a + (int)uVar4 * 0xc) >> 8 & 0x40) << 8;
+        sVar1 = (*(ushort *)((undefined1 *)0x0068cd6a + (int)uVar4 * 0xc) >> 8 & 0x40) << 8;
       }
       if (sVar1 != 0) {
         *(byte *)(iVar3 + 2) = *(byte *)(iVar3 + 2) | 8;
@@ -42048,7 +42184,7 @@ void __fastcall FUN_0044d608(undefined4 param_1,undefined4 param_2)
   int extraout_EDX;
   int extraout_EDX_00;
   int iVar2;
-  
+
   FUN_00426c3c();
   uVar1 = extraout_ECX;
   for (iVar2 = *(int *)(extraout_EDX + 0x1e); iVar2 != 0; iVar2 = *(int *)(iVar2 + 0x4c)) {
@@ -42096,7 +42232,7 @@ void FUN_0044d634(void)
   undefined4 extraout_EDX_01;
   short extraout_var;
   undefined8 uVar9;
-  
+
   iVar7 = in_EAX * 2;
   iVar8 = 0;
   iVar4 = 0;
@@ -42237,7 +42373,7 @@ undefined4 __fastcall FUN_0044db80(undefined4 param_1,undefined4 param_2)
   int iVar2;
   int iVar3;
   longlong lVar4;
-  
+
   lVar4 = FUN_0045fc10(param_1,param_2);
   iVar2 = (int)((ulonglong)lVar4 >> 0x20);
   iVar3 = 0;
@@ -42312,7 +42448,7 @@ void __fastcall FUN_0044dca4(undefined4 param_1,undefined4 param_2)
   undefined2 local_22;
   short local_20;
   undefined4 local_1c;
-  
+
   psVar4 = local_5c;
   if (DAT_0047a470 == 0) {
     return;
@@ -42330,7 +42466,7 @@ void __fastcall FUN_0044dca4(undefined4 param_1,undefined4 param_2)
     uVar11 = FUN_00448744(extraout_ECX_02,(int)((ulonglong)lVar12 >> 0x20));
     iVar5 = extraout_ECX_03;
     if (-1 < (int)uVar11) {
-      iVar5 = *(int *)(&DAT_0068cd69 + (int)uVar11 * 0xc) >> 0x18;
+      iVar5 = *(int *)((undefined1 *)0x0068cd69 + (int)uVar11 * 0xc) >> 0x18;
     }
   }
   else {
@@ -42571,7 +42707,7 @@ void FUN_0044e238(void)
   short *in_EAX;
   int extraout_EDX;
   int iVar5;
-  
+
   FUN_00426ca4();
   ((undefined1 *)0x0064a178)[*in_EAX * 2] = ((undefined1 *)0x0064a178)[*in_EAX * 2] & 0xfd;
   iVar5 = *(int *)(in_EAX + 0x8f);
@@ -42639,7 +42775,7 @@ undefined4 FUN_0044e354(void)
   int iVar5;
   undefined8 uVar6;
   short local_1c [4];
-  
+
   iVar4 = _DAT_00ac4ae8;
   iVar5 = DAT_0047b7f0;
   if ((DAT_0047b7f0 == 0) || (0x31 < _DAT_00636588 - DAT_0047b7f0)) {
@@ -42725,7 +42861,7 @@ void FUN_0044e5b0(void)
   int iVar1;
   int extraout_EDX;
   int iVar2;
-  
+
   iVar1 = 0;
   iVar2 = 0;
   do {
@@ -42752,7 +42888,7 @@ void FUN_0044e74c(void)
   short sVar1;
   short *psVar2;
   int *in_EAX;
-  
+
   while( true ) {
     psVar2 = (short *)*in_EAX;
     sVar1 = *psVar2;
@@ -42783,7 +42919,7 @@ void FUN_0044e7a4(void)
   short *psVar2;
   int *in_EAX;
   int *extraout_ECX;
-  
+
   while( true ) {
     psVar2 = (short *)*in_EAX;
     sVar1 = *psVar2;
@@ -42835,7 +42971,7 @@ uint __fastcall FUN_0044e810(ushort *param_1,int param_2,ushort *param_3,int par
   bool bVar15;
   bool bVar16;
   undefined8 uVar17;
-  
+
   bVar15 = *(short *)*in_EAX == 0x19;
   if (bVar15) {
     *in_EAX = (int)((short *)*in_EAX + 1);
@@ -43391,7 +43527,7 @@ void FUN_0044f310(void)
 
 {
   ushort *in_EDX;
-  
+
   FUN_0044f508(in_EDX,in_EDX,(ushort *)0x0);
   return;
 }
@@ -43596,7 +43732,7 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
       IsBadReadPtr((void *)(uintptr_t)in_EAX,0xe)) {
     return;
   }
-  
+
   local_34 = 0xffffffff;
   if (*(int *)(in_EAX + 6) != 0) {
     puVar18 = (ushort *)(*(int *)(in_EAX + 6) * 2);
@@ -44376,12 +44512,15 @@ LAB_0044f7a9:
         }
         goto switchD_0044f573_caseD_6;
       case 0x54:
-        puVar13 = (ushort *)(CONCAT22(uVar14,*(short *)((int)local_2c + 2)) & 0xffff0fff);
-        if ((ushort)puVar13 < 5000) {
-          psVar16 = *(short **)((undefined1 *)0x00630b60 + (short)(ushort)puVar13 * 4);
+        iVar23 = (int)(short)(*(ushort *)((int)local_2c + 2) & 0xfff);
+        puVar13 = (ushort *)(uintptr_t)iVar23;
+        if (iVar23 < 5000) {
+          psVar16 = *(short **)((undefined1 *)0x00630b60 + iVar23 * 4);
           if (psVar16 != (short *)0x0) {
             *(undefined4 *)((undefined1 *)0x00630b60 + *psVar16 * 4) = 0;
+            E2R_actor_calc_context = (int)(uintptr_t)psVar16;
             FUN_00426ca4();
+            E2R_actor_calc_context = 0;
             if (psVar16 == _DAT_00637248) {
               _DAT_00637248 = *(short **)(_DAT_00637248 + 0x28);
               iVar12 = extraout_EDX_18;
@@ -44400,22 +44539,19 @@ LAB_0044f7a9:
                 iVar23 = *(int *)(psVar4 + 0x28);
               }
             }
-            FUN_0043a800(extraout_ECX_32,iVar12);
+            FUN_0043a800((undefined4)(uintptr_t)psVar16,iVar12);
             puVar13 = extraout_ECX_33;
           }
-          E2R_actor_load_id_override = (int)(short)(*(ushort *)((int)local_2c + 2) & 0xfff);
-          ((undefined1 *)0x0064a178)[(short)(*(ushort *)((int)local_2c + 2) & 0xfff) * 2] =
-               ((undefined1 *)0x0064a178)[(short)(*(ushort *)((int)local_2c + 2) & 0xfff) * 2] &
-               0xfd;
+          iVar23 = (int)(short)(*(ushort *)((int)local_2c + 2) & 0xfff);
+          ((undefined1 *)0x0064a178)[iVar23 * 2] = ((undefined1 *)0x0064a178)[iVar23 * 2] & 0xfd;
+          E2R_actor_load_id_override = iVar23;
           FUN_00451f5c();
-          DAT_0047a470 =
-               *(ushort **)((undefined1 *)0x00630b60 +
-                            ((int)(short)(*(ushort *)((int)local_2c + 2) & 0xfff) * 4));
+          DAT_0047a470 = *(ushort **)((undefined1 *)0x00630b60 + iVar23 * 4);
           if (DAT_0047a470 != (ushort *)0x0) {
             ((undefined4 *)(uintptr_t)DAT_0047a470)[0x41] = 4;
           }
           puVar13 = extraout_ECX_34;
-          puVar18 = extraout_EDX_19;
+          puVar18 = (ushort *)(uintptr_t)iVar23;
         }
         uVar25 = CONCAT44(puVar18,_DAT_00ac4a54);
         local_2c = local_2c + 1;
@@ -44824,7 +44960,7 @@ undefined4 __fastcall FUN_0045186c(undefined4 param_1,undefined4 param_2)
 {
   int in_EAX;
   int unaff_EBX;
-  
+
   *(undefined4 *)(in_EAX + 0x126) = param_2;
   if (unaff_EBX != 0) {
     *(byte *)(in_EAX + 0x146) = *(byte *)(in_EAX + 0x146) | 0x10;
@@ -44850,7 +44986,7 @@ undefined8 __fastcall FUN_00451880(undefined4 param_1,undefined4 param_2)
   undefined1 local_6c [52];
   undefined1 local_38 [52];
   undefined4 uStack_4;
-  
+
   uStack_4 = param_2;
   uVar4 = FUN_0045190c(param_1,(int)in_AX);
   uVar3 = (undefined4)((ulonglong)uVar4 >> 0x20);
@@ -44891,7 +45027,7 @@ undefined8 __fastcall FUN_0045190c(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX_01;
   undefined4 extraout_ECX_02;
   undefined8 uVar3;
-  
+
   uVar2 = 0;
   if ((-1 < in_AX) && (iVar1 = in_AX * 4, *(int *)((undefined1 *)0x0062ba20 + iVar1) == 0)) {
     DAT_0047a788 = 1;
@@ -44918,11 +45054,13 @@ undefined8 __fastcall FUN_0045190c(undefined4 param_1,undefined4 param_2)
 
 /* 00451998 */
 
-undefined8 __fastcall FUN_00451998(undefined4 param_1,undefined4 param_2)
+undefined8 __fastcall FUN_00451998(int param_1,undefined4 param_2)
 
 {
   int iVar1;
-  int in_EAX;
+  int rep_id;
+  int result;
+  undefined4 saved_current;
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   undefined4 extraout_ECX_01;
@@ -44932,33 +45070,36 @@ undefined8 __fastcall FUN_00451998(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX_05;
   undefined4 extraout_EDX;
   undefined8 uVar2;
-  
-  if (-1 < (short)in_EAX) {
-    in_EAX = (int)(short)in_EAX;
-    iVar1 = in_EAX * 4;
+
+  rep_id = (int)(short)param_1;
+  result = rep_id;
+  saved_current = DAT_0047a470;
+  if (-1 < rep_id) {
+    iVar1 = rep_id * 4;
     if (*(int *)((undefined1 *)0x00635980 + iVar1) == 0) {
       DAT_0047a788 = 1;
       if (DAT_0047ab10 == 0) {
-        uVar2 = FUN_00442420(DAT_0047a470,iVar1);
+        uVar2 = FUN_00442420((short)rep_id,iVar1);
         FUN_0045f22f(extraout_ECX,(char *)uVar2);
         uVar2 = FUN_00451c8c(extraout_ECX_00,extraout_EDX);
-        in_EAX = (int)uVar2;
-        DAT_0047a470 = extraout_ECX_01;
+        result = (int)uVar2;
+        DAT_0047a470 = saved_current;
       }
       else {
         if (*(int *)(iVar1 + 0x663a10) < 0) {
-          FUN_00442420(DAT_0047a470,iVar1);
+          FUN_00442420((short)rep_id,iVar1);
           uVar2 = FUN_0043cbb4(extraout_ECX_02);
-          DAT_0047a470 = extraout_ECX_03;
+          DAT_0047a470 = saved_current;
           return CONCAT44(param_2,(int)uVar2);
         }
         FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x663a10));
-        in_EAX = E2R_ParseArchiveFanResource();
-        DAT_0047a470 = extraout_ECX_05;
+        result = E2R_ParseArchiveFanResource();
+        DAT_0047a470 = saved_current;
       }
     }
   }
-  return CONCAT44(param_2,in_EAX);
+  DAT_0047a470 = saved_current;
+  return CONCAT44(param_2,result);
 }
 
 
@@ -44988,7 +45129,7 @@ undefined8 __fastcall FUN_00451a54(undefined4 param_1,undefined4 param_2)
   undefined1 local_44 [40];
   undefined1 local_1c;
   undefined4 uVar3;
-  
+
   iVar2 = in_EAX;
   uVar3 = DAT_0047a470;
   if ((-1 < (short)in_EAX) && (iVar2 = (short)in_EAX * 4, *(int *)(iVar2 + 0x62d960) == 0)) {
@@ -45050,7 +45191,7 @@ undefined4 FUN_00451bc4(void)
   undefined4 extraout_ECX_00;
   int extraout_ECX_01;
   undefined1 local_80 [104];
-  
+
   FUN_0045f0a1((int)local_80,(byte *)s__sscenes__s_fan_0047556c);
   iVar1 = FUN_0045f8e8(extraout_ECX,0);
   if (iVar1 == 0) {
@@ -45092,7 +45233,7 @@ undefined8 __fastcall FUN_00451c8c(undefined4 param_1,undefined4 param_2)
   int extraout_ECX_01;
   undefined8 uVar3;
   undefined1 local_80 [104];
-  
+
   FUN_0045f0a1((int)local_80,(byte *)s__srep__s_fan_00475590);
   iVar1 = FUN_0045f8e8(extraout_ECX,0);
   if (iVar1 == 0) {
@@ -45137,7 +45278,7 @@ undefined8 __fastcall FUN_00451d88(undefined4 param_1,undefined4 param_2)
   int extraout_ECX_01;
   undefined8 uVar3;
   undefined1 local_80 [104];
-  
+
   FUN_0045f0a1((int)local_80,(byte *)s__sactors__s_fan_004755c0);
   iVar1 = FUN_0045f8e8(extraout_ECX,0);
   if (iVar1 == 0) {
@@ -45184,7 +45325,7 @@ undefined8 __fastcall FUN_00451e84(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX;
   int iVar4;
   undefined1 local_7c [104];
-  
+
   puVar3 = &DAT_0060ccb8;
   iVar4 = 0;
   do {
@@ -45246,13 +45387,42 @@ void FUN_00451f5c(void)
   undefined4 extraout_EDX_00;
   ushort *extraout_EDX_01;
   undefined8 uVar6;
-  
+  undefined4 parse_result;
+  int actor_id;
+
   if (E2R_actor_load_id_override != -1) {
     in_EAX = (undefined4)E2R_actor_load_id_override;
     E2R_actor_load_id_override = -1;
   }
+  actor_id = (short)in_EAX;
   uVar3 = DAT_0047a470;
-  iVar1 = (short)in_EAX * 4;
+  if ((actor_id < 0) || (5000 <= actor_id)) {
+    if (E2R_actor_load_diag_count < 48) {
+      E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;
+      fprintf(stderr,
+              "actor load invalid id: id=%d DAT_0047ab10=%lu current=0x%lx "
+              "action_opcodes=%lu last_opcode=0x%lx\n",
+              actor_id,(unsigned long)DAT_0047ab10,(unsigned long)DAT_0047a470,
+              (unsigned long)E2R_action_opcode_count,
+              (unsigned long)E2R_action_last_opcode);
+    }
+    DAT_0047a470 = uVar3;
+    return;
+  }
+  parse_result = 0;
+  if (E2R_actor_load_diag_count < 48) {
+    E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;
+    fprintf(stderr,
+            "actor load enter: id=%d table=0x%lx flags=0x%02x DAT_0047ab10=%lu "
+            "current=0x%lx action_opcodes=%lu last_opcode=0x%lx\n",
+            actor_id,
+            (unsigned long)*(int *)((undefined1 *)0x00630b60 + actor_id * 4),
+            (unsigned int)((undefined1 *)0x0064a178)[actor_id * 2],
+            (unsigned long)DAT_0047ab10,(unsigned long)DAT_0047a470,
+            (unsigned long)E2R_action_opcode_count,
+            (unsigned long)E2R_action_last_opcode);
+  }
+  iVar1 = actor_id * 4;
   if (*(int *)((undefined1 *)0x00630b60 + iVar1) == 0) {
     if (DAT_0047ab10 == 0) {
       uVar6 = FUN_00441890(in_EAX,iVar1);
@@ -45269,22 +45439,20 @@ void FUN_00451f5c(void)
     }
     else {
       FUN_0045f296(in_EAX,*(int *)(iVar1 + 0x653840));
-      E2R_ParseArchiveFanResource();
-      uVar4 = in_EAX;
+      parse_result = E2R_ParseArchiveFanResource();
+      uVar4 = (undefined4)actor_id;
       uVar5 = 0;
     }
     psVar2 = *(short **)((undefined1 *)0x00630b60 + (short)uVar4 * 4);
     if (psVar2 == (short *)0x0) {
-      if (DAT_0047ab10 != 0) {
-        DAT_0047a470 = uVar3;
-        return;
-      }
       FUN_00441890(uVar4,uVar5);
       FUN_0043cbb4(extraout_ECX_09);
       in_EAX = extraout_ECX_10;
     }
     else {
+      E2R_actor_calc_context = (int)(uintptr_t)psVar2;
       FUN_00420dcc();
+      E2R_actor_calc_context = 0;
       in_EAX = extraout_ECX_06;
       if ((((undefined1 *)0x0064a178)[*psVar2 * 2] & 2) != 0) {
         FUN_00422aa0(extraout_ECX_06,(undefined2 *)(*psVar2 * 6 + 0x669708));
@@ -45298,23 +45466,36 @@ void FUN_00451f5c(void)
       }
     }
   }
-  psVar2 = *(short **)((undefined1 *)0x00630b60 + (short)in_EAX * 4);
+  psVar2 = *(short **)((undefined1 *)0x00630b60 + actor_id * 4);
   if (psVar2 != (short *)0x0) {
     if (*(int *)(*psVar2 * 2 + 0x671fbe) >> 0x10 != -2) {
       psVar2[0x91] = *(short *)(*psVar2 * 2 + 0x671fc0);
     }
+    E2R_actor_calc_context = (int)(uintptr_t)psVar2;
     FUN_00426c3c();
-    if ((((undefined1 *)0x0064a178)[extraout_CX * 2] & 2) == 0) {
-      ((undefined1 *)0x0064a178)[extraout_CX * 2] = ((undefined1 *)0x0064a178)[extraout_CX * 2] | 2;
-      extraout_EDX_01[0x77] = 100;
-      extraout_EDX_01[0x76] = extraout_EDX_01[0x77];
-      if ((-1 < (short)extraout_EDX_01[0x9d]) &&
-         (*(int *)((*(int *)(extraout_EDX_01 + 0x9c) >> 0x10) * 4 + 0x6297c0) != 0)) {
-        FUN_0044f508(extraout_EDX_01,extraout_EDX_01,(ushort *)0x0);
+    E2R_actor_calc_context = 0;
+    if ((((undefined1 *)0x0064a178)[*psVar2 * 2] & 2) == 0) {
+      ((undefined1 *)0x0064a178)[*psVar2 * 2] = ((undefined1 *)0x0064a178)[*psVar2 * 2] | 2;
+      psVar2[0x77] = 100;
+      psVar2[0x76] = psVar2[0x77];
+      if ((-1 < psVar2[0x9d]) &&
+         (*(int *)((*(int *)(psVar2 + 0x9c) >> 0x10) * 4 + 0x6297c0) != 0)) {
+        FUN_0044f508(psVar2,psVar2,(ushort *)0x0);
       }
     }
   }
   DAT_0047a470 = uVar3;
+  if (E2R_actor_load_diag_count < 48) {
+    E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;
+    fprintf(stderr,
+            "actor load exit: id=%d restored_current=0x%lx flags=0x%02x "
+            "opcodes=%lu last_opcode=0x%lx hit75=%lu\n",
+            actor_id,(unsigned long)DAT_0047a470,
+            (unsigned int)((undefined1 *)0x0064a178)[actor_id * 2],
+            (unsigned long)E2R_action_opcode_count,
+            (unsigned long)E2R_action_last_opcode,
+            (unsigned long)E2R_action_hit_75_count);
+  }
   return;
 }
 
@@ -45351,7 +45532,7 @@ void __fastcall FUN_00452140(undefined4 param_1)
   undefined4 extraout_EDX_00;
   ushort *extraout_EDX_01;
   undefined8 uVar8;
-  
+
   uVar5 = DAT_0047a470;
   if (in_EAX != 0) {
     for (psVar3 = *(short **)(in_EAX + 4); psVar3 != (short *)0x0;
@@ -45442,7 +45623,7 @@ undefined8 __fastcall FUN_0045233c(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX_03;
   undefined4 extraout_ECX_04;
   undefined8 uVar3;
-  
+
   iVar2 = (int)in_AX;
   iVar1 = iVar2 * 4;
   if (*(int *)(iVar1 + 0x62e450) == 0) {
@@ -45496,7 +45677,7 @@ undefined4 FUN_004523f8(void)
   short extraout_DX;
   short extraout_DX_00;
   short sVar5;
-  
+
   if (in_EAX != (short *)0x0) {
     pbVar1 = (byte *)(*in_EAX * 2 + 0x670c38);
     *pbVar1 = *pbVar1 | 2;
@@ -45585,7 +45766,7 @@ undefined8 __fastcall FUN_004525f0(undefined4 param_1,undefined4 param_2)
   undefined8 uVar3;
   undefined1 local_58 [60];
   undefined1 local_1c;
-  
+
   iVar2 = (int)in_AX;
   iVar1 = iVar2 * 4;
   if (*(int *)(iVar1 + 0x62b700) == 0) {
@@ -45622,7 +45803,7 @@ void FUN_004526cc(void)
 {
   int iVar1;
   int iVar2;
-  
+
   iVar2 = 0;
   do {
     iVar1 = iVar2 + 9;
@@ -45643,7 +45824,7 @@ void FUN_004526e4(short *param_1)
 {
   int iVar1;
   short *psVar2;
-  
+
   psVar2 = _DAT_00637250;
   *(undefined4 *)(*param_1 * 4 + 0x6297c0) = 0;
   if (param_1 == psVar2) {
@@ -45680,7 +45861,7 @@ void __fastcall FUN_00452738(undefined4 param_1,undefined4 param_2)
   short *psVar2;
   undefined1 local_80 [52];
   undefined1 local_4c [52];
-  
+
   if (in_EAX == (short *)0x0) {
     FUN_00414e68();
     param_1 = extraout_ECX;
@@ -45752,7 +45933,7 @@ undefined8 __fastcall FUN_0045282c(undefined4 param_1,undefined4 param_2)
   int iVar5;
   undefined8 uVar6;
   undefined1 local_4c [52];
-  
+
   FUN_00441890(in_EAX,param_2);
   FUN_0045f0a1((int)local_4c,(byte *)s_Actor___s__00475748);
   psVar4 = extraout_ECX;
@@ -45831,7 +46012,7 @@ undefined8 __fastcall FUN_00452958(undefined4 param_1,undefined4 param_2)
   int extraout_EDX;
   int iVar1;
   undefined8 uVar2;
-  
+
   while (0xfffff < DAT_00479e44 + in_EAX) {
     uVar2 = FUN_004531bc(param_1,in_EAX);
     in_EAX = (int)((ulonglong)uVar2 >> 0x20);
@@ -45871,7 +46052,7 @@ void __fastcall FUN_00452994(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX;
   undefined4 extraout_EDX_00;
   undefined1 local_48 [52];
-  
+
   FUN_0044248c(param_1,param_2);
   FUN_0045f0a1((int)local_48,(byte *)s_Removing_sound___s__00475814);
   uVar5 = CONCAT22(extraout_var,*in_EAX);
@@ -45925,7 +46106,7 @@ undefined8 __fastcall FUN_00452a58(undefined4 param_1,undefined4 param_2)
   int extraout_EDX;
   int iVar1;
   undefined8 uVar2;
-  
+
   in_EAX = (int)(uintptr_t)param_1;
   while (0 < DAT_00479e48 + in_EAX) {
     uVar2 = FUN_00453210(param_1,in_EAX);
@@ -45961,7 +46142,7 @@ void FUN_00452a94(void)
   int iVar4;
   undefined1 *puVar5;
   undefined1 *puVar6;
-  
+
   if ((short)*in_EAX < 0) {
     FUN_00414e68();
     in_EAX = extraout_EDX;
@@ -46026,7 +46207,7 @@ void __fastcall FUN_00452b70(undefined4 param_1,undefined4 param_2)
   int extraout_EDX_00;
   int iVar3;
   undefined1 local_48 [52];
-  
+
   FUN_00442420(param_1,param_2);
   FUN_0045f0a1((int)local_48,(byte *)s_Removing_rep____s__00475928);
   if (*in_EAX < 0) {
@@ -46082,7 +46263,7 @@ void __fastcall FUN_00452c70(undefined4 param_1,undefined4 param_2)
   int extraout_EDX;
   int iVar3;
   undefined1 local_48 [52];
-  
+
   FUN_00441b24(param_1,param_2);
   FUN_0045f0a1((int)local_48,(byte *)s_Removing_action___s__004759f0);
   if (*in_EAX < 0) {
@@ -46133,7 +46314,7 @@ void __fastcall FUN_00452d3c(undefined4 param_1)
   int iVar2;
   int extraout_EDX_00;
   undefined2 *puVar3;
-  
+
   iVar1 = 0;
   do {
     if ((*(byte *)(iVar1 + 0x73ccc3) & 0x80) == 0) {
@@ -46232,7 +46413,7 @@ undefined8 __fastcall FUN_00452ebc(undefined4 param_1,int param_2)
   int iVar2;
   int iVar3;
   int iVar4;
-  
+
   iVar4 = 0;
   iVar2 = 0;
   iVar3 = param_2;
@@ -46264,7 +46445,7 @@ undefined8 __fastcall FUN_00452f18(undefined4 param_1,undefined4 param_2)
   int iVar4;
   int iVar5;
   int iVar6;
-  
+
   iVar2 = 0;
   iVar5 = 0;
   iVar6 = 0;
@@ -46320,7 +46501,7 @@ undefined8 __fastcall FUN_00452fe8(undefined4 param_1,int param_2)
   int iVar3;
   int iVar4;
   int iVar5;
-  
+
   iVar5 = -1;
   iVar3 = 0;
   for (iVar1 = _DAT_00637270; iVar4 = param_2, iVar2 = _DAT_00637248, iVar1 != 0;
@@ -46360,7 +46541,7 @@ undefined8 __fastcall FUN_0045307c(undefined4 param_1,int param_2)
   int iVar3;
   int iVar4;
   int iVar5;
-  
+
   iVar5 = -1;
   iVar3 = 0;
   for (iVar1 = _DAT_00637254; iVar4 = param_2, iVar2 = _DAT_0063726c, iVar1 != 0;
@@ -46400,7 +46581,7 @@ undefined8 __fastcall FUN_0045311c(undefined4 param_1,int param_2)
   int iVar3;
   int iVar4;
   int iVar5;
-  
+
   iVar5 = 0;
   iVar3 = 0;
   for (iVar4 = _DAT_00637248; iVar1 = _DAT_0063726c, iVar4 != 0; iVar4 = *(int *)(iVar4 + 0x50)) {
@@ -46437,7 +46618,7 @@ undefined8 __fastcall FUN_004531bc(undefined4 param_1,int param_2)
   int iVar2;
   int iVar3;
   int iVar4;
-  
+
   iVar4 = -1;
   iVar2 = 0;
   iVar3 = param_2;
@@ -46467,7 +46648,7 @@ undefined8 __fastcall FUN_00453210(undefined4 param_1,undefined4 param_2)
   int iVar2;
   int iVar3;
   int iVar4;
-  
+
   iVar4 = -1;
   iVar2 = 0;
   for (iVar1 = _DAT_00637264; iVar1 != 0; iVar1 = *(int *)(iVar1 + 10)) {
@@ -46509,7 +46690,7 @@ undefined4 __fastcall FUN_0045326c(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX_01;
   undefined4 extraout_EDX;
   undefined8 uVar1;
-  
+
   while( true ) {
     uVar1 = FUN_0045328c(param_1,param_2);
     if ((int)uVar1 != 0) {
@@ -46537,7 +46718,7 @@ undefined8 __fastcall FUN_0045328c(undefined4 param_1,undefined4 param_2)
   int iVar2;
   undefined1 *puVar3;
   undefined1 *puVar4;
-  
+
   puVar3 = (undefined1 *)0x0;
   iVar2 = DAT_0047b7f4;
   if (DAT_0047b7f4 < 40000) {
@@ -46586,7 +46767,7 @@ void FUN_00453330(void)
 
 {
   int in_EAX;
-  
+
   *(undefined2 *)(in_EAX + 0xc) = 0x8000;
   return;
 }
@@ -46608,7 +46789,7 @@ undefined8 __fastcall FUN_00453338(undefined4 param_1,undefined4 param_2)
   uint extraout_EDX;
   undefined1 *puVar4;
   longlong lVar5;
-  
+
   do {
     puVar3 = (undefined1 *)0x0;
     param_1 = CONCAT22((short)((uint)param_1 >> 0x10),_DAT_00ac2648);
@@ -46649,7 +46830,7 @@ void FUN_004533a4(void)
 
 {
   int in_EAX;
-  
+
   *(undefined1 *)(in_EAX + 0x1c) = 0x80;
   return;
 }
@@ -46669,7 +46850,7 @@ undefined8 __fastcall FUN_004533ac(undefined4 param_1,undefined4 param_2)
   undefined1 *extraout_EDX;
   undefined1 *puVar4;
   undefined8 uVar5;
-  
+
   puVar3 = (undefined1 *)0x0;
   do {
     param_1 = CONCAT31((int3)((uint)param_1 >> 8),DAT_009377e0);
@@ -46721,7 +46902,7 @@ undefined8 __fastcall FUN_00453414(int param_1,undefined4 param_2)
   undefined1 *puVar6;
   undefined1 *puVar7;
   undefined8 uVar8;
-  
+
   puVar6 = (undefined1 *)0x0;
   do {
     iVar3 = 0;
@@ -46783,7 +46964,7 @@ void FUN_00453508(void)
 
 {
   int in_EAX;
-  
+
   *(undefined2 *)(in_EAX + 4) = 0x8000;
   return;
 }
@@ -46797,43 +46978,20 @@ void FUN_00453508(void)
 undefined8 __fastcall FUN_00453510(undefined4 param_1,undefined4 param_2)
 
 {
-  ushort uVar1;
-  int iVar2;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined1 *puVar3;
-  uint extraout_EDX;
-  undefined1 *puVar4;
-  longlong lVar5;
-  
+  int offset;
+  undefined1 *slot;
+
+  (void)param_1;
   do {
-    puVar3 = (undefined1 *)0x0;
-    param_1 = CONCAT22((short)((uint)param_1 >> 0x10),_DAT_00950d40);
-    iVar2 = 0;
-    uVar1 = _DAT_00950d40;
-    while ((uVar1 & 0x8000) == 0) {
-      if (1399999 < iVar2 + 0x15e) goto LAB_00453558;
-      uVar1 = *(ushort *)(&DAT_00950e9e + iVar2);
-      iVar2 = iVar2 + 0x15e;
+    for (offset = 0; offset < 0x155cc0; offset = offset + 0x15e) {
+      if ((*(ushort *)((undefined1 *)0x00950d40 + offset) & 0x8000) != 0) {
+        slot = (undefined1 *)(0x00950d3c + offset);
+        memset(slot,0,0x15e);
+        return CONCAT44(param_2,(undefined4)(uintptr_t)slot);
+      }
     }
-    puVar3 = (undefined1 *)(iVar2 + 0x950d3c);
-    puVar4 = puVar3;
-    for (iVar2 = 0x15e; iVar2 != 0; iVar2 = iVar2 + -1) {
-      *puVar4 = 0;
-      puVar4 = puVar4 + 1;
-    }
-    param_1 = 0;
-LAB_00453558:
-    lVar5 = ZEXT48(puVar3) << 0x20;
-    if ((puVar3 == (undefined1 *)0x0) &&
-       (lVar5 = FUN_0045311c(param_1,0), param_1 = extraout_ECX, (int)lVar5 == 0)) {
+    if ((int)FUN_0045311c(0,0) == 0) {
       FUN_00414e68();
-      lVar5 = (ulonglong)extraout_EDX << 0x20;
-      param_1 = extraout_ECX_00;
-    }
-    iVar2 = (int)((ulonglong)lVar5 >> 0x20);
-    if (iVar2 != 0) {
-      return CONCAT44(param_2,iVar2);
     }
   } while( true );
 }
@@ -46846,7 +47004,7 @@ void FUN_0045357c(void)
 
 {
   int in_EAX;
-  
+
   *(undefined2 *)(in_EAX + 0x96) = 0x8000;
   return;
 }
@@ -46868,7 +47026,7 @@ undefined8 __fastcall FUN_00453588(undefined4 param_1,undefined4 param_2)
   uint extraout_EDX;
   undefined1 *puVar4;
   longlong lVar5;
-  
+
   do {
     puVar3 = (undefined1 *)0x0;
     param_1 = CONCAT22((short)((uint)param_1 >> 0x10),_DAT_00aba392);
@@ -46909,7 +47067,7 @@ void FUN_004535f4(void)
 
 {
   int in_EAX;
-  
+
   *(undefined2 *)(in_EAX + 0x1aa) = 0x8000;
   return;
 }
@@ -46931,7 +47089,7 @@ undefined8 __fastcall FUN_00453600(undefined4 param_1,undefined4 param_2)
   uint extraout_EDX;
   undefined1 *puVar4;
   longlong lVar5;
-  
+
   do {
     puVar3 = (undefined1 *)0x0;
     param_1 = CONCAT22((short)((uint)param_1 >> 0x10),_DAT_0093bd66);
@@ -46972,7 +47130,7 @@ void FUN_0045366c(void)
 
 {
   int in_EAX;
-  
+
   *(undefined2 *)(in_EAX + 2) = 1;
   return;
 }
@@ -46986,43 +47144,20 @@ void FUN_0045366c(void)
 undefined8 __fastcall FUN_00453674(undefined4 param_1,undefined4 param_2)
 
 {
-  ushort uVar1;
-  int iVar2;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined1 *puVar3;
-  uint extraout_EDX;
-  undefined1 *puVar4;
-  longlong lVar5;
-  
+  int offset;
+  undefined1 *slot;
+
+  (void)param_1;
   do {
-    puVar3 = (undefined1 *)0x0;
-    param_1 = CONCAT22((short)((uint)param_1 >> 0x10),_DAT_00838bfe);
-    iVar2 = 0;
-    uVar1 = _DAT_00838bfe;
-    while ((uVar1 & 1) == 0) {
-      if (0x1274f < iVar2 + 0x2a) goto LAB_004536ba;
-      uVar1 = *(ushort *)(&DAT_00838c28 + iVar2);
-      iVar2 = iVar2 + 0x2a;
+    for (offset = 0; offset < 0x12750; offset = offset + 0x2a) {
+      if ((*(ushort *)((undefined1 *)0x00838bfe + offset) & 1) != 0) {
+        slot = (undefined1 *)(0x00838bfc + offset);
+        memset(slot,0,0x2a);
+        return CONCAT44(param_2,(undefined4)(uintptr_t)slot);
+      }
     }
-    puVar3 = (undefined1 *)(iVar2 + 0x838bfc);
-    puVar4 = puVar3;
-    for (iVar2 = 0x2a; iVar2 != 0; iVar2 = iVar2 + -1) {
-      *puVar4 = 0;
-      puVar4 = puVar4 + 1;
-    }
-    param_1 = 0;
-LAB_004536ba:
-    lVar5 = ZEXT48(puVar3) << 0x20;
-    if ((puVar3 == (undefined1 *)0x0) &&
-       (lVar5 = FUN_0045311c(param_1,0), param_1 = extraout_ECX, (int)lVar5 == 0)) {
+    if ((int)FUN_0045311c(0,0) == 0) {
       FUN_00414e68();
-      lVar5 = (ulonglong)extraout_EDX << 0x20;
-      param_1 = extraout_ECX_00;
-    }
-    iVar2 = (int)((ulonglong)lVar5 >> 0x20);
-    if (iVar2 != 0) {
-      return CONCAT44(param_2,iVar2);
     }
   } while( true );
 }
@@ -47036,43 +47171,20 @@ LAB_004536ba:
 undefined8 __fastcall FUN_004536e0(undefined4 param_1,undefined4 param_2)
 
 {
-  ushort uVar1;
-  int iVar2;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined1 *puVar3;
-  uint extraout_EDX;
-  undefined1 *puVar4;
-  longlong lVar5;
-  
+  int offset;
+  undefined1 *slot;
+
+  (void)param_1;
   do {
-    puVar3 = (undefined1 *)0x0;
-    param_1 = CONCAT22((short)((uint)param_1 >> 0x10),_DAT_0084b34e);
-    iVar2 = 0;
-    uVar1 = _DAT_0084b34e;
-    while ((uVar1 & 0x8000) == 0) {
-      if (0x1de1f < iVar2 + 0x44) goto LAB_00453726;
-      uVar1 = *(ushort *)(&DAT_0084b392 + iVar2);
-      iVar2 = iVar2 + 0x44;
+    for (offset = 0; offset < 0x1de20; offset = offset + 0x44) {
+      if ((*(ushort *)((undefined1 *)0x0084b34e + offset) & 0x8000) != 0) {
+        slot = (undefined1 *)(0x0084b34c + offset);
+        memset(slot,0,0x44);
+        return CONCAT44(param_2,(undefined4)(uintptr_t)slot);
+      }
     }
-    puVar3 = (undefined1 *)(iVar2 + 0x84b34c);
-    puVar4 = puVar3;
-    for (iVar2 = 0x44; iVar2 != 0; iVar2 = iVar2 + -1) {
-      *puVar4 = 0;
-      puVar4 = puVar4 + 1;
-    }
-    param_1 = 0;
-LAB_00453726:
-    lVar5 = ZEXT48(puVar3) << 0x20;
-    if ((puVar3 == (undefined1 *)0x0) &&
-       (lVar5 = FUN_0045311c(param_1,0), param_1 = extraout_ECX, (int)lVar5 == 0)) {
+    if ((int)FUN_0045311c(0,0) == 0) {
       FUN_00414e68();
-      lVar5 = (ulonglong)extraout_EDX << 0x20;
-      param_1 = extraout_ECX_00;
-    }
-    iVar2 = (int)((ulonglong)lVar5 >> 0x20);
-    if (iVar2 != 0) {
-      return CONCAT44(param_2,iVar2);
     }
   } while( true );
 }
@@ -47085,7 +47197,7 @@ void FUN_0045374c(void)
 
 {
   int in_EAX;
-  
+
   *(undefined1 *)(in_EAX + 0xe) = 0x80;
   return;
 }
@@ -47105,7 +47217,7 @@ undefined8 __fastcall FUN_00453754(undefined4 param_1,undefined4 param_2)
   undefined1 *extraout_EDX;
   undefined1 *puVar4;
   undefined8 uVar5;
-  
+
   puVar3 = (undefined1 *)0x0;
   do {
     param_1 = CONCAT31((int3)((uint)param_1 >> 8),DAT_007c872a);
@@ -47149,7 +47261,7 @@ void __fastcall FUN_004537bc(undefined4 param_1)
 {
   int in_EAX;
   undefined8 uVar1;
-  
+
   in_EAX = (int)(uintptr_t)param_1;
   if (in_EAX == 0 || (uintptr_t)in_EAX >= 0x70000000u ||
       IsBadReadPtr((void *)(uintptr_t)in_EAX,0x3c)) return;
@@ -47178,7 +47290,7 @@ undefined8 __fastcall FUN_004537d8(undefined4 param_1,undefined4 param_2)
   uint extraout_EDX;
   undefined1 *puVar4;
   longlong lVar5;
-  
+
   do {
     puVar3 = (undefined1 *)0x0;
     param_1 = CONCAT22((short)((uint)param_1 >> 0x10),_DAT_0073ccc2);
@@ -47228,7 +47340,7 @@ undefined8 __fastcall FUN_0045384c(undefined4 param_1,undefined4 param_2)
   uint extraout_EDX;
   undefined1 *puVar4;
   longlong lVar5;
-  
+
   do {
     puVar3 = (undefined1 *)0x0;
     param_1 = CONCAT22((short)((uint)param_1 >> 0x10),_DAT_0086917a);
@@ -47269,7 +47381,7 @@ void FUN_004538b8(void)
 
 {
   undefined2 *in_EAX;
-  
+
   *in_EAX = 0xffff;
   return;
 }
@@ -47289,7 +47401,7 @@ undefined8 __fastcall FUN_004538c0(undefined4 param_1,undefined4 param_2)
   undefined1 *puVar4;
   undefined1 *extraout_EDX;
   undefined1 *puVar5;
-  
+
   puVar4 = (undefined1 *)0x0;
   do {
     iVar2 = 0;
@@ -47479,7 +47591,7 @@ undefined8 __fastcall FUN_004544a4(undefined4 param_1,undefined4 param_2)
   int local_24;
   int local_20;
   int local_1c;
-  
+
   if (10 < in_EAX) {
     FUN_00414e68();
   }
@@ -47589,7 +47701,7 @@ LAB_004545cb:
       uVar14 = (undefined4)((ulonglong)uVar18 >> 0x20);
       uVar9 = extraout_ECX_08;
       if ((short)uVar18 < 0) break;
-      uVar18 = FUN_00451998(extraout_ECX_08,uVar14);
+      uVar18 = FUN_00451998((int)(short)uVar18,uVar14);
       iVar13 = (int)((ulonglong)uVar18 >> 0x20);
       iVar12 = extraout_ECX_09;
     }
@@ -48069,7 +48181,7 @@ void __fastcall FUN_00454fe4(undefined4 param_1,undefined4 param_2)
   int iVar1;
   int iVar2;
   int iVar3;
-  
+
   iVar2 = 0x12;
   iVar3 = 0;
   do {
@@ -48099,7 +48211,7 @@ void FUN_00455034(void)
   int iVar3;
   int iVar4;
   undefined8 uVar5;
-  
+
   iVar4 = 0x12;
   iVar3 = 0;
   do {
@@ -48144,7 +48256,7 @@ void FUN_00455094(void)
   int iVar12;
   int local_34;
   int local_1c;
-  
+
   iVar9 = 0;
   local_34 = 0;
   local_1c = 0;
@@ -48233,7 +48345,7 @@ void FUN_00455294(void)
   int iVar12;
   int local_28;
   int local_24;
-  
+
   iVar8 = 0;
   local_28 = 0;
   local_24 = 0;
@@ -48299,7 +48411,7 @@ undefined8 __fastcall FUN_004554cc(undefined4 param_1,undefined4 param_2)
   undefined1 local_b4 [156];
   undefined2 local_18 [2];
   undefined4 local_14;
-  
+
   FUN_0045fd2c(param_1,in_EAX);
   FUN_0045fd4b(0,(char *)0x00475e68);
   iVar3 = FUN_0044a178(extraout_ECX,(int *)local_18);
@@ -48372,7 +48484,7 @@ int __fastcall FUN_004555b0(int param_1,undefined4 param_2)
   int local_20;
   int local_18;
   int local_14 [2];
-  
+
   puVar12 = (uint *)(undefined1 *)0x00ac4cad;
   iVar8 = 0;
   local_20 = param_1;
@@ -48499,7 +48611,7 @@ void __fastcall FUN_00455850(undefined4 param_1,undefined4 param_2)
   undefined1 local_b8 [156];
   int local_1c;
   int local_18 [2];
-  
+
   FUN_0045fd2c(param_1,in_EAX);
   FUN_0045fd4b(param_2,(char *)0x00475e68);
   iVar1 = FUN_0044a178(extraout_ECX,local_18);
@@ -48543,7 +48655,7 @@ void FUN_00455940(void)
   int extraout_ECX;
   int extraout_ECX_00;
   uint *puVar4;
-  
+
   puVar4 = (uint *)(undefined1 *)0x00ac4cad;
   iVar3 = 0;
   do {
@@ -48597,7 +48709,7 @@ undefined4 FUN_004559bc(void)
   char *extraout_EDX_05;
   char *extraout_EDX_06;
   int iVar6;
-  
+
   iVar2 = _DAT_00630b60;
   if ((DAT_0047a76c == 0) && (_DAT_00630b60 != 0)) {
     if (*(short *)(_DAT_00630b60 + 0xee) == 100) {
@@ -48826,7 +48938,7 @@ void __fastcall FUN_00455fe8(undefined4 param_1)
   undefined4 uVar4;
   undefined8 uVar5;
   uint in_stack_ffffffb4;
-  
+
   iVar1 = DAT_0047a43c;
   if (DAT_0047a76c == 0) {
     if (DAT_0047a43c == 0) {
@@ -48955,7 +49067,7 @@ void __fastcall FUN_004561c8(undefined4 param_1,undefined4 param_2)
   int local_28;
   int local_20;
   int local_1c;
-  
+
   uVar8 = FUN_00441ea4(param_1,param_2);
   uVar5 = (undefined4)((ulonglong)uVar8 >> 0x20);
   uVar4 = extraout_ECX;
@@ -49203,7 +49315,7 @@ void __fastcall FUN_00456874(undefined4 param_1,int param_2)
   int iVar1;
   int extraout_ECX;
   int unaff_EBX;
-  
+
   if (-1 < param_2 + -1) {
     iVar1 = (param_2 + -1) * 10 + unaff_EBX;
     do {
@@ -49254,7 +49366,7 @@ void __fastcall FUN_00456924(undefined4 param_1,int param_2)
   int extraout_ECX_00;
   int extraout_ECX_01;
   short sVar2;
-  
+
   iVar1 = 0;
   if ((in_EAX == _DAT_00630b60) && (*(short *)(_DAT_00630b60 + 0x184) == 0)) {
     iVar1 = 1;
@@ -49343,7 +49455,7 @@ undefined4 FUN_00456a3c(void)
   int local_48;
   int local_44;
   int local_40;
-  
+
   local_40 = 100;
   if (_DAT_00630b60 == 0) {
     return;
@@ -49540,7 +49652,7 @@ undefined4 FUN_00456f94(void)
   int iVar3;
   int iVar4;
   int local_1c;
-  
+
   if (((_DAT_00630b60 != 0) && (DAT_0047a448 == 0)) && (DAT_0047a76c == 0)) {
     iVar2 = *(int *)(_DAT_00630b60 + 0x182) >> 0x10;
     if (iVar2 == 0) {
@@ -49688,7 +49800,7 @@ void FUN_00457410(void)
   int iVar3;
   int local_2c;
   int local_28;
-  
+
   if ((((_DAT_00630b60 != 0) && (DAT_0047a448 == 0)) &&
       (iVar1 = *(int *)(*(int *)(_DAT_00630b60 + 0x54) + 0x20), iVar1 != 0)) &&
      ((iVar1 = *(int *)(iVar1 + 0x13a), iVar1 != 0 &&
@@ -49758,7 +49870,7 @@ void FUN_004575c4(void)
   undefined3 uVar3;
   int iVar4;
   undefined8 uVar5;
-  
+
   psVar1 = DAT_0047a470;
   if (DAT_0047a470 == (short *)0x0) {
     return;
@@ -49851,7 +49963,7 @@ void __fastcall FUN_00457780(undefined4 param_1,undefined4 param_2)
   int iVar2;
   int iVar3;
   undefined8 uVar4;
-  
+
   if (((DAT_0047a4a0 != 0) && (DAT_00479dd0 != 0)) && (iVar3 = 0, 0 < DAT_0047ab40)) {
     iVar2 = 0;
     do {
@@ -49893,7 +50005,7 @@ void __fastcall FUN_00457818(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX_05;
   int extraout_ECX_06;
   undefined8 uVar4;
-  
+
   if ((DAT_0047ab30 != 0) || (iVar2 = _DAT_00ac4ae4, DAT_0047ab34 != 0)) {
     uVar4 = FUN_0041cf5c(param_1,param_2);
     iVar1 = DAT_0047ab30;
@@ -49964,7 +50076,7 @@ void FUN_00457994(void)
   int iVar1;
   int iVar2;
   int iVar3;
-  
+
   if (in_EAX != DAT_0047ab3c) {
     iVar1 = 0;
     do {
@@ -50004,7 +50116,7 @@ void FUN_00457a34(void)
   int iVar2;
   int iVar3;
   int iVar4;
-  
+
   if (in_EAX != DAT_0047ab3c) {
     iVar2 = 0;
     do {
@@ -50051,7 +50163,7 @@ void __fastcall FUN_00457cf0(undefined4 param_1,int param_2)
   int iVar4;
   int unaff_EBX;
   undefined8 uVar5;
-  
+
   if (((4999 < in_EAX) || (*(int *)((undefined1 *)0x00630b60 + in_EAX * 4) == 0)) || (1999 < param_2)) {
     return;
   }
@@ -50123,7 +50235,7 @@ undefined4 __fastcall FUN_00458094(undefined4 param_1,undefined4 param_2)
 {
   int iVar1;
   int iVar2;
-  
+
   do {
     iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 0x2c))(DAT_0047d0cc,0,0,param_2,param_1);
     if (iVar1 == 0) {
@@ -50182,7 +50294,7 @@ undefined4 FUN_00458714(void)
   undefined4 uStack_94;
   undefined4 uStack_40;
   WNDCLASSA local_3c;
-  
+
   in_EAX = GetModuleHandleA((LPCSTR)0x0);
   local_3c.style = 3;
   local_3c.lpfnWndProc = (WNDPROC)E2R_WndProc;
@@ -50259,7 +50371,7 @@ void __fastcall FUN_00458984(undefined4 param_1,undefined4 param_2)
   byte bStack_2e;
   undefined4 uStack_2c;
   undefined4 auStack_28 [5];
-  
+
   if ((DAT_0047d0c8 != (int *)0x0) && (DAT_0047d0cc != (int *)0x0)) {
     piStack_188 = DAT_0047d0cc;
     uStack_18c = 0x4589ae;
@@ -50318,7 +50430,7 @@ undefined4 __fastcall FUN_00458bac(undefined4 param_1,UINT param_2)
 
 {
   LPSTR in_EAX;
-  
+
   GetWindowsDirectoryA(in_EAX,param_2);
   return;
 }
@@ -50348,7 +50460,7 @@ void __fastcall FUN_00458bec(undefined4 param_1,undefined4 param_2)
   int in_EAX;
   undefined4 extraout_ECX;
   undefined8 uVar2;
-  
+
   in_EAX = (int)(uintptr_t)param_1;
   if (in_EAX == 0 || (uintptr_t)in_EAX >= 0x70000000u ||
       IsBadReadPtr((void *)(uintptr_t)in_EAX,0x3c)) return;
@@ -50387,7 +50499,7 @@ undefined4 __fastcall FUN_00458c24(undefined4 param_1,int param_2)
   int *piStack_1c;
   int iStack_18;
   undefined4 local_14;
-  
+
   local_14 = 0;
   piStack_1c = *(int **)(in_EAX + 0x38);
   if (piStack_1c == (int *)0x0) {
@@ -50452,7 +50564,7 @@ HGLOBAL __fastcall FUN_00458d18(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX_03;
   undefined4 extraout_EDX;
   undefined8 uVar5;
-  
+
   if (*(int *)(in_EAX + 0xc) == 0) {
     FUN_0044248c(param_1,param_2);
     uVar5 = FUN_0043cbb4(extraout_ECX);
@@ -50541,7 +50653,7 @@ char * __fastcall FUN_00458e7c(undefined4 param_1,uint param_2)
   undefined4 local_18;
   int local_14;
   int iVar7;
-  
+
   local_18 = 0;
   local_1c = 0;
   uStack_50 = 0x458ead;
@@ -50657,7 +50769,7 @@ undefined8 __fastcall FUN_00459190(undefined4 param_1,undefined4 param_2)
   ATOM AVar1;
   HINSTANCE in_EAX;
   WNDCLASSA local_40;
-  
+
   local_40.hCursor = LoadCursorA((HINSTANCE)0x0,(LPCSTR)0x7f00);
   local_40.hIcon = LoadIconA(in_EAX,(LPCSTR)0x6b);
   local_40.hbrBackground = (HBRUSH)0x5;
@@ -50686,7 +50798,7 @@ FUN_00459214(undefined4 param_1,undefined4 param_2,HINSTANCE param_3,int param_4
   BOOL BVar1;
   undefined8 uVar2;
   tagMSG local_2c;
-  
+
   if ((param_4 == 0) && (uVar2 = FUN_00459190(param_1,param_2), (int)uVar2 == 0)) {
     return 0;
   }
@@ -50725,7 +50837,7 @@ void __fastcall FUN_00459304(undefined4 param_1,uint param_2)
   undefined4 uStack_2c;
   undefined4 uStack_28;
   uint local_18;
-  
+
   if (*(int *)(in_EAX + 0x24) == 0) {
     lpString2 = &DAT_0047d1a9;
   }
@@ -50768,7 +50880,7 @@ void __fastcall FUN_00459440(undefined4 param_1,undefined4 param_2)
 {
   char local_status[256];
   undefined4 local_caps[24];
-  
+
   (void)param_1;
   (void)param_2;
   local_caps[0] = 0x60;
@@ -50803,7 +50915,7 @@ void FUN_004594a0(void)
   UINT_PTR uDeviceID;
   int *piVar6;
   SIZE_T local_1c;
-  
+
   in_EAX = _DAT_00ac4dac;
   local_1c = 0x12;
   _DAT_00ac4fc4 = 0;
@@ -50910,7 +51022,7 @@ void FUN_004597dc(void)
   uint in_EAX;
   UINT UVar1;
   tagMIDIOUTCAPSA local_48;
-  
+
   UVar1 = midiOutGetNumDevs();
   if (((int)in_EAX < 0) || ((int)UVar1 <= (int)in_EAX)) {
     DAT_00479dbc = 6;
@@ -50974,7 +51086,7 @@ void FUN_004598c8(void)
   LPCSTR lpString;
   HWND extraout_ECX;
   undefined1 *puVar3;
-  
+
   if (DAT_0047d154 != 0) {
     KillTimer(in_EAX,DAT_0047d154);
     DAT_0047d154 = 0;
@@ -51036,7 +51148,7 @@ LRESULT FUN_004599fc(HWND param_1,uint param_2,HMENU param_3,LPARAM param_4)
   HWND hWnd_00;
   HWND hWnd_01;
   HWND extraout_ECX;
-  
+
   if (param_2 < 0x113) {
     if (param_2 < 2) {
       if (param_2 != 1) {
@@ -51121,7 +51233,7 @@ void __fastcall FUN_00459b48(int param_1)
   char local_127 [263];
   undefined4 local_20;
   HWND local_1c;
-  
+
   puVar4 = (undefined1 *)0x00ac4e20;
   iVar8 = 0;
   iVar3 = _DAT_00ac4fc4;
@@ -51241,7 +51353,7 @@ undefined8 FUN_00459e28(void)
   undefined4 local_28;
   undefined4 local_24;
   undefined4 uStack_1c;
-  
+
   local_24 = 0;
   local_28 = 0;
   uStack_54 = 0x459e55;
@@ -51322,7 +51434,7 @@ void __fastcall FUN_00459fc8(undefined4 param_1,int *param_2)
   uint uVar1;
   int iVar2;
   undefined4 *unaff_EBX;
-  
+
   uVar1 = 0;
   iVar2 = 0;
   do {
@@ -51370,7 +51482,7 @@ undefined4 __fastcall FUN_0045a014(LPARAM param_1,int param_2,int param_3)
   LPARAM local_30;
   int local_2c;
   int local_28;
-  
+
   uVar3 = (unaff_EBX - 4000U) / 100;
   local_2c = *(int *)(param_2 + 0x2c) + 10;
   uVar7 = 0;
@@ -51828,7 +51940,7 @@ undefined4 __fastcall FUN_0045ab18(undefined4 param_1,int param_2)
   HGLOBAL pvVar3;
   int iVar4;
   int iVar5;
-  
+
   pMem = *(undefined4 **)(param_2 + 0x1a4);
   while (pMem != (undefined4 *)0x0) {
     piVar1 = (int *)pMem[0x26];
@@ -51871,7 +51983,7 @@ undefined4 __fastcall FUN_0045abdc(undefined4 param_1,int param_2)
   undefined4 uVar2;
   int in_EAX;
   HGLOBAL pvVar3;
-  
+
   iVar1 = *(int *)(param_2 + 0x1a4);
   while( true ) {
     if (iVar1 == 0) {
@@ -51954,7 +52066,7 @@ BOOL __fastcall FUN_0045adc4(undefined4 param_1,LPSTR param_2)
   LPARAM local_20;
   LPOFNHOOKPROC local_1c;
   LPCSTR local_18;
-  
+
   *param_2 = '\0';
   local_54 = s_Wave_Files_00476894;
   local_50 = (LPSTR)0x0;
@@ -52007,7 +52119,7 @@ undefined8 __fastcall FUN_0045aeb0(undefined4 param_1,undefined4 param_2)
   undefined1 auStack_2c [20];
   short *local_18;
   HMMIO local_14;
-  
+
   MVar1 = FUN_0045bed0(auStack_2c,&local_14);
   uVar2 = 0;
   if ((MVar1 == 0) && (*local_18 == 1)) {
@@ -52035,7 +52147,7 @@ undefined4 FUN_0045af0c(void)
   undefined4 uVar3;
   undefined4 extraout_EDX;
   ushort unaff_BX;
-  
+
   uVar3 = 0;
   for (iVar1 = _DAT_00ac4fc4; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x1a4)) {
     if ((HWND)(uint)unaff_BX == *(HWND *)(iVar1 + 0x50)) {
@@ -52065,7 +52177,7 @@ undefined4 FUN_0045af7c(void)
   undefined4 extraout_EDX;
   undefined4 extraout_EDX_00;
   ushort unaff_BX;
-  
+
   uVar3 = 0;
   for (iVar1 = _DAT_00ac4fc4; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x1a4)) {
     if ((HWND)(uint)unaff_BX == *(HWND *)(iVar1 + 0x34)) {
@@ -52119,7 +52231,7 @@ undefined4 __fastcall FUN_0045b04c(HWND param_1,undefined4 param_2)
   HWND unaff_EBX;
   undefined1 *puVar7;
   bool bVar8;
-  
+
   bVar8 = false;
   iVar1 = _DAT_00ac4fc4;
 joined_r0x0045b064:
@@ -52248,7 +52360,7 @@ undefined4 FUN_0045b2a8(void)
   undefined4 uStack_1c;
   undefined1 auStack_18 [4];
   undefined4 *puStack_14;
-  
+
   puVar2 = _DAT_00ac4fc4;
   uVar9 = 0;
   local_24 = 0;
@@ -52318,7 +52430,7 @@ int __fastcall FUN_0045b3fc(undefined4 param_1,int param_2)
   int iVar2;
   int *piVar3;
   undefined4 local_14;
-  
+
   local_14 = 0;
   iVar2 = *(int *)(param_2 + 0x18);
   piVar3 = *(int **)(param_2 + 0x98);
@@ -52351,7 +52463,7 @@ int __fastcall FUN_0045b4a0(undefined4 param_1,int param_2)
 {
   HWND in_EAX;
   int iVar1;
-  
+
   if (*(int *)(param_2 + 0x1c) == 0) {
     return 0;
   }
@@ -52374,7 +52486,7 @@ void FUN_0045b51c(void)
 {
   int in_EAX;
   CHAR local_90 [128];
-  
+
   FUN_0045f0a1((int)local_90,(byte *)s__s___lu_Hz_00476968);
   SetWindowTextA(*(HWND *)(in_EAX + 0x38),local_90);
   FUN_0045f0a1((int)local_90,(byte *)s__s___ld_00476978);
@@ -52395,7 +52507,7 @@ void FUN_0045b5e8(void)
   int in_EAX;
   int iVar2;
   int iVar3;
-  
+
   uVar1 = *(uint *)(in_EAX + 0x10);
   if (uVar1 < 400) {
     iVar3 = *(int *)(in_EAX + 0x14);
@@ -52428,7 +52540,7 @@ undefined4 FUN_0045b6ec(HWND param_1,uint param_2,uint param_3)
   HWND extraout_ECX_01;
   int iVar5;
   undefined1 *puVar6;
-  
+
   if (param_2 < 0x110) {
     if (param_2 == 0x10) {
       puVar6 = (undefined1 *)0x00ac4e20;
@@ -52510,7 +52622,7 @@ undefined4 FUN_0045b8f4(HWND param_1,uint param_2,undefined4 param_3)
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   undefined4 extraout_ECX_01;
-  
+
   if (param_2 < 0x110) {
     if (param_2 != 0x10) {
       return 0;
@@ -52588,7 +52700,7 @@ uint __fastcall FUN_0045bac4(undefined4 param_1,int param_2)
   undefined1 local_24 [4];
   uint uStack_20;
   undefined1 local_10 [4];
-  
+
   piVar1 = *(int **)(param_2 + 0x98);
   uVar6 = SUB42(local_24,0);
   uStack_2e = (undefined2)((uint)local_24 >> 0x10);
@@ -52648,7 +52760,7 @@ int __fastcall FUN_0045bb6c(undefined4 param_1,int param_2)
   HWND in_EAX;
   int iVar1;
   int unaff_EBX;
-  
+
   **(undefined2 **)(param_2 + 8) = 1;
   *(undefined2 *)(*(int *)(param_2 + 8) + 2) = 2;
   if (unaff_EBX % 2 == 0) {
@@ -52693,7 +52805,7 @@ undefined4 FUN_0045be50(undefined4 *param_1,LPARAM param_2,undefined4 param_3,un
   int iVar1;
   undefined4 *lParam;
   undefined4 *puVar2;
-  
+
   lParam = (undefined4 *)0x0;
   hWnd = (HWND)*param_4;
   if (param_1 != (undefined4 *)0x0) {
@@ -52740,7 +52852,7 @@ MMRESULT __fastcall FUN_0045bed0(LPMMCKINFO param_1,undefined4 *param_2)
   undefined4 *local_18;
   LPMMCKINFO local_14;
   uint local_10;
-  
+
   *unaff_EBX = 0;
   local_18 = param_2;
   local_14 = param_1;
@@ -52834,7 +52946,7 @@ undefined4 __fastcall FUN_0045c070(undefined4 param_1,LPMMCKINFO param_2)
 {
   undefined4 *in_EAX;
   MMCKINFO *unaff_EBX;
-  
+
   mmioSeek((HMMIO)*in_EAX,unaff_EBX->dwDataOffset + 4,0);
   param_2->ckid = 0x61746164;
   mmioDescend((HMMIO)*in_EAX,param_2,unaff_EBX,0x10);
@@ -52857,7 +52969,7 @@ MMRESULT __fastcall FUN_0045c0a0(int param_1,uint param_2,uint *param_3)
   uint uVar5;
   _MMIOINFO local_58;
   uint local_10;
-  
+
   local_10 = param_2;
   MVar2 = mmioGetInfo(in_EAX,&local_58,0);
   MVar2 = (MMRESULT)(MVar2 != 0);
@@ -52910,7 +53022,7 @@ MMRESULT __fastcall FUN_0045c594(undefined4 *param_1,uint *param_2,undefined4 *p
   undefined1 local_28 [20];
   uint local_14;
   HMMIO local_10;
-  
+
   *param_3 = 0;
   *param_1 = 0;
   *param_2 = 0;
@@ -52986,7 +53098,7 @@ void __fastcall FUN_0045ce94(uint param_1)
 {
   int unaff_EBX;
   int unaff_EDI;
-  
+
   out(0x3c4,CONCAT11('\x01' << ((byte)param_1 & 3),2));
   *(char *)(unaff_EBX * 0x50 + (param_1 >> 2) + *(int *)((undefined1 *)0x00636150 + unaff_EDI * 4)) =
        (char)*(undefined2 *)((undefined1 *)0x006366dc + unaff_EDI * 2);
@@ -53003,7 +53115,7 @@ void __fastcall FUN_0045cebf(uint param_1)
   int unaff_EBX;
   byte *pbVar1;
   int unaff_EDI;
-  
+
   pbVar1 = (byte *)(unaff_EBX * 0x50 + (param_1 >> 2) + *(int *)((undefined1 *)0x00636150 + unaff_EDI * 4));
   out(0x3ce,CONCAT11((byte)param_1,4) & 0x3ff);
   out(0x3c4,CONCAT11('\x01' << ((byte)param_1 & 3),2));
@@ -53020,7 +53132,7 @@ undefined6 FUN_0045cef4(void)
 {
   uint3 in_EAX;
   undefined4 uVar1;
-  
+
   uVar1 = CONCAT31(in_EAX & 0xf,2);
   out(0x3c4,(short)uVar1);
   return CONCAT24(0x3c4,uVar1);
@@ -53035,7 +53147,7 @@ undefined6 FUN_0045cf02(void)
 {
   uint3 in_EAX;
   undefined4 uVar1;
-  
+
   uVar1 = CONCAT31(in_EAX & 3,4);
   out(0x3ce,(short)uVar1);
   return CONCAT24(0x3ce,uVar1);
@@ -53049,7 +53161,7 @@ undefined6 FUN_0045cf10(void)
 
 {
   byte in_AL;
-  
+
   out(0x3c5,in_AL & 0xf);
   out(0x3ce,8);
   return 0x3ce00000008;
@@ -53074,7 +53186,7 @@ undefined2 FUN_0045cf2e(void)
 
 {
   undefined1 in_AL;
-  
+
   out(0x3d4,CONCAT11(in_AL,0xc));
   return CONCAT11(in_AL,0xc);
 }
@@ -53091,7 +53203,7 @@ void __fastcall FUN_0045cf39(int param_1,int param_2)
   undefined4 unaff_EBX;
   int unaff_ESI;
   undefined1 *unaff_EDI;
-  
+
   do {
     if (((*(byte *)((unaff_ESI >> 0x10) + 0x61d030) & 0x80) == 0) &&
        (sVar2 = (short)((uint)unaff_EBX >> 0x10), sVar2 <= *(short *)(param_2 * 2))) {
@@ -53115,7 +53227,7 @@ undefined6 FUN_0045cfaa(void)
 {
   byte bVar1;
   uint uVar2;
-  
+
   if (DAT_0047a2b0 == 1) {
     uVar2 = CONCAT11(DAT_00640148,0xe) ^ 0x200;
     out(0x3c4,(short)uVar2);
@@ -53145,7 +53257,7 @@ void __fastcall FUN_0045d10e(int param_1,int param_2)
   undefined4 unaff_EBX;
   int unaff_ESI;
   undefined1 *unaff_EDI;
-  
+
   do {
     if (((*(byte *)((unaff_ESI >> 0x10) + 0x61d030) & 0x80) == 0) &&
        (sVar2 = (short)((uint)unaff_EBX >> 0x10), sVar2 <= *(short *)(param_2 * 2))) {
@@ -53172,7 +53284,7 @@ void __fastcall FUN_0045d2cc(int param_1,int param_2)
   undefined4 unaff_EBX;
   int unaff_ESI;
   byte *unaff_EDI;
-  
+
   do {
     if ((*(byte *)((unaff_ESI >> 0x10) + 0x61d030) & 0x80) == 0) {
       sVar2 = (short)((uint)unaff_EBX >> 0x10);
@@ -53205,7 +53317,7 @@ void __fastcall FUN_0045d482(int param_1,int param_2)
   undefined4 unaff_EBX;
   int unaff_ESI;
   byte *unaff_EDI;
-  
+
   do {
     if ((*(byte *)((unaff_ESI >> 0x10) + 0x61d030) & 0x80) == 0) {
       sVar2 = (short)((uint)unaff_EBX >> 0x10);
@@ -53231,7 +53343,7 @@ void __fastcall FUN_0045d5f8(int param_1,int param_2)
   undefined4 unaff_EBX;
   int unaff_ESI;
   byte *unaff_EDI;
-  
+
   do {
     if (((*(byte *)((unaff_ESI >> 0x10) + 0x61d030) & 0x80) == 0) &&
        ((short)((uint)unaff_EBX >> 0x10) <= *(short *)(param_2 * 2))) {
@@ -53257,7 +53369,7 @@ void __fastcall FUN_0045d739(int param_1,short *param_2)
   undefined4 unaff_EBX;
   int unaff_ESI;
   byte *unaff_EDI;
-  
+
   do {
     if ((*(byte *)((unaff_ESI >> 0x10) + 0x61d030) & 0x80) == 0) {
       sVar2 = (short)((uint)unaff_EBX >> 0x10);
@@ -53291,7 +53403,7 @@ void __fastcall FUN_0045d7c4(int param_1,short *param_2)
   undefined4 unaff_EBX;
   int unaff_ESI;
   byte *unaff_EDI;
-  
+
   do {
     if ((*(byte *)((unaff_ESI >> 0x10) + 0x61d030) & 0x80) == 0) {
       sVar2 = (short)((uint)unaff_EBX >> 0x10);
@@ -53318,7 +53430,7 @@ void __fastcall FUN_0045d839(int param_1,short *param_2)
   undefined4 unaff_EBX;
   int unaff_ESI;
   byte *unaff_EDI;
-  
+
   do {
     if (((*(byte *)((unaff_ESI >> 0x10) + 0x61d030) & 0x80) == 0) &&
        ((short)((uint)unaff_EBX >> 0x10) <= *param_2)) {
@@ -53344,7 +53456,7 @@ void __fastcall FUN_0045d903(int param_1,int param_2)
   int unaff_EBX;
   undefined1 *unaff_ESI;
   short *unaff_EDI;
-  
+
   do {
     sVar2 = (short)((uint)param_2 >> 0x10);
     if (sVar2 <= *unaff_EDI) {
@@ -53372,7 +53484,7 @@ void __fastcall FUN_0045d92a(int param_1,int param_2)
   int unaff_EBX;
   undefined1 *unaff_ESI;
   short *unaff_EDI;
-  
+
   do {
     sVar2 = (short)((uint)param_2 >> 0x10);
     if (sVar2 <= *unaff_EDI) {
@@ -53398,7 +53510,7 @@ void __fastcall FUN_0045dab9(int param_1,undefined4 param_2)
   int iVar2;
   undefined1 *unaff_ESI;
   short *unaff_EDI;
-  
+
   do {
     sVar1 = (short)((uint)param_2 >> 0x10);
     iVar2 = param_1;
@@ -53433,7 +53545,7 @@ uint FUN_0045db21(void)
   int iVar5;
   short *unaff_EDI;
   undefined6 uVar6;
-  
+
   FUN_0045cfaa();
   iVar3 = extraout_ECX;
   sVar4 = extraout_var;
@@ -53473,7 +53585,7 @@ void __fastcall FUN_0045dbba(int param_1,undefined4 param_2)
   int iVar2;
   undefined1 *unaff_ESI;
   short *unaff_EDI;
-  
+
   do {
     sVar1 = (short)((uint)param_2 >> 0x10);
     iVar2 = param_1;
@@ -53501,7 +53613,7 @@ void FUN_0045dd04(void)
   short *unaff_EBX;
   undefined4 *unaff_ESI;
   undefined2 *unaff_EDI;
-  
+
   sVar2 = (short)*unaff_ESI;
   sVar3 = (short)((uint)*unaff_ESI >> 0x10);
   sVar1 = *(short *)(unaff_ESI + 1);
@@ -53539,22 +53651,6 @@ void FUN_0045dd04(void)
 void FUN_0045de8b(void)
 
 {
-  short sVar1;
-  short sVar2;
-  short sVar3;
-  undefined4 *unaff_EBX;
-  short *unaff_ESI;
-  undefined2 *unaff_EDI;
-  
-  sVar2 = (short)*unaff_EBX;
-  sVar3 = (short)((uint)*unaff_EBX >> 0x10);
-  sVar1 = *(short *)(unaff_EBX + 1);
-  *unaff_EDI = (short)((int)sVar2 * (int)*unaff_ESI + (int)sVar3 * (int)unaff_ESI[1] +
-                       (int)unaff_ESI[2] * (int)sVar1 >> 0xe);
-  unaff_EDI[1] = (short)((int)unaff_ESI[5] * (int)sVar1 + (int)sVar3 * (int)unaff_ESI[4] +
-                         (int)unaff_ESI[3] * (int)sVar2 >> 0xe);
-  unaff_EDI[2] = (short)((int)unaff_ESI[6] * (int)sVar2 + (int)sVar3 * (int)unaff_ESI[7] +
-                         (int)*(short *)(unaff_EBX + 1) * (int)unaff_ESI[8] >> 0xe);
   return;
 }
 
@@ -53562,7 +53658,7 @@ void FUN_0045de8b(void)
 
 /* 0045df96 */
 
-void FUN_0045df96(void)
+void FUN_0045df96(byte *param_1,byte *param_2)
 
 {
   byte bVar1;
@@ -53572,7 +53668,9 @@ void FUN_0045df96(void)
   byte *pbVar4;
   byte *unaff_EDI;
   byte *pbVar5;
-  
+
+  unaff_ESI = param_1;
+  unaff_EDI = param_2;
   bVar2 = 0;
   do {
     while( true ) {
@@ -53624,7 +53722,7 @@ void FUN_0045df96(void)
 
 /* 0045dff3 */
 
-void FUN_0045dff3(void)
+void FUN_0045dff3(byte *param_1,short *param_2)
 
 {
   byte bVar1;
@@ -53634,7 +53732,9 @@ void FUN_0045dff3(void)
   byte *pbVar4;
   short *unaff_EDI;
   short *psVar5;
-  
+
+  unaff_ESI = param_1;
+  unaff_EDI = param_2;
   sVar2 = 0;
   do {
     while( true ) {
@@ -53705,7 +53805,7 @@ int __fastcall FUN_0045e54d(undefined4 param_1,byte *param_2)
   byte bVar1;
   byte bVar2;
   byte *in_EAX;
-  
+
   in_EAX = (byte *)(uintptr_t)param_1;
   while( true ) {
     bVar1 = *in_EAX;
@@ -53732,7 +53832,7 @@ FUN_0045e594(undefined4 param_1,undefined4 param_2,LPCSTR param_3,undefined4 par
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = FUN_0045e5b8(param_1,param_4,param_3,param_4,0,param_5);
   return CONCAT44(param_2,(int)uVar1);
 }
@@ -53773,7 +53873,7 @@ FUN_0045e5b8(undefined4 param_1,undefined4 param_2,LPCSTR param_3,uint param_4,u
   DWORD local_24;
   DWORD local_20;
   uint local_1c;
-  
+
   uVar7 = FUN_0046038c(param_1,param_2);
   if ((int)uVar7 != 0) {
     FUN_0046055c(extraout_ECX,(int)((ulonglong)uVar7 >> 0x20));
@@ -53896,7 +53996,7 @@ uint __fastcall FUN_0045e76f(undefined4 param_1,char *param_2)
   uint uStack_20;
   uint local_1c;
   HANDLE local_18;
-  
+
   local_18 = *(HANDLE *)(_DAT_00ac51fc + in_EAX * 4);
   lVar8 = FUN_00460844(param_1,_DAT_00ac51fc);
   local_1c = (uint)lVar8;
@@ -53972,7 +54072,7 @@ undefined8 __fastcall FUN_0045e8e6(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX;
   undefined4 extraout_EDX;
   undefined8 uVar1;
-  
+
   uVar1 = FUN_004608e8(param_1,param_2);
   FUN_004604e6(param_1,param_2);
   return CONCAT44(param_2,(int)uVar1);
@@ -53987,7 +54087,7 @@ int __fastcall FUN_0045e90e(undefined4 param_1,byte *param_2)
 {
   byte *in_EAX;
   int unaff_EBX;
-  
+
   while( true ) {
     if (unaff_EBX == 0) {
       return 0;
@@ -54018,7 +54118,7 @@ undefined8 __fastcall FUN_0045e937(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX;
   bool bVar5;
   undefined8 uVar6;
-  
+
   uVar6 = FUN_00460957();
   uVar3 = (uint)((ulonglong)uVar6 >> 0x20);
   uVar2 = (uint)uVar6 & 0xff;
@@ -54097,7 +54197,7 @@ undefined4 FUN_0045ea08(int param_1)
   uint unaff_EBX;
   undefined8 uVar6;
   uint uVar7;
-  
+
   *(byte *)(param_1 + 0xc) = *(byte *)(param_1 + 0xc) & 0xfc;
   *(uint *)(param_1 + 0xc) = *(uint *)(param_1 + 0xc) | unaff_EBX;
   uVar6 = FUN_00460957();
@@ -54160,7 +54260,7 @@ undefined4 __fastcall FUN_0045eacc(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX;
   undefined4 unaff_EBX;
   undefined8 uVar2;
-  
+
   uVar2 = FUN_0045e937(unaff_EBX,param_2);
   uVar1 = 0;
   if ((int)uVar2 != 0) {
@@ -54181,7 +54281,7 @@ undefined4 __fastcall FUN_0045eb05(undefined4 param_1,undefined4 param_2)
 
 {
   LPCSTR path;
-  
+
   path = (LPCSTR)(uintptr_t)param_1;
   if ((uintptr_t)path < 0x10000) {
     path = (LPCSTR)(uintptr_t)param_2;
@@ -54212,7 +54312,7 @@ undefined1 * FUN_0045ebf1(void)
   bool bVar6;
   undefined8 uVar7;
   int iStack_14;
-  
+
   (*(code *)PTR_FUN_0047d3a0)();
   uVar1 = *(uint *)(unaff_EBX + 0xc);
   *(byte *)(unaff_EBX + 0xc) = *(byte *)(unaff_EBX + 0xc) & 0xcf;
@@ -54259,9 +54359,9 @@ undefined8 __fastcall FUN_0045ec6c(undefined4 param_1,undefined4 param_2)
   undefined4 *puVar1;
   undefined4 uVar2;
   undefined4 extraout_ECX;
-  
+
   undefined4 *stream;
-  
+
   (void)param_1;
   stream = (undefined4 *)(uintptr_t)param_2;
   if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||
@@ -54298,7 +54398,7 @@ undefined4 __fastcall FUN_0045eca5(undefined4 param_1,int param_2)
 
 {
   undefined4 extraout_EDX;
-  
+
   FUN_0045ed2b(param_1,param_2);
   FUN_00460a1d();
   return extraout_EDX;
@@ -54313,7 +54413,7 @@ int FUN_0045ecba(void)
 {
   int in_EAX;
   int iVar1;
-  
+
   iVar1 = in_EAX + 0x30;
   if (0x39 < iVar1) {
     iVar1 = in_EAX + 0x57;
@@ -54334,7 +54434,7 @@ void FUN_0045ecc6(void)
   int extraout_ECX_01;
   int extraout_ECX_02;
   undefined1 *extraout_EDX;
-  
+
   FUN_00460aa6();
   *extraout_ECX = 0x74;
   do {
@@ -54375,7 +54475,7 @@ uint __fastcall FUN_0045ed2b(undefined4 param_1,int param_2)
   undefined4 extraout_EDX_00;
   uint extraout_EDX_01;
   undefined8 uVar4;
-  
+
   if (*(int *)(in_EAX + 0xc) == 0) {
     uVar1 = 0xffffffff;
   }
@@ -54456,7 +54556,7 @@ DWORD __fastcall FUN_0045edd6(undefined4 param_1,LPCVOID param_2)
   DWORD local_1c;
   DWORD local_18;
   HANDLE local_14;
-  
+
   local_14 = *(HANDLE *)(_DAT_00ac51fc + in_EAX * 4);
   uVar6 = FUN_00460844(param_1,_DAT_00ac51fc);
   if (((int)uVar6 == 0) || ((uVar6 & 2) == 0)) {
@@ -54583,11 +54683,16 @@ LAB_0045ee3f:
 undefined4 __cdecl FUN_0045f0a1(int param_1,byte *param_2)
 
 {
-  int iVar1;
-  
-  iVar1 = FUN_00460c2d(&LAB_0045f08e,param_2);
-  *(undefined1 *)(param_1 + iVar1) = 0;
-  return;
+  size_t len;
+
+  if (param_1 == 0 || param_2 == (byte *)0x0 ||
+      E2R_IsBadWritePtr((void *)(uintptr_t)param_1,1) ||
+      IsBadReadPtr(param_2,1)) {
+    return 0;
+  }
+  snprintf((char *)(uintptr_t)param_1,256,"%s",(char *)param_2);
+  len = strlen((char *)(uintptr_t)param_1);
+  return (undefined4)len;
 }
 
 
@@ -54609,7 +54714,7 @@ undefined8 __fastcall FUN_0045f0d1(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX_01;
   uint uVar6;
   undefined8 uVar7;
-  
+
   in_EAX = (uint)(uintptr_t)param_1;
   if ((in_EAX != 0) && (in_EAX < 0xffffffd5)) {
     bVar1 = false;
@@ -54675,7 +54780,7 @@ longlong __fastcall FUN_0045f1c0(undefined4 param_1,uint param_2)
   undefined4 extraout_ECX;
   undefined8 uVar1;
   undefined2 local_10;
-  
+
   in_EAX = (undefined4 *)(uintptr_t)param_1;
   if (E2R_IsBadWritePtr(in_EAX,0x24)) {
     return (ulonglong)param_2 << 0x20;
@@ -54699,7 +54804,7 @@ undefined4 __fastcall FUN_0045f1ff(undefined4 param_1,undefined4 param_2)
   void *buffer;
   uint count;
   uint size;
-  
+
   count = (uint)(uintptr_t)param_1;
   size = (uint)(uintptr_t)param_2;
   if (count != 0 && 0xffffffffU / count < size) {
@@ -54720,7 +54825,7 @@ int __fastcall thunk_FUN_004620db(undefined4 param_1,undefined4 param_2)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = FUN_004620bb(param_1,param_2);
   return (int)uVar1 - _DAT_00ac5214;
 }
@@ -54734,7 +54839,7 @@ undefined8 __fastcall FUN_0045f21d(undefined4 param_1,undefined4 param_2)
 {
   byte bVar1;
   undefined2 in_AX;
-  
+
   bVar1 = in(in_AX);
   return CONCAT44(param_2,(uint)bVar1);
 }
@@ -54747,7 +54852,7 @@ undefined1 __fastcall FUN_0045f225(undefined4 param_1,undefined1 param_2)
 
 {
   undefined2 in_AX;
-  
+
   out(in_AX,param_2);
   return param_2;
 }
@@ -54772,7 +54877,7 @@ undefined4 __fastcall FUN_0045f254(undefined4 param_1,int *param_2)
 
 {
   int in_EAX;
-  
+
   *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) & 0xef;
   if ((in_EAX <= param_2[1]) && (param_2[2] - *param_2 <= in_EAX)) {
     *param_2 = *param_2 + in_EAX;
@@ -54835,9 +54940,9 @@ undefined8 __fastcall FUN_0045f38a(undefined4 param_1,undefined4 param_2)
   int iVar3;
   int iVar4;
   undefined8 uVar5;
-  
+
   undefined4 *stream;
-  
+
   (void)param_1;
   stream = (undefined4 *)(uintptr_t)param_2;
   if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||
@@ -54903,7 +55008,7 @@ undefined8 __fastcall FUN_0045f428(undefined4 param_1,undefined4 param_2)
   undefined4 in_EAX;
   undefined4 *puVar2;
   undefined8 uVar3;
-  
+
   uVar3 = FUN_0045f457(param_1,in_EAX);
   puVar2 = (undefined4 *)((ulonglong)uVar3 >> 0x20);
   if ((int)uVar3 == 0) {
@@ -54934,7 +55039,7 @@ undefined8 __fastcall FUN_0045f457(undefined4 param_1,undefined4 param_2)
   undefined4 uVar4;
   uint uVar5;
   undefined8 uVar6;
-  
+
   uVar4 = param_2;
   if (in_EAX[2] == 0) {
     FUN_00462124(in_EAX);
@@ -54985,7 +55090,7 @@ int FUN_0045f503(void)
 
 {
   int iVar1;
-  
+
   iVar1 = (*(code *)PTR_FUN_0047d39c)();
   return iVar1 + 4;
 }
@@ -55009,7 +55114,7 @@ void __fastcall FUN_0045f518(undefined4 param_1,undefined4 param_2)
 {
   undefined4 extraout_ECX;
   undefined4 extraout_EDX;
-  
+
   (*(code *)PTR_FUN_0047d26c)(param_2);
   (*(code *)PTR_FUN_0047d270)();
   FUN_0045f530(extraout_ECX,extraout_EDX);
@@ -55029,7 +55134,7 @@ void __fastcall FUN_0045f530(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX;
   undefined4 extraout_EDX_00;
   undefined4 uVar2;
-  
+
   (*(code *)PTR_FUN_0047d270)(param_2);
   (*(code *)PTR_FUN_0047d274)();
   uVar1 = extraout_ECX;
@@ -55051,7 +55156,7 @@ float10 FUN_0045f556(void)
 
 {
   float10 in_ST0;
-  
+
   return ROUND(in_ST0);
 }
 
@@ -55064,7 +55169,7 @@ void __fastcall FUN_0045f574(undefined4 param_1,undefined4 param_2)
 {
   undefined4 extraout_ECX;
   undefined8 uVar1;
-  
+
   uVar1 = FUN_00462298(param_1,param_2);
   if ((char)uVar1 == '\0') {
     FUN_0045fd93(extraout_ECX,(int)((ulonglong)uVar1 >> 0x20));
@@ -55089,7 +55194,7 @@ uint FUN_0045f5d6(void)
   int *extraout_EDX_01;
   int *piVar3;
   undefined8 uVar4;
-  
+
   (*(code *)PTR_FUN_0047d3a0)();
   if ((*(byte *)(extraout_EDX + 3) & 2) == 0) {
     FUN_0046055c(extraout_ECX,extraout_EDX);
@@ -55147,7 +55252,7 @@ undefined8 __fastcall FUN_0045f699(undefined4 param_1,undefined4 param_2)
   int extraout_ECX;
   int *piVar4;
   char *pcVar5;
-  
+
   if ((DAT_0047d71c != (int *)0x0) && (in_EAX != (char *)0x0)) {
     uVar3 = 0xffffffff;
     pcVar5 = in_EAX;
@@ -55189,7 +55294,7 @@ undefined * __fastcall FUN_0045f6fa(int param_1,undefined4 *param_2)
   undefined *puVar6;
   undefined *puVar7;
   undefined8 uVar8;
-  
+
   pcVar4 = in_EAX;
   if (param_2 != (undefined4 *)0x0) {
     *param_2 = in_EAX;
@@ -55304,7 +55409,7 @@ undefined8 __fastcall FUN_0045f86f(undefined4 param_1,undefined4 param_2)
   byte in_AL;
   byte bVar1;
   uint uVar2;
-  
+
   if ((0x2f < in_AL) && (in_AL < 0x3a)) {
     return CONCAT44(param_2,in_AL - 0x30);
   }
@@ -55328,7 +55433,7 @@ undefined4 __fastcall FUN_0045f8d0(undefined4 param_1,undefined1 param_2)
 {
   undefined4 in_EAX;
   uint unaff_EBX;
-  
+
   FUN_0045fc70(unaff_EBX,CONCAT31(CONCAT21(CONCAT11(param_2,param_2),param_2),param_2));
   return in_EAX;
 }
@@ -55351,7 +55456,7 @@ undefined4 __fastcall FUN_0045f8e8(undefined4 param_1,uint param_2)
   undefined4 *unaff_EBX;
   undefined8 uVar4;
   _WIN32_FIND_DATAA _Stack_14c;
-  
+
   pvVar1 = FindFirstFileA(in_EAX,&_Stack_14c);
   if (pvVar1 == (HANDLE)0xffffffff) {
     *unaff_EBX = 0xffffffff;
@@ -55394,7 +55499,7 @@ undefined8 __fastcall FUN_0045f94d(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX_00;
   undefined8 uVar5;
   _WIN32_FIND_DATAA _Stack_150;
-  
+
   BVar1 = FindNextFileA((HANDLE)*in_EAX,&_Stack_150);
   uVar3 = extraout_ECX;
   uVar4 = extraout_EDX;
@@ -55458,7 +55563,7 @@ int __fastcall FUN_0045fa88(undefined4 param_1,undefined1 *param_2)
   byte *in_EAX;
   uint uVar1;
   int unaff_EBX;
-  
+
   while( true ) {
     if (unaff_EBX == 0) {
       return 0;
@@ -55495,7 +55600,7 @@ uint __fastcall FUN_0045fae0(undefined4 param_1,uint *param_2)
   byte *right;
   byte l;
   byte r;
-  
+
   left = (byte *)(uintptr_t)param_1;
   right = (byte *)param_2;
   if (left == right) {
@@ -55529,7 +55634,7 @@ void FUN_0045fba5(void)
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   byte *extraout_EDX;
-  
+
   (*(code *)PTR_FUN_0047d3a0)();
   (*(code *)PTR_FUN_0047d3a4)(&LAB_0045fb81,&LAB_0045fb9d,extraout_ECX);
   FUN_004623a5(extraout_ECX_00,extraout_EDX);
@@ -55565,7 +55670,7 @@ int FUN_0045fc06(void)
 
 {
   int iVar1;
-  
+
   iVar1 = (*(code *)PTR_FUN_0047d39c)();
   return iVar1 + 0xc;
 }
@@ -55579,7 +55684,7 @@ undefined8 __fastcall FUN_0045fc10(undefined4 param_1,undefined4 param_2)
 {
   uint *puVar1;
   uint uVar2;
-  
+
   puVar1 = (uint *)FUN_0045fc06();
   uVar2 = 0;
   if (puVar1 != (uint *)0x0) {
@@ -55635,7 +55740,7 @@ int FUN_0045fd13(void)
   char cVar1;
   char *in_EAX;
   uint uVar2;
-  
+
   uVar2 = 0xffffffff;
   do {
     if (uVar2 == 0) break;
@@ -55656,7 +55761,7 @@ char * __fastcall FUN_0045fd2c(undefined4 param_1,char *param_2)
   char cVar1;
   char *in_EAX;
   char *pcVar2;
-  
+
   pcVar2 = in_EAX;
   do {
     cVar1 = *param_2;
@@ -55684,7 +55789,7 @@ char * __fastcall FUN_0045fd4b(undefined4 param_1,char *param_2)
   int iVar2;
   char *pcVar3;
   char *pcVar4;
-  
+
   iVar2 = -1;
   pcVar3 = in_EAX;
   do {
@@ -55719,7 +55824,7 @@ void __fastcall FUN_0045fd93(undefined4 param_1,undefined4 param_2)
 {
   unkbyte10 in_ST0;
   unkbyte10 in_ST1;
-  
+
   if ((DAT_0047d76c & 1) == 0) {
     fpatan(in_ST0,in_ST1);
   }
@@ -55743,7 +55848,7 @@ uint FUN_0045fdc4(void)
   int *extraout_EDX;
   int *extraout_EDX_00;
   int *piVar3;
-  
+
   if (in_EAX != 0xffffffff) {
     (*(code *)PTR_FUN_0047d3a0)();
     if (((*(byte *)((int)extraout_EDX + 0xd) & 0x10) != 0) ||
@@ -55799,7 +55904,7 @@ LPSTR __fastcall FUN_0045fe5f(undefined4 param_1,char *param_2)
   uint unaff_EBX;
   undefined8 uVar5;
   LPSTR pCStack_c;
-  
+
   if (in_EAX == (LPSTR)0x0) {
     unaff_EBX = 0x104;
     uVar5 = FUN_0045f0d1(param_2,param_2);
@@ -55849,7 +55954,7 @@ undefined4 __fastcall FUN_0045fed8(undefined4 param_1,undefined2 *param_2)
   undefined2 local_10 [2];
   undefined2 local_c [2];
   undefined4 uStack_8;
-  
+
   lpRootPathName = (LPCSTR)0x0;
   if (in_EAX != 0) {
     local_1c[0] = (char)in_EAX + '@';
@@ -55887,7 +55992,7 @@ longlong __fastcall FUN_0045ff48(undefined4 param_1,uint param_2)
   undefined4 extraout_ECX;
   undefined4 extraout_EDX;
   undefined8 uVar2;
-  
+
   BVar1 = CreateDirectoryA(in_EAX,(LPSECURITY_ATTRIBUTES)0x0);
   if (BVar1 == 0) {
     uVar2 = FUN_004607f4(extraout_ECX,extraout_EDX);
@@ -55918,7 +56023,7 @@ int __fastcall FUN_0045ff63(undefined4 param_1,int param_2)
   int iVar6;
   bool bVar7;
   undefined8 uVar8;
-  
+
   (*(code *)PTR_FUN_0047d3a0)();
   pcVar2 = extraout_ECX;
   uVar5 = extraout_EDX;
@@ -55966,7 +56071,7 @@ void __fastcall FUN_0045fff0(undefined4 param_1,undefined4 *param_2)
   char in_AL;
   char local_c [4];
   undefined4 uStack_8;
-  
+
   local_c[0] = in_AL + '`';
   local_c[2] = 0x2e;
   local_c[1] = 0x3a;
@@ -55989,7 +56094,7 @@ longlong __fastcall FUN_00460022(undefined4 param_1,uint param_2)
   undefined4 extraout_ECX;
   undefined4 extraout_EDX;
   undefined8 uVar2;
-  
+
   BVar1 = SetCurrentDirectoryA(in_EAX);
   if (BVar1 == 0) {
     uVar2 = FUN_004607f4(extraout_ECX,extraout_EDX);
@@ -56015,7 +56120,7 @@ undefined4 * __fastcall FUN_0046003b(undefined4 param_1,uint param_2)
   undefined4 *puVar5;
   undefined8 uVar6;
   CHAR aCStack_114 [260];
-  
+
   DVar1 = GetCurrentDirectoryA(0x104,aCStack_114);
   if (DVar1 == 0) {
     FUN_004607f4(0,extraout_EDX);
@@ -56060,7 +56165,7 @@ char * FUN_004600b4(void)
 
 {
   int in_EAX;
-  
+
   if ((-1 < in_EAX) && (in_EAX < 0x10)) {
     return (&PTR_s_Error_0_0047d30c)[in_EAX];
   }
@@ -56079,7 +56184,7 @@ longlong __fastcall thunk_FUN_00463144(undefined4 param_1,uint param_2)
   undefined4 extraout_ECX;
   undefined4 extraout_EDX;
   undefined8 uVar2;
-  
+
   BVar1 = DeleteFileA(in_EAX);
   if (BVar1 == 0) {
     uVar2 = FUN_004607f4(extraout_ECX,extraout_EDX);
@@ -56100,7 +56205,7 @@ longlong __fastcall FUN_004600d0(undefined4 param_1,uint param_2)
   undefined4 extraout_ECX;
   undefined4 extraout_EDX;
   undefined8 uVar2;
-  
+
   BVar1 = RemoveDirectoryA(in_EAX);
   if (BVar1 == 0) {
     uVar2 = FUN_004607f4(extraout_ECX,extraout_EDX);
@@ -56137,7 +56242,7 @@ undefined8 __fastcall FUN_0046010a(undefined4 param_1,undefined4 param_2)
   longlong lVar3;
   _INPUT_RECORD local_28;
   DWORD local_14;
-  
+
   if (DAT_0047d34c != 0) {
     if (DAT_0047d34c < 2) {
       _DAT_00ac51f4 = _DAT_00ac51f4 + -1;
@@ -56197,7 +56302,7 @@ undefined8 __fastcall FUN_00460215(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX_00;
   undefined8 uVar2;
   DWORD DStack_14;
-  
+
   iVar1 = DAT_0047d74c;
   if (DAT_0047d74c == 0) {
     if (DAT_0047d388 == (code *)0x0) {
@@ -56247,7 +56352,7 @@ undefined8 __fastcall FUN_0046038c(undefined4 param_1,undefined4 param_2)
 {
   undefined4 uVar1;
   int iVar2;
-  
+
   if (_DAT_00ac51f8 < DAT_0047d610) {
 LAB_004603a2:
     uVar1 = 0;
@@ -56272,7 +56377,7 @@ undefined8 __fastcall FUN_004603d1(undefined4 param_1,undefined4 param_2)
 {
   uint uVar1;
   HANDLE hFile;
-  
+
   hFile = (HANDLE)(uintptr_t)param_1;
   if (_DAT_00ac51fc == 0) {
     _DAT_00ac51fc = (uintptr_t)LocalAlloc(0x40,DAT_0047d610 * 4);
@@ -56325,7 +56430,7 @@ undefined8 __fastcall FUN_0046050e(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX_00;
   undefined4 extraout_EDX_01;
   undefined8 uVar1;
-  
+
   _DAT_00ac51f8 = 0;
   _DAT_00ac51fc = 0;
   GetStdHandle(0xfffffff6);
@@ -56356,7 +56461,7 @@ void __fastcall FUN_00460557(undefined4 param_1,undefined4 param_2)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = (*(code *)PTR_FUN_0047d39c)(param_2);
   if ((int)uVar1 != 0) {
     *(int *)((int)uVar1 + 4) = (int)((ulonglong)uVar1 >> 0x20);
@@ -56372,7 +56477,7 @@ void __fastcall FUN_0046055c(undefined4 param_1,undefined4 param_2)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = (*(code *)PTR_FUN_0047d39c)(param_2);
   if ((int)uVar1 != 0) {
     *(int *)((int)uVar1 + 4) = (int)((ulonglong)uVar1 >> 0x20);
@@ -56399,7 +56504,7 @@ void __fastcall FUN_00460581(undefined4 param_1,undefined4 param_2)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = (*(code *)PTR_FUN_0047d39c)(param_2);
   if ((int)uVar1 != 0) {
     *(int *)((int)uVar1 + 8) = (int)((ulonglong)uVar1 >> 0x20);
@@ -56416,7 +56521,7 @@ void __fastcall FUN_004605bc(undefined4 param_1,undefined4 *param_2)
 {
   int in_EAX;
   undefined4 *unaff_EBX;
-  
+
   in_EAX = (int)(uintptr_t)param_1;
   if (in_EAX == 2) {
     *param_2 = 0xc0000000;
@@ -56445,7 +56550,7 @@ void __fastcall FUN_004605e8(undefined4 param_1,undefined4 *param_2)
 
 {
   int in_EAX;
-  
+
   in_EAX = (int)(uintptr_t)param_1;
   if ((in_EAX == 0) || (in_EAX == 0x40)) {
     *param_2 = 3;
@@ -56493,7 +56598,7 @@ undefined8 __fastcall thunk_FUN_004603d1(undefined4 param_1,undefined4 param_2)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = FUN_004603d1(param_1,param_2);
   return uVar1;
 }
@@ -56531,7 +56636,7 @@ undefined4 __fastcall FUN_00460633(undefined4 param_1,undefined4 param_2)
   HMODULE unaff_EBX;
   undefined8 uVar3;
   CHAR local_10c [260];
-  
+
   _DAT_00ac5200 = in_EAX;
   uVar3 = FUN_00463a48(param_1,param_2);
   _DAT_00ac5204 = (int)uVar3;
@@ -56581,7 +56686,7 @@ void __fastcall FUN_00460737(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   undefined4 extraout_EDX;
-  
+
   GetModuleHandleA((LPCSTR)0x0);
   FUN_00460633(extraout_ECX,param_2);
   FUN_0046388f(extraout_ECX_00,extraout_EDX);
@@ -56601,7 +56706,7 @@ void __fastcall FUN_00460779(undefined4 param_1,undefined4 param_2)
 {
   UINT in_EAX;
   undefined4 extraout_ECX;
-  
+
   FUN_004638cd(param_1,param_2);
   FUN_00463d67(extraout_ECX,0xff);
   (*(code *)PTR_FUN_0047d3d8)();
@@ -56620,7 +56725,7 @@ undefined8 __fastcall FUN_004607a3(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX;
   uint extraout_EDX;
   uint uVar1;
-  
+
   FUN_00460581(param_1,in_EAX);
   uVar1 = extraout_EDX;
   if ((((extraout_EDX != 0x7b) && (extraout_EDX != 0xce)) && (extraout_EDX != 0xb7)) &&
@@ -56641,7 +56746,7 @@ undefined8 __fastcall FUN_004607f4(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX;
   undefined4 extraout_EDX;
   undefined8 uVar1;
-  
+
   GetLastError();
   uVar1 = FUN_004607a3(extraout_ECX,extraout_EDX);
   return CONCAT44(param_2,(int)uVar1);
@@ -56656,9 +56761,9 @@ longlong __fastcall FUN_00460803(undefined4 param_1,uint param_2)
 {
   DWORD DVar1;
   HANDLE hFile;
-  
+
   uint uVar2;
-  
+
   uVar2 = (uint)(uintptr_t)param_2;
   if ((_DAT_00ac51fc == 0) || (_DAT_00ac51f8 <= uVar2)) {
     return (ulonglong)param_2 << 0x20;
@@ -56680,7 +56785,7 @@ longlong __fastcall FUN_00460844(undefined4 param_1,uint param_2)
 {
   uint slot;
   longlong lVar4;
-  
+
   slot = (uint)(uintptr_t)param_1;
   if (256 <= slot) {
     return (ulonglong)param_2 << 0x20;
@@ -56705,7 +56810,7 @@ void __fastcall FUN_00460899(undefined4 param_1,uint param_2)
 
 {
   uint in_EAX;
-  
+
   in_EAX = (uint)(uintptr_t)param_1;
   if (in_EAX < 256) {
     E2R_file_flags[in_EAX] = param_2 | 0x4000;
@@ -56726,7 +56831,7 @@ DWORD FUN_004608ae(void)
   HANDLE hFile;
   int extraout_EDX;
   DWORD unaff_EBX;
-  
+
   (*(code *)PTR_FUN_0047d3a0)();
   DVar1 = SetFilePointer(hFile,lDistanceToMove,(PLONG)0x0,unaff_EBX);
   (*(code *)PTR_FUN_0047d3a4)();
@@ -56755,7 +56860,7 @@ undefined8 __fastcall FUN_004608e8(undefined4 param_1,undefined4 param_2)
   int extraout_ECX_01;
   undefined4 extraout_EDX;
   undefined4 uVar4;
-  
+
   iVar3 = 0;
   in_EAX = (int)(uintptr_t)param_1;
   if ((_DAT_00ac51fc == 0) || (in_EAX < 0) || (_DAT_00ac51f8 <= (uint)in_EAX)) {
@@ -56816,7 +56921,7 @@ undefined8 __fastcall FUN_00460965(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_EDX;
   uint uVar5;
   undefined8 uVar6;
-  
+
   (*(code *)PTR_FUN_0047d3b0)();
   if (_DAT_00ac5208 == (undefined4 *)0x0) {
     for (puVar3 = &DAT_0047d3fc; puVar3 < &DAT_0047d604; puVar3 = puVar3 + 0x1a) {
@@ -56874,7 +56979,7 @@ void FUN_00460a1d(void)
   undefined4 *puVar1;
   int in_EAX;
   undefined4 *puVar2;
-  
+
   puVar1 = (undefined4 *)&DAT_00ac520c;
   do {
     puVar2 = puVar1;
@@ -56901,7 +57006,7 @@ void __fastcall FUN_00460a74(undefined4 param_1)
   uint in_EAX;
   int iVar2;
   longlong lVar3;
-  
+
   if ((*(byte *)(in_EAX + 0xd) & 0x20) == 0) {
     lVar3 = FUN_00460803(param_1,in_EAX);
     iVar2 = (int)((ulonglong)lVar3 >> 0x20);
@@ -56944,7 +57049,7 @@ undefined8 __fastcall FUN_00460ab0(undefined4 param_1,undefined4 param_2)
   int iVar3;
   int iVar4;
   LPCVOID pvVar5;
-  
+
   (*(code *)PTR_FUN_0047d3a0)();
   iVar3 = 0;
   puVar2 = extraout_ECX;
@@ -57004,7 +57109,7 @@ undefined8 __fastcall FUN_00460b9a(undefined4 param_1,undefined4 param_2)
   int iVar1;
   int extraout_ECX;
   undefined8 uVar2;
-  
+
   uVar2 = FUN_004620e7(param_1,in_EAX);
   iVar1 = (int)uVar2;
   if (iVar1 != -1) {
@@ -57026,7 +57131,7 @@ undefined8 __fastcall FUN_00460bde(undefined4 param_1,undefined4 param_2)
   uint uVar2;
   undefined8 uVar3;
   undefined4 uStack_4;
-  
+
   uStack_4 = param_2;
   uVar3 = (*(code *)PTR_FUN_0047d39c)();
   uVar2 = (uint)((ulonglong)uVar3 >> 0x20);
@@ -57088,7 +57193,7 @@ undefined4 __fastcall FUN_00460c1d(undefined4 param_1)
   char acStack_19 [5];
   code *pcStack_14;
   undefined1 auStack_10 [4];
-  
+
   FUN_00463f67(param_1,1);
   auStack_10[0] = 0;
   pcVar6 = extraout_ECX;
@@ -57201,7 +57306,7 @@ undefined4 __fastcall FUN_00460c2d(undefined *param_1,byte *param_2)
   char acStack_1d [5];
   code *local_18;
   undefined1 local_14 [4];
-  
+
   local_14[0] = 0;
   local_18 = (code *)param_1;
   while( true ) {
@@ -57281,7 +57386,7 @@ byte * __fastcall FUN_00460f07(undefined4 param_1,int *param_2)
   byte *pbVar4;
   byte bVar5;
   int unaff_EBX;
-  
+
   *(undefined1 *)(unaff_EBX + 0x17) = 0;
   *(undefined1 *)(unaff_EBX + 0x16) = 0x20;
   pbVar3 = (byte *)FUN_00461045(param_1,unaff_EBX);
@@ -57378,7 +57483,7 @@ char * __fastcall FUN_00461045(undefined4 param_1,int param_2)
 {
   char cVar1;
   char *in_EAX;
-  
+
   *(undefined1 *)(param_2 + 0x14) = 0;
   do {
     cVar1 = *in_EAX;
@@ -57417,7 +57522,7 @@ undefined4 FUN_004610a4(void)
   char *in_EAX;
   int iVar2;
   int unaff_EBX;
-  
+
   for (iVar2 = 0; (cVar1 = *in_EAX, in_EAX = in_EAX + 1, cVar1 != '\0' && (iVar2 != unaff_EBX));
       iVar2 = iVar2 + 1) {
   }
@@ -57435,7 +57540,7 @@ undefined4 FUN_004610c8(void)
   short *in_EAX;
   int iVar2;
   int unaff_EBX;
-  
+
   for (iVar2 = 0; (sVar1 = *in_EAX, in_EAX = in_EAX + 1, sVar1 != 0 && (iVar2 != unaff_EBX));
       iVar2 = iVar2 + 1) {
   }
@@ -57455,7 +57560,7 @@ void __fastcall FUN_004610eb(undefined4 param_1,char *param_2)
   char *pcVar4;
   int unaff_EBX;
   char *pcVar5;
-  
+
   FUN_00463ff3(param_1,param_2);
   uVar3 = 0xffffffff;
   pcVar4 = param_2;
@@ -57499,7 +57604,7 @@ void __fastcall FUN_00461149(undefined4 param_1,uint param_2)
   uint uVar5;
   int unaff_EBX;
   undefined4 local_10;
-  
+
   puVar2 = in_EAX;
   local_10 = param_2;
   if ((int)param_2 < 0) {
@@ -57602,7 +57707,7 @@ undefined8 __fastcall FUN_00461245(ushort *param_1,int *param_2)
   ushort *puVar9;
   short in_DS;
   bool bVar10;
-  
+
   bVar5 = true;
   bVar1 = *(byte *)(unaff_EBX + 0x15);
   *(undefined4 *)(unaff_EBX + 0xc) = 0;
@@ -57890,7 +57995,7 @@ void FUN_0046172e(void)
   undefined1 uVar1;
   char *in_EAX;
   undefined1 *extraout_EDX;
-  
+
   while (*in_EAX != '\0') {
     uVar1 = FUN_004640aa();
     *extraout_EDX = uVar1;
@@ -57913,7 +58018,7 @@ uint * __fastcall FUN_00461746(int heap,uint size)
   uint *puVar3;
   uint uVar4;
   uint *puVar5;
-  
+
   unaff_EBX = heap;
   in_EAX = size;
   if (unaff_EBX == 0 || (uintptr_t)unaff_EBX < 0x10000 ||
@@ -57979,7 +58084,7 @@ void FUN_004617ee(void)
   uint *puVar4;
   uint *puVar5;
   uint *puVar6;
-  
+
   if (in_EAX == (undefined4 *)0x0) {
     return;
   }
@@ -58077,7 +58182,7 @@ undefined8 __fastcall FUN_004618f9(undefined4 param_1,undefined4 param_2)
   int *in_EAX;
   int *piVar2;
   int *piVar3;
-  
+
   in_EAX = (int *)(uintptr_t)param_1;
   if (in_EAX == 0) return (ulonglong)param_2 << 32;
   piVar1 = DAT_0047d260;
@@ -58127,7 +58232,7 @@ undefined8 __fastcall FUN_0046196d(undefined4 param_1,uint param_2)
   uint local_request;
   longlong lVar5;
   undefined8 uVar6;
-  
+
   local_request = (uint)(uintptr_t)param_1;
   if ((DAT_0047d7f4 != 0) && (DAT_0047d728 != -2)) {
     lVar5 = FUN_00461a03((undefined4)(uintptr_t)&local_request,param_2);
@@ -58178,7 +58283,7 @@ undefined8 __fastcall FUN_004619f2(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX;
   uint extraout_EDX;
   undefined8 uVar1;
-  
+
   FUN_004640d9();
   uVar1 = FUN_0046196d(param_1,param_2);
   return CONCAT44(param_2,(int)uVar1);
@@ -58194,7 +58299,7 @@ longlong __fastcall FUN_00461a03(undefined4 param_1,uint param_2)
   uint *in_EAX;
   uint uVar1;
   uint uVar2;
-  
+
   in_EAX = (uint *)(uintptr_t)param_1;
   if (in_EAX == 0) return (ulonglong)param_2 << 0x20;
   uVar1 = *in_EAX + 3 & 0xfffffffc;
@@ -58241,7 +58346,7 @@ undefined8 __fastcall FUN_00461a50(undefined4 param_1,undefined4 param_2)
   _SYSTEMTIME local_1c;
   undefined4 uStack_c;
   undefined4 uStack_8;
-  
+
   uStack_c = param_2;
   uStack_8 = param_1;
   in_EAX = (uint *)(uintptr_t)param_1;
@@ -58276,7 +58381,7 @@ undefined8 __fastcall FUN_00461ab5(undefined4 param_1,undefined4 param_2)
   uint uVar4;
   int iVar5;
   longlong lVar6;
-  
+
   in_EAX = (int *)(uintptr_t)param_1;
   if (E2R_IsBadWritePtr(in_EAX,0x24)) {
     return (ulonglong)param_2 << 0x20;
@@ -58354,7 +58459,7 @@ undefined1 * __fastcall FUN_00461d53(undefined4 param_1,undefined4 param_2)
   undefined4 uStack_20;
   int local_1c;
   int in_stack_ffffffec;
-  
+
   uVar7 = FUN_0045f699(param_1,param_2);
   if ((int)uVar7 != 0) {
     _DAT_0047d6cc = 0;
@@ -58448,7 +58553,7 @@ undefined4 __fastcall FUN_00461d9c(undefined4 param_1,int *param_2)
   byte bVar1;
   byte *in_EAX;
   int iVar2;
-  
+
   iVar2 = 0;
   while( true ) {
     bVar1 = *in_EAX;
@@ -58483,7 +58588,7 @@ byte * __fastcall FUN_00461dc0(undefined4 param_1,byte *param_2)
   int local_1c;
   uint local_18;
   byte *local_14;
-  
+
   pbVar5 = in_EAX;
   if (*in_EAX == 0x3a) {
     in_EAX = in_EAX + 1;
@@ -58558,7 +58663,7 @@ char * __fastcall FUN_00461ee9(undefined4 param_1,int param_2)
   int local_18;
   int local_14;
   int local_10;
-  
+
   iVar3 = -1;
   if (*in_EAX == 'J') {
     iVar3 = 1;
@@ -58616,7 +58721,7 @@ undefined8 __fastcall FUN_004620bb(undefined4 param_1,undefined4 param_2)
 
 {
   DWORD DVar1;
-  
+
   DVar1 = GetTickCount();
   return CONCAT44(param_2,DVar1 / 10);
 }
@@ -58631,7 +58736,7 @@ void __fastcall FUN_004620d0(undefined4 param_1,undefined4 param_2)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = FUN_004620bb(param_1,param_2);
   _DAT_00ac5214 = (int)uVar1;
   return;
@@ -58647,7 +58752,7 @@ int __fastcall FUN_004620db(undefined4 param_1,undefined4 param_2)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = FUN_004620bb(param_1,param_2);
   return (int)uVar1 - _DAT_00ac5214;
 }
@@ -58663,7 +58768,7 @@ undefined8 __fastcall FUN_004620e7(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX;
   HANDLE hFile;
   undefined4 extraout_EDX;
-  
+
   (*(code *)PTR_FUN_0047d3a0)(param_2,param_1);
   DVar1 = SetFilePointer(hFile,0,(PLONG)0x0,1);
   if (DVar1 == 0xffffffff) {
@@ -58685,7 +58790,7 @@ void __fastcall FUN_00462124(undefined4 param_1)
   int extraout_EDX;
   undefined4 *puVar2;
   undefined8 uVar3;
-  
+
   FUN_00460a74(param_1);
   if (*(int *)(extraout_EDX + 0x14) == 0) {
     if ((*(byte *)(extraout_EDX + 0xd) & 2) == 0) {
@@ -58733,7 +58838,7 @@ undefined8 __fastcall FUN_004621a0(undefined4 param_1,undefined4 param_2)
   undefined4 *puVar2;
   int iVar3;
   undefined8 uVar4;
-  
+
   (*(code *)PTR_FUN_0047d3b0)(param_2,param_1);
   iVar3 = 0;
   uVar1 = extraout_ECX;
@@ -58761,7 +58866,7 @@ undefined8 __fastcall FUN_004621db(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX;
   int extraout_EDX;
   undefined8 uVar3;
-  
+
   iVar1 = DAT_0047d74c;
   uVar3 = FUN_00460215(param_1,param_2);
   iVar2 = (int)uVar3;
@@ -58791,7 +58896,7 @@ DWORD FUN_004621fd(void)
   DWORD unaff_EBX;
   undefined8 uVar3;
   DWORD DStack_c;
-  
+
   (*(code *)PTR_FUN_0047d3a0)();
   lpBuffer = extraout_EDX;
   if (DAT_0047d37c != (code *)0x0) {
@@ -58828,7 +58933,7 @@ undefined8 __fastcall FUN_00462298(undefined4 param_1,undefined4 param_2)
   float10 in_ST0;
   float10 in_ST1;
   undefined8 uVar3;
-  
+
   fVar1 = (float10)0;
   LOCK();
   uVar2 = CONCAT22((short)((uint)in_EAX >> 0x10),
@@ -58856,7 +58961,7 @@ void __fastcall FUN_004622ce(undefined4 param_1,LPWORD param_2)
   FILETIME *in_EAX;
   LPWORD unaff_EBX;
   _FILETIME local_10;
-  
+
   FileTimeToLocalFileTime(in_EAX,&local_10);
   FileTimeToDosDateTime(&local_10,param_2,unaff_EBX);
   return;
@@ -58872,7 +58977,7 @@ void __fastcall FUN_00462318(undefined4 param_1,undefined1 *param_2)
   int in_EAX;
   int extraout_ECX;
   int extraout_ECX_00;
-  
+
   FUN_004622ce(in_EAX,(LPWORD)(in_EAX + 0x18));
   *(undefined1 *)(extraout_ECX + 0x15) = *param_2;
   *(undefined4 *)(extraout_ECX + 0x1a) = *(undefined4 *)(param_2 + 0x20);
@@ -58892,7 +58997,7 @@ undefined4 __fastcall FUN_00462353(undefined4 param_1,uint param_2)
   BOOL BVar1;
   LPWIN32_FIND_DATAA unaff_EBX;
   uint local_c;
-  
+
   local_c = param_2 | 0xa1;
   if ((param_2 & 8) != 0) {
     local_c = param_2 & 0xfffffff7 | 0xa1;
@@ -58914,7 +59019,7 @@ undefined4 __fastcall FUN_00462396(undefined4 param_1,undefined4 param_2)
 
 {
   undefined4 *in_EAX;
-  
+
   (*(code *)*in_EAX)(param_2);
   return;
 }
@@ -58967,7 +59072,7 @@ int __fastcall FUN_004623a5(undefined4 param_1,byte *param_2)
   undefined8 uVar9;
   byte *local_18;
   int local_14;
-  
+
   uVar6 = 0;
   local_14 = 0;
   *(byte *)(in_EAX + 0x10) = *(byte *)(in_EAX + 0x10) & 0xfd;
@@ -59112,7 +59217,7 @@ undefined4 __fastcall FUN_004625ec(undefined4 param_1,int param_2)
   byte *in_EAX;
   int iVar2;
   uint local_10;
-  
+
   bVar1 = *(byte *)(param_2 + 0x10);
   *(byte *)(param_2 + 0x10) = bVar1 | 1;
   *(undefined4 *)(param_2 + 0xc) = 0xffffffff;
@@ -59167,7 +59272,7 @@ undefined8 __fastcall FUN_004626e1(undefined4 param_1,uint param_2)
   undefined4 extraout_ECX;
   uint uVar2;
   int iVar3;
-  
+
   iVar3 = 0;
   uVar2 = param_2;
   while( true ) {
@@ -59200,7 +59305,7 @@ int __fastcall FUN_00462720(undefined2 *param_1,int *param_2)
   int extraout_EDX;
   int iVar6;
   undefined1 local_18;
-  
+
   if ((*(byte *)(in_EAX + 0x10) & 1) != 0) {
     if ((*(byte *)(in_EAX + 0x10) & 4) == 0) {
       if ((*(byte *)(in_EAX + 0x10) & 8) == 0) {
@@ -59271,7 +59376,7 @@ int __fastcall FUN_004627b5(undefined2 *param_1,int *param_2)
   undefined8 uVar8;
   char local_1c;
   byte local_18;
-  
+
   if ((*(byte *)(in_EAX + 0x10) & 0x20) == 0) {
     local_18 = 1;
   }
@@ -59363,7 +59468,7 @@ void __fastcall FUN_004628d8(undefined4 param_1,int *param_2)
   int in_EAX;
   undefined4 *puVar3;
   undefined4 unaff_EBX;
-  
+
   bVar1 = *(byte *)(in_EAX + 0x10);
   if ((bVar1 & 1) != 0) {
     if ((bVar1 & 4) == 0) {
@@ -59404,7 +59509,7 @@ byte * __fastcall FUN_00462936(undefined4 param_1,int param_2)
   uint uVar2;
   byte *extraout_ECX;
   byte *pbVar3;
-  
+
   FUN_0045f8d0(in_EAX,0);
   uVar2 = (uint)*extraout_ECX;
   pbVar3 = extraout_ECX + 1;
@@ -59447,7 +59552,7 @@ int __fastcall FUN_00462979(undefined4 param_1,int *param_2)
   uint local_20;
   uint local_1c;
   uint local_18;
-  
+
   local_1c = (uint)(*(char *)*unaff_EBX == '^');
   if (local_1c != 0) {
     *unaff_EBX = (char *)*unaff_EBX + 1;
@@ -59541,7 +59646,7 @@ int __fastcall FUN_00462a73(int param_1,int *param_2)
   undefined4 local_1c;
   undefined2 uStack_18;
   undefined2 uStack_16;
-  
+
   uStack_18 = (undefined2)unaff_EBP;
   uStack_16 = (undefined2)((uint)unaff_EBP >> 0x10);
   pcVar11 = &local_84;
@@ -59747,7 +59852,7 @@ int __fastcall FUN_00462d8a(int param_1,int *param_2)
   undefined8 uVar10;
   int local_20;
   int local_18;
-  
+
   iVar8 = 0;
   iVar5 = 0;
   local_20 = 0;
@@ -59880,7 +59985,7 @@ int FUN_00462f7a(void)
 {
   int in_EAX;
   int iVar1;
-  
+
   if ((0x2f < in_EAX) && (in_EAX < 0x3a)) {
     return in_EAX + -0x30;
   }
@@ -59902,7 +60007,7 @@ undefined8 __fastcall FUN_00462fa1(undefined4 param_1,undefined4 param_2)
   int in_EAX;
   undefined4 uVar2;
   undefined8 uVar3;
-  
+
   iVar1 = *(int *)(in_EAX + 0xc);
   *(int *)(in_EAX + 0xc) = iVar1 + -1;
   if (iVar1 != 0) {
@@ -59931,7 +60036,7 @@ undefined4 FUN_0046307e(void)
   byte *pbVar3;
   undefined4 extraout_EDX_01;
   bool bVar4;
-  
+
   (*(code *)PTR_FUN_0047d3a0)();
   uVar1 = *(uint *)(in_EAX + 0xc);
   *(byte *)(in_EAX + 0xc) = *(byte *)(in_EAX + 0xc) & 0xcf;
@@ -59966,7 +60071,7 @@ undefined4 __fastcall FUN_00463110(undefined4 param_1,undefined4 param_2)
 
 {
   undefined4 in_EAX;
-  
+
   FUN_00464b00(param_1,param_2);
   return in_EAX;
 }
@@ -59983,7 +60088,7 @@ longlong __fastcall FUN_00463144(undefined4 param_1,uint param_2)
   undefined4 extraout_ECX;
   undefined4 extraout_EDX;
   undefined8 uVar2;
-  
+
   BVar1 = DeleteFileA(in_EAX);
   if (BVar1 == 0) {
     uVar2 = FUN_004607f4(extraout_ECX,extraout_EDX);
@@ -60000,7 +60105,7 @@ longlong __fastcall FUN_0046315d(undefined4 param_1,uint param_2)
 
 {
   short *in_EAX;
-  
+
   if (((*in_EAX == 1) && (*(int *)(in_EAX + 2) != 0)) &&
      (((ushort)in_EAX[5] < 0x10 || (0x12 < (ushort)in_EAX[5])))) {
     return CONCAT44(param_2,1);
@@ -60076,7 +60181,7 @@ void FUN_00463208(void)
   undefined8 uVar8;
   undefined4 uStack_1c;
   undefined1 local_18 [8];
-  
+
   uStack_1c = 0x46321b;
   FUN_00463d1c();
   iVar1 = -(DAT_0047d808 + 3U & 0xfffffffc);
@@ -60137,7 +60242,7 @@ undefined4 * __fastcall FUN_004632dc(undefined4 param_1,int param_2)
   uint uVar3;
   undefined4 *puVar4;
   undefined8 uVar5;
-  
+
   if (in_EAX == (undefined4 *)0x0) {
     uVar5 = FUN_0045f0d1(param_2,param_2);
     puVar1 = (undefined4 *)uVar5;
@@ -60227,7 +60332,7 @@ void FUN_004638ee(void)
 
 {
   undefined4 *in_EAX;
-  
+
   if (in_EAX[1] != 0) {
     CloseHandle((HANDLE)*in_EAX);
   }
@@ -60248,7 +60353,7 @@ void FUN_004639a1(void)
   DWORD DVar1;
   HANDLE pvVar2;
   LPSECURITY_ATTRIBUTES lpMutexAttributes;
-  
+
   DVar1 = GetCurrentThreadId();
   if (DVar1 != in_EAX[2]) {
     if (in_EAX[1] == 0) {
@@ -60276,7 +60381,7 @@ void FUN_00463a03(void)
 {
   int iVar1;
   undefined4 *in_EAX;
-  
+
   if (in_EAX[3] != 0) {
     iVar1 = in_EAX[3] + -1;
     in_EAX[3] = iVar1;
@@ -60297,7 +60402,7 @@ undefined8 __fastcall FUN_00463a48(undefined4 param_1,undefined4 param_2)
 {
   int in_EAX;
   DWORD DVar1;
-  
+
   in_EAX = 0;
   if (in_EAX == 0) {
     in_EAX = (int)LocalAlloc(0x40, DAT_0047d808 ? DAT_0047d808 : 0x1000);
@@ -60341,7 +60446,7 @@ longlong __fastcall FUN_00463ad3(undefined4 param_1,uint param_2)
   undefined4 uVar2;
   undefined4 extraout_ECX;
   undefined8 uVar3;
-  
+
   if (DAT_0047d398 == 0xffffffff) {
 LAB_00463adf:
     return (ulonglong)param_2 << 0x20;
@@ -60373,7 +60478,7 @@ void FUN_00463b20(void)
   LPVOID pvVar1;
   undefined4 extraout_ECX;
   undefined4 extraout_EDX;
-  
+
   if (DAT_0047d398 != 0xffffffff) {
     pvVar1 = TlsGetValue(DAT_0047d398);
     if (pvVar1 != (LPVOID)0x0) {
@@ -60449,7 +60554,7 @@ DWORD __fastcall FUN_00463e96(undefined4 param_1,LPCVOID param_2)
   ulonglong uVar4;
   undefined8 uVar5;
   DWORD DStack_14;
-  
+
   hFile = *(HANDLE *)(_DAT_00ac51fc + in_EAX * 4);
   (*(code *)PTR_FUN_0047d3a0)();
   uVar4 = FUN_00460844(extraout_ECX,extraout_EDX);
@@ -60489,7 +60594,7 @@ void FUN_00463f30(void)
   undefined4 extraout_EDX;
   DWORD nNumberOfBytesToWrite;
   DWORD local_14;
-  
+
   nNumberOfBytesToWrite = 0;
   pcVar2 = in_EAX;
   while (cVar1 = *pcVar2, pcVar2 = pcVar2 + 1, cVar1 != '\0') {
@@ -60510,7 +60615,7 @@ void __fastcall FUN_00463f67(undefined4 param_1,undefined4 param_2)
 {
   int iVar1;
   undefined2 in_DS;
-  
+
   iVar1 = FUN_0046507c(param_2,in_DS);
   if (iVar1 == 0) {
     FUN_00463f30();
@@ -60532,7 +60637,7 @@ char * __fastcall FUN_00463fa9(undefined4 param_1,char *param_2)
   uint unaff_EBX;
   char *pcVar4;
   char local_37 [35];
-  
+
   pcVar3 = local_37;
   do {
     uVar2 = in_EAX / unaff_EBX;
@@ -60561,7 +60666,7 @@ undefined4 __fastcall FUN_00463ff3(undefined4 param_1,char *param_2)
   undefined4 extraout_ECX;
   char *pcVar1;
   int unaff_EBX;
-  
+
   pcVar1 = param_2;
   if ((unaff_EBX == 10) && (in_EAX < 0)) {
     *param_2 = '-';
@@ -60596,7 +60701,7 @@ char * __fastcall FUN_00464045(undefined4 param_1,char *param_2)
   uint unaff_EBX;
   char *pcVar4;
   char local_37 [35];
-  
+
   pcVar3 = local_37;
   do {
     uVar2 = in_EAX / unaff_EBX;
@@ -60625,7 +60730,7 @@ undefined4 __fastcall FUN_0046408f(undefined4 param_1,char *param_2)
   undefined4 extraout_ECX;
   char *pcVar1;
   int unaff_EBX;
-  
+
   pcVar1 = param_2;
   if ((unaff_EBX == 10) && (in_EAX < 0)) {
     *param_2 = '-';
@@ -60655,7 +60760,7 @@ void FUN_004640d9(void)
   int *piVar1;
   int iVar2;
   int *piVar3;
-  
+
   piVar3 = DAT_0047d260;
   while (piVar3 != (int *)0x0) {
     iVar2 = *piVar3;
@@ -60681,7 +60786,7 @@ undefined8 __fastcall FUN_004640e7(undefined4 param_1,undefined4 param_2)
   HLOCAL in_EAX;
   HLOCAL pvVar2;
   undefined4 uVar3;
-  
+
   pvVar1 = *(HLOCAL *)((int)in_EAX + 8);
   pvVar2 = LocalFree(in_EAX);
   if (pvVar2 == (HLOCAL)0x0) {
@@ -60712,7 +60817,7 @@ void __fastcall FUN_00464140(undefined4 param_1)
   int in_EAX;
   int iVar3;
   undefined8 uVar4;
-  
+
   iVar1 = *(int *)(in_EAX + 4);
   uVar4 = FUN_004640e7(param_1,*(undefined4 *)(in_EAX + 8));
   iVar3 = (int)((ulonglong)uVar4 >> 0x20);
@@ -60738,7 +60843,7 @@ longlong __fastcall FUN_0046418b(undefined4 param_1,uint param_2)
 
 {
   uint in_EAX;
-  
+
   if (((in_EAX & 3) == 0) && (((int)in_EAX % 100 != 0 || ((int)in_EAX % 400 == 0)))) {
     return CONCAT44(param_2,1);
   }
@@ -60760,7 +60865,7 @@ int __fastcall FUN_004641c6(undefined4 param_1,uint param_2)
   longlong lVar5;
   int local_20;
   int local_1c;
-  
+
   if (*(int *)(in_EAX + 0x20) == 0) {
     lVar5 = FUN_0046418b(0,param_2);
     if ((int)lVar5 == 0) {
@@ -60805,7 +60910,7 @@ undefined4 __fastcall FUN_004642ab(undefined4 param_1,int param_2)
   int iVar2;
   undefined4 extraout_ECX;
   uint unaff_EBX;
-  
+
   if (*(int *)(param_2 + 0x10) < *(int *)(in_EAX + 0x10)) {
     return 1;
   }
@@ -60846,7 +60951,7 @@ undefined8 __fastcall FUN_004642df(undefined4 param_1,undefined4 param_2)
   int *piVar10;
   uint uVar11;
   longlong lVar12;
-  
+
   uVar11 = 0;
   if (*(undefined4 *)(uintptr_t)PTR_DAT_0047d712 == '\0') goto LAB_00464593;
   uVar2 = FUN_004642ab(in_EAX,0x47d6a0);
@@ -60985,7 +61090,7 @@ undefined4 __fastcall FUN_004645a2(undefined4 param_1,int *param_2)
 {
   int *in_EAX;
   undefined4 uVar1;
-  
+
   uVar1 = 0;
   if ((in_EAX[2] < param_2[2]) ||
      ((in_EAX[2] == param_2[2] &&
@@ -61013,7 +61118,7 @@ int __fastcall FUN_004645d2(undefined4 *param_1,uint param_2)
   undefined *puVar5;
   uint uVar6;
   longlong lVar7;
-  
+
   if ((param_2 < 0xa8c0) && (0 < unaff_EBX)) {
     uVar4 = (param_2 + 0x15180) - unaff_EBX;
     uVar6 = (in_EAX + uVar4 / 0x15180) - 1;
@@ -61069,7 +61174,7 @@ void __fastcall FUN_0046471c(undefined4 param_1,undefined4 param_2)
   undefined1 local_10 [4];
   undefined4 uStack_c;
   undefined4 uStack_8;
-  
+
   uStack_c = param_2;
   uStack_8 = param_1;
   if (DAT_0047d390 == (code *)0x0) {
@@ -61094,7 +61199,7 @@ FUN_0046477e(undefined4 param_1,undefined4 param_2,double param_3,byte param_4)
 
 {
   undefined4 in_EAX;
-  
+
   if ((((param_4 == 0) || (param_4 < 4)) || (param_4 != 4)) || (0.0 <= param_3)) {
     FUN_004650a2(param_1,&param_3);
   }
@@ -61112,7 +61217,7 @@ uint __fastcall FUN_004648b2(undefined4 param_1,uint param_2)
   uint in_EAX;
   uint uVar2;
   uint uVar3;
-  
+
   if ((param_2 & 0x7ff00000) != 0) {
     uVar1 = (uint)(CARRY4(param_2,param_2) || CARRY4(param_2 * 2,(uint)CARRY4(in_EAX,in_EAX))) <<
             0x1f;
@@ -61147,7 +61252,7 @@ undefined8 __fastcall FUN_00464b00(undefined4 param_1,undefined4 param_2)
   ushort uStack_28;
   uint uStack_20;
   ushort uStack_1c;
-  
+
   uStack_20 = (uint)((unkuint10)in_ST0 >> 0x20);
   uStack_1c = (ushort)((unkuint10)in_ST0 >> 0x40);
   uStack_2c = (uint)((unkuint10)in_ST1 >> 0x20);
@@ -61189,7 +61294,7 @@ int FUN_00464d20(void)
 
 {
   int in_EAX;
-  
+
   if (in_EAX == 0) return 0;
   return (*(uint *)(in_EAX + -4) & 0xfffffffe) - 4;
 }
@@ -61204,7 +61309,7 @@ undefined4 FUN_00464d29(void)
   uint in_EAX;
   int iVar1;
   uint uStack_10;
-  
+
   (*(code *)PTR_FUN_0047d3b8)();
   iVar1 = FUN_00464d63(&uStack_10,in_EAX);
   if (iVar1 == 0) {
@@ -61238,7 +61343,7 @@ uint __fastcall FUN_00464f19(undefined4 param_1,uint param_2)
   uint in_EAX;
   ushort in_FPUControlWord;
   undefined4 local_18;
-  
+
   local_18 = 0;
   if ((DAT_0047d304 != '\0') && (local_18 = (uint)in_FPUControlWord, param_2 != 0)) {
     local_18 = ~param_2 & local_18 | param_2 & in_EAX & 0xffff;
@@ -61258,7 +61363,7 @@ undefined8 __fastcall FUN_00464f6c(undefined4 param_1,uint param_2)
   undefined4 uVar1;
   LPVOID pvVar2;
   longlong lVar3;
-  
+
   lVar3 = FUN_00463ad3(param_1,param_2);
   pvVar2 = (LPVOID)0x0;
   uVar1 = extraout_ECX;
@@ -61286,7 +61391,7 @@ undefined4 __fastcall FUN_00464fa3(undefined4 param_1,int param_2)
   undefined4 extraout_ECX;
   undefined4 *puVar2;
   undefined8 uVar3;
-  
+
   (*(code *)PTR_FUN_0047d3c8)();
   iVar1 = FUN_0045f1ff(1,0x10);
   if (iVar1 != 0) {
@@ -61321,7 +61426,7 @@ void __fastcall FUN_00465004(undefined4 param_1,undefined4 param_2)
   undefined4 *extraout_EDX;
   undefined4 *puVar2;
   undefined4 *puVar3;
-  
+
   (*(code *)PTR_FUN_0047d3c8)(param_2,param_1);
   puVar1 = _DAT_00ac5380;
   puVar3 = (undefined4 *)&DAT_00ac5380;
@@ -61355,7 +61460,7 @@ undefined4 __fastcall FUN_0046507c(undefined4 param_1,undefined2 param_2)
 {
   code *pcVar1;
   undefined4 uVar2;
-  
+
   if (DAT_0047d810 != '\0') {
     pcVar1 = (code *)swi(3);
     uVar2 = (*pcVar1)(param_2);
@@ -61383,7 +61488,7 @@ void __fastcall FUN_004650ac(undefined4 param_1,undefined4 param_2)
 
 {
   uint in_EAX;
-  
+
   if ((in_EAX & 0x1000) == 0) {
     if ((in_EAX & 0x2000) == 0) {
       if ((in_EAX & 0x4000) != 0) {
@@ -61411,7 +61516,7 @@ int __fastcall FUN_004651c6(int param_1,int param_2)
   int unaff_EBX;
   int iVar3;
   int iVar4;
-  
+
   if (param_2 < 0) {
     cVar1 = '-';
     param_2 = -param_2;
@@ -61464,7 +61569,7 @@ char * __fastcall FUN_00465269(int param_1,char *param_2)
   char *in_EAX;
   char *pcVar2;
   int unaff_EBX;
-  
+
   if ((param_1 == 0) && (unaff_EBX < 1)) {
     *in_EAX = '0';
     in_EAX[1] = '.';
@@ -61521,7 +61626,7 @@ void __fastcall FUN_004652cc(undefined4 param_1,int param_2)
   undefined1 *puVar4;
   int unaff_EBX;
   int iVar5;
-  
+
   if (param_2 != unaff_EBX) {
     cVar1 = in_EAX[1];
     puVar4 = in_EAX + unaff_EBX;
@@ -61583,7 +61688,7 @@ FUN_0046533d(undefined4 param_1,undefined4 *param_2,int param_3,char *param_4,un
   char *local_18;
   byte local_14;
   char local_10;
-  
+
   local_20 = in_EAX;
   local_10 = (char)param_1;
   uVar9 = FUN_00465f6c(param_2[1],param_2,*param_2,param_2[1],(undefined4 *)local_4c);
@@ -61727,7 +61832,7 @@ float10 __fastcall FUN_00465588(uint param_1,undefined4 *param_2)
   int local_20;
   byte *local_1c;
   byte *local_18;
-  
+
   for (pbVar2 = in_EAX; (bVar6 = *pbVar2, bVar6 == 0x20 || ((8 < bVar6 && (bVar6 < 0xe))));
       pbVar2 = pbVar2 + 1) {
   }
@@ -61848,7 +61953,7 @@ FUN_0046577c(int param_1,uint param_2,ushort param_3,undefined4 param_4,uint par
   float10 fVar1;
   uint uVar2;
   float10 fVar3;
-  
+
   fVar1 = (float10)CONCAT28(param_3,CONCAT44(param_2,param_1));
   while (!CARRY4(param_2,param_2)) {
     if (param_1 == 0 && param_2 == 0) {
@@ -61896,7 +62001,7 @@ void FUN_00465893(void)
 
 {
   int in_EAX;
-  
+
                     /* WARNING: Could not recover jumptable at 0x00465896. Too many branches */
                     /* WARNING: Treating indirect jump as call */
   (*(code *)(&PTR_LAB_0047da7c)[in_EAX])();
@@ -61909,7 +62014,7 @@ void FUN_00465893(void)
 
 /* Library Function - Single Match
     __fdivp_sti_st
-   
+
    Library: Visual Studio */
 
 void __fdivp_sti_st(void)
@@ -61918,7 +62023,7 @@ void __fdivp_sti_st(void)
   unkbyte10 in_ST0;
   unkbyte10 in_ST1;
   undefined2 in_stack_ffffffea;
-  
+
   FUN_0046577c((int)in_ST0,(uint)((unkuint10)in_ST0 >> 0x20),(ushort)((unkuint10)in_ST0 >> 0x40),
                (int)in_ST1,(uint)((unkuint10)in_ST1 >> 0x20),
                CONCAT22(in_stack_ffffffea,(short)((unkuint10)in_ST1 >> 0x40)));
@@ -61935,7 +62040,7 @@ void FUN_00465d42(void)
   unkbyte10 in_ST0;
   unkbyte10 in_ST1;
   undefined2 in_stack_ffffffea;
-  
+
   FUN_0046577c((int)in_ST1,(uint)((unkuint10)in_ST1 >> 0x20),(ushort)((unkuint10)in_ST1 >> 0x40),
                (int)in_ST0,(uint)((unkuint10)in_ST0 >> 0x20),
                CONCAT22(in_stack_ffffffea,(short)((unkuint10)in_ST0 >> 0x40)));
@@ -61948,7 +62053,7 @@ void FUN_00465d42(void)
 
 /* Library Function - Single Match
     __adj_fdiv_m64
-   
+
    Libraries: Visual Studio 1998 Debug, Visual Studio 1998 Release, Visual Studio 2003 Debug, Visual
    Studio 2003 Release */
 
@@ -61957,7 +62062,7 @@ undefined4 __adj_fdiv_m64(undefined4 param_1,uint param_2)
 {
   undefined4 in_EAX;
   ushort in_FPUStatusWord;
-  
+
   if ((param_2 & 0x7ff00000) == 0x7ff00000) {
     return in_EAX;
   }
@@ -61978,7 +62083,7 @@ undefined4 FUN_00465e00(uint param_1)
 {
   undefined4 in_EAX;
   ushort in_FPUStatusWord;
-  
+
   if ((param_1 & 0x7f800000) == 0x7f800000) {
     return in_EAX;
   }
@@ -62034,7 +62139,7 @@ void __fastcall FUN_00465ef5(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX_00;
   undefined4 extraout_ECX_01;
   longlong lVar2;
-  
+
   lVar2 = FUN_004666ad(param_2,param_2);
   iVar1 = (int)lVar2;
   FUN_0045ff63(extraout_ECX,iVar1);
@@ -62056,7 +62161,7 @@ float10 __fastcall FUN_00465f3d(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   undefined4 extraout_EDX;
-  
+
   iVar1 = (*(code *)PTR_thunk_FUN_00466957_0047d880)(param_2);
   if (iVar1 == 0) {
     FUN_00465ef5(extraout_ECX,in_EAX[1]);
@@ -62081,7 +62186,7 @@ FUN_00465f6c(undefined4 param_1,undefined4 param_2,int param_3,uint param_4,unde
   undefined4 *puVar1;
   undefined4 uVar2;
   short local_c;
-  
+
   local_c = (short)param_4;
   if ((param_4 >> 0x10 & 0x7ff0) == 0x7ff0) {
     puVar1 = param_5;
@@ -62115,7 +62220,7 @@ undefined8 __fastcall FUN_00466000(undefined4 param_1,undefined4 param_2)
   uint uVar3;
   float10 in_ST0;
   undefined8 uVar4;
-  
+
   fVar1 = (float10)0;
   bVar2 = (byte)((ushort)((ushort)(in_ST0 == fVar1) << 0xe) >> 8);
   uVar3 = CONCAT22((short)((uint)in_EAX >> 0x10),
@@ -62142,7 +62247,7 @@ undefined8 __fastcall thunk_FUN_00466000(undefined4 param_1,undefined4 param_2)
 
 {
   undefined8 uVar1;
-  
+
   uVar1 = FUN_00466000(param_1,param_2);
   return uVar1;
 }
@@ -62160,7 +62265,7 @@ FUN_0046606d(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4
   undefined4 in_EAX;
   double local_18;
   undefined4 local_10;
-  
+
   local_10 = param_2;
   FUN_00466708(param_3,param_4,&local_18);
   return CONCAT44(local_10,in_EAX);
@@ -62175,7 +62280,7 @@ undefined4 FUN_004660a9(undefined8 param_1,int param_2,uint *param_3)
 {
   int in_EAX;
   int extraout_ECX;
-  
+
   if (in_EAX != param_2) {
     FUN_004660ea(param_2,E2R_READ4(param_1,4),(undefined4)param_1,E2R_READ4(param_1,4),param_2 - in_EAX);
     param_2 = extraout_ECX;
@@ -62202,7 +62307,7 @@ FUN_004660ea(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4
   int iVar2;
   int extraout_EDX;
   undefined8 local_1c;
-  
+
   psVar1 = (undefined1 *)0x00477010;
   if (param_5 < 0) {
     iVar2 = -param_5;
@@ -62267,7 +62372,7 @@ FUN_00466207(undefined4 param_1,undefined4 param_2,double param_3,int param_4,un
   double local_28;
   int local_20;
   char local_1c;
-  
+
   *param_6 = 0;
   *param_5 = 0;
   uVar7 = FUN_00465f6c(param_5,param_8,E2R_READ4(param_3,0),E2R_READ4(param_3,4),(undefined4 *)param_8);
@@ -62368,7 +62473,7 @@ void __fastcall FUN_00466474(undefined4 param_1,undefined8 *param_2)
   bool bVar7;
   bool bVar8;
   undefined8 uVar9;
-  
+
   uVar6 = 0;
   uVar5 = 0;
   while( true ) {
@@ -62398,7 +62503,7 @@ undefined4 __fastcall FUN_004664bf(undefined4 param_1,uint param_2)
 {
   uint in_EAX;
   bool bVar1;
-  
+
   if (in_EAX != 0 || param_2 != 0) {
     if ((param_2 & 0xfff00000) == 0) {
       do {
@@ -62436,7 +62541,7 @@ void __cdecl FUN_00466510(undefined4 *param_1)
   undefined4 extraout_EDX_00;
   longlong lVar5;
   undefined4 uStackY_24;
-  
+
   pcVar1 = (code *)*param_1;
   uVar2 = *(undefined4 *)param_1[5];
   if (_DAT_00ac5200 == 0) {
@@ -62476,7 +62581,7 @@ void __fastcall FUN_0046667d(undefined4 param_1,undefined4 param_2)
 {
   undefined4 extraout_ECX;
   undefined4 extraout_EDX;
-  
+
   (*(code *)(uintptr_t)DAT_0047d3e0)(param_2,param_1);
   FUN_004638cd(extraout_ECX,extraout_EDX);
   if (_DAT_00ac5200 == 0) {
@@ -62504,7 +62609,7 @@ longlong __fastcall FUN_004666ad(undefined4 param_1,uint param_2)
 
 {
   uint in_EAX;
-  
+
   if (3 < in_EAX) {
     return (ulonglong)param_2 << 0x20;
   }
@@ -62521,7 +62626,7 @@ FUN_004666cc(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4
 
 {
   undefined4 in_EAX;
-  
+
   FUN_004650a2(param_1,&param_3);
   return CONCAT44(param_2,in_EAX);
 }
@@ -62535,7 +62640,7 @@ undefined4 FUN_00466708(undefined4 param_1,undefined4 param_2,double *param_3)
 {
   undefined4 in_EAX;
   float10 fVar1;
-  
+
   fVar1 = FUN_0045f556();
   *param_3 = (double)fVar1;
   return in_EAX;
@@ -62557,7 +62662,7 @@ int FUN_00466722(void)
   uint *puVar6;
   bool bVar7;
   undefined8 uVar8;
-  
+
   uVar8 = FUN_00466831();
   puVar5 = (uint *)((ulonglong)uVar8 >> 0x20);
   puVar6 = (uint *)(unaff_EDI + ((int)uVar8 + 1) * 8);
@@ -62603,7 +62708,7 @@ void __fastcall FUN_0046675c(undefined4 param_1,uint *param_2)
   int iVar7;
   int iVar8;
   bool bVar9;
-  
+
   uVar5 = *in_EAX;
   uVar4 = in_EAX[1];
   uVar6 = uVar4 ^ uVar4 & 0xfff00000 ^ 0x100000;
@@ -62663,7 +62768,7 @@ uint __fastcall FUN_004667c7(undefined4 param_1,int param_2)
   undefined1 *puVar10;
   uint uStack_14;
   byte bVar7;
-  
+
   iVar6 = *in_EAX;
   uStack_14 = in_EAX[1];
   *(undefined1 *)(param_2 + unaff_EBX) = 0;
@@ -62741,7 +62846,7 @@ undefined4 FUN_00466831(void)
   int unaff_FS_OFFSET;
   byte in_AF;
   char cVar4;
-  
+
   pbVar5 = (byte *)FUN_004668e6();
   bVar2 = (byte)pbVar5;
   *pbVar5 = *pbVar5 + bVar2;
@@ -62853,7 +62958,7 @@ FUN_004668e8(undefined4 param_1,undefined4 param_2,int param_3,uint param_4,int 
 {
   undefined4 in_EAX;
   int iVar1;
-  
+
   iVar1 = 0;
   if (((param_4 & 0x7fffffff) != 0) || (param_3 != 0)) {
     iVar1 = ((int)(param_4 >> 0x10 & 0x7ff0) >> 4) + -0x3fe;

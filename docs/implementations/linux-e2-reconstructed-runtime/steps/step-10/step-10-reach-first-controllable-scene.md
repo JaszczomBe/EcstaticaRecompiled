@@ -2,7 +2,7 @@
 
 Status: active
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
-Last Updated: 2026-07-20
+Last Updated: 2026-07-21
 
 ## Goal
 
@@ -191,7 +191,54 @@ wrote surface dump: /tmp/e2-step10-actor-init-asan-s2.pgm (surface 2 nonblank=0 
 wrote surface dump: /tmp/e2-step10-actor-init-asan-s3.pgm (surface 3 nonblank=1 hash=6e39f5ea)
 ```
 
-The current frontier is post-actor-load readiness, not archive table lookup. Loading actor `0` now makes real parser progress and produces one nonblank ASan surface, but debug no longer opens the requester dialog after Escape and still cannot dump surfaces. Inspect `FUN_00444330`/`FUN_0042b880` post-record side effects and the actor/list globals that gate `DAT_0047a76c`, requester state, StartGame entry observation, and debug surface dumping. Keep the bounded FAN diagnostics until this scene/archive loader frontier is stable, then prune the noisy entry-loop logs.
+The current frontier is the opcode `0x54` actor-load continuation inside the StartGame script. A debug watchpoint showed `FUN_00447638` was writing segment records through host global addresses such as `&DAT_0067c728 + iVar14`, clobbering `_DAT_006401ec` to `0xab7c` and making debug surface dumps fail. The segment-table writes, comparisons, and default initializer now use literal legacy addresses, and the fix is mirrored in `GenerateRecon.js`.
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-surfaces /tmp/e2-step10-space-fixed-debug-rerun space 6 250 30
+
+surface dump state: width=640 height=480 visible=0 fb=[0xa0000,0xa0000,...] bad=[0,0,0,0]
+wrote surface dump: /tmp/e2-step10-space-fixed-debug-rerun-s3.pgm (surface 3 nonblank=1 hash=6e39f5ea)
+start_game=[entries=1 player=0 mode=0 startup_scan=1793 startup_match=4 action_scan=148 action_match=1 dispatch=5 ...]
+```
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-surfaces /tmp/e2-step10-space-actorid-asan space 6 250 30
+
+surface dump state: width=640 height=480 visible=0 fb=[0xa0000,0xa0000,...] bad=[0,0,0,0]
+wrote surface dump: /tmp/e2-step10-space-actorid-asan-s3.pgm (surface 3 nonblank=1 hash=6e39f5ea)
+```
+
+The 2026-07-21 quickstart continuation reached the first control-ready scene using the original-video-shaped path. The concrete repairs were: hosted raw/title image loading now reads explicit byte counts from the open file descriptor; the raw RLE expanders receive explicit source/destination pointers; representation lookup preserves the original hidden `AX` id through `FUN_00451998 -> FUN_00442420`; opcode `0x54` reloads actors through the decoded 12-bit actor id instead of stale `extraout_EDX`; `FUN_00451f5c` rejects invalid actor ids before diagnostics; actor-record type `0x7` skips unavailable child-table links instead of dereferencing small data values; and `FUN_00420dcc` receives the current actor through `E2R_actor_calc_context`.
+
+The verified debug probe posts `Space` at `6s`, posts numpad-up (`num8`, key `0x68`) after the final freeing-animation window, and exits cleanly:
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-surfaces /tmp/e2-step10-final-space-num8 space,num8 6 10000 25
+
+surface dump state: width=640 height=480 visible=1 fb=[0xa0000,0xa0000,...] bad=[0,0,0,0]
+wrote surface dump: /tmp/e2-step10-final-space-num8-s3.pgm (surface 3 nonblank=1 hash=3615add9)
+input state: DAT_00479de8=1 DAT_0047a76c=1 DAT_0047a43c=4
+start_game=[entries=1 player=0 mode=0 startup_scan=1793 startup_match=4 action_scan=148 action_match=2 dispatch=6 ...]
+move=[1,0,0,0,0,0,0,0,0]
+```
+
+This satisfies the Step 10 gameplay-readiness proof for the debug build: the surface is a rendered 3D scene, the runtime is in gameplay state, and a movement key changes the movement-state array.
+
+The matching ASan probe exits cleanly without a sanitizer report, accepts the same movement key into `move[0]`, and dumps a nonblank surface, but it has not reached gameplay flags yet. Its current divergence is earlier in the FAN tail after `FUN_00444c10`: the tail parser reports an implausible `FUN_00447638 count=437055755` at offset `259247`, then exits the bounded run with `DAT_00479de8=0`, `DAT_0047a76c=0`, and `start_game entries=0`. The remaining closure work is to fix that ASan parser-alignment frontier, then decide which temporary diagnostics can be gated or removed.
+
+## Original Runtime Video Workflow Evidence
+
+The reference videos used for this section were user-captured Debian/Lutris/Wine screencasts on 2026-07-21. Treat the video files themselves as temporary local evidence; this section is the durable summary for future contexts.
+
+Observed original workflow:
+
+1. Startup shows the Ecstatica II logo, then enters the engine-rendered intro/credits path. The Andrew Spencer Studios logo may be skipped or hidden under Wine.
+2. The intro continues until the player either presses `Esc` to open the in-game menu or presses `Space` to skip/advance toward gameplay.
+3. Selecting Start Game from the in-game menu does not immediately create a controllable scene. It repeats or re-enters the same Ecstatica-logo/intro sequence.
+4. The natural fast path to gameplay is: start runtime, wait for the intro/credits path, press `Space`, wait through the final "character freed by lightning" animation, then observe the HUD and movement-ready scene.
+5. In the 2026-07-21 fast-path capture, the Ecstatica II logo appears at about `2s`, intro credits at about `4s`, `Space` is pressed around `6-7s`, HUD appears around `22s`, movement input is visible around `23-24s`, `Esc` opens the gameplay menu around `25s`, and the game exits after closing the Wine window around `28s`.
+
+Probe implication: Step 10 should distinguish StartGame dispatch, intro/skip progression, and gameplay readiness. A short `escape,enter` probe is still useful for proving menu dispatch into `FUN_0043a39c`, but a control-ready gameplay probe should use `space` and observe for roughly `25-30s` after intro readiness before expecting HUD/state-change evidence.
 
 ## Acceptance Criteria
 
@@ -210,6 +257,7 @@ The current frontier is post-actor-load readiness, not archive table lookup. Loa
 5. Compare scene frame hashes or documented scene-state counters before and after one movement input.
 6. `build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-start-game-debug-post5 escape,enter 8 250 5`
 7. `build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-start-game-asan-post5 escape,enter 8 250 5`
+8. Once the post-actor-load readiness frontier is stable, add a bounded fast-path probe shaped like `space`, a `25-30s` observation window, HUD/frame dumps, then one movement input/state comparison.
 
 ## Notes
 
@@ -241,3 +289,27 @@ Exact English Quit prompt text recovery at `0x004729b8` remains a Step 9 fidelit
 11. Recovered opcode-local actor id delivery into `FUN_00451f5c`, hosted allocator/backbuffer safety, quiet hosted bad-`FANT`/missing-actor archive misses, and invalid hosted fill guards. Debug now reaches requester-ready, dispatches the requester dialog, observes a second StartGame entry, and exits without a segfault.
 12. Recovered archive actor cursor mapping for table offset `3997760` by backscanning to the containing `FANT` at `3993260`, fixed stale opcode `0x54` actor flag clearing, and recovered `FUN_00426478` actor initializer writes through the allocated actor pointer. Debug parses actor resource records without crashing; ASan writes a nonblank surface.
 13. Current frontier: post-actor-load readiness diverges. Debug no longer opens the requester dialog after Escape and cannot dump surfaces, while ASan times out before requester-ready but dumps one nonblank surface. Recover `FUN_00444330`/`FUN_0042b880` post-record side effects and the actor/list globals gating requester/start-game readiness.
+
+### 2026-07-21
+
+1. Added durable notes from user-captured original-runtime screencasts. The original fast path is logo/intro, `Space`, final character-freeing animation, HUD, then movement; selecting Start Game from the menu re-enters the logo/intro path rather than producing immediate control.
+2. Adjusted Step 10 probe expectations: retain short `escape,enter` probes for StartGame dispatch, but use a later `space`/long-observation/HUD/movement probe for gameplay readiness once the current post-actor-load frontier is stable.
+3. Fixed `FUN_00447638` segment-table writes/comparisons/default initializer to use literal legacy addresses around `0x0067c728`, resolving the debug width clobber (`0xab7c`) and restoring debug surface dumps. Debug and ASan `space` probes now dump valid `640x480` surfaces, with surface 3 nonblank hash `6e39f5ea`.
+4. Added StartGame action-opcode probes. The original-video-shaped `space,d` run delivers the movement key but remains at opcode `0x54` (`opcodes=581`, `hit75=0`), so gameplay readiness is blocked in the actor-load continuation before opcode `0x75`.
+5. Recovered the actor-load continuation far enough for the bounded `space 6 250 45` probe to exit cleanly. Fixes include explicit parent/actor context for `FUN_004265ac`, `FUN_00426858`, `FUN_00426798`, `FUN_00427584`, `FUN_00421074`, `FUN_00423858`, and `FUN_004249f4`; byte-addressed pool allocators for `FUN_00453510`, `FUN_00453674`, and `FUN_004536e0`; defensive `FUN_0043a800` active-list cleanup; explicit actor-slot cleanup in action `0x54`; and a temporary no-op for the register-only transform helper `FUN_0045de8b`.
+6. Current bounded result:
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-surfaces /tmp/e2-step10-fun249f4-actor-debug space 6 250 45
+
+exit code: 0
+surface dump state: width=640 height=480 visible=0 fb=[0xa0000,0xa0000,...] bad=[0,0,0,0]
+surface 0 hash=b6005dc5 nonblank=0
+surface 1 hash=b6005dc5 nonblank=0
+surface 2 hash=b6005dc5 nonblank=0
+surface 3 hash=6e39f5ea nonblank=1
+input state: DAT_00479de8=1 DAT_0047a76c=1 DAT_0047a43c=4 _DAT_00643650=5
+start_game=[entries=1 player=0 mode=0 startup_scan=1793 startup_match=4 action_scan=148 action_match=2 dispatch=6 node=... name=210 code=0x32d8 opcodes=586 last_opcode=0x7 hit75=0]
+```
+
+7. A longer `space 6 250 180` probe no longer crashes at the old actor/list frontiers, but it behaves like a loop and was manually stopped after repeated `FAN 44c10: offset=2041106 count=0`. The remaining Step 10 frontier is therefore not the previous segfault chain; it is the post-load/update loop or missing visual transition that keeps the dumped frame on the Ecstatica II logo (`surface 3 hash=6e39f5ea`) and still does not reach opcode `0x75`.

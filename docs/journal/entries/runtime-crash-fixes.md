@@ -2,6 +2,70 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-21 - Space Quickstart Reaches First Control-Ready Scene
+
+Area: original-video-shaped Step 10 quickstart, raw/title image loading, actor reload, first movement input
+
+Symptom: after `Space` skipped the intro path, the runtime alternated between raw-loader crashes, representation lookup crashes, opcode `0x54` actor reload crashes, FAN actor-child-table crashes, and post-load actor initialization crashes before the first controllable scene could be proven.
+
+Evidence: the final debug probe exits cleanly and dumps a nonblank rendered scene:
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-surfaces /tmp/e2-step10-final-space-num8 space,num8 6 10000 25
+
+surface 3 nonblank=1 hash=3615add9
+DAT_00479de8=1 DAT_0047a76c=1 DAT_0047a43c=4
+start_game=[entries=1 ... startup_scan=1793 startup_match=4 action_scan=148 action_match=2 dispatch=6 ...]
+move=[1,0,0,0,0,0,0,0,0]
+```
+
+Change: replaced decompiler-lost `FUN_00449b4c` raw/title reads with explicit hosted file reads and explicit RLE expander source/destination pointers; recovered the hidden representation id through `FUN_00451998 -> FUN_00442420`; made opcode `0x54/0x55` carry the decoded actor id into `FUN_00451f5c`; guarded actor-load diagnostics against invalid ids; skipped unavailable FAN actor child-table links in record type `0x7`; and routed `FUN_00420dcc` through `E2R_actor_calc_context`. Mirrored the repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `git diff --check`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. The debug `space,num8` probe now proves the original fast path reaches a rendered gameplay scene and accepts movement. The ASan `space,num8` probe exits `0` without a sanitizer report and accepts the movement key, but remains before gameplay (`DAT_00479de8=0`, `DAT_0047a76c=0`) after a FAN tail alignment divergence reports `FUN_00447638 count=437055755`.
+
+Next Frontier: fix the ASan FAN tail alignment divergence after `FUN_00444c10`, then rerun the same `Space`/freeing-animation/gameplay probe and prune or gate the noisy FAN/action/actor diagnostics once both builds agree.
+
+Regression Risk: the actor-child-table type `0x7` guard skips a link when the parent child table is not yet available, rather than fully reconstructing the intended link timing. This is acceptable for the first-control proof, but actor hierarchy fidelity should be revisited after Step 10 closure.
+
+## 2026-07-21 - Step 10 Actor Continuation No Longer Segfaults
+
+Area: StartGame `Space` quickstart path, opcode `0x54` actor reload and first post-load update loop
+
+Symptom: the reconstructed runtime repeatedly crashed after the original-video-shaped `Space` skip path entered StartGame actor loading. The crash frontier moved through actor child allocation, action `0x54` cleanup, main actor update, transform helpers, and screen-extent recursion.
+
+Evidence: debug probes progressed from `actor load exit: id=0 ... opcodes=581 last_opcode=0x54` to a clean bounded run:
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-surfaces /tmp/e2-step10-fun249f4-actor-debug space 6 250 45
+exit code: 0
+start_game=[entries=1 ... dispatch=6 ... opcodes=586 last_opcode=0x7 hit75=0]
+surface 3 hash=6e39f5ea nonblank=1
+```
+
+Change: recovered explicit actor/parent context through the actor parser and update helpers, hardened `FUN_0043a800` list cleanup, rewrote the action `0x54` actor-slot cleanup to use named locals, tightened actor pointer guards to reject host/code pointers, converted `FUN_004249f4` to take an explicit actor pointer, and temporarily made the register-only `FUN_0045de8b` transform helper a no-op. Mirrored generated-C repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `git diff --check`, and `cmake --build --preset linux-clang32-debug` pass. The bounded `space 6 250 45` probe exits `0` instead of segfaulting.
+
+Next Frontier: the longer `space 6 250 180` probe no longer hits the old crash chain, but loops with repeated `FAN 44c10: offset=2041106 count=0` and still dumps the Ecstatica II logo surface. Continue from the post-load/update loop and the missing transition to opcode `0x75`/HUD/gameplay readiness.
+
+Regression Risk: `FUN_0045de8b` is intentionally stabilized as a no-op, not accurately reconstructed. This is acceptable for isolating the Step 10 readiness frontier, but transform/collision fidelity will need a later call-site or signature recovery pass.
+
+## 2026-07-21 - Segment Table Writes Restore Debug Surface Dumps
+
+Area: `FUN_00447638`, `FUN_0044be20`, `FUN_0044c224`, `FUN_0044c71c`, `FUN_00451f5c`, StartGame action probes
+
+Symptom: after the original-runtime videos clarified that the fast gameplay path is logo/intro, `Space`, final freeing animation, then HUD/control, the matching reconstructed `space` probe showed a debug-only surface dump failure. The dump state had `_DAT_006401ec=0xab7c`, `height=480`, and invalid framebuffer checks, while ASan still dumped a nonblank surface.
+
+Evidence: a conditional gdb watchpoint on `_DAT_006401ec` caught `FUN_00447638` changing width from `640` to `0xab7c`. The writes used generated host globals such as `&DAT_0067c728 + iVar14` for the segment table instead of literal legacy addresses. After the repair, debug and ASan `space` probes both dump valid `640x480` surfaces and surface 3 remains nonblank with hash `6e39f5ea`. A video-shaped `space,d` probe posts the movement key, but StartGame action counters report `opcodes=581`, `last_opcode=0x54`, `hit75=0`, so the script has not reached the gameplay opcode `0x75`.
+
+Change: redirected the segment table writes, table comparisons, and default initializer around `0x0067c728` to literal legacy addresses; added bounded surface dump state diagnostics; added StartGame action opcode counters; and made `FUN_00451f5c` preserve the decoded actor id/use the loaded actor pointer for its post-load flag/action handoff. Mirrored the reconstructed C repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `git diff --check`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. Debug probe `/tmp/e2-step10-space-fixed-debug-rerun` and final ASan probe `/tmp/e2-step10-space-actorid-asan` exit cleanly and dump valid nonblank surfaces. The longer bare debug `space,d` run is still timing-sensitive and can exit `139`, while the gdb run completes and shows the true frontier at opcode `0x54`.
+
+Next Frontier: instrument `FUN_00451f5c` and `E2R_ParseArchiveFanResource` completion for actor `0`. Determine whether actor parsing is still active at the 25s workflow mark or whether post-load actor/list globals fail to advance the StartGame script beyond opcode `0x54` toward opcode `0x75`.
+
+Regression Risk: the surface dump state diagnostic and action-opcode counters are temporary probe instrumentation. Keep them until actor-load completion and first-control readiness are stable, then prune or gate the noisy output.
+
 ## 2026-07-20 - Startup Archive Tables Reach StartGame Resource Parse
 
 Area: `FUN_00441444`, `FUN_00447d94`, `FUN_0043a39c`, `FUN_0045f296`, direct archive `FANT` resource loading, hosted surface/error-path guards
