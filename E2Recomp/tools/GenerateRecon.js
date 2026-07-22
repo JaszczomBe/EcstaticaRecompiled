@@ -74,11 +74,11 @@ source = source.replace(
 );
 source = source.replace(
   "static uint E2R_file_flags[256];\n#define E2R_STREAM_MAGIC",
-  "static uint E2R_file_flags[256];\nstatic uint E2R_open_diag_count;\nstatic uint E2R_archive_read_diag_count;\nstatic uint E2R_archive_resource_diag_count;\nstatic uint E2R_archive_parse_summary_count;\nstatic uint E2R_actor_load_diag_count;\nstatic int E2R_actor_load_id_override = -1;\nstatic int *E2R_fan_parse_stream;\nstatic short *E2R_fan_parse_record;\nstatic uint E2R_fan_parse_record_count;\nstatic uint E2R_fan_word_read_diag_count;\nstatic uint E2R_fan_action_read_diag_count;\nstatic uint E2R_fan_dispatch_diag_count;\nstatic uint E2R_fan_actor_diag_count;\nstatic uint E2R_fan_action_summary_diag_count;\nstatic uint E2R_fan_phase_diag_count;\nstatic uint E2R_actor_current_diag_count;\nstatic const char *E2R_current_actor_last_site;\nstatic uintptr_t E2R_current_actor_last_value;\nstatic int E2R_actor_calc_context;\n\nstatic void E2R_InitDiagnostics(void) __attribute__((constructor));\nstatic void E2R_InitDiagnostics(void)\n{\n  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n\n  if (fan_diag != (char *)0x0 && fan_diag[0] != '\\0' && fan_diag[0] != '0') {\n    return;\n  }\n\n  E2R_fan_word_read_diag_count = 0x7fffffff;\n  E2R_fan_action_read_diag_count = 0x7fffffff;\n  E2R_fan_dispatch_diag_count = 0x7fffffff;\n  E2R_fan_actor_diag_count = 0x7fffffff;\n  E2R_fan_action_summary_diag_count = 0x7fffffff;\n  E2R_fan_phase_diag_count = 0x7fffffff;\n}\n\nstatic uint E2R_FanStreamOffset(void)\n{\n  if (E2R_fan_parse_stream == (int *)0x0 || IsBadReadPtr(E2R_fan_parse_stream,0x1c)) {\n    return 0;\n  }\n  return (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -\n                (byte *)(uintptr_t)E2R_fan_parse_stream[5]);\n}\n#define E2R_STREAM_MAGIC"
+  "static uint E2R_file_flags[256];\nstatic uint E2R_open_diag_count;\nstatic uint E2R_archive_read_diag_count;\nstatic uint E2R_archive_resource_diag_count;\nstatic uint E2R_archive_parse_summary_count;\nstatic uint E2R_actor_load_diag_count;\nstatic int E2R_actor_load_id_override = -1;\nstatic int *E2R_fan_parse_stream;\nstatic short *E2R_fan_parse_record;\nstatic uint E2R_fan_parse_record_count;\nstatic uint E2R_fan_word_read_diag_count;\nstatic uint E2R_fan_action_read_diag_count;\nstatic uint E2R_fan_dispatch_diag_count;\nstatic uint E2R_fan_actor_diag_count;\nstatic uint E2R_fan_action_summary_diag_count;\nstatic uint E2R_fan_phase_diag_count;\nstatic uint E2R_actor_current_diag_count;\nstatic uint E2R_current_actor_trace_diag_count;\nstatic const char *E2R_current_actor_last_site;\nstatic uintptr_t E2R_current_actor_last_value;\nstatic int E2R_actor_calc_context;\n\nstatic void E2R_InitDiagnostics(void) __attribute__((constructor));\nstatic void E2R_InitDiagnostics(void)\n{\n  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n\n  if (fan_diag != (char *)0x0 && fan_diag[0] != '\\0' && fan_diag[0] != '0') {\n    return;\n  }\n\n  E2R_fan_word_read_diag_count = 0x7fffffff;\n  E2R_fan_action_read_diag_count = 0x7fffffff;\n  E2R_fan_dispatch_diag_count = 0x7fffffff;\n  E2R_fan_actor_diag_count = 0x7fffffff;\n  E2R_fan_action_summary_diag_count = 0x7fffffff;\n  E2R_fan_phase_diag_count = 0x7fffffff;\n}\n\nstatic uint E2R_FanStreamOffset(void)\n{\n  if (E2R_fan_parse_stream == (int *)0x0 || IsBadReadPtr(E2R_fan_parse_stream,0x1c)) {\n    return 0;\n  }\n  return (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -\n                (byte *)(uintptr_t)E2R_fan_parse_stream[5]);\n}\n#define E2R_STREAM_MAGIC"
 );
 source = source.replace(
   "#define E2R_STREAM_MAGIC 0xe25eed01u\n\nstatic int E2R_round_to_int",
-  "#define E2R_STREAM_MAGIC 0xe25eed01u\n\nstatic int E2R_IsKnownActorPointer(int actor)\n{\n  short actor_id;\n\n  if (actor == 0) {\n    return 1;\n  }\n  if ((uint)actor < 0x10000u || 0x70000000u <= (uint)actor ||\n      IsBadReadPtr((void *)(uintptr_t)actor,0x136)) {\n    return 0;\n  }\n  actor_id = *(short *)(uintptr_t)actor;\n  if (actor_id < 0 || 5000 <= actor_id) {\n    return 0;\n  }\n  return *(int *)((undefined1 *)0x00630b60 + actor_id * 4) == actor;\n}\n\nstatic uintptr_t E2R_TraceCurrentActorWrite(const char *site, uintptr_t value)\n{\n  E2R_current_actor_last_site = site;\n  E2R_current_actor_last_value = value;\n  return value;\n}\n\nstatic int E2R_round_to_int"
+  "#define E2R_STREAM_MAGIC 0xe25eed01u\n\nstatic int E2R_IsKnownActorPointer(int actor)\n{\n  short actor_id;\n\n  if (actor == 0) {\n    return 1;\n  }\n  if ((uint)actor < 0x10000u || 0x70000000u <= (uint)actor ||\n      IsBadReadPtr((void *)(uintptr_t)actor,0x136)) {\n    return 0;\n  }\n  actor_id = *(short *)(uintptr_t)actor;\n  if (actor_id < 0 || 5000 <= actor_id) {\n    return 0;\n  }\n  return *(int *)((undefined1 *)0x00630b60 + actor_id * 4) == actor;\n}\n\nstatic int E2R_CurrentSceneTableSlot(uintptr_t value)\n{\n  uintptr_t offset;\n\n  if (value < (uintptr_t)0x0067c728 ||\n      (uintptr_t)(0x0067c728 + 0x4b0 * 0x1c) <= value) {\n    return -1;\n  }\n  offset = value - (uintptr_t)0x0067c728;\n  if (offset % 0x1c != 0) {\n    return -1;\n  }\n  return (int)(offset / 0x1c);\n}\n\nstatic int E2R_IsReadableCurrentPointer(uintptr_t value)\n{\n  return value != 0 && 0x10000u <= (uint)value && (uint)value < 0x70000000u &&\n         !IsBadReadPtr((void *)value,0xaa);\n}\n\nstatic void E2R_PrintCurrentPointerShape(const char *site, uintptr_t value)\n{\n  int readable;\n  short word0 = 0;\n  short word82 = 0;\n  int dword84 = 0;\n  int dworda6 = 0;\n\n  readable = E2R_IsReadableCurrentPointer(value);\n  if (readable) {\n    word0 = *(short *)value;\n    word82 = *(short *)(value + 0x82);\n    dword84 = *(int *)(value + 0x84);\n    dworda6 = *(int *)(value + 0xa6);\n  }\n  fprintf(stderr,\n          \"current pointer shape: site=%s value=0x%lx readable=%d \"\n          \"known_actor=%d scene=0x%lx eq_scene=%d scene_slot=%d \"\n          \"w0=%d w82=0x%x d84=0x%lx da6=0x%lx table0=0x%lx\\n\",\n          site,(unsigned long)value,readable,E2R_IsKnownActorPointer((int)value),\n          (unsigned long)_DAT_0073cc3c,value == (uintptr_t)_DAT_0073cc3c,\n          E2R_CurrentSceneTableSlot(value),(int)word0,(unsigned int)(ushort)word82,\n          (unsigned long)(uint)dword84,(unsigned long)(uint)dworda6,\n          (unsigned long)*(int *)0x00630b60);\n}\n\nstatic uintptr_t E2R_TraceCurrentActorWrite(const char *site, uintptr_t value)\n{\n  E2R_current_actor_last_site = site;\n  E2R_current_actor_last_value = value;\n  if (value != 0 && E2R_current_actor_trace_diag_count < 32 &&\n      (strcmp(site,\"5233c.archive\") == 0 || strcmp(site,\"525f0.archive\") == 0)) {\n    E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;\n    E2R_PrintCurrentPointerShape(site,value);\n  }\n  return value;\n}\n\nstatic uintptr_t E2R_TraceArchiveCurrentActorWrite(const char *site, uintptr_t value)\n{\n  if (value != 0 && !E2R_IsReadableCurrentPointer(value)) {\n    E2R_current_actor_last_site = site;\n    E2R_current_actor_last_value = 0;\n    if (E2R_current_actor_trace_diag_count < 32) {\n      E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;\n      E2R_PrintCurrentPointerShape(site,value);\n    }\n    return 0;\n  }\n  return E2R_TraceCurrentActorWrite(site,value);\n}\n\nstatic void E2R_SelectSceneRecord(short scene_id)\n{\n  if (scene_id < 0 || 0x4b0 <= scene_id) {\n    return;\n  }\n  _DAT_0073ccba = (ushort)scene_id;\n  FUN_0044c6bc();\n}\n\nstatic int E2R_round_to_int"
 );
 source = source.replace(
   "static undefined4 E2R_OpenReadStream(LPCSTR path)",
@@ -278,7 +278,7 @@ source = source.replace(
   );
   functionSource = functionSource.replace(
     /  do \{\r?\n    if \(iVar1 == 0\) \{[\s\S]*?  \} while\( true \);/,
-    "  action_guard = 0;\n  while (iVar1 != 0 && action_guard < 0x4000 &&\n         !IsBadReadPtr((void *)(uintptr_t)iVar1,0xe)) {\n    char *action_name = E2R_ActionCodeName((short *)(uintptr_t)iVar1);\n    int prefix_matches = 1;\n\n    E2R_start_code_probe_action_scans++;\n    action_guard = action_guard + 1;\n    if (DAT_00479e20 != 0 && action_name != (char *)0x0) {\n      if (DAT_00479d74 == 0) {\n        prefix_matches = strncmp(action_name,\"___\",3) == 0;\n      }\n      else {\n        char prefix[4];\n        prefix[0] = (char)DAT_00479d74;\n        prefix[1] = (char)(DAT_00479d74 >> 8);\n        prefix[2] = (char)(DAT_00479d74 >> 16);\n        prefix[3] = '\\0';\n        prefix_matches = strncmp(action_name,prefix,3) == 0;\n      }\n    }\n    if (prefix_matches && E2R_ActionCodeMatches((short *)(uintptr_t)iVar1,pcVar4)) {\n      E2R_start_code_probe_action_matches++;\n      E2R_InvokeActionCode((short *)(uintptr_t)iVar1);\n      break;\n    }\n    iVar1 = *(int *)(iVar1 + 10);\n  }\n  if (iVar1 != 0) {\n    iVar1 = 0;\n  }\n  if (iVar1 == 0) {\n    short *action = E2R_FindActionCodeBySuffix(pcVar4);\n    if (action != (short *)0x0) {\n      iVar1 = (int)(uintptr_t)action;\n      E2R_start_code_probe_action_matches++;\n      E2R_InvokeActionCode(action);\n    }\n  }\n  if (iVar1 == 0) {\n    uVar7 = FUN_0043cbb4(pcVar4);\n    uVar6 = (undefined4)((ulonglong)uVar7 >> 0x20);\n    pcVar4 = extraout_ECX_19;\n  }\n  FUN_0041af88(pcVar4,uVar6);\n  uVar6 = extraout_EDX_16;\n  if ((DAT_0047a43c != 0) && (DAT_0047a440 == 0)) {\n    FUN_0043acec();\n    uVar6 = extraout_EDX_17;\n  }\n  if ((DAT_0047a43c == 0) && (DAT_0047a440 != 0)) {\n    FUN_0043ac60();\n    uVar6 = extraout_EDX_18;\n  }\n  FUN_0041af88(0x96,uVar6);\n  FUN_0045fc70(extraout_ECX_20,0);\n  DAT_0047ab28 = 100;\n  DAT_0047ab18 = 0;\n  DAT_0047ab14 = 0;\n  DAT_0047a7ec = 0;\n  return;"
+    "  action_guard = 0;\n  while (iVar1 != 0 && action_guard < 0x4000 &&\n         !IsBadReadPtr((void *)(uintptr_t)iVar1,0xe)) {\n    char *action_name = E2R_ActionCodeName((short *)(uintptr_t)iVar1);\n    int prefix_matches = 1;\n\n    E2R_start_code_probe_action_scans++;\n    action_guard = action_guard + 1;\n    if (DAT_00479e20 != 0 && action_name != (char *)0x0) {\n      if (DAT_00479d74 == 0) {\n        prefix_matches = strncmp(action_name,\"___\",3) == 0;\n      }\n      else {\n        char prefix[4];\n        prefix[0] = (char)DAT_00479d74;\n        prefix[1] = (char)(DAT_00479d74 >> 8);\n        prefix[2] = (char)(DAT_00479d74 >> 16);\n        prefix[3] = '\\0';\n        prefix_matches = strncmp(action_name,prefix,3) == 0;\n      }\n    }\n    if (prefix_matches && E2R_ActionCodeMatches((short *)(uintptr_t)iVar1,pcVar4)) {\n      E2R_start_code_probe_action_matches++;\n      E2R_InvokeActionCode((short *)(uintptr_t)iVar1);\n      break;\n    }\n    iVar1 = *(int *)(iVar1 + 10);\n  }\n  if (iVar1 != 0) {\n    iVar1 = 0;\n  }\n  if (iVar1 == 0) {\n    short *action = E2R_FindActionCodeBySuffix(pcVar4);\n    if (action != (short *)0x0) {\n      iVar1 = (int)(uintptr_t)action;\n      E2R_start_code_probe_action_matches++;\n      E2R_InvokeActionCode(action);\n    }\n  }\n  if (iVar1 == 0) {\n    uVar7 = FUN_0043cbb4(pcVar4);\n    uVar6 = (undefined4)((ulonglong)uVar7 >> 0x20);\n    pcVar4 = extraout_ECX_19;\n  }\n  FUN_0041af88(pcVar4,uVar6);\n  uVar6 = extraout_EDX_16;\n  if ((DAT_0047a43c != 0) && (DAT_0047a440 == 0)) {\n    FUN_0043acec();\n    uVar6 = extraout_EDX_17;\n  }\n  if ((DAT_0047a43c == 0) && (DAT_0047a440 != 0)) {\n    FUN_0043ac60();\n    uVar6 = extraout_EDX_18;\n  }\n  FUN_0041af88(0x96,uVar6);\n  FUN_0045fc70(extraout_ECX_20,0);\n  if (_DAT_0073cc3c == 0 && E2R_start_game_probe_last_mode == 0) {\n    E2R_SelectSceneRecord(785);\n  }\n  DAT_0047ab28 = 100;\n  DAT_0047ab18 = 0;\n  DAT_0047ab14 = 0;\n  DAT_0047a7ec = 0;\n  return;"
   );
   source = source.slice(0,functionStart) + functionSource + source.slice(functionEnd);
 }
@@ -575,6 +575,42 @@ static short E2R_FindPackedNameIndex(char *input,char *table,uint capacity,short
 `;
 const actionCodeState = `
 static short *E2R_action_dispatch_node;
+static char *E2R_action_name_cache[0x4000];
+static char *E2R_action_name_cache_base;
+static int E2R_action_name_cache_ready;
+
+static void E2R_PrimeActionNameCache(char *cursor)
+{
+  uint index;
+  uint length;
+
+  if (cursor == (char *)0x0 || (uintptr_t)cursor < 0x10000u ||
+      IsBadReadPtr(cursor,1)) {
+    return;
+  }
+  memset(E2R_action_name_cache,0,sizeof(E2R_action_name_cache));
+  E2R_action_name_cache_base = cursor;
+  for (index = 0; index < 0x4000; index = index + 1) {
+    E2R_action_name_cache[index] = cursor;
+    for (length = 0; length < 0x100; length = length + 1) {
+      if (IsBadReadPtr(cursor + length,1)) {
+        return;
+      }
+      if (cursor[length] == '\\0') {
+        break;
+      }
+    }
+    if (length == 0x100) {
+      return;
+    }
+    if (length == 0) {
+      E2R_action_name_cache_ready = 1;
+      return;
+    }
+    cursor = cursor + length + 1;
+  }
+  E2R_action_name_cache_ready = 1;
+}
 
 static char *E2R_ActionNameByIndex(short index)
 {
@@ -585,6 +621,12 @@ static char *E2R_ActionNameByIndex(short index)
   if (index < 0 || 0x4000 < index || (uintptr_t)cursor < 0x10000u ||
       IsBadReadPtr(cursor,1)) {
     return (char *)0x0;
+  }
+  if (E2R_action_name_cache_base != cursor || E2R_action_name_cache_ready == 0) {
+    E2R_PrimeActionNameCache(cursor);
+  }
+  if (E2R_action_name_cache_base == cursor && E2R_action_name_cache_ready != 0) {
+    return E2R_action_name_cache[(ushort)index];
   }
   for (item = 0; item < (int)index; item = item + 1) {
     for (length = 0; length < 0x100; length = length + 1) {
@@ -2049,6 +2091,10 @@ source = source.replace(
   "void FUN_004249f4(undefined4 param_1)"
 );
 source = source.replace(
+  "  DAT_00479de8 = 1;\n  return CONCAT44(param_2,uVar3);",
+  "  DAT_00479de8 = 1;\n  if (_DAT_0073cc3c == 0 && E2R_start_game_probe_last_mode == 0) {\n    E2R_SelectSceneRecord(785);\n  }\n  return CONCAT44(param_2,uVar3);"
+);
+source = source.replace(
   "    FUN_004249f4();\n  }\n  return;\n}\n\n\n\n/* 00424b48 */",
   "    FUN_004249f4((undefined4)(uintptr_t)iVar1);\n  }\n  return;\n}\n\n\n\n/* 00424b48 */"
 );
@@ -2059,6 +2105,10 @@ source = source.replace(
 source = source.replace(
   "  if (((DAT_0047a470 != 0) && (*(short *)(DAT_0047a470 + 0x82) != 0xb)) && (DAT_0047a438 == 0)) {",
   "#if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)\n  if (!E2R_IsKnownActorPointer(DAT_0047a470)) {\n    if (E2R_actor_current_diag_count < 16) {\n      E2R_actor_current_diag_count = E2R_actor_current_diag_count + 1;\n      fprintf(stderr,\n              \"current actor invalid at 4c164: current=0x%lx param=0x%lx \"\n              \"DAT_0047a34a=%lu DAT_0047a438=%lu table0=0x%lx \"\n              \"last_site=%s last_value=0x%lx caller=%p\\n\",\n              (unsigned long)DAT_0047a470,(unsigned long)param_1,\n              (unsigned long)DAT_0047a34a,(unsigned long)DAT_0047a438,\n              (unsigned long)*(int *)0x00630b60,\n              E2R_current_actor_last_site != (char *)0x0 ?\n                E2R_current_actor_last_site : \"(none)\",\n              (unsigned long)E2R_current_actor_last_value,\n              __builtin_return_address(0));\n    }\n    DAT_0047a470 = E2R_TraceCurrentActorWrite(\"4c164.guard\",0);\n    return;\n  }\n#endif\n  if (((DAT_0047a470 != 0) && (*(short *)(DAT_0047a470 + 0x82) != 0xb)) && (DAT_0047a438 == 0)) {"
+);
+source = source.replace(
+  "  sVar1 = 0;\n  do {\n    iVar2 = (int)sVar1;\n    *(undefined2 *)(&DAT_006372c2 + iVar2 * 2) = *(undefined2 *)(in_EAX + iVar2 * 2);",
+  "  if ((short)_DAT_0073ccba < 0 || 0x4b0 <= (short)_DAT_0073ccba) {\n    return;\n  }\n  in_EAX = 0x0067c728 + (short)_DAT_0073ccba * 0x1c;\n  sVar1 = 0;\n  do {\n    iVar2 = (int)sVar1;\n    *(undefined2 *)(&DAT_006372c2 + iVar2 * 2) = *(undefined2 *)(in_EAX + iVar2 * 2);"
 );
 source = source.replace(
   "  uVar16 = FUN_004418fc(param_1,in_EAX);",
@@ -2835,7 +2885,7 @@ const currentActorTraceReplacements = [
   ],
   [
     "      iVar2 = E2R_ParseArchiveFanResource();\n      DAT_0047a470 = extraout_ECX_04;\n    }\n  }\n  return CONCAT44(param_2,iVar2);\n}\n\n\n\n/* 004523f0 */",
-    "      iVar2 = E2R_ParseArchiveFanResource();\n      DAT_0047a470 = E2R_TraceCurrentActorWrite(\"5233c.archive\",(uintptr_t)extraout_ECX_04);\n    }\n  }\n  return CONCAT44(param_2,iVar2);\n}\n\n\n\n/* 004523f0 */"
+    "      iVar2 = E2R_ParseArchiveFanResource();\n      DAT_0047a470 = E2R_TraceArchiveCurrentActorWrite(\"5233c.archive\",(uintptr_t)extraout_ECX_04);\n    }\n  }\n  return CONCAT44(param_2,iVar2);\n}\n\n\n\n/* 004523f0 */"
   ],
   [
     "      DAT_0047a470 = extraout_ECX_00;\n    }\n    else {\n      if (*(int *)(iVar1 + 0x658660) < 0) {",
@@ -2847,7 +2897,7 @@ const currentActorTraceReplacements = [
   ],
   [
     "      iVar2 = E2R_ParseArchiveFanResource();\n      DAT_0047a470 = extraout_ECX_04;\n    }\n  }\n  return CONCAT44(param_2,iVar2);\n}\n\n\n\n/* 004526cc */",
-    "      iVar2 = E2R_ParseArchiveFanResource();\n      DAT_0047a470 = E2R_TraceCurrentActorWrite(\"525f0.archive\",(uintptr_t)extraout_ECX_04);\n    }\n  }\n  return CONCAT44(param_2,iVar2);\n}\n\n\n\n/* 004526cc */"
+    "      iVar2 = E2R_ParseArchiveFanResource();\n      DAT_0047a470 = E2R_TraceArchiveCurrentActorWrite(\"525f0.archive\",(uintptr_t)extraout_ECX_04);\n    }\n  }\n  return CONCAT44(param_2,iVar2);\n}\n\n\n\n/* 004526cc */"
   ]
 ];
 for (const [before, after] of currentActorTraceReplacements) {

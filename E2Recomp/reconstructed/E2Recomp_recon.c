@@ -33,6 +33,7 @@ static uint E2R_fan_actor_diag_count;
 static uint E2R_fan_action_summary_diag_count;
 static uint E2R_fan_phase_diag_count;
 static uint E2R_actor_current_diag_count;
+static uint E2R_current_actor_trace_diag_count;
 static const char *E2R_current_actor_last_site;
 static uintptr_t E2R_current_actor_last_value;
 static int E2R_actor_calc_context;
@@ -82,11 +83,86 @@ static int E2R_IsKnownActorPointer(int actor)
   return *(int *)((undefined1 *)0x00630b60 + actor_id * 4) == actor;
 }
 
+static int E2R_CurrentSceneTableSlot(uintptr_t value)
+{
+  uintptr_t offset;
+
+  if (value < (uintptr_t)0x0067c728 ||
+      (uintptr_t)(0x0067c728 + 0x4b0 * 0x1c) <= value) {
+    return -1;
+  }
+  offset = value - (uintptr_t)0x0067c728;
+  if (offset % 0x1c != 0) {
+    return -1;
+  }
+  return (int)(offset / 0x1c);
+}
+
+static int E2R_IsReadableCurrentPointer(uintptr_t value)
+{
+  return value != 0 && 0x10000u <= (uint)value && (uint)value < 0x70000000u &&
+         !IsBadReadPtr((void *)value,0xaa);
+}
+
+static void E2R_PrintCurrentPointerShape(const char *site, uintptr_t value)
+{
+  int readable;
+  short word0 = 0;
+  short word82 = 0;
+  int dword84 = 0;
+  int dworda6 = 0;
+
+  readable = E2R_IsReadableCurrentPointer(value);
+  if (readable) {
+    word0 = *(short *)value;
+    word82 = *(short *)(value + 0x82);
+    dword84 = *(int *)(value + 0x84);
+    dworda6 = *(int *)(value + 0xa6);
+  }
+  fprintf(stderr,
+          "current pointer shape: site=%s value=0x%lx readable=%d "
+          "known_actor=%d scene=0x%lx eq_scene=%d scene_slot=%d "
+          "w0=%d w82=0x%x d84=0x%lx da6=0x%lx table0=0x%lx\n",
+          site,(unsigned long)value,readable,E2R_IsKnownActorPointer((int)value),
+          (unsigned long)_DAT_0073cc3c,value == (uintptr_t)_DAT_0073cc3c,
+          E2R_CurrentSceneTableSlot(value),(int)word0,(unsigned int)(ushort)word82,
+          (unsigned long)(uint)dword84,(unsigned long)(uint)dworda6,
+          (unsigned long)*(int *)0x00630b60);
+}
+
 static uintptr_t E2R_TraceCurrentActorWrite(const char *site, uintptr_t value)
 {
   E2R_current_actor_last_site = site;
   E2R_current_actor_last_value = value;
+  if (value != 0 && E2R_current_actor_trace_diag_count < 32 &&
+      (strcmp(site,"5233c.archive") == 0 || strcmp(site,"525f0.archive") == 0)) {
+    E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;
+    E2R_PrintCurrentPointerShape(site,value);
+  }
   return value;
+}
+
+static uintptr_t E2R_TraceArchiveCurrentActorWrite(const char *site, uintptr_t value)
+{
+  if (value != 0 && !E2R_IsReadableCurrentPointer(value)) {
+    E2R_current_actor_last_site = site;
+    E2R_current_actor_last_value = 0;
+    if (E2R_current_actor_trace_diag_count < 32) {
+      E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;
+      E2R_PrintCurrentPointerShape(site,value);
+    }
+    return 0;
+  }
+  return E2R_TraceCurrentActorWrite(site,value);
+}
+
+static void E2R_SelectSceneRecord(short scene_id)
+{
+  if (scene_id < 0 || 0x4b0 <= scene_id) {
+    return;
+  }
+  _DAT_0073ccba = (ushort)scene_id;
+  FUN_0044c6bc();
 }
 
 static int E2R_round_to_int(double value)
@@ -1171,6 +1247,42 @@ static short E2R_FindPackedNameIndex(char *input,char *table,uint capacity,short
 
 
 static short *E2R_action_dispatch_node;
+static char *E2R_action_name_cache[0x4000];
+static char *E2R_action_name_cache_base;
+static int E2R_action_name_cache_ready;
+
+static void E2R_PrimeActionNameCache(char *cursor)
+{
+  uint index;
+  uint length;
+
+  if (cursor == (char *)0x0 || (uintptr_t)cursor < 0x10000u ||
+      IsBadReadPtr(cursor,1)) {
+    return;
+  }
+  memset(E2R_action_name_cache,0,sizeof(E2R_action_name_cache));
+  E2R_action_name_cache_base = cursor;
+  for (index = 0; index < 0x4000; index = index + 1) {
+    E2R_action_name_cache[index] = cursor;
+    for (length = 0; length < 0x100; length = length + 1) {
+      if (IsBadReadPtr(cursor + length,1)) {
+        return;
+      }
+      if (cursor[length] == '\0') {
+        break;
+      }
+    }
+    if (length == 0x100) {
+      return;
+    }
+    if (length == 0) {
+      E2R_action_name_cache_ready = 1;
+      return;
+    }
+    cursor = cursor + length + 1;
+  }
+  E2R_action_name_cache_ready = 1;
+}
 
 static char *E2R_ActionNameByIndex(short index)
 {
@@ -1181,6 +1293,12 @@ static char *E2R_ActionNameByIndex(short index)
   if (index < 0 || 0x4000 < index || (uintptr_t)cursor < 0x10000u ||
       IsBadReadPtr(cursor,1)) {
     return (char *)0x0;
+  }
+  if (E2R_action_name_cache_base != cursor || E2R_action_name_cache_ready == 0) {
+    E2R_PrimeActionNameCache(cursor);
+  }
+  if (E2R_action_name_cache_base == cursor && E2R_action_name_cache_ready != 0) {
+    return E2R_action_name_cache[(ushort)index];
   }
   for (item = 0; item < (int)index; item = item + 1) {
     for (length = 0; length < 0x100; length = length + 1) {
@@ -14178,6 +14296,9 @@ undefined8 __fastcall FUN_00422238(undefined4 param_1,undefined4 param_2)
     uVar3 = FUN_00458094(param_1,uVar3);
   }
   DAT_00479de8 = 1;
+  if (_DAT_0073cc3c == 0 && E2R_start_game_probe_last_mode == 0) {
+    E2R_SelectSceneRecord(785);
+  }
   return CONCAT44(param_2,uVar3);
 }
 
@@ -28745,6 +28866,9 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
   }
   FUN_0041af88(0x96,uVar6);
   FUN_0045fc70(extraout_ECX_20,0);
+  if (_DAT_0073cc3c == 0 && E2R_start_game_probe_last_mode == 0) {
+    E2R_SelectSceneRecord(785);
+  }
   DAT_0047ab28 = 100;
   DAT_0047ab18 = 0;
   DAT_0047ab14 = 0;
@@ -41758,6 +41882,10 @@ void FUN_0044c6bc(void)
   int in_EAX;
   int iVar2;
 
+  if ((short)_DAT_0073ccba < 0 || 0x4b0 <= (short)_DAT_0073ccba) {
+    return;
+  }
+  in_EAX = 0x0067c728 + (short)_DAT_0073ccba * 0x1c;
   sVar1 = 0;
   do {
     iVar2 = (int)sVar1;
@@ -45769,7 +45897,7 @@ undefined8 __fastcall FUN_0045233c(undefined4 param_1,undefined4 param_2)
       }
       FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x650fa0));
       iVar2 = E2R_ParseArchiveFanResource();
-      DAT_0047a470 = E2R_TraceCurrentActorWrite("5233c.archive",(uintptr_t)extraout_ECX_04);
+      DAT_0047a470 = E2R_TraceArchiveCurrentActorWrite("5233c.archive",(uintptr_t)extraout_ECX_04);
     }
   }
   return CONCAT44(param_2,iVar2);
@@ -45914,7 +46042,7 @@ undefined8 __fastcall FUN_004525f0(undefined4 param_1,undefined4 param_2)
       }
       FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x658660));
       iVar2 = E2R_ParseArchiveFanResource();
-      DAT_0047a470 = E2R_TraceCurrentActorWrite("525f0.archive",(uintptr_t)extraout_ECX_04);
+      DAT_0047a470 = E2R_TraceArchiveCurrentActorWrite("525f0.archive",(uintptr_t)extraout_ECX_04);
     }
   }
   return CONCAT44(param_2,iVar2);

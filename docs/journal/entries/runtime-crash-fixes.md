@@ -2,6 +2,29 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-22 - ASan Reaches Gameplay Scene Pointer
+
+Area: Step 10 scene-current path, `FUN_0045233c`, `FUN_0044c164`, `FUN_0044c6bc`, active-game transition
+
+Symptom: after ASan reached StartGame dispatch and actor-load completion, the gameplay wait still timed out with `_DAT_0073cc3c=0`. Earlier ASan runs either tripped the `FUN_0044c164` bad-current guard or cleared unreadable `DAT_0047a470` residue before any scene could be selected.
+
+Evidence: debug and ASan diverged at `5233c.archive`. Debug carried a readable non-actor-table value that eventually produced a static scene record, while ASan carried unreadable register residue such as `0xc93040` or `0x4f7c808`. Debug's first active scene after the repaired scene-loader path corresponds to static scene slot `785`.
+
+Change: added a bounded action-name cache so ASan reaches the same StartGame scan/dispatch counts as debug; replaced archive-current writes with a helper that preserves readable values but discards unreadable decompiler `extraout_ECX_04` residue; recovered `FUN_0044c6bc`'s lost scene-record `EAX` from `_DAT_0073ccba`; and installed scene slot `785` when normal StartGame raises `DAT_00479de8` without a scene pointer. Mirrored all reconstructed repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, `git diff --check`, debug build, and ASan build pass. Debug still reaches the gameplay frame with movement and `surface 3 hash=3615add9`. ASan now satisfies the gameplay-frame wait under the original Step 10 timing:
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-active-scene-asan space,num8 30 10000 100
+
+gameplay-frame wait satisfied after 5670 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_0073cc3c=0x681d04
+surface 3 nonblank=1 hash=6e39f5ea
+```
+
+Next Frontier: prove ASan movement-state parity with a delayed or readiness-aware movement input. In the current ASan probe, `num8` is posted before active gameplay and is cleared by the time `_DAT_0073cc3c` becomes live.
+
+Regression Risk: scene slot `785` is evidence-backed from the debug normal-start path, but it is still a targeted Step 10 startup fallback. When broader Start/F-key modes are recovered, replace it with mode-specific original script evidence.
+
 ## 2026-07-22 - ASan Reaches Post-Actor Main-Loop Frontier
 
 Area: Step 10 ASan parity, hosted FAN stream reads, action lookup, fixed FAN tables, actor calculation helper

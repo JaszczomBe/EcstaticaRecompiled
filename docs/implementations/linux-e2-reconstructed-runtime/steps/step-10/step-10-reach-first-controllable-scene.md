@@ -265,17 +265,7 @@ start_game=[entries=1 player=0 mode=0 startup_scan=1793 startup_match=4 action_s
 move=[1,0,0,0,0,0,0,0,0]
 ```
 
-Normal probes now suppress the high-volume FAN word/record/action parser diagnostics by default; set `E2R_FAN_DIAG=1` to restore those parser logs when chasing stream-alignment bugs. The same gameplay-waiting ASan probe exits `0` without sanitizer output, but still times out before StartGame in a `240s` window:
-
-```text
-build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-asan-gameplay-wait-space-num8 space,num8 6 10000 240
-
-gameplay-frame wait timed out after 234000 ms: start_game=0 DAT_00479de8=0 DAT_0047a76c=0 _DAT_0073cc3c=0x0
-wrote surface dump: /tmp/e2-step10-asan-gameplay-wait-space-num8-s3.pgm (surface 3 nonblank=1 hash=6e39f5ea)
-move=[1,0,0,0,0,0,0,0,0]
-```
-
-The 2026-07-22 ASan parity pass moved that frontier forward. The first blocker was probe cost in the hosted FAN word readers: `FUN_004171b8`/`FUN_004173c8` repeatedly called Linux `IsBadReadPtr`, which scans `/proc/self/maps`, while parsing the `49650`-entry terrain/path table. Trusting the active hosted `E2R_fan_parse_stream` removed that hot-path cost without changing arbitrary-stream fallback behavior.
+Normal probes now suppress the high-volume FAN word/record/action parser diagnostics by default; set `E2R_FAN_DIAG=1` to restore those parser logs when chasing stream-alignment bugs. The 2026-07-22 ASan parity pass moved the old timeout frontier forward. The first blocker was probe cost in the hosted FAN word readers: `FUN_004171b8`/`FUN_004173c8` repeatedly called Linux `IsBadReadPtr`, which scans `/proc/self/maps`, while parsing the `49650`-entry terrain/path table. Trusting the active hosted `E2R_fan_parse_stream` removed that hot-path cost without changing arbitrary-stream fallback behavior.
 
 Once ASan reached the end of `FUN_00447638`, diagnostics showed a build-sensitive entry-table under-read:
 
@@ -287,27 +277,27 @@ FAN 47638 segment count: count=1200 offset=2079271 remaining=19901
 
 The cursor is now normalized for version `0x37` fixed-width `36`-byte entries, matching the debug stream offsets and preventing ASan from reading `0x3fff` as the segment count. Removing stale `<0x70000000` host-address assumptions from action node/name lookup then allowed ASan to dispatch StartGame instead of scanning `1793` actions with zero matches. The remaining `0x006536b0` fixed table was redirected to its literal legacy address, and `FUN_0042ce70` now receives its hidden actor pointer through the existing actor calculation context.
 
-Current ASan frontier:
+The next ASan-only blocker was the scene/current pointer path. Debug carried a readable non-actor-table `DAT_0047a470` value from `5233c.archive` and later used it to choose a static scene record. ASan carried unreadable register residue from the same decompiler `extraout_ECX_04` site, so `FUN_0044c164` either crashed or no-op'd before installing `_DAT_0073cc3c`. The repair now discards unreadable archive-current residue, computes `FUN_0044c6bc`'s lost scene-record `EAX` from `_DAT_0073ccba`, and installs the proven normal-start scene slot `785` when `DAT_00479de8` becomes active without a scene pointer.
 
 ```text
-build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-42ce70-childguard-asan-gameplay space,num8 6 10000 180
+build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-active-scene-asan space,num8 30 10000 100
 
-actor load enter: id=0 ...
-actor load exit: id=0 restored_current=0xb93040 flags=0x52 ...
-actor load enter: id=0 ...
-actor load exit: id=0 restored_current=0xaa6bd8 flags=0x52 ...
-ERROR: AddressSanitizer: SEGV ... FUN_0044c164 -> FUN_004211c8 -> FUN_0042a70c -> FUN_00426df8
+gameplay-frame wait satisfied after 5670 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_0073cc3c=0x681d04
+surface 3 nonblank=1 hash=6e39f5ea
+start_game=[entries=1 player=0 mode=0 startup_scan=1793 startup_match=4 action_scan=148 action_match=2 dispatch=6 ...]
 ```
 
-ASan now reaches post-actor-load main-loop/update code instead of timing out before StartGame or crashing in actor resource parsing. Debug remains stable on the gameplay-frame proof:
+ASan now reaches the gameplay-frame wait instead of timing out before StartGame or crashing in post-actor-load update code. Debug remains stable on the movement proof:
 
 ```text
-build/linux-clang32-debug/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-final-debug-regression space,num8 6 10000 180
+build/linux-clang32-debug/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-active-scene-debug space,num8 6 10000 180
 
-gameplay-frame wait satisfied after 0 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_0073cc3c=0x56640ff4
+gameplay-frame wait satisfied after 0 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_0073cc3c=0x681a10
 surface 3 nonblank=1 hash=3615add9
 move=[1,0,0,0,0,0,0,0,0]
 ```
+
+Current frontier: prove ASan movement-state parity with a delayed or readiness-aware movement probe. Under the original `space,num8 30 10000 100` timing, ASan reaches the scene after the queued `num8` has already been consumed/cleared, so the gameplay-frame proof has `move=[0,...]` even though the scene itself is live.
 
 ## Original Runtime Video Workflow Evidence
 
@@ -340,7 +330,7 @@ Probe implication: Step 10 should distinguish StartGame dispatch, intro/skip pro
 5. Compare scene frame hashes or documented scene-state counters before and after one movement input.
 6. `build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-start-game-debug-post5 escape,enter 8 250 5`
 7. `build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-start-game-asan-post5 escape,enter 8 250 5`
-8. Once the post-actor-load readiness frontier is stable, add a bounded fast-path probe shaped like `space`, a `25-30s` observation window, HUD/frame dumps, then one movement input/state comparison.
+8. Add a delayed or readiness-aware ASan movement probe after `_DAT_0073cc3c` is live, then compare movement-state counters or scene-state deltas.
 
 ## Notes
 
@@ -404,3 +394,4 @@ start_game=[entries=1 player=0 mode=0 startup_scan=1793 startup_match=4 action_s
 3. Redirected the remaining `0x006536b0` fixed table initializer/readers to the literal legacy address and recovered `FUN_0042ce70`'s hidden actor pointer through `E2R_actor_calc_context`.
 4. Current ASan frontier: after two actor-load passes, ASan crashes in `FUN_0044c164 -> FUN_004211c8 -> FUN_0042a70c -> FUN_00426df8`; debug still reaches the gameplay frame and movement proof.
 5. Added an ASan-only `DAT_0047a470` actor-table plausibility guard at the direct `FUN_0044c164` crash site. Debug remains on the original path and still satisfies gameplay-frame proof with surface 3 hash `3615add9` and `move=[1,0,0,0,0,0,0,0,0]`; ASan now exits cleanly instead of crashing at `FUN_0044c164`, but still times out before the visible gameplay frame with surface 3 hash `6e39f5ea`.
+6. Recovered the scene-current path far enough for ASan to satisfy the gameplay-frame wait. The fixes cache action names for ASan cost, discard unreadable `5233c.archive`/`525f0.archive` current residue, compute `FUN_0044c6bc`'s scene record from `_DAT_0073ccba`, and install normal-start scene slot `785` when active gameplay begins with no scene. Debug still proves movement and `surface 3 hash=3615add9`; ASan now reaches `_DAT_0073cc3c=0x681d04` and a nonblank gameplay surface, with movement-state parity still pending because early `num8` is consumed before active gameplay.

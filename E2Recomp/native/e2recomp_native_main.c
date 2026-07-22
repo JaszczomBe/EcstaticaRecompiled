@@ -294,6 +294,7 @@ static unsigned e2r_wait_for_gameplay_frame(unsigned timeout_seconds)
 {
     unsigned waited_ms = 0;
     unsigned timeout_ms = timeout_seconds * 1000u;
+    unsigned next_report_ms = 5000u;
 
     while (waited_ms < timeout_ms) {
         if (E2R_start_game_probe_count != 0 && DAT_00479de8 != 0 && _DAT_0073cc3c != 0) {
@@ -307,6 +308,29 @@ static unsigned e2r_wait_for_gameplay_frame(unsigned timeout_seconds)
         }
         usleep(10000);
         waited_ms += 10;
+        if (waited_ms >= next_report_ms) {
+            fprintf(stderr,
+                    "gameplay-frame wait progress after %u ms: start_game=%lu "
+                    "DAT_00479de8=%lu DAT_0047a76c=%lu _DAT_00643650=%lu "
+                    "_DAT_0073cc3c=0x%lx actions=%lu dispatch=%lu "
+                    "opcodes=%lu last_opcode=0x%lx hit75=%lu "
+                    "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu]\n",
+                    waited_ms, (unsigned long)E2R_start_game_probe_count,
+                    (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
+                    (unsigned long)_DAT_00643650, (unsigned long)_DAT_0073cc3c,
+                    (unsigned long)E2R_requester_probe_action_count,
+                    (unsigned long)E2R_start_code_probe_dispatches,
+                    (unsigned long)E2R_action_opcode_count,
+                    (unsigned long)E2R_action_last_opcode,
+                    (unsigned long)E2R_action_hit_75_count,
+                    (unsigned long)DAT_00636859, (unsigned long)DAT_00636858,
+                    (unsigned long)DAT_0063685b, (unsigned long)DAT_00636854,
+                    (unsigned long)DAT_00636856, (unsigned long)DAT_00636857,
+                    (unsigned long)DAT_0063685c, (unsigned long)DAT_0063685a,
+                    (unsigned long)DAT_00636855);
+            fflush(stderr);
+            next_report_ms += 5000u;
+        }
     }
     fprintf(stderr,
             "gameplay-frame wait timed out after %u ms: start_game=%lu "
