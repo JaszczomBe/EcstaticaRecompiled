@@ -2,6 +2,32 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-22 - ASan Reaches Post-Actor Main-Loop Frontier
+
+Area: Step 10 ASan parity, hosted FAN stream reads, action lookup, fixed FAN tables, actor calculation helper
+
+Symptom: ASan no longer reported a sanitizer finding before StartGame, but the gameplay-wait probe timed out before `FUN_0043a39c`/gameplay readiness. Once the large `FUN_00447638` parser was made fast enough to observe, ASan completed the `49650` entry loop misaligned by 21 bytes, read segment count `16383` instead of `1200`, then later exposed high-host-pointer action lookup failures and actor-load crashes.
+
+Evidence: `E2R_FAN_DIAG=1` ASan showed `FAN 47638 entry align: current=2079248 expected=2079269`, followed by the recovered `segment count: count=1200`. The final ASan probe now dispatches StartGame, completes two actor-load passes, then dies later in the main-loop/update path:
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-42ce70-childguard-asan-gameplay space,num8 6 10000 180
+
+actor load enter: id=0 ...
+actor load exit: id=0 restored_current=0xb93040 flags=0x52 ...
+actor load enter: id=0 ...
+actor load exit: id=0 restored_current=0xaa6bd8 flags=0x52 ...
+ERROR: AddressSanitizer: SEGV ... FUN_0044c164 -> FUN_004211c8 -> FUN_0042a70c -> FUN_00426df8
+```
+
+Change: trusted the active hosted FAN stream in `FUN_004171b8`/`FUN_004173c8` to avoid repeated Linux `IsBadReadPtr` scans; normalized the version-55 `FUN_00447638` entry cursor to the original fixed 36-byte entry size; removed stale `<0x70000000` assumptions from action node/name lookup and dispatch; moved the remaining `0x006536b0` fixed table initializer/readers to the literal legacy address; recovered `FUN_0042ce70`'s hidden actor pointer through `E2R_actor_calc_context` with a bounded child-walk guard; and added an ASan-only actor-table plausibility guard at the direct `FUN_0044c164` crash site. Mirrored reconstructed repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, debug build, and ASan build pass. Debug gameplay regression still reaches the nonblank village frame (`surface 3 hash=3615add9`) with `move=[1,0,0,0,0,0,0,0,0]`. ASan now exits without a sanitizer report instead of crashing in `FUN_0044c164`, but still times out before the visible gameplay frame (`surface 3 hash=6e39f5ea`).
+
+Next Frontier: recover why ASan's post-load/update path diverges before gameplay readiness after the `FUN_0044c164` bad-pointer dereference is suppressed for diagnostics.
+
+Regression Risk: the `FUN_00447638` cursor normalization assumes version `0x37` terrain/path entries are fixed 36-byte records, matching the debug stream offsets. The `FUN_0042ce70` child pointer ceiling is a bounded guard against generated-global/redzone pointers and should be revisited when actor child-list ownership is fully recovered. The `FUN_0044c164` actor-table guard is ASan-only so the debug/gameplay proof stays on the original runtime path.
+
 ## 2026-07-21 - Space Quickstart Reaches First Control-Ready Scene
 
 Area: original-video-shaped Step 10 quickstart, raw/title image loading, actor reload, first movement input

@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-20
+Last Updated: 2026-07-22
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -62,7 +62,7 @@ The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been c
 
 Step 9 is complete. Its input bridge maps `WM_KEYDOWN` through the compatibility message queue into recovered input globals, feeds legacy key queues, and polls X11 keypresses into the same path. Requester-ready probes reach rendering, keyboard focus movement, action selection, and nested Quit confirmation outcomes in both debug and ASan. Exact recovery of the unnamed fixed English confirmation text at `0x004729b8` remains a fidelity backlog item.
 
-Step 10 is active. The original requester `0x27/0x28` record selects Start Game item `0x00643b30`, and matching debug/ASan probes prove entry into `FUN_0043a39c`. Start-code probes showed `_DAT_00637250` was null because hosted `FUN_00445378` opened and immediately closed `Code/ECSTATIC.FAN` without calling the original parser. The parser handoff, packed name tables, table ordinals, Start-code lookup, and action-node interpreter handoff are now explicit and generator-backed. FAN record allocation, five-word reads, name normalization, pool release, actor-record handoff, `FUN_00444668` terminator handling, hosted binary/text stream bytes, and the `FUN_00444c10` action-node parser body now preserve enough original state for debug to parse the action section, ordinal-4 terminator, `FUN_00447638` terrain/path tables, segment list, and tail nodes. Startup now opens hosted `Files/ECSTATIC`, loads `FUN_00447d94` archive tables from `DAT_0047a724`, finds `StartGame` through the installed action table, gets past hosted archive seeking, and parses direct archive resources through a guarded hosted wrapper. The active frontier is archive actor resource mapping: the latest debug probe reaches requester-ready, dispatches Escape/Enter, observes `start-game entry observed`, logs a quiet bad `FANT` header at archive offset `3997764`, and exits without a segfault but still cannot dump surfaces.
+Step 10 is active. The original requester `0x27/0x28` record selects Start Game item `0x00643b30`, and matching debug/ASan probes prove entry into `FUN_0043a39c`. Start-code probes showed `_DAT_00637250` was null because hosted `FUN_00445378` opened and immediately closed `Code/ECSTATIC.FAN` without calling the original parser. The parser handoff, packed name tables, table ordinals, Start-code lookup, and action-node interpreter handoff are now explicit and generator-backed. FAN record allocation, five-word reads, name normalization, pool release, actor-record handoff, `FUN_00444668` terminator handling, hosted binary/text stream bytes, and the `FUN_00444c10` action-node parser body now preserve enough original state for debug to parse the action section, ordinal-4 terminator, `FUN_00447638` terrain/path tables, segment list, and tail nodes. Startup now opens hosted `Files/ECSTATIC`, loads `FUN_00447d94` archive tables from `DAT_0047a724`, finds `StartGame` through the installed action table, gets past hosted archive seeking, and parses direct archive resources through a guarded hosted wrapper. Debug has a stable gameplay-frame proof with movement (`space,num8`, surface 3 hash `3615add9`). ASan now advances past the previous pre-StartGame timeout, aligns the `FUN_00447638` table, dispatches StartGame, and exits without a sanitizer report after an ASan-only guard suppresses the direct `FUN_0044c164` bad-current-actor dereference. The current frontier is the remaining ASan-only post-load/update divergence before the visible gameplay frame.
 
 ## Step Roadmap
 
@@ -99,6 +99,18 @@ Each step should be scoped so it can preferably be completed in one context wind
 6. Keep reconstructed C focused on recovered original behavior; host-library calls belong behind compatibility or backend boundaries.
 7. Treat DirectDraw, DirectSound, Win32, and CRT shims as game-facing compatibility surfaces, not as disposable shortcuts to SDL.
 8. When adding rendering, input, timing, or audio behavior, record which layer owns it: reconstructed game logic, compatibility semantics, or host backend.
+9. Avoid generated-file churn: after any `GenerateRecon.js` edit, regenerate and prove `E2Recomp/reconstructed/*` has no unrelated drift before building or probing.
+
+## Generated Code Workflow
+
+Use this workflow for every reconstructed-runtime change:
+
+1. Check `git status --short`, `git diff --stat`, and `git diff --cached --stat` before editing.
+2. Use a minimal hand edit in `E2Recomp/reconstructed/E2Recomp_recon.c` only when needed to prove a runtime hypothesis.
+3. Mirror the proven hand edit in `E2Recomp/tools/GenerateRecon.js` before treating the fix as durable.
+4. Prefer precise source replacements, regexes scoped to one function, or ordered replacement tables. Avoid giant `apply_patch` blocks over generated C.
+5. Run `node --check E2Recomp/tools/GenerateRecon.js`, then `node E2Recomp/tools/GenerateRecon.js .`.
+6. Inspect `git diff --stat` and targeted generated-file diffs immediately. If regeneration produces thousands of unrelated lines, stop and fix the generator anchors instead of accepting the churn.
 
 ## Usage Budget
 
@@ -175,3 +187,10 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 7. Recovered the later FAN tail path through ordinal-4 termination, `FUN_00447638` `49650` terrain/path entries, `1200` segment records, tail-node allocation, post-FAN invalid actor-head cleanup, hosted literal path validation, stable `Files/ECSTATIC` archive opening, `FUN_00447d94` archive table loading, guarded `StartGame` action lookup, action-table fallback dispatch, hosted archive seeking, and direct embedded `FANT` resource parsing.
 8. Recovered opcode-local actor id delivery into `FUN_00451f5c`, hosted allocator/backbuffer handling, quiet hosted bad-`FANT` and missing-actor archive misses, and invalid hosted fill guards. Debug now reaches requester-ready, dispatches the requester dialog, observes a second StartGame entry, and exits without a segfault.
 9. Recovered archive actor cursor mapping for table offset `3997760` by backscanning to the containing `FANT` at `3993260`, fixed stale opcode `0x54` actor flag clearing, and recovered `FUN_00426478` actor initializer writes through the allocated actor pointer. Debug parses the first actor resource without crashing; ASan writes one nonblank surface. The current frontier is post-actor-load readiness: debug no longer opens the requester after Escape and still cannot dump surfaces, while ASan times out before requester-ready but produces a nonblank dump.
+
+### 2026-07-22
+
+1. Advanced ASan through the hosted FAN reader cost and version-55 `FUN_00447638` entry alignment, removed stale high-host-pointer guards from action lookup/dispatch, repaired the remaining `0x006536b0` fixed table references, and recovered `FUN_0042ce70` actor context.
+2. Verified debug gameplay proof still reaches surface 3 hash `3615add9` with movement state set.
+3. Recorded the new ASan frontier after two actor-load passes: `FUN_0044c164 -> FUN_004211c8 -> FUN_0042a70c -> FUN_00426df8`.
+4. Added an ASan-only actor-table plausibility guard at `FUN_0044c164`. Debug remains at the stable gameplay-frame proof (`3615add9`, movement set); ASan now exits without a sanitizer report but still times out before the visible gameplay frame (`6e39f5ea`).

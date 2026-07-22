@@ -2,7 +2,7 @@
 
 Status: active
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
-Last Updated: 2026-07-21
+Last Updated: 2026-07-22
 
 ## Goal
 
@@ -37,6 +37,19 @@ No more than 5% of weekly usage per day unless the user explicitly approves cont
 1. Sacrifice: use bounded native probes and reconstruction instrumentation while scene entry is unstable.
 2. Why accepted now: deterministic state evidence is needed before interactive runtime behavior is durable.
 3. Removal trigger: one scene loads and accepts movement reliably in both debug and ASan builds.
+
+## Generated-File Churn Guard
+
+Step 10 frequently needs small reconstructed C probes, but `E2Recomp/reconstructed/E2Recomp_recon.c` is generated. Do not carry large regenerated diffs forward as implementation progress.
+
+Required workflow for this step:
+
+1. Before editing, inspect staged and unstaged state with `git status --short`, `git diff --stat`, and `git diff --cached --stat`.
+2. If proving a hypothesis requires a hand edit in `E2Recomp_recon.c`, keep it narrow and record the exact function/address.
+3. Mirror the proven edit in `E2Recomp/tools/GenerateRecon.js` before running broad verification.
+4. After changing the generator, run `node --check E2Recomp/tools/GenerateRecon.js` and `node E2Recomp/tools/GenerateRecon.js .`.
+5. Immediately inspect generated drift. Acceptance for regeneration is: no reconstructed-file diff, or only the intentionally mirrored C changes already explained in the step/journal.
+6. If regeneration creates thousands of unrelated lines, stop. Do not build, probe, or patch around that output. Tighten the generator replacement anchors or move the replacement later in the pipeline until the diff is small and intentional.
 
 ## Starting Evidence
 
@@ -262,7 +275,39 @@ wrote surface dump: /tmp/e2-step10-asan-gameplay-wait-space-num8-s3.pgm (surface
 move=[1,0,0,0,0,0,0,0,0]
 ```
 
-The remaining ASan frontier is therefore before StartGame entry in the pre-gameplay load path, with no sanitizer finding yet.
+The 2026-07-22 ASan parity pass moved that frontier forward. The first blocker was probe cost in the hosted FAN word readers: `FUN_004171b8`/`FUN_004173c8` repeatedly called Linux `IsBadReadPtr`, which scans `/proc/self/maps`, while parsing the `49650`-entry terrain/path table. Trusting the active hosted `E2R_fan_parse_stream` removed that hot-path cost without changing arbitrary-stream fallback behavior.
+
+Once ASan reached the end of `FUN_00447638`, diagnostics showed a build-sensitive entry-table under-read:
+
+```text
+FAN 47638 entry align: current=2079248 expected=2079269
+FAN 47638 entries done: count=49650 offset=2079269 remaining=19903
+FAN 47638 segment count: count=1200 offset=2079271 remaining=19901
+```
+
+The cursor is now normalized for version `0x37` fixed-width `36`-byte entries, matching the debug stream offsets and preventing ASan from reading `0x3fff` as the segment count. Removing stale `<0x70000000` host-address assumptions from action node/name lookup then allowed ASan to dispatch StartGame instead of scanning `1793` actions with zero matches. The remaining `0x006536b0` fixed table was redirected to its literal legacy address, and `FUN_0042ce70` now receives its hidden actor pointer through the existing actor calculation context.
+
+Current ASan frontier:
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-42ce70-childguard-asan-gameplay space,num8 6 10000 180
+
+actor load enter: id=0 ...
+actor load exit: id=0 restored_current=0xb93040 flags=0x52 ...
+actor load enter: id=0 ...
+actor load exit: id=0 restored_current=0xaa6bd8 flags=0x52 ...
+ERROR: AddressSanitizer: SEGV ... FUN_0044c164 -> FUN_004211c8 -> FUN_0042a70c -> FUN_00426df8
+```
+
+ASan now reaches post-actor-load main-loop/update code instead of timing out before StartGame or crashing in actor resource parsing. Debug remains stable on the gameplay-frame proof:
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-final-debug-regression space,num8 6 10000 180
+
+gameplay-frame wait satisfied after 0 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_0073cc3c=0x56640ff4
+surface 3 nonblank=1 hash=3615add9
+move=[1,0,0,0,0,0,0,0,0]
+```
 
 ## Original Runtime Video Workflow Evidence
 
@@ -351,3 +396,11 @@ start_game=[entries=1 player=0 mode=0 startup_scan=1793 startup_match=4 action_s
 ```
 
 7. A longer `space 6 250 180` probe no longer crashes at the old actor/list frontiers, but it behaves like a loop and was manually stopped after repeated `FAN 44c10: offset=2041106 count=0`. The remaining Step 10 frontier is therefore not the previous segfault chain; it is the post-load/update loop or missing visual transition that keeps the dumped frame on the Ecstatica II logo (`surface 3 hash=6e39f5ea`) and still does not reach opcode `0x75`.
+
+### 2026-07-22
+
+1. Advanced ASan from the pre-StartGame timeout through the large `FUN_00447638` table by trusting the active hosted FAN stream in hot word reads and normalizing version-55 fixed-width entry alignment.
+2. Removed stale high-host-pointer guards from action node/name lookup and dispatch so ASan can find and invoke StartGame from hosted heap action nodes.
+3. Redirected the remaining `0x006536b0` fixed table initializer/readers to the literal legacy address and recovered `FUN_0042ce70`'s hidden actor pointer through `E2R_actor_calc_context`.
+4. Current ASan frontier: after two actor-load passes, ASan crashes in `FUN_0044c164 -> FUN_004211c8 -> FUN_0042a70c -> FUN_00426df8`; debug still reaches the gameplay frame and movement proof.
+5. Added an ASan-only `DAT_0047a470` actor-table plausibility guard at the direct `FUN_0044c164` crash site. Debug remains on the original path and still satisfies gameplay-frame proof with surface 3 hash `3615add9` and `move=[1,0,0,0,0,0,0,0,0]`; ASan now exits cleanly instead of crashing at `FUN_0044c164`, but still times out before the visible gameplay frame with surface 3 hash `6e39f5ea`.

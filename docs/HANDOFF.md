@@ -32,6 +32,19 @@ When a fresh context is given only an instruction to read this file:
 
 If the user already selected a step or said to proceed, restate the bounded scope briefly and continue without asking them to choose again.
 
+## Generated Reconstruction Workflow
+
+This repository has generated reconstruction files, especially `E2Recomp/reconstructed/E2Recomp_recon.c`. Large generated diffs are expensive to review and are usually a workflow failure unless the user explicitly asked for regeneration-wide churn.
+
+When touching generated reconstruction behavior:
+
+1. Inspect `git status --short`, `git diff --stat`, and `git diff --cached --stat` before editing, because staged hand fixes may already exist.
+2. Treat `E2Recomp/reconstructed/*` as proof/output and `E2Recomp/tools/GenerateRecon.js` as the durable source of repeatable fixes.
+3. For a new runtime fix, make the smallest hand edit needed to prove the behavior, then mirror that exact repair in `GenerateRecon.js` before broad verification.
+4. Prefer small, anchored generator patches or ordered replacement tables. Do not use giant generated-file patches when a generator mirror can express the change.
+5. If regeneration creates a large unrelated diff, stop immediately. Do not build on top of it. Narrow the generator anchors, regenerate again, and continue only when the reconstructed diff is zero or deliberately explained.
+6. Before reporting success, run `node --check E2Recomp/tools/GenerateRecon.js`, regenerate with `node E2Recomp/tools/GenerateRecon.js .` when the generator changed, then confirm generated-file drift with `git diff --stat` and targeted `git diff -- E2Recomp/reconstructed`.
+
 ## Repository Invariants
 
 1. Read the active implementation and relevant journal before changing reconstructed code.

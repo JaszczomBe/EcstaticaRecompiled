@@ -12,6 +12,9 @@
 #undef NAN
 #endif
 #define NAN(x) isnan((double)(x))
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
 
 static uint E2R_file_flags[256];
 static uint E2R_open_diag_count;
@@ -29,6 +32,9 @@ static uint E2R_fan_dispatch_diag_count;
 static uint E2R_fan_actor_diag_count;
 static uint E2R_fan_action_summary_diag_count;
 static uint E2R_fan_phase_diag_count;
+static uint E2R_actor_current_diag_count;
+static const char *E2R_current_actor_last_site;
+static uintptr_t E2R_current_actor_last_value;
 static int E2R_actor_calc_context;
 
 static void E2R_InitDiagnostics(void) __attribute__((constructor));
@@ -57,6 +63,31 @@ static uint E2R_FanStreamOffset(void)
                 (byte *)(uintptr_t)E2R_fan_parse_stream[5]);
 }
 #define E2R_STREAM_MAGIC 0xe25eed01u
+
+static int E2R_IsKnownActorPointer(int actor)
+{
+  short actor_id;
+
+  if (actor == 0) {
+    return 1;
+  }
+  if ((uint)actor < 0x10000u || 0x70000000u <= (uint)actor ||
+      IsBadReadPtr((void *)(uintptr_t)actor,0x136)) {
+    return 0;
+  }
+  actor_id = *(short *)(uintptr_t)actor;
+  if (actor_id < 0 || 5000 <= actor_id) {
+    return 0;
+  }
+  return *(int *)((undefined1 *)0x00630b60 + actor_id * 4) == actor;
+}
+
+static uintptr_t E2R_TraceCurrentActorWrite(const char *site, uintptr_t value)
+{
+  E2R_current_actor_last_site = site;
+  E2R_current_actor_last_value = value;
+  return value;
+}
 
 static int E2R_round_to_int(double value)
 {
@@ -124,6 +155,18 @@ static int E2R_ReadFanWordByte(int *stream)
 {
   byte *cursor;
 
+  if (stream == E2R_fan_parse_stream && stream != (int *)0x0 &&
+      (uint)stream[6] == E2R_STREAM_MAGIC) {
+    if (0 < stream[1] && ((*(byte *)(stream + 3) & 4) == 0)) {
+      cursor = (byte *)(uintptr_t)stream[0];
+      if (*cursor != '\r' && *cursor != '\x1a') {
+        stream[0] = (int)(uintptr_t)(cursor + 1);
+        stream[1] = stream[1] + -1;
+        return (int)*cursor;
+      }
+    }
+    return E2R_ReadHostedStreamByte((undefined4 *)stream);
+  }
   if (stream == (int *)0x0 || IsBadReadPtr(stream,0x1c)) {
     return -1;
   }
@@ -1136,7 +1179,7 @@ static char *E2R_ActionNameByIndex(short index)
   uint length;
 
   if (index < 0 || 0x4000 < index || (uintptr_t)cursor < 0x10000u ||
-      (uintptr_t)cursor >= 0x70000000u || IsBadReadPtr(cursor,1)) {
+      IsBadReadPtr(cursor,1)) {
     return (char *)0x0;
   }
   for (item = 0; item < (int)index; item = item + 1) {
@@ -1344,8 +1387,8 @@ static short *E2R_FindActionCodeBySuffix(char *suffix)
   if (!IsBadReadPtr(table,0x4000 * sizeof(short *))) {
     for (index = 0; index < 0x4000; index = index + 1) {
       node = table[index];
-      if (node != (short *)0x0 && (uintptr_t)node < 0x70000000u &&
-          !IsBadReadPtr(node,0xe) && E2R_ActionCodeMatches(node,suffix)) {
+      if (node != (short *)0x0 && !IsBadReadPtr(node,0xe) &&
+          E2R_ActionCodeMatches(node,suffix)) {
         return node;
       }
     }
@@ -7749,7 +7792,8 @@ undefined8 __fastcall FUN_004171b8(undefined4 param_1,undefined4 param_2)
   else {
     in_EAX = (int *)(uintptr_t)param_1;
   }
-  if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr(in_EAX,0x1c)) {
+  if ((uintptr_t)in_EAX < 0x10000u ||
+      (in_EAX != E2R_fan_parse_stream && IsBadReadPtr(in_EAX,0x1c))) {
     return CONCAT44(param_2,0xffff);
   }
   if ((uint)in_EAX[6] == E2R_STREAM_MAGIC) {
@@ -7909,7 +7953,8 @@ undefined8 __fastcall FUN_004173c8(undefined4 param_1,undefined4 param_2)
   else {
     in_EAX = (int *)(uintptr_t)param_1;
   }
-  if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr(in_EAX,0x1c)) {
+  if ((uintptr_t)in_EAX < 0x10000u ||
+      (in_EAX != E2R_fan_parse_stream && IsBadReadPtr(in_EAX,0x1c))) {
     return CONCAT44(param_2,0xffff);
   }
   if ((uint)in_EAX[6] == E2R_STREAM_MAGIC) {
@@ -21930,6 +21975,12 @@ undefined4 FUN_0042ce70(void)
   int in_EAX;
   int iVar3;
 
+  if (E2R_actor_calc_context != 0) {
+    in_EAX = E2R_actor_calc_context;
+  }
+  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xec)) {
+    return 0;
+  }
   if ((*(byte *)(in_EAX + 2) & 8) == 0) {
     sVar2 = 0;
     do {
@@ -21942,6 +21993,10 @@ undefined4 FUN_0042ce70(void)
     } while (sVar2 < 3);
   }
   for (iVar3 = *(int *)(in_EAX + 0x1e); iVar3 != 0; iVar3 = *(int *)(iVar3 + 0xca)) {
+    if ((uintptr_t)iVar3 >= 0x10000000u ||
+        IsBadReadPtr((void *)(uintptr_t)iVar3,0xe4)) {
+      break;
+    }
     if ((*(byte *)(iVar3 + 2) & 4) == 0) {
       sVar2 = 0;
       do {
@@ -34684,7 +34739,7 @@ void FUN_00443344(void)
   } while (sVar1 < 100);
   sVar1 = 0;
   do {
-    *(short *)(&DAT_006536b0 + sVar1 * 2) = sVar1;
+    ((short *)0x006536b0)[sVar1] = sVar1;
     sVar1 = sVar1 + 1;
   } while (sVar1 < 200);
   return;
@@ -38541,7 +38596,7 @@ switchD_004470ac_caseD_18:
   case 0x46:
     *in_EAX = *(short *)((undefined1 *)0x0067b83c + *in_EAX * 2);
     if (-1 < in_EAX[2]) {
-      in_EAX[2] = *(short *)(&DAT_006536b0 + (*(int *)(in_EAX + 1) >> 0x10) * 2);
+      in_EAX[2] = ((short *)0x006536b0)[*(int *)(in_EAX + 1) >> 0x10];
       return;
     }
     break;
@@ -38558,7 +38613,7 @@ switchD_004470ac_caseD_18:
   case 0x4a:
     *in_EAX = *(short *)((undefined1 *)0x00676610 + *in_EAX * 2);
     if (-1 < in_EAX[2]) {
-      in_EAX[2] = *(short *)(&DAT_006536b0 + (*(int *)(in_EAX + 1) >> 0x10) * 2);
+      in_EAX[2] = ((short *)0x006536b0)[*(int *)(in_EAX + 1) >> 0x10];
       return;
     }
   }
@@ -38630,6 +38685,10 @@ void __fastcall FUN_00447638(undefined4 param_1)
   short sVar13;
   int iVar14;
   int iVar15;
+  uint e2r_entry_start;
+  uint e2r_expected_offset;
+  byte *e2r_base;
+  byte *e2r_end;
   undefined8 uVar16;
   undefined8 uVar17;
 
@@ -38688,6 +38747,7 @@ void __fastcall FUN_00447638(undefined4 param_1)
     iVar8 = extraout_ECX_06;
   }
   iVar14 = 0;
+  e2r_entry_start = E2R_FanStreamOffset();
   if (0 < DAT_0047a77c) {
     puVar7 = (undefined1 *)0x0068cd68;
     do {
@@ -38892,6 +38952,23 @@ LAB_0044796b:
       puVar7 = puVar7 + 0xc;
       iVar8 = DAT_0047a77c;
     } while (iVar14 < DAT_0047a77c);
+  }
+  if (E2R_fan_parse_stream != (int *)0x0 &&
+      (uint)E2R_fan_parse_stream[6] == E2R_STREAM_MAGIC &&
+      0x33 <= _DAT_0067bc92 && 0 < DAT_0047a77c) {
+    e2r_base = (byte *)(uintptr_t)E2R_fan_parse_stream[5];
+    e2r_end = (byte *)(uintptr_t)E2R_fan_parse_stream[2];
+    e2r_expected_offset = e2r_entry_start + (uint)DAT_0047a77c * 36u;
+    if (e2r_base <= e2r_end && e2r_expected_offset <= (uint)(e2r_end - e2r_base)) {
+      if (E2R_fan_phase_diag_count < 32 && E2R_FanStreamOffset() != e2r_expected_offset) {
+        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+        fprintf(stderr,"FAN 47638 entry align: current=%u expected=%u\n",
+                E2R_FanStreamOffset(),e2r_expected_offset);
+      }
+      E2R_fan_parse_stream[0] = (int)(uintptr_t)(e2r_base + e2r_expected_offset);
+      E2R_fan_parse_stream[1] = (int)(uint)(e2r_end - (e2r_base + e2r_expected_offset));
+      piVar11 = E2R_fan_parse_stream;
+    }
   }
   if (E2R_fan_phase_diag_count < 32) {
     E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
@@ -41390,6 +41467,26 @@ void __fastcall FUN_0044c164(undefined4 param_1)
   int iVar1;
   undefined8 uVar2;
 
+#if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
+  if (!E2R_IsKnownActorPointer(DAT_0047a470)) {
+    if (E2R_actor_current_diag_count < 16) {
+      E2R_actor_current_diag_count = E2R_actor_current_diag_count + 1;
+      fprintf(stderr,
+              "current actor invalid at 4c164: current=0x%lx param=0x%lx "
+              "DAT_0047a34a=%lu DAT_0047a438=%lu table0=0x%lx "
+              "last_site=%s last_value=0x%lx caller=%p\n",
+              (unsigned long)DAT_0047a470,(unsigned long)param_1,
+              (unsigned long)DAT_0047a34a,(unsigned long)DAT_0047a438,
+              (unsigned long)*(int *)0x00630b60,
+              E2R_current_actor_last_site != (char *)0x0 ?
+                E2R_current_actor_last_site : "(none)",
+              (unsigned long)E2R_current_actor_last_value,
+              __builtin_return_address(0));
+    }
+    DAT_0047a470 = E2R_TraceCurrentActorWrite("4c164.guard",0);
+    return;
+  }
+#endif
   if (((DAT_0047a470 != 0) && (*(short *)(DAT_0047a470 + 0x82) != 0xb)) && (DAT_0047a438 == 0)) {
     uVar2 = FUN_00448744(param_1,DAT_0047a470);
     if (((int)uVar2 < 0) ||
@@ -42375,13 +42472,13 @@ void FUN_0044d634(void)
         DAT_0047a7e0 = 0;
         if ((*(byte *)(iVar7 + 0x96) & 1) == 0) {
           *(int *)(iVar7 + 0xa0) = _DAT_00636588 + -1;
-          DAT_0047a470 = uVar2;
+          DAT_0047a470 = E2R_TraceCurrentActorWrite("4d34c.return",(uintptr_t)uVar2);
           return;
         }
       }
     }
   }
-  DAT_0047a470 = uVar2;
+  DAT_0047a470 = E2R_TraceCurrentActorWrite("4d34c.exit",(uintptr_t)uVar2);
   return;
 }
 
@@ -43753,8 +43850,7 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
   if (E2R_action_dispatch_node != (short *)0x0) {
     in_EAX = (int)(uintptr_t)E2R_action_dispatch_node;
   }
-  if ((uintptr_t)in_EAX < 0x10000u || (uintptr_t)in_EAX >= 0x70000000u ||
-      IsBadReadPtr((void *)(uintptr_t)in_EAX,0xe)) {
+  if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xe)) {
     return;
   }
 
@@ -43765,7 +43861,8 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
     sVar9 = (short)*local_2c;
     puVar13 = param_1;
     puVar3 = DAT_0047a470;
-    while (DAT_0047a470 = puVar3, sVar9 != 0) {
+    while (DAT_0047a470 = E2R_TraceCurrentActorWrite("4f508.loop",(uintptr_t)puVar3),
+          sVar9 != 0) {
       uVar20 = (undefined2)((uint)puVar18 >> 0x10);
       uVar14 = (undefined2)((uint)puVar13 >> 0x10);
       uVar21 = (undefined2)((uint)local_2c >> 0x10);
@@ -44571,7 +44668,9 @@ LAB_0044f7a9:
           ((undefined1 *)0x0064a178)[iVar23 * 2] = ((undefined1 *)0x0064a178)[iVar23 * 2] & 0xfd;
           E2R_actor_load_id_override = iVar23;
           FUN_00451f5c();
-          DAT_0047a470 = *(ushort **)((undefined1 *)0x00630b60 + iVar23 * 4);
+          DAT_0047a470 = E2R_TraceCurrentActorWrite(
+               "4f508.op54.reload",
+               (uintptr_t)*(ushort **)((undefined1 *)0x00630b60 + iVar23 * 4));
           if (DAT_0047a470 != (ushort *)0x0) {
             ((undefined4 *)(uintptr_t)DAT_0047a470)[0x41] = 4;
           }
@@ -45060,7 +45159,7 @@ undefined8 __fastcall FUN_0045190c(undefined4 param_1,undefined4 param_2)
       uVar3 = FUN_00441b24(DAT_0047a470,iVar1);
       uVar3 = FUN_00451e84(extraout_ECX,(int)((ulonglong)uVar3 >> 0x20));
       uVar2 = (undefined4)uVar3;
-      DAT_0047a470 = extraout_ECX_00;
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("5190c.direct",(uintptr_t)extraout_ECX_00);
     }
     else if (*(int *)(iVar1 + 0x64f060) < 0) {
       uVar2 = 1;
@@ -45069,7 +45168,7 @@ undefined8 __fastcall FUN_0045190c(undefined4 param_1,undefined4 param_2)
       FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x64f060));
       E2R_ParseArchiveFanResource();
       uVar2 = 0;
-      DAT_0047a470 = extraout_ECX_02;
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("5190c.archive",(uintptr_t)extraout_ECX_02);
     }
   }
   return CONCAT44(param_2,uVar2);
@@ -45108,22 +45207,22 @@ undefined8 __fastcall FUN_00451998(int param_1,undefined4 param_2)
         FUN_0045f22f(extraout_ECX,(char *)uVar2);
         uVar2 = FUN_00451c8c(extraout_ECX_00,extraout_EDX);
         result = (int)uVar2;
-        DAT_0047a470 = saved_current;
+        DAT_0047a470 = E2R_TraceCurrentActorWrite("51998.direct",(uintptr_t)saved_current);
       }
       else {
         if (*(int *)(iVar1 + 0x663a10) < 0) {
           FUN_00442420((short)rep_id,iVar1);
           uVar2 = FUN_0043cbb4(extraout_ECX_02);
-          DAT_0047a470 = saved_current;
+          DAT_0047a470 = E2R_TraceCurrentActorWrite("51998.missing",(uintptr_t)saved_current);
           return CONCAT44(param_2,(int)uVar2);
         }
         FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x663a10));
         result = E2R_ParseArchiveFanResource();
-        DAT_0047a470 = saved_current;
+        DAT_0047a470 = E2R_TraceCurrentActorWrite("51998.archive",(uintptr_t)saved_current);
       }
     }
   }
-  DAT_0047a470 = saved_current;
+  DAT_0047a470 = E2R_TraceCurrentActorWrite("51998.exit",(uintptr_t)saved_current);
   return CONCAT44(param_2,result);
 }
 
@@ -45172,7 +45271,8 @@ undefined8 __fastcall FUN_00451a54(undefined4 param_1,undefined4 param_2)
         uVar3 = extraout_ECX_03;
         if (iVar2 == 0) {
           uVar4 = FUN_0043cbb4(extraout_ECX_03);
-          DAT_0047a470 = extraout_ECX_04;
+          DAT_0047a470 = E2R_TraceCurrentActorWrite("51a54.direct_missing",
+                                                    (uintptr_t)extraout_ECX_04);
           return CONCAT44(param_2,(int)uVar4);
         }
       }
@@ -45183,7 +45283,8 @@ undefined8 __fastcall FUN_00451a54(undefined4 param_1,undefined4 param_2)
         if ((DAT_0047a728 == 0) || (uVar1 == 0xffffffff)) {
           FUN_0044248c(DAT_0047a470,in_EAX);
           uVar4 = FUN_0043cbb4(extraout_ECX_06);
-          DAT_0047a470 = extraout_ECX_07;
+          DAT_0047a470 = E2R_TraceCurrentActorWrite("51a54.archive_missing",
+                                                    (uintptr_t)extraout_ECX_07);
           return CONCAT44(param_2,(int)uVar4);
         }
         FUN_0045f296(DAT_0047a470,uVar1 & 0x7fffffff);
@@ -45197,7 +45298,7 @@ undefined8 __fastcall FUN_00451a54(undefined4 param_1,undefined4 param_2)
       uVar3 = extraout_ECX_09;
     }
   }
-  DAT_0047a470 = uVar3;
+  DAT_0047a470 = E2R_TraceCurrentActorWrite("51a54.exit",(uintptr_t)uVar3);
   return CONCAT44(param_2,iVar2);
 }
 
@@ -45431,7 +45532,7 @@ void FUN_00451f5c(void)
               (unsigned long)E2R_action_opcode_count,
               (unsigned long)E2R_action_last_opcode);
     }
-    DAT_0047a470 = uVar3;
+    DAT_0047a470 = E2R_TraceCurrentActorWrite("51f5c.invalid",(uintptr_t)uVar3);
     return;
   }
   parse_result = 0;
@@ -45509,7 +45610,7 @@ void FUN_00451f5c(void)
       }
     }
   }
-  DAT_0047a470 = uVar3;
+  DAT_0047a470 = E2R_TraceCurrentActorWrite("51f5c.exit",(uintptr_t)uVar3);
   if (E2R_actor_load_diag_count < 48) {
     E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;
     fprintf(stderr,
@@ -45627,7 +45728,7 @@ void __fastcall FUN_00452140(undefined4 param_1)
       }
     }
   }
-  DAT_0047a470 = uVar5;
+  DAT_0047a470 = E2R_TraceCurrentActorWrite("52140.exit",(uintptr_t)uVar5);
   return;
 }
 
@@ -45657,18 +45758,18 @@ undefined8 __fastcall FUN_0045233c(undefined4 param_1,undefined4 param_2)
       uVar3 = FUN_00441e38(DAT_0047a470,iVar1);
       FUN_0045f22f(extraout_ECX,(char *)uVar3);
       iVar2 = FUN_00451bc4();
-      DAT_0047a470 = extraout_ECX_00;
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("5233c.direct",(uintptr_t)extraout_ECX_00);
     }
     else {
       if (*(int *)(iVar1 + 0x650fa0) < 0) {
         FUN_00441e38(DAT_0047a470,iVar1);
         uVar3 = FUN_0043cbb4(extraout_ECX_01);
-        DAT_0047a470 = extraout_ECX_02;
+        DAT_0047a470 = E2R_TraceCurrentActorWrite("5233c.missing",(uintptr_t)extraout_ECX_02);
         return CONCAT44(param_2,(int)uVar3);
       }
       FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x650fa0));
       iVar2 = E2R_ParseArchiveFanResource();
-      DAT_0047a470 = extraout_ECX_04;
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("5233c.archive",(uintptr_t)extraout_ECX_04);
     }
   }
   return CONCAT44(param_2,iVar2);
@@ -45802,18 +45903,18 @@ undefined8 __fastcall FUN_004525f0(undefined4 param_1,undefined4 param_2)
       local_1c = 0;
       FUN_0045f0a1((int)local_58,(byte *)s__stextures__s_fan_00475650);
       iVar2 = FUN_0044535c();
-      DAT_0047a470 = extraout_ECX_00;
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("525f0.direct",(uintptr_t)extraout_ECX_00);
     }
     else {
       if (*(int *)(iVar1 + 0x658660) < 0) {
         FUN_00442564(DAT_0047a470,iVar1);
         uVar3 = FUN_0043cbb4(extraout_ECX_01);
-        DAT_0047a470 = extraout_ECX_02;
+        DAT_0047a470 = E2R_TraceCurrentActorWrite("525f0.missing",(uintptr_t)extraout_ECX_02);
         return CONCAT44(param_2,(int)uVar3);
       }
       FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x658660));
       iVar2 = E2R_ParseArchiveFanResource();
-      DAT_0047a470 = extraout_ECX_04;
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("525f0.archive",(uintptr_t)extraout_ECX_04);
     }
   }
   return CONCAT44(param_2,iVar2);
