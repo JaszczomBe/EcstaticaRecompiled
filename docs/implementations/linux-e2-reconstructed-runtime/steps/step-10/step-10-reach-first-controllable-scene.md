@@ -2,7 +2,7 @@
 
 Status: active
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
-Last Updated: 2026-07-22
+Last Updated: 2026-07-27
 
 ## Goal
 
@@ -297,7 +297,31 @@ surface 3 nonblank=1 hash=3615add9
 move=[1,0,0,0,0,0,0,0,0]
 ```
 
-Current frontier: prove ASan movement-state parity with a delayed or readiness-aware movement probe. Under the original `space,num8 30 10000 100` timing, ASan reaches the scene after the queued `num8` has already been consumed/cleared, so the gameplay-frame proof has `move=[0,...]` even though the scene itself is live.
+The 2026-07-27 continuation added a split gameplay probe to the native harness. `--inject-key-sequence-gameplay-surfaces` now accepts an optional `gameplay_key_split`; keys before that index are posted at the original injection time, then the probe waits for gameplay/control state before posting the remaining keys. Existing invocations keep their original behavior when the split argument is omitted.
+
+The debug control-ready proof uses `space` for the intro/skip path, waits for `_DAT_00643650=0` with a live scene pointer, then posts `num8`:
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-move-debug space,num8 6 10000 180 1
+
+gameplay-control wait satisfied after 0 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_00643650=0 _DAT_0073cc3c=0x681d04
+posted key 0x68 through the Win32 message queue
+input state after dispatch wait: ... DAT_00479de8=1 move=[1,0,0,0,0,0,0,0,0] DAT_0047a76c=1 DAT_0047a43c=4 _DAT_0073cc3c=0x681f18
+surface 3 nonblank=1 hash=3615add9
+```
+
+The matching ASan split probe proves the delayed movement key now reaches the legacy movement byte without a sanitizer report, but also sharpens the remaining parity gap. ASan reaches StartGame, `DAT_00479de8=1`, `DAT_0047a76c=1`, and `_DAT_0073cc3c=0x681d04`, yet `_DAT_00643650` stays at `5` through the stricter control-ready wait:
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-move-asan space,num8 30 10000 100 1
+
+gameplay-control wait timed out after 70000 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_00643650=5 _DAT_0073cc3c=0x681d04
+posted key 0x68 through the Win32 message queue
+input state after dispatch wait: ... DAT_00479de8=1 move=[1,0,0,0,0,0,0,0,0] DAT_0047a76c=1 DAT_0047a43c=4 _DAT_0073cc3c=0x681d04
+surface 3 nonblank=1 hash=6e39f5ea
+```
+
+Current frontier: ASan no longer has a missing movement-key delivery path; delayed `num8` latches `move[0]`. The remaining Step 10 parity gap is that ASan keeps the requester/menu state at `_DAT_00643650=5` with requester `0x27` after StartGame and scene activation, while debug returns to `_DAT_00643650=0` and renders the expected gameplay surface hash `3615add9`.
 
 ## Original Runtime Video Workflow Evidence
 
@@ -330,7 +354,8 @@ Probe implication: Step 10 should distinguish StartGame dispatch, intro/skip pro
 5. Compare scene frame hashes or documented scene-state counters before and after one movement input.
 6. `build/linux-clang32-debug/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-start-game-debug-post5 escape,enter 8 250 5`
 7. `build/linux-clang32-asan/e2recomp --inject-key-sequence-ready-surfaces /tmp/e2-step10-start-game-asan-post5 escape,enter 8 250 5`
-8. Add a delayed or readiness-aware ASan movement probe after `_DAT_0073cc3c` is live, then compare movement-state counters or scene-state deltas.
+8. `build/linux-clang32-debug/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-move-debug space,num8 6 10000 180 1`
+9. `build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-move-asan space,num8 30 10000 100 1`
 
 ## Notes
 
@@ -395,3 +420,10 @@ start_game=[entries=1 player=0 mode=0 startup_scan=1793 startup_match=4 action_s
 4. Current ASan frontier: after two actor-load passes, ASan crashes in `FUN_0044c164 -> FUN_004211c8 -> FUN_0042a70c -> FUN_00426df8`; debug still reaches the gameplay frame and movement proof.
 5. Added an ASan-only `DAT_0047a470` actor-table plausibility guard at the direct `FUN_0044c164` crash site. Debug remains on the original path and still satisfies gameplay-frame proof with surface 3 hash `3615add9` and `move=[1,0,0,0,0,0,0,0,0]`; ASan now exits cleanly instead of crashing at `FUN_0044c164`, but still times out before the visible gameplay frame with surface 3 hash `6e39f5ea`.
 6. Recovered the scene-current path far enough for ASan to satisfy the gameplay-frame wait. The fixes cache action names for ASan cost, discard unreadable `5233c.archive`/`525f0.archive` current residue, compute `FUN_0044c6bc`'s scene record from `_DAT_0073ccba`, and install normal-start scene slot `785` when active gameplay begins with no scene. Debug still proves movement and `surface 3 hash=3615add9`; ASan now reaches `_DAT_0073cc3c=0x681d04` and a nonblank gameplay surface, with movement-state parity still pending because early `num8` is consumed before active gameplay.
+
+### 2026-07-27
+
+1. Added split-key support to `--inject-key-sequence-gameplay-surfaces`; `gameplay_key_split=1` lets the probe post `space`, wait for gameplay/control state, then post `num8`.
+2. Verified debug control-ready movement parity with `_DAT_00643650=0`, `_DAT_0073cc3c=0x681f18`, surface 3 hash `3615add9`, and `move=[1,0,0,0,0,0,0,0,0]`.
+3. Verified ASan delayed movement-key delivery without a sanitizer report. The stricter control-ready wait timed out with `_DAT_00643650=5`, but delayed `num8` still latched `move=[1,0,0,0,0,0,0,0,0]` after `_DAT_0073cc3c=0x681d04` became live.
+4. Current frontier: recover the ASan requester-state residue after StartGame so control-ready state matches debug before the delayed movement key is injected.

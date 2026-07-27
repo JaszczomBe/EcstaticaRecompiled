@@ -18,6 +18,7 @@ typedef struct E2R_FrameDumpRequest {
     unsigned inject_keys[16];
     unsigned inject_key_count;
     unsigned inject_interval_ms;
+    unsigned gameplay_key_split;
     unsigned post_action_delay_seconds;
     int wait_for_requester_ready;
     int wait_for_gameplay_frame;
@@ -290,32 +291,35 @@ static unsigned e2r_wait_for_requester_dialog(unsigned timeout_seconds)
     return waited_ms;
 }
 
-static unsigned e2r_wait_for_gameplay_frame(unsigned timeout_seconds)
+static unsigned e2r_wait_for_gameplay_frame(unsigned timeout_seconds, int require_control_ready)
 {
     unsigned waited_ms = 0;
     unsigned timeout_ms = timeout_seconds * 1000u;
     unsigned next_report_ms = 5000u;
+    const char *label = require_control_ready ? "gameplay-control" : "gameplay-frame";
 
     while (waited_ms < timeout_ms) {
-        if (E2R_start_game_probe_count != 0 && DAT_00479de8 != 0 && _DAT_0073cc3c != 0) {
+        if (E2R_start_game_probe_count != 0 && DAT_00479de8 != 0 && _DAT_0073cc3c != 0 &&
+            (!require_control_ready || _DAT_00643650 == 0)) {
             fprintf(stderr,
-                    "gameplay-frame wait satisfied after %u ms: start_game=%lu "
-                    "DAT_00479de8=%lu DAT_0047a76c=%lu _DAT_0073cc3c=0x%lx\n",
-                    waited_ms, (unsigned long)E2R_start_game_probe_count,
+                    "%s wait satisfied after %u ms: start_game=%lu "
+                    "DAT_00479de8=%lu DAT_0047a76c=%lu _DAT_00643650=%lu "
+                    "_DAT_0073cc3c=0x%lx\n",
+                    label, waited_ms, (unsigned long)E2R_start_game_probe_count,
                     (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
-                    (unsigned long)_DAT_0073cc3c);
+                    (unsigned long)_DAT_00643650, (unsigned long)_DAT_0073cc3c);
             return waited_ms;
         }
         usleep(10000);
         waited_ms += 10;
         if (waited_ms >= next_report_ms) {
             fprintf(stderr,
-                    "gameplay-frame wait progress after %u ms: start_game=%lu "
+                    "%s wait progress after %u ms: start_game=%lu "
                     "DAT_00479de8=%lu DAT_0047a76c=%lu _DAT_00643650=%lu "
                     "_DAT_0073cc3c=0x%lx actions=%lu dispatch=%lu "
                     "opcodes=%lu last_opcode=0x%lx hit75=%lu "
                     "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu]\n",
-                    waited_ms, (unsigned long)E2R_start_game_probe_count,
+                    label, waited_ms, (unsigned long)E2R_start_game_probe_count,
                     (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
                     (unsigned long)_DAT_00643650, (unsigned long)_DAT_0073cc3c,
                     (unsigned long)E2R_requester_probe_action_count,
@@ -333,12 +337,129 @@ static unsigned e2r_wait_for_gameplay_frame(unsigned timeout_seconds)
         }
     }
     fprintf(stderr,
-            "gameplay-frame wait timed out after %u ms: start_game=%lu "
-            "DAT_00479de8=%lu DAT_0047a76c=%lu _DAT_0073cc3c=0x%lx\n",
-            waited_ms, (unsigned long)E2R_start_game_probe_count,
+            "%s wait timed out after %u ms: start_game=%lu "
+            "DAT_00479de8=%lu DAT_0047a76c=%lu _DAT_00643650=%lu "
+            "_DAT_0073cc3c=0x%lx\n",
+            label, waited_ms, (unsigned long)E2R_start_game_probe_count,
             (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
-            (unsigned long)_DAT_0073cc3c);
+            (unsigned long)_DAT_00643650, (unsigned long)_DAT_0073cc3c);
     return waited_ms;
+}
+
+static void e2r_inject_sequence_key(E2R_FrameDumpRequest *request, unsigned key_index,
+                                    unsigned phase_first_key_index,
+                                    unsigned *remaining_delay)
+{
+    uintptr_t action_count_before_key = E2R_requester_probe_action_count;
+    uintptr_t start_game_count_before_key = E2R_start_game_probe_count;
+    uintptr_t keydown_count_before = E2R_input_probe_keydown_count;
+    unsigned inject_key = request->inject_keys[key_index];
+    MSG msg;
+
+    if (key_index != phase_first_key_index) {
+        usleep(request->inject_interval_ms * 1000u);
+    }
+    if (request->wait_for_requester_ready && key_index > 0) {
+        E2R_RequesterProbeQueueKey(inject_key);
+        fprintf(stderr,
+                "queued requester probe key 0x%02x for bd4c dispatch (%lu/%lu fed=%lu)\n",
+                inject_key,
+                (unsigned long)E2R_requester_probe_pending_key_read,
+                (unsigned long)E2R_requester_probe_pending_key_count,
+                (unsigned long)E2R_requester_probe_fed_key_count);
+    }
+    else if (PostMessageA((HWND)_DAT_00ac4dac, WM_KEYDOWN, inject_key, 0)) {
+        fprintf(stderr, "posted key 0x%02x through the Win32 message queue\n", inject_key);
+    }
+    else {
+        fprintf(stderr, "failed to post key 0x%02x through the Win32 message queue\n",
+                inject_key);
+    }
+    if ((!request->wait_for_requester_ready || key_index == 0) &&
+        PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE) && msg.message != WM_QUIT) {
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+        fprintf(stderr, "dispatched one queued probe message\n");
+    }
+    else if (!request->wait_for_requester_ready || key_index == 0) {
+        fprintf(stderr, "no queued probe message available for dispatch\n");
+    }
+    usleep(100000);
+    fprintf(stderr,
+            "input state after dispatch wait: keydowns %lu->%lu last_key=0x%02lx "
+            "last_char_queue=0x%02lx last_scan_queue=0x%02lx "
+            "DAT_00636844=%lu DAT_00636853=%lu DAT_00479de8=%lu "
+            "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu] "
+            "DAT_0047a76c=%lu DAT_0047a43c=%lu _DAT_0073cc3c=0x%lx\n",
+            (unsigned long)keydown_count_before,
+            (unsigned long)E2R_input_probe_keydown_count,
+            (unsigned long)E2R_input_probe_last_key,
+            (unsigned long)E2R_input_probe_last_char_queue,
+            (unsigned long)E2R_input_probe_last_scan_queue,
+            (unsigned long)DAT_00636844, (unsigned long)DAT_00636853,
+            (unsigned long)DAT_00479de8, (unsigned long)DAT_00636859,
+            (unsigned long)DAT_00636858, (unsigned long)DAT_0063685b,
+            (unsigned long)DAT_00636854, (unsigned long)DAT_00636856,
+            (unsigned long)DAT_00636857, (unsigned long)DAT_0063685c,
+            (unsigned long)DAT_0063685a, (unsigned long)DAT_00636855,
+            (unsigned long)DAT_0047a76c, (unsigned long)DAT_0047a43c,
+            (unsigned long)_DAT_0073cc3c);
+    fflush(stderr);
+    if (request->wait_for_requester_ready && key_index == 0 &&
+        request->inject_key_count > 1) {
+        e2r_wait_for_requester_dialog(request->inject_delay_seconds);
+    }
+    if (request->wait_for_requester_ready) {
+        unsigned waited_ms = 0;
+        while (waited_ms < 1000 &&
+               E2R_requester_probe_action_count == action_count_before_key &&
+               E2R_requester_probe_pending_key_read != E2R_requester_probe_pending_key_count) {
+            usleep(10000);
+            waited_ms += 10;
+        }
+        if (E2R_requester_probe_action_count != action_count_before_key ||
+            E2R_requester_probe_pending_key_read == E2R_requester_probe_pending_key_count) {
+            fprintf(stderr,
+                    "requester probe completed after %u ms: pending=%lu/%lu actions=%lu\n",
+                    waited_ms,
+                    (unsigned long)E2R_requester_probe_pending_key_read,
+                    (unsigned long)E2R_requester_probe_pending_key_count,
+                    (unsigned long)E2R_requester_probe_action_count);
+        }
+        if ((E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d458 ||
+             E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d464) &&
+            E2R_start_game_probe_count == start_game_count_before_key) {
+            waited_ms = 0;
+            while (waited_ms < 2000 &&
+                   E2R_start_game_probe_count == start_game_count_before_key) {
+                usleep(10000);
+                waited_ms += 10;
+            }
+            fprintf(stderr,
+                    "start-game probe wait finished after %u ms: entries %lu->%lu "
+                    "player=%lu mode=%lu\n",
+                    waited_ms, (unsigned long)start_game_count_before_key,
+                    (unsigned long)E2R_start_game_probe_count,
+                    (unsigned long)E2R_start_game_probe_last_player,
+                    (unsigned long)E2R_start_game_probe_last_mode);
+        }
+        if ((E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d458 ||
+             E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d464) &&
+            E2R_start_game_probe_count != start_game_count_before_key) {
+            fprintf(stderr,
+                    "start-game entry observed: entries %lu->%lu player=%lu mode=%lu; "
+                    "waiting %u second(s) before dump\n",
+                    (unsigned long)start_game_count_before_key,
+                    (unsigned long)E2R_start_game_probe_count,
+                    (unsigned long)E2R_start_game_probe_last_player,
+                    (unsigned long)E2R_start_game_probe_last_mode,
+                    request->post_action_delay_seconds);
+            *remaining_delay = request->post_action_delay_seconds;
+        }
+        else {
+            *remaining_delay = 0;
+        }
+    }
 }
 
 static void *e2r_frame_dump_thread(void *arg)
@@ -349,6 +470,7 @@ static void *e2r_frame_dump_thread(void *arg)
 
     if (request->inject_key_count != 0 && request->inject_delay_seconds < remaining_delay) {
         unsigned key_index;
+        unsigned pre_gameplay_key_count = request->inject_key_count;
         if (request->wait_for_requester_ready) {
             unsigned waited_ms = e2r_wait_for_requester_ready(request->inject_delay_seconds);
             unsigned waited_seconds = (waited_ms + 999u) / 1000u;
@@ -364,121 +486,34 @@ static void *e2r_frame_dump_thread(void *arg)
             remaining_delay -= request->inject_delay_seconds;
         }
 
-        for (key_index = 0; key_index < request->inject_key_count; key_index++) {
-            uintptr_t action_count_before_key = E2R_requester_probe_action_count;
-            uintptr_t start_game_count_before_key = E2R_start_game_probe_count;
-            uintptr_t keydown_count_before = E2R_input_probe_keydown_count;
-            unsigned inject_key = request->inject_keys[key_index];
-            MSG msg;
-
-            if (key_index != 0) {
-                usleep(request->inject_interval_ms * 1000u);
-            }
-            if (request->wait_for_requester_ready && key_index > 0) {
-                E2R_RequesterProbeQueueKey(inject_key);
-                fprintf(stderr,
-                        "queued requester probe key 0x%02x for bd4c dispatch (%lu/%lu fed=%lu)\n",
-                        inject_key,
-                        (unsigned long)E2R_requester_probe_pending_key_read,
-                        (unsigned long)E2R_requester_probe_pending_key_count,
-                        (unsigned long)E2R_requester_probe_fed_key_count);
-            }
-            else if (PostMessageA((HWND)_DAT_00ac4dac, WM_KEYDOWN, inject_key, 0)) {
-                fprintf(stderr, "posted key 0x%02x through the Win32 message queue\n", inject_key);
-            }
-            else {
-                fprintf(stderr, "failed to post key 0x%02x through the Win32 message queue\n",
-                        inject_key);
-            }
-            if ((!request->wait_for_requester_ready || key_index == 0) &&
-                PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE) && msg.message != WM_QUIT) {
-                TranslateMessage(&msg);
-                DispatchMessageA(&msg);
-                fprintf(stderr, "dispatched one queued probe message\n");
-            }
-            else if (!request->wait_for_requester_ready || key_index == 0) {
-                fprintf(stderr, "no queued probe message available for dispatch\n");
-            }
-            usleep(100000);
-            fprintf(stderr,
-                    "input state after dispatch wait: keydowns %lu->%lu last_key=0x%02lx "
-                    "last_char_queue=0x%02lx last_scan_queue=0x%02lx "
-                    "DAT_00636844=%lu DAT_00636853=%lu DAT_00479de8=%lu "
-                    "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu] "
-                    "DAT_0047a76c=%lu DAT_0047a43c=%lu _DAT_0073cc3c=0x%lx\n",
-                    (unsigned long)keydown_count_before,
-                    (unsigned long)E2R_input_probe_keydown_count,
-                    (unsigned long)E2R_input_probe_last_key,
-                    (unsigned long)E2R_input_probe_last_char_queue,
-                    (unsigned long)E2R_input_probe_last_scan_queue,
-                    (unsigned long)DAT_00636844, (unsigned long)DAT_00636853,
-                    (unsigned long)DAT_00479de8, (unsigned long)DAT_00636859,
-                    (unsigned long)DAT_00636858, (unsigned long)DAT_0063685b,
-                    (unsigned long)DAT_00636854, (unsigned long)DAT_00636856,
-                    (unsigned long)DAT_00636857, (unsigned long)DAT_0063685c,
-                    (unsigned long)DAT_0063685a, (unsigned long)DAT_00636855,
-                    (unsigned long)DAT_0047a76c, (unsigned long)DAT_0047a43c,
-                    (unsigned long)_DAT_0073cc3c);
-            fflush(stderr);
-            if (request->wait_for_requester_ready && key_index == 0 &&
-                request->inject_key_count > 1) {
-                e2r_wait_for_requester_dialog(request->inject_delay_seconds);
-            }
-            if (request->wait_for_requester_ready) {
-                unsigned waited_ms = 0;
-                while (waited_ms < 1000 &&
-                       E2R_requester_probe_action_count == action_count_before_key &&
-                       E2R_requester_probe_pending_key_read != E2R_requester_probe_pending_key_count) {
-                    usleep(10000);
-                    waited_ms += 10;
-                }
-                if (E2R_requester_probe_action_count != action_count_before_key ||
-                    E2R_requester_probe_pending_key_read == E2R_requester_probe_pending_key_count) {
-                    fprintf(stderr,
-                            "requester probe completed after %u ms: pending=%lu/%lu actions=%lu\n",
-                            waited_ms,
-                            (unsigned long)E2R_requester_probe_pending_key_read,
-                            (unsigned long)E2R_requester_probe_pending_key_count,
-                            (unsigned long)E2R_requester_probe_action_count);
-                }
-                if ((E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d458 ||
-                     E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d464) &&
-                    E2R_start_game_probe_count == start_game_count_before_key) {
-                    waited_ms = 0;
-                    while (waited_ms < 2000 &&
-                           E2R_start_game_probe_count == start_game_count_before_key) {
-                        usleep(10000);
-                        waited_ms += 10;
-                    }
-                    fprintf(stderr,
-                            "start-game probe wait finished after %u ms: entries %lu->%lu "
-                            "player=%lu mode=%lu\n",
-                            waited_ms, (unsigned long)start_game_count_before_key,
-                            (unsigned long)E2R_start_game_probe_count,
-                            (unsigned long)E2R_start_game_probe_last_player,
-                            (unsigned long)E2R_start_game_probe_last_mode);
-                }
-                if ((E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d458 ||
-                     E2R_requester_probe_last_action == (uintptr_t)&LAB_0043d464) &&
-                    E2R_start_game_probe_count != start_game_count_before_key) {
-                    fprintf(stderr,
-                            "start-game entry observed: entries %lu->%lu player=%lu mode=%lu; "
-                            "waiting %u second(s) before dump\n",
-                            (unsigned long)start_game_count_before_key,
-                            (unsigned long)E2R_start_game_probe_count,
-                            (unsigned long)E2R_start_game_probe_last_player,
-                            (unsigned long)E2R_start_game_probe_last_mode,
-                            request->post_action_delay_seconds);
-                    remaining_delay = request->post_action_delay_seconds;
+        if (request->wait_for_gameplay_frame &&
+            request->gameplay_key_split < pre_gameplay_key_count) {
+            pre_gameplay_key_count = request->gameplay_key_split;
+        }
+        for (key_index = 0; key_index < pre_gameplay_key_count; key_index++) {
+            e2r_inject_sequence_key(request, key_index, 0, &remaining_delay);
+        }
+        if (request->wait_for_gameplay_frame && pre_gameplay_key_count < request->inject_key_count) {
+            if (remaining_delay != 0) {
+                unsigned waited_ms = e2r_wait_for_gameplay_frame(remaining_delay, 1);
+                unsigned waited_seconds = (waited_ms + 999u) / 1000u;
+                if (waited_seconds < remaining_delay) {
+                    remaining_delay -= waited_seconds;
                 }
                 else {
-                    remaining_delay = 0;
+                    remaining_delay = 1;
                 }
+            }
+            for (key_index = pre_gameplay_key_count;
+                 key_index < request->inject_key_count;
+                 key_index++) {
+                e2r_inject_sequence_key(request, key_index, pre_gameplay_key_count,
+                                        &remaining_delay);
             }
         }
     }
     if (request->wait_for_gameplay_frame && remaining_delay != 0) {
-        e2r_wait_for_gameplay_frame(remaining_delay);
+        e2r_wait_for_gameplay_frame(remaining_delay, 0);
     }
     else if (remaining_delay != 0) {
         sleep(remaining_delay);
@@ -606,6 +641,7 @@ static int e2r_start_frame_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.inject_keys[0] = inject_key;
     e2r_frame_dump_request.inject_key_count = inject_key != 0 ? 1 : 0;
     e2r_frame_dump_request.inject_interval_ms = 250;
+    e2r_frame_dump_request.gameplay_key_split = e2r_frame_dump_request.inject_key_count;
     e2r_frame_dump_request.post_action_delay_seconds = 0;
     e2r_frame_dump_request.wait_for_requester_ready = 0;
     e2r_frame_dump_request.wait_for_gameplay_frame = 0;
@@ -701,7 +737,7 @@ static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
                                        unsigned key_count, unsigned interval_ms,
                                        int dump_all_surfaces, int wait_for_requester_ready,
                                        unsigned post_action_delay_seconds,
-                                       int wait_for_gameplay_frame)
+                                       int wait_for_gameplay_frame, unsigned gameplay_key_split)
 {
     pthread_t thread;
     unsigned i;
@@ -712,6 +748,8 @@ static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.inject_key = key_count != 0 ? keys[0] : 0;
     e2r_frame_dump_request.inject_key_count = key_count;
     e2r_frame_dump_request.inject_interval_ms = interval_ms == 0 ? 250 : interval_ms;
+    e2r_frame_dump_request.gameplay_key_split =
+        gameplay_key_split <= key_count ? gameplay_key_split : key_count;
     e2r_frame_dump_request.post_action_delay_seconds = post_action_delay_seconds;
     e2r_frame_dump_request.wait_for_requester_ready = wait_for_requester_ready;
     e2r_frame_dump_request.wait_for_gameplay_frame = wait_for_gameplay_frame;
@@ -842,7 +880,7 @@ int main(int argc, char **argv)
             return 3;
         }
         if (!e2r_start_key_sequence_dump(argv[2], delay_seconds, inject_delay_seconds, keys,
-                                         key_count, interval_ms, 1, 0, 0, 0)) {
+                                         key_count, interval_ms, 1, 0, 0, 0, key_count)) {
             return 3;
         }
         fflush(stdout);
@@ -862,12 +900,13 @@ int main(int argc, char **argv)
         unsigned inject_delay_seconds = argc > 4 ? (unsigned)strtoul(argv[4], NULL, 10) : 2;
         unsigned interval_ms = argc > 5 ? (unsigned)strtoul(argv[5], NULL, 10) : 250;
         unsigned timeout_seconds = argc > 6 ? (unsigned)strtoul(argv[6], NULL, 10) : 120;
+        unsigned gameplay_key_split = argc > 7 ? (unsigned)strtoul(argv[7], NULL, 10) : 16;
         if (key_count == 0) {
             fprintf(stderr, "unknown key sequence for --inject-key-sequence-gameplay-surfaces: %s\n", argv[3]);
             return 3;
         }
         if (!e2r_start_key_sequence_dump(argv[2], timeout_seconds, inject_delay_seconds, keys,
-                                         key_count, interval_ms, 1, 0, 0, 1)) {
+                                         key_count, interval_ms, 1, 0, 0, 1, gameplay_key_split)) {
             return 3;
         }
         fflush(stdout);
@@ -893,7 +932,7 @@ int main(int argc, char **argv)
             return 3;
         }
         if (!e2r_start_key_sequence_dump(argv[2], total_seconds, ready_timeout_seconds, keys,
-                                         key_count, interval_ms, 1, 1, dump_seconds, 0)) {
+                                         key_count, interval_ms, 1, 1, dump_seconds, 0, key_count)) {
             return 3;
         }
         fflush(stdout);
@@ -908,7 +947,7 @@ int main(int argc, char **argv)
     puts("Pass --inject-key-dump <path.pgm> <key|vk> [inject_seconds] [dump_seconds] to probe input.");
     puts("Pass --inject-key-surfaces <prefix> <key|vk> [inject_seconds] [dump_seconds] to probe input surfaces.");
     puts("Pass --inject-key-sequence-surfaces <prefix> <key[,key...]> [inject_seconds] [interval_ms] [dump_seconds] to probe input sequences.");
-    puts("Pass --inject-key-sequence-gameplay-surfaces <prefix> <key[,key...]> [inject_seconds] [interval_ms] [gameplay_timeout_seconds] to wait for first gameplay frame.");
+    puts("Pass --inject-key-sequence-gameplay-surfaces <prefix> <key[,key...]> [inject_seconds] [interval_ms] [gameplay_timeout_seconds] [gameplay_key_split] to wait for gameplay before injecting later keys.");
     puts("Pass --inject-key-sequence-ready-surfaces <prefix> <key[,key...]> [ready_timeout_seconds] [interval_ms] [dump_seconds] to inject when requester-ready state appears.");
     return 0;
 }

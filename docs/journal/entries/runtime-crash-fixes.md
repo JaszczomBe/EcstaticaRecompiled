@@ -2,6 +2,40 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-27 - Split Gameplay Probe Exposes ASan Requester Residue
+
+Area: Step 10 movement parity probes, native key-sequence harness, ASan gameplay/control readiness
+
+Symptom: ASan reached StartGame and installed `_DAT_0073cc3c=0x681d04`, but the original `space,num8` timing still reported `move=[0,...]` because `num8` was posted before active gameplay and then consumed or cleared before the scene pointer became live.
+
+Evidence: debug and ASan both accept `space` through the Win32 message queue, but ASan reaches gameplay later. A split gameplay probe now posts keys before `gameplay_key_split`, waits for gameplay/control state, then posts remaining keys. Debug satisfies the stronger control-ready gate and records the known gameplay surface:
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-move-debug space,num8 6 10000 180 1
+
+gameplay-control wait satisfied after 0 ms: ... _DAT_00643650=0 _DAT_0073cc3c=0x681d04
+input state after dispatch wait: ... move=[1,0,0,0,0,0,0,0,0] ... _DAT_0073cc3c=0x681f18
+surface 3 nonblank=1 hash=3615add9
+```
+
+The matching ASan run exits without a sanitizer report. The stricter control-ready wait times out because `_DAT_00643650` stays at `5`, but delayed `num8` still reaches the movement byte after the scene pointer is live:
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-move-asan space,num8 30 10000 100 1
+
+gameplay-control wait timed out after 70000 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_00643650=5 _DAT_0073cc3c=0x681d04
+input state after dispatch wait: ... DAT_00479de8=1 move=[1,0,0,0,0,0,0,0,0] ... _DAT_0073cc3c=0x681d04
+surface 3 nonblank=1 hash=6e39f5ea
+```
+
+Change: refactored the native probe thread so `--inject-key-sequence-gameplay-surfaces` accepts an optional `gameplay_key_split` argument. Existing invocations still inject all keys before the gameplay wait; split invocations can wait for scene/control readiness before later keys. No reconstructed C behavior changed, so no generator mirror was needed.
+
+Result: `git diff --check`, `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. Debug proves control-ready movement and ASan proves delayed movement-key delivery without a sanitizer report.
+
+Next Frontier: recover why ASan leaves `_DAT_00643650=5` with requester `0x27` after StartGame and scene activation, while debug returns to `_DAT_00643650=0` and the expected gameplay surface hash.
+
+Regression Risk: this is native probe instrumentation only. The stricter control-ready gate is intentionally diagnostic; keep it until the ASan requester-state residue is understood, then decide whether Step 10 can close or whether the state-machine fix belongs in reconstructed code.
+
 ## 2026-07-22 - ASan Reaches Gameplay Scene Pointer
 
 Area: Step 10 scene-current path, `FUN_0045233c`, `FUN_0044c164`, `FUN_0044c6bc`, active-game transition
