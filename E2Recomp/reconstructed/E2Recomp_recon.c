@@ -34,6 +34,12 @@ static uint E2R_fan_action_summary_diag_count;
 static uint E2R_fan_phase_diag_count;
 static uint E2R_actor_current_diag_count;
 static uint E2R_current_actor_trace_diag_count;
+static uint E2R_requester_state_diag_count;
+static uint E2R_start_game_stage_diag_count;
+static uint E2R_scene_pointer_diag_count;
+static uint E2R_frame_stage_diag_count;
+static uint E2R_actor_loop_diag_count;
+static uint E2R_actor_update_diag_count;
 static const char *E2R_current_actor_last_site;
 static uintptr_t E2R_current_actor_last_value;
 static int E2R_actor_calc_context;
@@ -72,7 +78,7 @@ static int E2R_IsKnownActorPointer(int actor)
   if (actor == 0) {
     return 1;
   }
-  if ((uint)actor < 0x10000u || 0x70000000u <= (uint)actor ||
+  if ((uint)actor < 0x10000u ||
       IsBadReadPtr((void *)(uintptr_t)actor,0x136)) {
     return 0;
   }
@@ -100,7 +106,7 @@ static int E2R_CurrentSceneTableSlot(uintptr_t value)
 
 static int E2R_IsReadableCurrentPointer(uintptr_t value)
 {
-  return value != 0 && 0x10000u <= (uint)value && (uint)value < 0x70000000u &&
+  return value != 0 && 0x10000u <= (uint)value &&
          !IsBadReadPtr((void *)value,0xaa);
 }
 
@@ -163,6 +169,211 @@ static void E2R_SelectSceneRecord(short scene_id)
   }
   _DAT_0073ccba = (ushort)scene_id;
   FUN_0044c6bc();
+}
+
+static uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)
+{
+  uintptr_t old_value = _DAT_0073cc3c;
+
+  if (E2R_scene_pointer_diag_count < 96 && old_value != value) {
+    E2R_scene_pointer_diag_count = E2R_scene_pointer_diag_count + 1;
+    fprintf(stderr,
+            "scene pointer write: site=%s old=0x%lx new=0x%lx "
+            "DAT_00479de8=%lu DAT_0047a76c=%lu requester_state=%lu "
+            "start_game=%lu dispatch=%lu caller=%p\n",
+            site,(unsigned long)old_value,(unsigned long)value,
+            (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,
+            (unsigned long)_DAT_00643650,
+            (unsigned long)E2R_start_game_probe_count,
+            (unsigned long)E2R_start_code_probe_dispatches,
+            __builtin_return_address(0));
+  }
+  return value;
+}
+
+static void E2R_TraceFrameStage(const char *stage)
+{
+  if (E2R_frame_stage_diag_count < 96) {
+    E2R_frame_stage_diag_count = E2R_frame_stage_diag_count + 1;
+    fprintf(stderr,
+            "frame stage: %s DAT_00479de8=%lu DAT_0047a76c=%lu "
+            "DAT_0047a3b4=%lu DAT_0047a428=%lu DAT_0047ab20=%ld "
+            "current=0x%lx actors=0x%lx links=0x%lx scene=0x%lx caller=%p\n",
+            stage,(unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,
+            (unsigned long)DAT_0047a3b4,(unsigned long)DAT_0047a428,
+            (long)DAT_0047ab20,(unsigned long)DAT_0047a470,
+            (unsigned long)_DAT_0063726c,(unsigned long)_DAT_00637248,
+            (unsigned long)_DAT_0073cc3c,__builtin_return_address(0));
+  }
+}
+
+static void E2R_TraceActorLoopStage(const char *stage, uintptr_t actor, uint guard)
+{
+  int actor_bad = actor == 0 || IsBadReadPtr((void *)actor,0x136);
+  uintptr_t dep = 0;
+  uintptr_t next = 0;
+  uintptr_t local_132 = 0;
+  int dep_bad = 1;
+  unsigned byte2 = 0;
+  unsigned byte3 = 0;
+  unsigned byteb3 = 0;
+  unsigned dep_c = 0;
+  short word82 = 0;
+
+  if (!actor_bad) {
+    dep = *(uint *)(actor + 0xa6);
+    next = *(uint *)(actor + 0x4c);
+    local_132 = *(uint *)(actor + 0x132);
+    byte2 = *(byte *)(actor + 2);
+    byte3 = *(byte *)(actor + 3);
+    byteb3 = *(byte *)(actor + 0xb3);
+    word82 = *(short *)(actor + 0x82);
+    dep_bad = dep == 0 || IsBadReadPtr((void *)dep,0x10);
+    if (!dep_bad) {
+      dep_c = *(byte *)(dep + 0xc);
+    }
+  }
+  if (E2R_actor_loop_diag_count < 128) {
+    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;
+    fprintf(stderr,
+            "actor loop: %s guard=%lu actor=0x%lx bad=%d next=0x%lx "
+            "dep=0x%lx dep_bad=%d dep_c=0x%x w82=0x%x b2=0x%x b3=0x%x "
+            "bb3=0x%x p132=0x%lx scene=0x%lx caller=%p\n",
+            stage,(unsigned long)guard,(unsigned long)actor,actor_bad,
+            (unsigned long)next,(unsigned long)dep,dep_bad,dep_c,
+            (unsigned int)(ushort)word82,byte2,byte3,byteb3,
+            (unsigned long)local_132,(unsigned long)_DAT_0073cc3c,
+            __builtin_return_address(0));
+  }
+}
+
+static void E2R_TraceActorUpdateStage(const char *stage, short *actor)
+{
+  uintptr_t value = (uintptr_t)actor;
+  int actor_bad = value == 0 || IsBadReadPtr(actor,0x180);
+  uintptr_t action = 0;
+  uintptr_t rep = 0;
+  uintptr_t target = 0;
+  uintptr_t queued1 = 0;
+  uintptr_t queued2 = 0;
+  uintptr_t late = 0;
+  short state = 0;
+  short rep_id = 0;
+  short state91 = 0;
+  short word74 = 0;
+  short word76 = 0;
+  short wordba = 0;
+  unsigned byte2 = 0;
+  unsigned byte3 = 0;
+  unsigned bytea3 = 0;
+  unsigned byteb3 = 0;
+  unsigned byteb6 = 0;
+
+  if (!actor_bad) {
+    action = *(uint *)(value + 0xa6);
+    rep = *(uint *)(value + 0x11e);
+    target = *(uint *)(value + 0x1e);
+    queued1 = *(uint *)(value + 0x126);
+    queued2 = *(uint *)(value + 0x12a);
+    late = *(uint *)(value + 0x17c);
+    state = actor[0x41];
+    rep_id = actor[0x90];
+    state91 = actor[0x91];
+    word74 = actor[0x74];
+    word76 = actor[0x76];
+    wordba = actor[0xba];
+    byte2 = *(byte *)(value + 2);
+    byte3 = *(byte *)(value + 3);
+    bytea3 = *(byte *)(value + 0xa3);
+    byteb3 = *(byte *)(value + 0xb3);
+    byteb6 = *(byte *)(value + 0xb6);
+  }
+  if (E2R_actor_update_diag_count < 192) {
+    E2R_actor_update_diag_count = E2R_actor_update_diag_count + 1;
+    fprintf(stderr,
+            "actor update: %s actor=0x%lx bad180=%d current=0x%lx scene=0x%lx "
+            "state=%d action=0x%lx rep=0x%lx rep_id=%d state91=%d "
+            "target=0x%lx queued=%lx/%lx late=0x%lx w74=%d w76=%d wba=%d "
+            "b2=0x%x b3=0x%x ba3=0x%x bb3=0x%x bb6=0x%x caller=%p\n",
+            stage,(unsigned long)value,actor_bad,(unsigned long)DAT_0047a470,
+            (unsigned long)_DAT_0073cc3c,(int)state,(unsigned long)action,
+            (unsigned long)rep,(int)rep_id,(int)state91,(unsigned long)target,
+            (unsigned long)queued1,(unsigned long)queued2,(unsigned long)late,
+            (int)word74,(int)word76,(int)wordba,byte2,byte3,bytea3,byteb3,byteb6,
+            __builtin_return_address(0));
+  }
+}
+
+static void E2R_TraceStartGameStage(const char *stage)
+{
+  if (E2R_start_game_stage_diag_count < 64) {
+    E2R_start_game_stage_diag_count = E2R_start_game_stage_diag_count + 1;
+    fprintf(stderr,
+            "start-game stage: %s count=%lu mode=%lu DAT_00479de8=%lu "
+            "DAT_0047a76c=%lu scene=0x%lx startup=%lu/%lu action=%lu/%lu "
+            "dispatch=%lu caller=%p\n",
+            stage,(unsigned long)E2R_start_game_probe_count,
+            (unsigned long)E2R_start_game_probe_last_mode,
+            (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,
+            (unsigned long)_DAT_0073cc3c,
+            (unsigned long)E2R_start_code_probe_startup_scans,
+            (unsigned long)E2R_start_code_probe_startup_matches,
+            (unsigned long)E2R_start_code_probe_action_scans,
+            (unsigned long)E2R_start_code_probe_action_matches,
+            (unsigned long)E2R_start_code_probe_dispatches,
+            __builtin_return_address(0));
+  }
+}
+
+static uintptr_t E2R_TraceRequesterState(const char *site, uintptr_t value)
+{
+  uintptr_t old_value = _DAT_00643650;
+
+  if (E2R_requester_state_diag_count < 64) {
+    E2R_requester_state_diag_count = E2R_requester_state_diag_count + 1;
+    fprintf(stderr,
+            "requester state write: site=%s old=%lu new=%lu "
+            "DAT_00479de8=%lu DAT_0047a76c=%lu DAT_0047a788=%lu "
+            "DAT_00479db4=%lu requester=0x%x start_game=%lu "
+            "dispatch=%lu scene=0x%lx caller=%p\n",
+            site,(unsigned long)old_value,(unsigned long)value,
+            (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,
+            (unsigned long)DAT_0047a788,(unsigned long)DAT_00479db4,
+            (unsigned int)E2R_WORD_AT(DAT_0047a45e,2),
+            (unsigned long)E2R_start_game_probe_count,
+            (unsigned long)E2R_start_code_probe_dispatches,
+            (unsigned long)_DAT_0073cc3c,__builtin_return_address(0));
+  }
+  return value;
+}
+
+static uintptr_t E2R_TraceMenuRequestFlag(const char *site, uintptr_t value)
+{
+  uintptr_t old_value = DAT_00479db4;
+  uintptr_t current = DAT_0047a470;
+  short word82 = 0;
+  short worde8 = 0;
+  int readable = E2R_IsReadableCurrentPointer(current);
+
+  if (readable) {
+    word82 = *(short *)(current + 0x82);
+    worde8 = *(short *)(current + 0xe8);
+  }
+  if (E2R_requester_state_diag_count < 64) {
+    E2R_requester_state_diag_count = E2R_requester_state_diag_count + 1;
+    fprintf(stderr,
+            "menu request flag write: site=%s old=%lu new=%lu "
+            "current=0x%lx readable=%d known_actor=%d w82=0x%x we8=%d "
+            "DAT_00479de8=%lu DAT_0047a76c=%lu requester_state=%lu "
+            "scene=0x%lx caller=%p\n",
+            site,(unsigned long)old_value,(unsigned long)value,
+            (unsigned long)current,readable,E2R_IsKnownActorPointer((int)current),
+            (unsigned int)(ushort)word82,(int)worde8,
+            (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,
+            (unsigned long)_DAT_00643650,(unsigned long)_DAT_0073cc3c,
+            __builtin_return_address(0));
+  }
+  return value;
 }
 
 static int E2R_round_to_int(double value)
@@ -407,31 +618,31 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
     if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643dc4) {
       _DAT_006443d2 = (_DAT_006443d2 & 0xffff) | 0x10000;
       if (_DAT_00643430 == (short *)0x00643dc4) {
-        _DAT_00643650 = 6;
+        _DAT_00643650 = E2R_TraceRequesterState("action.confirm_yes",6);
       }
       return 1;
     }
   }
   if (action == (uintptr_t)&LAB_0043d458) {
-    _DAT_00643650 = 0;
+    _DAT_00643650 = E2R_TraceRequesterState("action.start_male",0);
     return 1;
   }
   if (action == (uintptr_t)&LAB_0043d464) {
-    _DAT_00643650 = 1;
+    _DAT_00643650 = E2R_TraceRequesterState("action.start_female",1);
     return 1;
   }
   if (action == (uintptr_t)&LAB_0043d470) {
-    _DAT_00643650 = 2;
+    _DAT_00643650 = E2R_TraceRequesterState("action.load",2);
     return 1;
   }
   if (action == (uintptr_t)&LAB_0043d47c) {
     if (DAT_0047a76c == 0) {
-      _DAT_00643650 = 3;
+      _DAT_00643650 = E2R_TraceRequesterState("action.save",3);
     }
     return 1;
   }
   if (action == (uintptr_t)&LAB_0043d490) {
-    _DAT_00643650 = 4;
+    _DAT_00643650 = E2R_TraceRequesterState("action.options",4);
     return 1;
   }
   if (action == (uintptr_t)&DAT_0043d49c) {
@@ -440,7 +651,8 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
         *(uintptr_t *)0x0060aef0 != 0) {
       prompt = *(uintptr_t *)0x0060aef0;
     }
-    _DAT_00643650 = ((int)FUN_0043c910((undefined4)prompt,0) != 0) ? 6 : 5;
+    _DAT_00643650 = E2R_TraceRequesterState("action.quit_prompt",
+                                            ((int)FUN_0043c910((undefined4)prompt,0) != 0) ? 6 : 5);
     return 1;
   }
   if (action == (uintptr_t)&DAT_0043d4c0) {
@@ -476,12 +688,12 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
     if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643c84) {
       _DAT_006443d2 = _DAT_006443d2 & 0xffff;
       if (_DAT_00643430 == (short *)0x00643c84) {
-        _DAT_00643650 = 5;
+        _DAT_00643650 = E2R_TraceRequesterState("action.confirm_no",5);
       }
       return 1;
     }
     if (requester_id == 0x27 || requester_id == 0x28) {
-      _DAT_00643650 = 5;
+      _DAT_00643650 = E2R_TraceRequesterState("action.cancel_start",5);
       return 1;
     }
     if (requester_id == 0x2a) {
@@ -7551,12 +7763,12 @@ LAB_00416112:
   if (((DAT_00636844 != '\0') || (DAT_00479db4 != 0)) && (DAT_00479de8 != 0)) {
     DAT_0047a788 = 1;
     DAT_00636844 = '\0';
-    _DAT_00643650 = 5;
+    _DAT_00643650 = E2R_TraceRequesterState("15d40.open_menu_default",5);
     requester_id = 0x28;
     if (DAT_00479db4 != 0) {
       requester_id = 0x27;
       param_1 = 0;
-      DAT_00479db4 = 0;
+      DAT_00479db4 = E2R_TraceMenuRequestFlag("15d40.consume_menu_request",0);
     }
     uVar4 = FUN_0043ce58(requester_id,5);
     switch((int)(uintptr_t)(_DAT_00643650)) {
@@ -8375,6 +8587,8 @@ FUN_00417b20(int param_1,int param_2,undefined4 param_3,int param_4,int param_5,
   undefined4 extraout_ECX_04;
   undefined4 extraout_ECX_05;
   undefined4 uVar5;
+  size_t read_span;
+  size_t write_span;
   int iVar6;
   undefined1 *puVar7;
   undefined1 *puVar8;
@@ -8438,6 +8652,18 @@ FUN_00417b20(int param_1,int param_2,undefined4 param_3,int param_4,int param_5,
     local_14 = local_2c - param_5;
     local_10 = local_30 - param_5;
     puVar7 = (undefined1 *)(local_30 * param_4 + iVar6 + local_20);
+    if (local_28 == 0 || local_20 == 0 || local_2c <= 0 || local_30 <= 0 ||
+        param_2 < 0 || iVar6 < 0 || unaff_EBX < 0 || param_4 < 0 ||
+        param_5 <= 0 || param_6 <= 0 || local_2c - param_2 < param_5 ||
+        local_2c - unaff_EBX < param_6 || local_30 - iVar6 < param_5 ||
+        local_30 - param_4 < param_6) {
+      return 0;
+    }
+    read_span = (size_t)(param_6 - 1) * (size_t)local_2c + (size_t)param_5;
+    write_span = (size_t)(param_6 - 1) * (size_t)local_30 + (size_t)param_5;
+    if (IsBadReadPtr(puVar4,read_span) || E2R_IsBadWritePtr(puVar7,write_span)) {
+      return 0;
+    }
     iVar9 = 0;
     iVar6 = iVar6 + local_20;
     if (0 < param_6) {
@@ -8762,6 +8988,10 @@ void __fastcall FUN_0041868c(int param_1,int param_2,int param_3,int param_4)
   int in_EAX;
   int iVar1;
   int iVar2;
+  int row_bytes;
+  int src_surface;
+  int dst_surface;
+  size_t copy_span;
   undefined4 *puVar3;
   undefined4 *puVar4;
   int unaff_EBX;
@@ -8769,11 +8999,35 @@ void __fastcall FUN_0041868c(int param_1,int param_2,int param_3,int param_4)
   undefined4 *puVar6;
   int iVar7;
 
+  dst_surface = param_2;
+  src_surface = in_EAX;
+  if ((uint)dst_surface > 3 || _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||
+      param_1 < 0 || param_3 <= 0 || param_4 <= 0 || _DAT_006401ec > 0x1000 ||
+      _DAT_006401d4 > 0x1000) {
+    return;
+  }
+  if ((uint)src_surface > 3) {
+    src_surface = dst_surface == 0 ? 1 : 0;
+  }
+  if (param_1 == 0 && param_3 == _DAT_006401ec && param_4 == _DAT_006401d4) {
+    unaff_EBX = 0;
+  }
+  if (unaff_EBX < 0 || _DAT_006401ec <= unaff_EBX ||
+      _DAT_006401ec - unaff_EBX < param_3 || _DAT_006401d4 - param_1 < param_4 ||
+      *(int *)(&DAT_00636668 + dst_surface * 4) == 0 ||
+      *(int *)(&DAT_00636668 + src_surface * 4) == 0) {
+    return;
+  }
+  row_bytes = ((param_3 + 1) >> 1) * 4;
+  copy_span = (size_t)(param_4 - 1) * (size_t)_DAT_006401ec * 2 + (size_t)row_bytes;
   iVar2 = param_1 * _DAT_006401ec * 2;
-  puVar4 = (undefined4 *)(unaff_EBX * 2 + *(int *)(&DAT_00636668 + param_2 * 4) + iVar2);
+  puVar4 = (undefined4 *)(unaff_EBX * 2 + *(int *)(&DAT_00636668 + dst_surface * 4) + iVar2);
   iVar7 = 0;
   iVar1 = param_3 + 1 >> 1;
-  puVar5 = (undefined4 *)(*(int *)(&DAT_00636668 + in_EAX * 4) + unaff_EBX * 2 + iVar2);
+  puVar5 = (undefined4 *)(*(int *)(&DAT_00636668 + src_surface * 4) + unaff_EBX * 2 + iVar2);
+  if (E2R_IsBadWritePtr(puVar4,copy_span) || IsBadReadPtr(puVar5,copy_span)) {
+    return;
+  }
   iVar2 = iVar1;
   puVar6 = puVar5;
   puVar3 = puVar4;
@@ -17318,7 +17572,7 @@ void FUN_00426bdc(void)
   _DAT_0064012c = 0;
   _DAT_00640120 = _DAT_006401d4;
   _DAT_00640118 = _DAT_006401ec / 2;
-  _DAT_0073cc3c = 0;
+  _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
   _DAT_00640114 = _DAT_006401d4 / 2;
   return;
 }
@@ -17453,7 +17707,8 @@ void FUN_00426df8(void)
     _DAT_0064012c = 0;
     iVar1 = _DAT_006401d4 / 2;
     uVar2 = CONCAT22(extraout_var,DAT_0047a34a);
-    _DAT_0073cc3c = 0;
+    _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
+    E2R_TraceFrameStage("26df8.after-scene-clear");
     _DAT_0047a3be = 0;
     DAT_0047a366 = 0;
     _DAT_00640144 = _DAT_006401ec;
@@ -17464,8 +17719,12 @@ void FUN_00426df8(void)
       iVar1 = (int)((ulonglong)uVar3 >> 0x20);
       uVar2 = extraout_ECX;
       if (DAT_0047a34a == 0) {
+        E2R_TraceFrameStage("26df8.before-15d40");
         FUN_00415d40(extraout_ECX,iVar1);
+        E2R_TraceFrameStage("26df8.after-15d40");
+        E2R_TraceFrameStage("26df8.before-42a70c");
         uVar3 = FUN_0042a70c(extraout_ECX_00,extraout_EDX);
+        E2R_TraceFrameStage("26df8.after-42a70c");
         iVar1 = (int)((ulonglong)uVar3 >> 0x20);
         uVar2 = extraout_ECX_01;
       }
@@ -17929,6 +18188,7 @@ undefined4 __fastcall FUN_00427584(undefined4 param_1,int param_2)
       0x1000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,0x17c)) {
     return 0;
   }
+  E2R_TraceActorUpdateStage("27584.entry",in_EAX);
   uVar13 = 0;
   local_58 = 0;
   local_5c = 0;
@@ -18058,6 +18318,7 @@ switchD_0042763f_default:
     param_1 = extraout_ECX_03;
     uVar13 = extraout_EDX_00;
   }
+  E2R_TraceActorUpdateStage("27584.after-debug",local_6c);
   psVar8 = DAT_0047a470;
   psVar15 = (short *)(CONCAT22((short)((uint)uVar13 >> 0x10),
                                CONCAT11((char)local_6c[0xa3],(char)uVar13)) & 0xfffffdff);
@@ -18067,6 +18328,7 @@ switchD_0042763f_default:
     local_6c[0x48] = local_6c[0x4a];
     psVar15 = local_6c;
   }
+  E2R_TraceActorUpdateStage("27584.before-rep",local_6c);
   if (local_6c[0x91] < 0) {
     if (*(int *)(local_6c + 0x90) >> 0x10 == -2) {
       FUN_00441890(param_1,psVar15);
@@ -18083,7 +18345,9 @@ switchD_0042763f_default:
   else {
     psVar8 = *(short **)(local_6c + 0x8f);
     if (psVar8 == (short *)0x0) {
+      E2R_TraceActorUpdateStage("27584.before-51998-nullrep",local_6c);
       FUN_00451998((int)local_6c[0x91],psVar15);
+      E2R_TraceActorUpdateStage("27584.after-51998-nullrep",local_6c);
       *(undefined4 *)(local_6c + 0x8f) =
            *(undefined4 *)((undefined1 *)0x00635980 + (*(int *)(local_6c + 0x90) >> 0x10) * 4);
       iVar7 = extraout_ECX_05;
@@ -18094,7 +18358,9 @@ switchD_0042763f_default:
       iVar7 = CONCAT22((short)((uint)param_1 >> 0x10),local_6c[0x91]);
       if (*psVar8 != local_6c[0x91]) {
         *(byte *)(psVar8 + 0xd5) = *(byte *)(psVar8 + 0xd5) & 0xfd;
+        E2R_TraceActorUpdateStage("27584.before-51998-switch",local_6c);
         FUN_00451998((int)local_6c[0x91],psVar15);
+        E2R_TraceActorUpdateStage("27584.after-51998-switch",local_6c);
         *(undefined4 *)(local_6c + 0x8f) =
              *(undefined4 *)((undefined1 *)0x00635980 + (*(int *)(local_6c + 0x90) >> 0x10) * 4);
         iVar7 = extraout_ECX_04;
@@ -18108,6 +18374,7 @@ switchD_0042763f_default:
       *(int *)(*(int *)(local_6c + 0x8f) + 0x1ac) = _DAT_00636588;
     }
   }
+  E2R_TraceActorUpdateStage("27584.before-action-select",local_6c);
   iVar17 = *(int *)(local_6c + 0x93);
   uVar25 = 1;
   if (iVar17 == 0) {
@@ -18168,6 +18435,7 @@ switchD_0042763f_default:
       uVar12 = extraout_var_00;
     }
   }
+  E2R_TraceActorUpdateStage("27584.before-idle-test",local_6c);
   if (((*(short **)(local_6c + 0x8f) == (short *)0x0) || (**(short **)(local_6c + 0x8f) == 0)) &&
      (*(int *)(local_6c + 0x53) == 0)) {
     if ((0 < local_6c[0x74]) &&
@@ -18175,8 +18443,10 @@ switchD_0042763f_default:
       local_6c[0x74] = 0;
     }
     *(byte *)((int)local_6c + 3) = *(byte *)((int)local_6c + 3) | 4;
+    E2R_TraceActorUpdateStage("27584.return-idle",local_6c);
     return;
   }
+  E2R_TraceActorUpdateStage("27584.before-target",local_6c);
   uVar19 = 1000;
   if (local_6c == DAT_0047a470) {
     if (DAT_0047a398 == 0) {
@@ -18241,6 +18511,7 @@ switchD_0042763f_default:
     lVar28 = (ulonglong)uVar16 << 0x20;
   }
 LAB_00427d14:
+  E2R_TraceActorUpdateStage("27584.after-target-select",local_6c);
   psVar15 = (short *)((ulonglong)lVar28 >> 0x20);
   local_70 = (short *)lVar28;
   if (((local_70 != (short *)0x0) &&
@@ -20137,6 +20408,9 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
   int iVar7;
   int iVar8;
   int iVar9;
+  int next_actor;
+  uint actor_loop_guard;
+  uint timing_loop_guard;
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   undefined4 extraout_ECX_01;
@@ -20184,15 +20458,23 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
   _DAT_00637374 = 0;
   uVar14 = FUN_0041cf5c(param_1,0);
   _DAT_0063737c = (int)uVar14;
+  E2R_TraceFrameStage("42a70c.entry");
   uVar13 = extraout_ECX;
   uVar4 = _DAT_00640194;
+  timing_loop_guard = 0;
   while (_DAT_00640194 = uVar4, _DAT_0063737c == iVar7) {
+    if (0x10000 <= timing_loop_guard) {
+      E2R_TraceFrameStage("42a70c.timer-loop-break");
+      break;
+    }
+    timing_loop_guard = timing_loop_guard + 1;
     _DAT_0063737c = (int)uVar14;
     uVar14 = FUN_0041cf5c(uVar13,(int)((ulonglong)uVar14 >> 0x20));
     uVar13 = extraout_ECX_00;
     uVar4 = _DAT_00640194;
     _DAT_0063737c = (int)uVar14;
   }
+  E2R_TraceFrameStage("42a70c.after-timer-loop");
   iVar7 = _DAT_0063737c - iVar7;
   if ((_DAT_006365a4 != 0) && (iVar7 = iVar7 / 3, iVar7 == 0)) {
     iVar7 = 1;
@@ -20206,6 +20488,7 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
     DAT_0047ab20 = -1;
   }
   _DAT_00637378 = iVar7;
+  E2R_TraceFrameStage("42a70c.before-debug-fps");
   if (DAT_0047a35c != 0) {
     local_2c = iVar7 / 10 + 0x30;
     local_40 = iVar7 % 10 + 0x30;
@@ -20233,18 +20516,31 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
       FUN_00418770(extraout_ECX_02,&local_24);
     }
   }
+  E2R_TraceFrameStage("42a70c.before-4e354");
   lVar15 = FUN_0044e354();
+  E2R_TraceFrameStage("42a70c.after-4e354");
   psVar10 = extraout_ECX_03;
   iVar8 = _DAT_0063726c;
+  actor_loop_guard = 0;
   while( true ) {
     if (iVar8 == 0) break;
+    if (0x4000 <= actor_loop_guard || IsBadReadPtr((void *)(uintptr_t)iVar8,0x136)) {
+      E2R_TraceActorLoopStage("42a70c.actor-loop-break",(uintptr_t)iVar8,actor_loop_guard);
+      break;
+    }
+    actor_loop_guard = actor_loop_guard + 1;
+    E2R_TraceActorLoopStage("42a70c.actor-loop-top",(uintptr_t)iVar8,actor_loop_guard);
     iVar9 = *(int *)(iVar8 + 0xa6);
     if ((iVar9 == 0) || ((*(byte *)(iVar9 + 0xc) & 2) == 0)) {
       lVar15 = CONCAT44(CONCAT22((short)((uint)iVar9 >> 0x10),*(short *)(iVar8 + 0x82)),(int)lVar15)
       ;
       *(byte *)(iVar8 + 2) = *(byte *)(iVar8 + 2) & 0x7f;
       if (*(short *)(iVar8 + 0x82) != 0xe) {
+        E2R_TraceActorLoopStage("42a70c.before-27584",(uintptr_t)iVar8,actor_loop_guard);
+        E2R_TraceFrameStage("42a70c.before-27584");
         lVar15 = FUN_00427584((undefined4)(uintptr_t)iVar8,iVar7);
+        E2R_TraceFrameStage("42a70c.after-27584");
+        E2R_TraceActorLoopStage("42a70c.after-27584",(uintptr_t)iVar8,actor_loop_guard);
         psVar10 = extraout_ECX_10;
       }
     }
@@ -20318,7 +20614,12 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
     }
     iVar9 = (int)lVar15;
     if (DAT_0047a428 != 0) goto LAB_0042ac85;
-    iVar8 = *(int *)(iVar8 + 0x4c);
+    next_actor = *(int *)(iVar8 + 0x4c);
+    if (next_actor == iVar8) {
+      E2R_TraceActorLoopStage("42a70c.actor-loop-self-link",(uintptr_t)iVar8,actor_loop_guard);
+      break;
+    }
+    iVar8 = next_actor;
   }
   local_3c = (short *)0x0;
   psVar2 = local_3c;
@@ -20367,15 +20668,21 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
       }
     }
   }
+  E2R_TraceFrameStage("42a70c.before-render-epilogue");
   if (DAT_0047a3b4 == 0) {
+    E2R_TraceFrameStage("42a70c.enter-render-epilogue");
     FUN_004211c8((int)psVar10,psVar12);
     FUN_00421a14();
     FUN_00421f54(extraout_ECX_12);
+    E2R_TraceFrameStage("42a70c.before-22238");
     uVar14 = FUN_00422238(extraout_ECX_13,extraout_EDX_01);
+    E2R_TraceFrameStage("42a70c.after-22238");
     psVar12 = (short *)((ulonglong)uVar14 >> 0x20);
     psVar10 = extraout_ECX_14;
   }
+  E2R_TraceFrameStage("42a70c.before-ab20-branch");
   if (DAT_0047ab20 < 0) {
+    E2R_TraceFrameStage("42a70c.enter-ab20-negative");
     DAT_0047ab20 = 0;
     uVar14 = FUN_00441ea4(psVar10,psVar12);
     uVar13 = (undefined4)((ulonglong)uVar14 >> 0x20);
@@ -20389,10 +20696,11 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
     }
   }
   else {
+    E2R_TraceFrameStage("42a70c.enter-ab20-nonnegative");
     iVar9 = DAT_0047a470;
-    if ((DAT_0047a470 == 0) ||
-       ((*(short *)(DAT_0047a470 + 0x82) == 0xb && (*(short *)(DAT_0047a470 + 0xe8) < 1)))) {
-      DAT_00479db4 = 1;
+    if (DAT_0047a470 != 0 && !IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,0xea) &&
+        *(short *)(DAT_0047a470 + 0x82) == 0xb && *(short *)(DAT_0047a470 + 0xe8) < 1) {
+      DAT_00479db4 = E2R_TraceMenuRequestFlag("42a70c.dead_current",1);
     }
   }
 LAB_0042ac85:
@@ -28756,6 +29064,7 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
   FUN_0043a1fc();
   DAT_0047a450 = 1;
   DAT_0047a76c = 1;
+  E2R_TraceStartGameStage("after-setup");
   iVar1 = _DAT_00637250;
   if (DAT_00479e1c == 0) {
     for (action_guard = 0; iVar1 != 0 && action_guard < 0x4000 &&
@@ -28764,11 +29073,14 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
       E2R_start_code_probe_startup_scans++;
       if (E2R_ActionCodeMatches((short *)(uintptr_t)iVar1,s_StartUp_004725ec)) {
         E2R_start_code_probe_startup_matches++;
+        E2R_TraceStartGameStage("before-startup-action");
         E2R_InvokeActionCode((short *)(uintptr_t)iVar1);
+        E2R_TraceStartGameStage("after-startup-action");
       }
     }
   }
-  _DAT_0073cc3c = 0;
+  E2R_TraceStartGameStage("after-startup-loop");
+  _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
   iVar1 = _DAT_00637250;
   switch((int)(uintptr_t)(param_2)) {
   case 0:
@@ -28833,7 +29145,9 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
     }
     if (prefix_matches && E2R_ActionCodeMatches((short *)(uintptr_t)iVar1,pcVar4)) {
       E2R_start_code_probe_action_matches++;
+      E2R_TraceStartGameStage("before-list-action");
       E2R_InvokeActionCode((short *)(uintptr_t)iVar1);
+      E2R_TraceStartGameStage("after-list-action");
       break;
     }
     iVar1 = *(int *)(iVar1 + 10);
@@ -28846,7 +29160,9 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
     if (action != (short *)0x0) {
       iVar1 = (int)(uintptr_t)action;
       E2R_start_code_probe_action_matches++;
+      E2R_TraceStartGameStage("before-suffix-action");
       E2R_InvokeActionCode(action);
+      E2R_TraceStartGameStage("after-suffix-action");
     }
   }
   if (iVar1 == 0) {
@@ -28854,21 +29170,34 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
     uVar6 = (undefined4)((ulonglong)uVar7 >> 0x20);
     pcVar4 = extraout_ECX_19;
   }
+  E2R_TraceStartGameStage("before-script-name");
   FUN_0041af88(pcVar4,uVar6);
+  E2R_TraceStartGameStage("after-script-name");
   uVar6 = extraout_EDX_16;
   if ((DAT_0047a43c != 0) && (DAT_0047a440 == 0)) {
+    E2R_TraceStartGameStage("before-acec");
     FUN_0043acec();
+    E2R_TraceStartGameStage("after-acec");
     uVar6 = extraout_EDX_17;
   }
   if ((DAT_0047a43c == 0) && (DAT_0047a440 != 0)) {
+    E2R_TraceStartGameStage("before-ac60");
     FUN_0043ac60();
+    E2R_TraceStartGameStage("after-ac60");
     uVar6 = extraout_EDX_18;
   }
+  E2R_TraceStartGameStage("before-script-150");
   FUN_0041af88(0x96,uVar6);
+  E2R_TraceStartGameStage("after-script-150");
+  E2R_TraceStartGameStage("before-5fc70");
   FUN_0045fc70(extraout_ECX_20,0);
+  E2R_TraceStartGameStage("after-5fc70");
   if (_DAT_0073cc3c == 0 && E2R_start_game_probe_last_mode == 0) {
+    E2R_TraceStartGameStage("before-select-785");
     E2R_SelectSceneRecord(785);
+    E2R_TraceStartGameStage("after-select-785");
   }
+  E2R_TraceStartGameStage("before-return");
   DAT_0047ab28 = 100;
   DAT_0047ab18 = 0;
   DAT_0047ab14 = 0;
@@ -28898,7 +29227,7 @@ undefined8 __fastcall FUN_0043a6e0(undefined4 param_1,undefined4 param_2)
   uVar2 = FUN_0045233c(extraout_ECX,extraout_EDX);
   uVar1 = (undefined4)uVar2;
   if (*(int *)((int)((ulonglong)uVar2 >> 0x20) * 4 + 0x62e450) != 0) {
-    _DAT_0073cc3c = 0;
+    _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
     FUN_00452140(0);
     if (*(short **)(extraout_EDX_00 + 4) != (short *)0x0) {
       DAT_0047a470 = *(undefined4 *)((undefined1 *)0x00630b60 + **(short **)(extraout_EDX_00 + 4) * 4);
@@ -29289,7 +29618,7 @@ void FUN_0043ac60(void)
   FUN_00449b30();
   FUN_0041bcfc(extraout_ECX);
   _DAT_0073ccba = 0xffff;
-  _DAT_0073cc3c = 0;
+  _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
   DAT_0047a43c = extraout_EDX;
   FUN_00458984(0,0x1e0);
   FUN_00439408();
@@ -29334,7 +29663,7 @@ void FUN_0043acec(void)
   FUN_0041bcfc(extraout_ECX);
   _DAT_0073ccba = 0xffff;
   DAT_0047a43c = extraout_EDX;
-  _DAT_0073cc3c = extraout_EDX;
+  _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.extraout_EDX",extraout_EDX);
   FUN_00458984(extraout_ECX_00,200);
   FUN_00439220();
   FUN_0043fea4();
@@ -31781,7 +32110,7 @@ undefined8 __fastcall FUN_0043db00(undefined4 param_1,undefined4 param_2)
 LAB_0043dc2e:
   do {
     if (local_28 != 0) {
-      _DAT_0073cc3c = 0;
+      _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
       return CONCAT44(param_2,iVar6);
     }
     iVar6 = 1;
@@ -41895,7 +42224,7 @@ void FUN_0044c6bc(void)
   } while (sVar1 < 3);
   DAT_0047a2a4 = (*(int *)(in_EAX + 10) >> 0x10) << 0xc;
   _DAT_0073cc30 = *(int *)(in_EAX + 0x18) >> 0x10;
-  _DAT_0073cc3c = in_EAX;
+  _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.select_record",in_EAX);
   FUN_00422abc();
   return;
 }
@@ -44592,7 +44921,7 @@ LAB_0044f7a9:
           DAT_00636853 = 1;
         }
         else {
-          DAT_00479db4 = 1;
+          DAT_00479db4 = E2R_TraceMenuRequestFlag("44f508.op44_menu_request",1);
         }
         goto switchD_0044f573_caseD_6;
       case 0x48:
@@ -47889,7 +48218,7 @@ LAB_0045453b:
     FUN_00420c34();
     FUN_00452d3c(extraout_ECX_03);
     iVar10 = 0;
-    _DAT_0073cc3c = 0;
+    _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
     DAT_0047ab00 = 1;
     FUN_00413e88();
     DAT_0047ab38 = 0;
@@ -49244,7 +49573,7 @@ void __fastcall FUN_00455fe8(undefined4 param_1)
     FUN_0041ab4c((int)_DAT_006401ec,0,_DAT_006401d4);
     _DAT_006366e2 = 0;
     FUN_0041ab4c((int)_DAT_006401ec,0,_DAT_006401d4);
-    _DAT_0073cc3c = 0;
+    _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
     FUN_0041cfc0();
   }
   return;

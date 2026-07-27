@@ -310,18 +310,20 @@ input state after dispatch wait: ... DAT_00479de8=1 move=[1,0,0,0,0,0,0,0,0] DAT
 surface 3 nonblank=1 hash=3615add9
 ```
 
-The matching ASan split probe proves the delayed movement key now reaches the legacy movement byte without a sanitizer report, but also sharpens the remaining parity gap. ASan reaches StartGame, `DAT_00479de8=1`, `DAT_0047a76c=1`, and `_DAT_0073cc3c=0x681d04`, yet `_DAT_00643650` stays at `5` through the stricter control-ready wait:
+The ASan split probe now proves the same control-ready frontier without a sanitizer report. `FUN_00427584` returns through the idle actor-update path, the render epilogue selects scene `0x681d04`, and the reconstructed `FUN_0042a70c` dead-current requester guard ignores a null current actor instead of opening requester `0x27`. A debug-only post-control crash then exposed two more lost-register surface-copy frontiers: `FUN_0041868c` used stale hidden `EAX/EBX` for source surface and X, and `FUN_00417b20` could enter its software-surface copy loop with stale source/destination spans. Both helpers now have generator-backed full-screen/source fallback and bounded pointer-span guards, turning invalid generated residue into skipped unsafe copies instead of crashes.
+
+Final debug and ASan split probes both accept the delayed movement key with the scene live and requester state clear:
 
 ```text
-build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-move-asan space,num8 30 10000 100 1
+build/linux-clang32-debug/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-final-debug5 space,num8 6 10000 180 1
+build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-final-asan2 space,num8 30 10000 60 1
 
-gameplay-control wait timed out after 70000 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_00643650=5 _DAT_0073cc3c=0x681d04
-posted key 0x68 through the Win32 message queue
+gameplay-control wait satisfied after 0 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_00643650=0 _DAT_0073cc3c=0x681d04
 input state after dispatch wait: ... DAT_00479de8=1 move=[1,0,0,0,0,0,0,0,0] DAT_0047a76c=1 DAT_0047a43c=4 _DAT_0073cc3c=0x681d04
 surface 3 nonblank=1 hash=6e39f5ea
 ```
 
-Current frontier: ASan no longer has a missing movement-key delivery path; delayed `num8` latches `move[0]`. The remaining Step 10 parity gap is that ASan keeps the requester/menu state at `_DAT_00643650=5` with requester `0x27` after StartGame and scene activation, while debug returns to `_DAT_00643650=0` and renders the expected gameplay surface hash `3615add9`.
+Current frontier: Step 10 has a debug and ASan control-ready movement proof. The remaining cleanup is to trim temporary diagnostics once the generated repairs are reviewed, then decide whether to close Step 10 or keep a small follow-up for scene-current and surface-copy hidden-register fidelity. The final dumps report `visible=0` while surface 3 is nonblank; this appears to be a presentation-page bookkeeping issue, not a blocker for the movement/control proof.
 
 ## Original Runtime Video Workflow Evidence
 
@@ -427,3 +429,8 @@ start_game=[entries=1 player=0 mode=0 startup_scan=1793 startup_match=4 action_s
 2. Verified debug control-ready movement parity with `_DAT_00643650=0`, `_DAT_0073cc3c=0x681f18`, surface 3 hash `3615add9`, and `move=[1,0,0,0,0,0,0,0,0]`.
 3. Verified ASan delayed movement-key delivery without a sanitizer report. The stricter control-ready wait timed out with `_DAT_00643650=5`, but delayed `num8` still latched `move=[1,0,0,0,0,0,0,0,0]` after `_DAT_0073cc3c=0x681d04` became live.
 4. Current frontier: recover the ASan requester-state residue after StartGame so control-ready state matches debug before the delayed movement key is injected.
+5. Traced the ASan requester residue through `FUN_0042a70c -> FUN_00427584`: the first actor update returns idle, render epilogue selects scene `0x681d04`, then a null `DAT_0047a470` triggered the dead-current menu request.
+6. Changed the generated dead-current guard to request the menu only for a readable non-null actor with state `0xb` and expired life; null current actors no longer open requester `0x27`.
+7. Verified ASan control-ready movement parity with `_DAT_00643650=0`, `_DAT_0073cc3c=0x681d04`, surface 3 hash `6e39f5ea`, and `move=[1,0,0,0,0,0,0,0,0]`.
+8. Stabilized the debug post-control surface-copy crash by guarding generated `FUN_0041868c` and `FUN_00417b20` copies against stale hidden source/X register residue and invalid spans.
+9. Verified final debug and ASan split probes both exit cleanly, latch delayed `num8` into `move=[1,0,0,0,0,0,0,0,0]`, keep `_DAT_00643650=0`, and dump nonblank surface 3 hash `6e39f5ea`.

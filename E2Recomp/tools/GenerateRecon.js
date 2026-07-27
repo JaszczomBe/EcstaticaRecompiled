@@ -280,6 +280,42 @@ source = source.replace(
     /  do \{\r?\n    if \(iVar1 == 0\) \{[\s\S]*?  \} while\( true \);/,
     "  action_guard = 0;\n  while (iVar1 != 0 && action_guard < 0x4000 &&\n         !IsBadReadPtr((void *)(uintptr_t)iVar1,0xe)) {\n    char *action_name = E2R_ActionCodeName((short *)(uintptr_t)iVar1);\n    int prefix_matches = 1;\n\n    E2R_start_code_probe_action_scans++;\n    action_guard = action_guard + 1;\n    if (DAT_00479e20 != 0 && action_name != (char *)0x0) {\n      if (DAT_00479d74 == 0) {\n        prefix_matches = strncmp(action_name,\"___\",3) == 0;\n      }\n      else {\n        char prefix[4];\n        prefix[0] = (char)DAT_00479d74;\n        prefix[1] = (char)(DAT_00479d74 >> 8);\n        prefix[2] = (char)(DAT_00479d74 >> 16);\n        prefix[3] = '\\0';\n        prefix_matches = strncmp(action_name,prefix,3) == 0;\n      }\n    }\n    if (prefix_matches && E2R_ActionCodeMatches((short *)(uintptr_t)iVar1,pcVar4)) {\n      E2R_start_code_probe_action_matches++;\n      E2R_InvokeActionCode((short *)(uintptr_t)iVar1);\n      break;\n    }\n    iVar1 = *(int *)(iVar1 + 10);\n  }\n  if (iVar1 != 0) {\n    iVar1 = 0;\n  }\n  if (iVar1 == 0) {\n    short *action = E2R_FindActionCodeBySuffix(pcVar4);\n    if (action != (short *)0x0) {\n      iVar1 = (int)(uintptr_t)action;\n      E2R_start_code_probe_action_matches++;\n      E2R_InvokeActionCode(action);\n    }\n  }\n  if (iVar1 == 0) {\n    uVar7 = FUN_0043cbb4(pcVar4);\n    uVar6 = (undefined4)((ulonglong)uVar7 >> 0x20);\n    pcVar4 = extraout_ECX_19;\n  }\n  FUN_0041af88(pcVar4,uVar6);\n  uVar6 = extraout_EDX_16;\n  if ((DAT_0047a43c != 0) && (DAT_0047a440 == 0)) {\n    FUN_0043acec();\n    uVar6 = extraout_EDX_17;\n  }\n  if ((DAT_0047a43c == 0) && (DAT_0047a440 != 0)) {\n    FUN_0043ac60();\n    uVar6 = extraout_EDX_18;\n  }\n  FUN_0041af88(0x96,uVar6);\n  FUN_0045fc70(extraout_ECX_20,0);\n  if (_DAT_0073cc3c == 0 && E2R_start_game_probe_last_mode == 0) {\n    E2R_SelectSceneRecord(785);\n  }\n  DAT_0047ab28 = 100;\n  DAT_0047ab18 = 0;\n  DAT_0047ab14 = 0;\n  DAT_0047a7ec = 0;\n  return;"
   );
+  functionSource = functionSource.replace(
+    "  DAT_0047a76c = 1;\n  iVar1 = _DAT_00637250;",
+    "  DAT_0047a76c = 1;\n  E2R_TraceStartGameStage(\"after-setup\");\n  iVar1 = _DAT_00637250;"
+  );
+  functionSource = functionSource.replace(
+    "        E2R_start_code_probe_startup_matches++;\n        E2R_InvokeActionCode((short *)(uintptr_t)iVar1);\n      }\n    }\n  }\n  _DAT_0073cc3c = 0;",
+    "        E2R_start_code_probe_startup_matches++;\n        E2R_TraceStartGameStage(\"before-startup-action\");\n        E2R_InvokeActionCode((short *)(uintptr_t)iVar1);\n        E2R_TraceStartGameStage(\"after-startup-action\");\n      }\n    }\n  }\n  E2R_TraceStartGameStage(\"after-startup-loop\");\n  _DAT_0073cc3c = 0;"
+  );
+  functionSource = functionSource.replace(
+    "      E2R_start_code_probe_action_matches++;\n      E2R_InvokeActionCode((short *)(uintptr_t)iVar1);\n      break;",
+    "      E2R_start_code_probe_action_matches++;\n      E2R_TraceStartGameStage(\"before-list-action\");\n      E2R_InvokeActionCode((short *)(uintptr_t)iVar1);\n      E2R_TraceStartGameStage(\"after-list-action\");\n      break;"
+  );
+  functionSource = functionSource.replace(
+    "      E2R_start_code_probe_action_matches++;\n      E2R_InvokeActionCode(action);\n    }\n  }\n  if (iVar1 == 0) {",
+    "      E2R_start_code_probe_action_matches++;\n      E2R_TraceStartGameStage(\"before-suffix-action\");\n      E2R_InvokeActionCode(action);\n      E2R_TraceStartGameStage(\"after-suffix-action\");\n    }\n  }\n  if (iVar1 == 0) {"
+  );
+  functionSource = functionSource.replace(
+    "  FUN_0041af88(pcVar4,uVar6);\n  uVar6 = extraout_EDX_16;",
+    "  E2R_TraceStartGameStage(\"before-script-name\");\n  FUN_0041af88(pcVar4,uVar6);\n  E2R_TraceStartGameStage(\"after-script-name\");\n  uVar6 = extraout_EDX_16;"
+  );
+  functionSource = functionSource.replace(
+    "    FUN_0043acec();\n    uVar6 = extraout_EDX_17;",
+    "    E2R_TraceStartGameStage(\"before-acec\");\n    FUN_0043acec();\n    E2R_TraceStartGameStage(\"after-acec\");\n    uVar6 = extraout_EDX_17;"
+  );
+  functionSource = functionSource.replace(
+    "    FUN_0043ac60();\n    uVar6 = extraout_EDX_18;",
+    "    E2R_TraceStartGameStage(\"before-ac60\");\n    FUN_0043ac60();\n    E2R_TraceStartGameStage(\"after-ac60\");\n    uVar6 = extraout_EDX_18;"
+  );
+  functionSource = functionSource.replace(
+    "  FUN_0041af88(0x96,uVar6);\n  FUN_0045fc70(extraout_ECX_20,0);",
+    "  E2R_TraceStartGameStage(\"before-script-150\");\n  FUN_0041af88(0x96,uVar6);\n  E2R_TraceStartGameStage(\"after-script-150\");\n  E2R_TraceStartGameStage(\"before-5fc70\");\n  FUN_0045fc70(extraout_ECX_20,0);\n  E2R_TraceStartGameStage(\"after-5fc70\");"
+  );
+  functionSource = functionSource.replace(
+    "    E2R_SelectSceneRecord(785);\n  }\n  DAT_0047ab28 = 100;",
+    "    E2R_TraceStartGameStage(\"before-select-785\");\n    E2R_SelectSceneRecord(785);\n    E2R_TraceStartGameStage(\"after-select-785\");\n  }\n  E2R_TraceStartGameStage(\"before-return\");\n  DAT_0047ab28 = 100;"
+  );
   source = source.slice(0,functionStart) + functionSource + source.slice(functionEnd);
 }
 source = source.replace(
@@ -405,8 +441,16 @@ source = source.replace(
   "/* 00455e84 */\n\nvoid FUN_00455e84(void)\n\n{\n  if (DAT_0047a43c == 0) {\n    E2R_ClearHudIconName((char *)0x00475ef8);\n    E2R_ClearHudIconName((char *)0x00475f00);\n    E2R_ClearHudIconName((char *)0x00475f08);\n    E2R_ClearHudIconName((char *)0x00475f2c);\n    E2R_ClearHudIconName((char *)0x00475f20);\n    E2R_ClearHudIconName((char *)0x00475f6c);\n    E2R_ClearHudIconName((char *)0x00475f64);\n    E2R_ClearHudIconNameRange(0x0047ab71,0x0047ab9e);\n    E2R_ClearHudIconName((char *)0x00475f5c);\n    E2R_ClearHudIconName((char *)0x00475e4c);\n    E2R_ClearHudIconNameRange(0x0047ac40,0x0047ac76);\n    E2R_ClearHudIconNameRange(0x0047ac76,0x0047acac);\n    E2R_ClearHudIconNameRange(0x0047acac,0x0047ace2);\n  }\n  else {\n    E2R_ClearHudIconName((char *)0x00475ee0);\n    E2R_ClearHudIconName((char *)0x00475ee8);\n    E2R_ClearHudIconName((char *)0x00475ef0);\n    E2R_ClearHudIconName((char *)0x00475f18);\n    E2R_ClearHudIconName((char *)0x00475f10);\n    E2R_ClearHudIconName((char *)0x00475f50);\n    E2R_ClearHudIconName((char *)0x00475f44);\n    E2R_ClearHudIconNameRange(0x0047ab44,0x0047ab71);\n    E2R_ClearHudIconName((char *)0x00475f38);\n    E2R_ClearHudIconName((char *)0x00475e40);\n    E2R_ClearHudIconNameRange(0x0047ab9e,0x0047abd4);\n    E2R_ClearHudIconNameRange(0x0047abd4,0x0047ac0a);\n    E2R_ClearHudIconNameRange(0x0047ac0a,0x0047ac40);\n  }\n  return;\n}\n\n\n\n/* 00455fe8 */"
 );
 source = source.replace(/(FUN_00417b20\(int param_1,int param_2,undefined4 param_3,int param_4,int param_5,int param_6\)[\s\S]*?\r?\n  int local_10;\r?\n\s*)local_24 = 1;/, "$1E2R_InitCursorMaskState();\n  unaff_EBX = param_4;\n  local_24 = 1;");
+source = source.replace(
+  /(FUN_00417b20\(int param_1,int param_2,undefined4 param_3,int param_4,int param_5,int param_6\)[\s\S]*?\r?\n  undefined4 uVar5;\r?\n\s*)int iVar6;/,
+  "$1size_t read_span;\n  size_t write_span;\n  int iVar6;"
+);
 source = source.replace("  local_18 = in_EAX;\n  if ((DAT_0047a279 >> 0x18 == param_1)", "  local_18 = param_1;\n  if ((DAT_0047a279 >> 0x18 == param_1)");
 source = source.replace("      local_30 = local_2c;\n      iVar6 = extraout_ECX_01;\n      local_20 = local_28;", "      local_30 = local_2c;\n      iVar6 = param_2;\n      local_20 = local_28;");
+source = source.replace(
+  "    puVar4 = (undefined1 *)(local_2c * unaff_EBX + param_2 + local_28);\n    local_14 = local_2c - param_5;\n    local_10 = local_30 - param_5;\n    puVar7 = (undefined1 *)(local_30 * param_4 + iVar6 + local_20);\n    iVar9 = 0;",
+  "    puVar4 = (undefined1 *)(local_2c * unaff_EBX + param_2 + local_28);\n    local_14 = local_2c - param_5;\n    local_10 = local_30 - param_5;\n    puVar7 = (undefined1 *)(local_30 * param_4 + iVar6 + local_20);\n    if (local_28 == 0 || local_20 == 0 || local_2c <= 0 || local_30 <= 0 ||\n        param_2 < 0 || iVar6 < 0 || unaff_EBX < 0 || param_4 < 0 ||\n        param_5 <= 0 || param_6 <= 0 || local_2c - param_2 < param_5 ||\n        local_2c - unaff_EBX < param_6 || local_30 - iVar6 < param_5 ||\n        local_30 - param_4 < param_6) {\n      return 0;\n    }\n    read_span = (size_t)(param_6 - 1) * (size_t)local_2c + (size_t)param_5;\n    write_span = (size_t)(param_6 - 1) * (size_t)local_30 + (size_t)param_5;\n    if (IsBadReadPtr(puVar4,read_span) || E2R_IsBadWritePtr(puVar7,write_span)) {\n      return 0;\n    }\n    iVar9 = 0;"
+);
 source = source.replace("  iVar3 = FUN_0045e54d(extraout_ECX_00,(byte *)s_andrew_00470004);", "  iVar3 = FUN_0045e54d(0x00479d74,(byte *)s_andrew_00470004);");
 source = source.replace("    (&DAT_00ac4cad)[iVar2] = 0;", "    ((undefined1 *)0x00ac4cad)[iVar2] = 0;");
 source = source.replace("    (&DAT_004c3990)[iVar2] = 0;", "    ((undefined1 *)0x004c3990)[iVar2] = 0;");
@@ -1192,6 +1236,152 @@ static void E2R_InitRequesterYesNoPromptItems(void)
 `;
 source = source.replace("\n\n/* 00410078 */", `${ctypeTableState}\n${requesterActionState}\n${requesterFocusState}\n${menuStringState}\n${streamLineState}\n${configHeaderState}\n${cursorMaskState}\n${startupPartNames}\n${glyphTableMirror}\n${hudIconNameState}\n${requesterRecordState}\n\n/* 00410078 */`);
 source = source.replace("\n\n/* 00410078 */", `${packedNameState}\n${actionCodeState}\n\n/* 00410078 */`);
+source = source.replace(
+  "static uint E2R_current_actor_trace_diag_count;\nstatic const char *E2R_current_actor_last_site;",
+  "static uint E2R_current_actor_trace_diag_count;\nstatic uint E2R_requester_state_diag_count;\nstatic uint E2R_start_game_stage_diag_count;\nstatic uint E2R_scene_pointer_diag_count;\nstatic uint E2R_frame_stage_diag_count;\nstatic const char *E2R_current_actor_last_site;"
+);
+source = source.replace(
+  "static uint E2R_frame_stage_diag_count;\nstatic const char *E2R_current_actor_last_site;",
+  "static uint E2R_frame_stage_diag_count;\nstatic uint E2R_actor_loop_diag_count;\nstatic const char *E2R_current_actor_last_site;"
+);
+source = source.replace(
+  "static uint E2R_actor_loop_diag_count;\nstatic const char *E2R_current_actor_last_site;",
+  "static uint E2R_actor_loop_diag_count;\nstatic uint E2R_actor_update_diag_count;\nstatic const char *E2R_current_actor_last_site;"
+);
+source = source.replace(
+  "if ((uint)actor < 0x10000u || 0x70000000u <= (uint)actor ||\n      IsBadReadPtr((void *)(uintptr_t)actor,0x136)) {",
+  "if ((uint)actor < 0x10000u ||\n      IsBadReadPtr((void *)(uintptr_t)actor,0x136)) {"
+);
+source = source.replace(
+  "return value != 0 && 0x10000u <= (uint)value && (uint)value < 0x70000000u &&\n         !IsBadReadPtr((void *)value,0xaa);",
+  "return value != 0 && 0x10000u <= (uint)value &&\n         !IsBadReadPtr((void *)value,0xaa);"
+);
+source = source.replace(
+  "static void E2R_SelectSceneRecord(short scene_id)\n{\n  if (scene_id < 0 || 0x4b0 <= scene_id) {\n    return;\n  }\n  _DAT_0073ccba = (ushort)scene_id;\n  FUN_0044c6bc();\n}\n\nstatic int E2R_round_to_int",
+  "static void E2R_SelectSceneRecord(short scene_id)\n{\n  if (scene_id < 0 || 0x4b0 <= scene_id) {\n    return;\n  }\n  _DAT_0073ccba = (ushort)scene_id;\n  FUN_0044c6bc();\n}\n\nstatic uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)\n{\n  uintptr_t old_value = _DAT_0073cc3c;\n\n  if (E2R_scene_pointer_diag_count < 96 && old_value != value) {\n    E2R_scene_pointer_diag_count = E2R_scene_pointer_diag_count + 1;\n    fprintf(stderr,\n            \"scene pointer write: site=%s old=0x%lx new=0x%lx \"\n            \"DAT_00479de8=%lu DAT_0047a76c=%lu requester_state=%lu \"\n            \"start_game=%lu dispatch=%lu caller=%p\\n\",\n            site,(unsigned long)old_value,(unsigned long)value,\n            (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,\n            (unsigned long)_DAT_00643650,\n            (unsigned long)E2R_start_game_probe_count,\n            (unsigned long)E2R_start_code_probe_dispatches,\n            __builtin_return_address(0));\n  }\n  return value;\n}\n\nstatic void E2R_TraceStartGameStage(const char *stage)\n{\n  if (E2R_start_game_stage_diag_count < 64) {\n    E2R_start_game_stage_diag_count = E2R_start_game_stage_diag_count + 1;\n    fprintf(stderr,\n            \"start-game stage: %s count=%lu mode=%lu DAT_00479de8=%lu \"\n            \"DAT_0047a76c=%lu scene=0x%lx startup=%lu/%lu action=%lu/%lu \"\n            \"dispatch=%lu caller=%p\\n\",\n            stage,(unsigned long)E2R_start_game_probe_count,\n            (unsigned long)E2R_start_game_probe_last_mode,\n            (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,\n            (unsigned long)_DAT_0073cc3c,\n            (unsigned long)E2R_start_code_probe_startup_scans,\n            (unsigned long)E2R_start_code_probe_startup_matches,\n            (unsigned long)E2R_start_code_probe_action_scans,\n            (unsigned long)E2R_start_code_probe_action_matches,\n            (unsigned long)E2R_start_code_probe_dispatches,\n            __builtin_return_address(0));\n  }\n}\n\nstatic uintptr_t E2R_TraceRequesterState(const char *site, uintptr_t value)\n{\n  uintptr_t old_value = _DAT_00643650;\n\n  if (E2R_requester_state_diag_count < 64) {\n    E2R_requester_state_diag_count = E2R_requester_state_diag_count + 1;\n    fprintf(stderr,\n            \"requester state write: site=%s old=%lu new=%lu \"\n            \"DAT_00479de8=%lu DAT_0047a76c=%lu DAT_0047a788=%lu \"\n            \"DAT_00479db4=%lu requester=0x%x start_game=%lu \"\n            \"dispatch=%lu scene=0x%lx caller=%p\\n\",\n            site,(unsigned long)old_value,(unsigned long)value,\n            (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,\n            (unsigned long)DAT_0047a788,(unsigned long)DAT_00479db4,\n            (unsigned int)E2R_WORD_AT(DAT_0047a45e,2),\n            (unsigned long)E2R_start_game_probe_count,\n            (unsigned long)E2R_start_code_probe_dispatches,\n            (unsigned long)_DAT_0073cc3c,__builtin_return_address(0));\n  }\n  return value;\n}\n\nstatic int E2R_round_to_int"
+);
+source = source.replace(
+  "static int E2R_round_to_int",
+  "static uintptr_t E2R_TraceMenuRequestFlag(const char *site, uintptr_t value)\n{\n  uintptr_t old_value = DAT_00479db4;\n  uintptr_t current = DAT_0047a470;\n  short word82 = 0;\n  short worde8 = 0;\n  int readable = E2R_IsReadableCurrentPointer(current);\n\n  if (readable) {\n    word82 = *(short *)(current + 0x82);\n    worde8 = *(short *)(current + 0xe8);\n  }\n  if (E2R_requester_state_diag_count < 64) {\n    E2R_requester_state_diag_count = E2R_requester_state_diag_count + 1;\n    fprintf(stderr,\n            \"menu request flag write: site=%s old=%lu new=%lu \"\n            \"current=0x%lx readable=%d known_actor=%d w82=0x%x we8=%d \"\n            \"DAT_00479de8=%lu DAT_0047a76c=%lu requester_state=%lu \"\n            \"scene=0x%lx caller=%p\\n\",\n            site,(unsigned long)old_value,(unsigned long)value,\n            (unsigned long)current,readable,E2R_IsKnownActorPointer((int)current),\n            (unsigned int)(ushort)word82,(int)worde8,\n            (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,\n            (unsigned long)_DAT_00643650,(unsigned long)_DAT_0073cc3c,\n            __builtin_return_address(0));\n  }\n  return value;\n}\n\nstatic int E2R_round_to_int"
+);
+source = source.replace(
+  "static void E2R_TraceStartGameStage(const char *stage)",
+  "static void E2R_TraceFrameStage(const char *stage)\n{\n  if (E2R_frame_stage_diag_count < 96) {\n    E2R_frame_stage_diag_count = E2R_frame_stage_diag_count + 1;\n    fprintf(stderr,\n            \"frame stage: %s DAT_00479de8=%lu DAT_0047a76c=%lu \"\n            \"DAT_0047a3b4=%lu DAT_0047a428=%lu DAT_0047ab20=%ld \"\n            \"current=0x%lx actors=0x%lx links=0x%lx scene=0x%lx caller=%p\\n\",\n            stage,(unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,\n            (unsigned long)DAT_0047a3b4,(unsigned long)DAT_0047a428,\n            (long)DAT_0047ab20,(unsigned long)DAT_0047a470,\n            (unsigned long)_DAT_0063726c,(unsigned long)_DAT_00637248,\n            (unsigned long)_DAT_0073cc3c,__builtin_return_address(0));\n  }\n}\n\nstatic void E2R_TraceStartGameStage(const char *stage)"
+);
+source = source.replace(
+  "static void E2R_TraceStartGameStage(const char *stage)",
+  "static void E2R_TraceActorLoopStage(const char *stage, uintptr_t actor, uint guard)\n{\n  int actor_bad = actor == 0 || IsBadReadPtr((void *)actor,0x136);\n  uintptr_t dep = 0;\n  uintptr_t next = 0;\n  uintptr_t local_132 = 0;\n  int dep_bad = 1;\n  unsigned byte2 = 0;\n  unsigned byte3 = 0;\n  unsigned byteb3 = 0;\n  unsigned dep_c = 0;\n  short word82 = 0;\n\n  if (!actor_bad) {\n    dep = *(uint *)(actor + 0xa6);\n    next = *(uint *)(actor + 0x4c);\n    local_132 = *(uint *)(actor + 0x132);\n    byte2 = *(byte *)(actor + 2);\n    byte3 = *(byte *)(actor + 3);\n    byteb3 = *(byte *)(actor + 0xb3);\n    word82 = *(short *)(actor + 0x82);\n    dep_bad = dep == 0 || IsBadReadPtr((void *)dep,0x10);\n    if (!dep_bad) {\n      dep_c = *(byte *)(dep + 0xc);\n    }\n  }\n  if (E2R_actor_loop_diag_count < 128) {\n    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;\n    fprintf(stderr,\n            \"actor loop: %s guard=%lu actor=0x%lx bad=%d next=0x%lx \"\n            \"dep=0x%lx dep_bad=%d dep_c=0x%x w82=0x%x b2=0x%x b3=0x%x \"\n            \"bb3=0x%x p132=0x%lx scene=0x%lx caller=%p\\n\",\n            stage,(unsigned long)guard,(unsigned long)actor,actor_bad,\n            (unsigned long)next,(unsigned long)dep,dep_bad,dep_c,\n            (unsigned int)(ushort)word82,byte2,byte3,byteb3,\n            (unsigned long)local_132,(unsigned long)_DAT_0073cc3c,\n            __builtin_return_address(0));\n  }\n}\n\nstatic void E2R_TraceStartGameStage(const char *stage)"
+);
+source = source.replace(
+  "static void E2R_TraceStartGameStage(const char *stage)",
+  "static void E2R_TraceActorUpdateStage(const char *stage, short *actor)\n{\n  uintptr_t value = (uintptr_t)actor;\n  int actor_bad = value == 0 || IsBadReadPtr(actor,0x180);\n  uintptr_t action = 0;\n  uintptr_t rep = 0;\n  uintptr_t target = 0;\n  uintptr_t queued1 = 0;\n  uintptr_t queued2 = 0;\n  uintptr_t late = 0;\n  short state = 0;\n  short rep_id = 0;\n  short state91 = 0;\n  short word74 = 0;\n  short word76 = 0;\n  short wordba = 0;\n  unsigned byte2 = 0;\n  unsigned byte3 = 0;\n  unsigned bytea3 = 0;\n  unsigned byteb3 = 0;\n  unsigned byteb6 = 0;\n\n  if (!actor_bad) {\n    action = *(uint *)(value + 0xa6);\n    rep = *(uint *)(value + 0x11e);\n    target = *(uint *)(value + 0x1e);\n    queued1 = *(uint *)(value + 0x126);\n    queued2 = *(uint *)(value + 0x12a);\n    late = *(uint *)(value + 0x17c);\n    state = actor[0x41];\n    rep_id = actor[0x90];\n    state91 = actor[0x91];\n    word74 = actor[0x74];\n    word76 = actor[0x76];\n    wordba = actor[0xba];\n    byte2 = *(byte *)(value + 2);\n    byte3 = *(byte *)(value + 3);\n    bytea3 = *(byte *)(value + 0xa3);\n    byteb3 = *(byte *)(value + 0xb3);\n    byteb6 = *(byte *)(value + 0xb6);\n  }\n  if (E2R_actor_update_diag_count < 192) {\n    E2R_actor_update_diag_count = E2R_actor_update_diag_count + 1;\n    fprintf(stderr,\n            \"actor update: %s actor=0x%lx bad180=%d current=0x%lx scene=0x%lx \"\n            \"state=%d action=0x%lx rep=0x%lx rep_id=%d state91=%d \"\n            \"target=0x%lx queued=%lx/%lx late=0x%lx w74=%d w76=%d wba=%d \"\n            \"b2=0x%x b3=0x%x ba3=0x%x bb3=0x%x bb6=0x%x caller=%p\\n\",\n            stage,(unsigned long)value,actor_bad,(unsigned long)DAT_0047a470,\n            (unsigned long)_DAT_0073cc3c,(int)state,(unsigned long)action,\n            (unsigned long)rep,(int)rep_id,(int)state91,(unsigned long)target,\n            (unsigned long)queued1,(unsigned long)queued2,(unsigned long)late,\n            (int)word74,(int)word76,(int)wordba,byte2,byte3,bytea3,byteb3,byteb6,\n            __builtin_return_address(0));\n  }\n}\n\nstatic void E2R_TraceStartGameStage(const char *stage)"
+);
+for (const [from, to] of [
+  ["        _DAT_00643650 = 6;", "        _DAT_00643650 = E2R_TraceRequesterState(\"action.confirm_yes\",6);"],
+  ["    _DAT_00643650 = 0;", "    _DAT_00643650 = E2R_TraceRequesterState(\"action.start_male\",0);"],
+  ["    _DAT_00643650 = 1;", "    _DAT_00643650 = E2R_TraceRequesterState(\"action.start_female\",1);"],
+  ["    _DAT_00643650 = 2;", "    _DAT_00643650 = E2R_TraceRequesterState(\"action.load\",2);"],
+  ["      _DAT_00643650 = 3;", "      _DAT_00643650 = E2R_TraceRequesterState(\"action.save\",3);"],
+  ["    _DAT_00643650 = 4;", "    _DAT_00643650 = E2R_TraceRequesterState(\"action.options\",4);"],
+  [
+    "    _DAT_00643650 = ((int)FUN_0043c910((undefined4)prompt,0) != 0) ? 6 : 5;",
+    "    _DAT_00643650 = E2R_TraceRequesterState(\"action.quit_prompt\",\n                                            ((int)FUN_0043c910((undefined4)prompt,0) != 0) ? 6 : 5);"
+  ],
+  ["        _DAT_00643650 = 5;", "        _DAT_00643650 = E2R_TraceRequesterState(\"action.confirm_no\",5);"],
+  ["      _DAT_00643650 = 5;", "      _DAT_00643650 = E2R_TraceRequesterState(\"action.cancel_start\",5);"],
+  [
+    "    _DAT_00643650 = 5;\n    requester_id = 0x28;",
+    "    _DAT_00643650 = E2R_TraceRequesterState(\"15d40.open_menu_default\",5);\n    requester_id = 0x28;"
+  ],
+]) {
+  source = source.replace(from, to);
+}
+for (const [from, to] of [
+  ["      DAT_00479db4 = 0;", "      DAT_00479db4 = E2R_TraceMenuRequestFlag(\"15d40.consume_menu_request\",0);"],
+  ["      DAT_00479db4 = 1;", "      DAT_00479db4 = E2R_TraceMenuRequestFlag(\"42a70c.dead_current\",1);"],
+  ["          DAT_00479db4 = 1;", "          DAT_00479db4 = E2R_TraceMenuRequestFlag(\"44f508.op44_menu_request\",1);"],
+]) {
+  source = source.replace(from, to);
+}
+for (const [from, to] of [
+  ["_DAT_0073cc3c = 0;", "_DAT_0073cc3c = E2R_TraceScenePointerWrite(\"scene.clear\",0);"],
+  ["_DAT_0073cc3c = extraout_EDX;", "_DAT_0073cc3c = E2R_TraceScenePointerWrite(\"scene.extraout_EDX\",extraout_EDX);"],
+  ["_DAT_0073cc3c = in_EAX;", "_DAT_0073cc3c = E2R_TraceScenePointerWrite(\"scene.select_record\",in_EAX);"],
+]) {
+  source = source.split(from).join(to);
+}
+source = source.replace(
+  "  if (DAT_0047a3b4 == 0) {\n    FUN_004211c8((int)psVar10,psVar12);",
+  "  E2R_TraceFrameStage(\"42a70c.before-render-epilogue\");\n  if (DAT_0047a3b4 == 0) {\n    E2R_TraceFrameStage(\"42a70c.enter-render-epilogue\");\n    FUN_004211c8((int)psVar10,psVar12);"
+);
+source = source.replace(
+  "    uVar14 = FUN_00422238(extraout_ECX_13,extraout_EDX_01);\n    psVar12 = (short *)((ulonglong)uVar14 >> 0x20);",
+  "    E2R_TraceFrameStage(\"42a70c.before-22238\");\n    uVar14 = FUN_00422238(extraout_ECX_13,extraout_EDX_01);\n    E2R_TraceFrameStage(\"42a70c.after-22238\");\n    psVar12 = (short *)((ulonglong)uVar14 >> 0x20);"
+);
+source = source.replace(
+  "  if (DAT_0047ab20 < 0) {\n    DAT_0047ab20 = 0;",
+  "  E2R_TraceFrameStage(\"42a70c.before-ab20-branch\");\n  if (DAT_0047ab20 < 0) {\n    E2R_TraceFrameStage(\"42a70c.enter-ab20-negative\");\n    DAT_0047ab20 = 0;"
+);
+source = source.replace(
+  "  else {\n    iVar9 = DAT_0047a470;",
+  "  else {\n    E2R_TraceFrameStage(\"42a70c.enter-ab20-nonnegative\");\n    iVar9 = DAT_0047a470;"
+);
+source = source.replace(
+  "    if ((DAT_0047a470 == 0) ||\n       ((*(short *)(DAT_0047a470 + 0x82) == 0xb && (*(short *)(DAT_0047a470 + 0xe8) < 1)))) {\n      DAT_00479db4 = E2R_TraceMenuRequestFlag(\"42a70c.dead_current\",1);\n    }",
+  "    if (DAT_0047a470 != 0 && !IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,0xea) &&\n        *(short *)(DAT_0047a470 + 0x82) == 0xb && *(short *)(DAT_0047a470 + 0xe8) < 1) {\n      DAT_00479db4 = E2R_TraceMenuRequestFlag(\"42a70c.dead_current\",1);\n    }"
+);
+source = source.replace(
+  "void __fastcall FUN_0041868c(int param_1,int param_2,int param_3,int param_4)\n\n{\n  int in_EAX;\n  int iVar1;\n  int iVar2;\n  undefined4 *puVar3;",
+  "void __fastcall FUN_0041868c(int param_1,int param_2,int param_3,int param_4)\n\n{\n  int in_EAX;\n  int iVar1;\n  int iVar2;\n  int row_bytes;\n  int src_surface;\n  int dst_surface;\n  size_t copy_span;\n  undefined4 *puVar3;"
+);
+source = source.replace(
+  "  iVar2 = param_1 * _DAT_006401ec * 2;\n  puVar4 = (undefined4 *)(unaff_EBX * 2 + *(int *)(&DAT_00636668 + param_2 * 4) + iVar2);\n  iVar7 = 0;\n  iVar1 = param_3 + 1 >> 1;\n  puVar5 = (undefined4 *)(*(int *)(&DAT_00636668 + in_EAX * 4) + unaff_EBX * 2 + iVar2);",
+  "  dst_surface = param_2;\n  src_surface = in_EAX;\n  if ((uint)dst_surface > 3 || _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||\n      param_1 < 0 || param_3 <= 0 || param_4 <= 0 || _DAT_006401ec > 0x1000 ||\n      _DAT_006401d4 > 0x1000) {\n    return;\n  }\n  if ((uint)src_surface > 3) {\n    src_surface = dst_surface == 0 ? 1 : 0;\n  }\n  if (param_1 == 0 && param_3 == _DAT_006401ec && param_4 == _DAT_006401d4) {\n    unaff_EBX = 0;\n  }\n  if (unaff_EBX < 0 || _DAT_006401ec <= unaff_EBX ||\n      _DAT_006401ec - unaff_EBX < param_3 || _DAT_006401d4 - param_1 < param_4 ||\n      *(int *)(&DAT_00636668 + dst_surface * 4) == 0 ||\n      *(int *)(&DAT_00636668 + src_surface * 4) == 0) {\n    return;\n  }\n  row_bytes = ((param_3 + 1) >> 1) * 4;\n  copy_span = (size_t)(param_4 - 1) * (size_t)_DAT_006401ec * 2 + (size_t)row_bytes;\n  iVar2 = param_1 * _DAT_006401ec * 2;\n  puVar4 = (undefined4 *)(unaff_EBX * 2 + *(int *)(&DAT_00636668 + dst_surface * 4) + iVar2);\n  iVar7 = 0;\n  iVar1 = param_3 + 1 >> 1;\n  puVar5 = (undefined4 *)(*(int *)(&DAT_00636668 + src_surface * 4) + unaff_EBX * 2 + iVar2);\n  if (E2R_IsBadWritePtr(puVar4,copy_span) || IsBadReadPtr(puVar5,copy_span)) {\n    return;\n  }"
+);
+source = source.replace(
+  "    _DAT_0073cc3c = E2R_TraceScenePointerWrite(\"scene.clear\",0);\n    _DAT_0047a3be = 0;",
+  "    _DAT_0073cc3c = E2R_TraceScenePointerWrite(\"scene.clear\",0);\n    E2R_TraceFrameStage(\"26df8.after-scene-clear\");\n    _DAT_0047a3be = 0;"
+);
+source = source.replace(
+  "        FUN_00415d40(extraout_ECX,iVar1);\n        uVar3 = FUN_0042a70c(extraout_ECX_00,extraout_EDX);",
+  "        E2R_TraceFrameStage(\"26df8.before-15d40\");\n        FUN_00415d40(extraout_ECX,iVar1);\n        E2R_TraceFrameStage(\"26df8.after-15d40\");\n        E2R_TraceFrameStage(\"26df8.before-42a70c\");\n        uVar3 = FUN_0042a70c(extraout_ECX_00,extraout_EDX);\n        E2R_TraceFrameStage(\"26df8.after-42a70c\");"
+);
+source = source.replace(
+  "  int iVar9;\n  undefined4 extraout_ECX;",
+  "  int iVar9;\n  int next_actor;\n  uint actor_loop_guard;\n  undefined4 extraout_ECX;"
+);
+source = source.replace(
+  "  int next_actor;\n  uint actor_loop_guard;\n  undefined4 extraout_ECX;",
+  "  int next_actor;\n  uint actor_loop_guard;\n  uint timing_loop_guard;\n  undefined4 extraout_ECX;"
+);
+source = source.replace(
+  "  uVar13 = extraout_ECX;\n  uVar4 = _DAT_00640194;\n  while (_DAT_00640194 = uVar4, _DAT_0063737c == iVar7) {",
+  "  E2R_TraceFrameStage(\"42a70c.entry\");\n  uVar13 = extraout_ECX;\n  uVar4 = _DAT_00640194;\n  timing_loop_guard = 0;\n  while (_DAT_00640194 = uVar4, _DAT_0063737c == iVar7) {\n    if (0x10000 <= timing_loop_guard) {\n      E2R_TraceFrameStage(\"42a70c.timer-loop-break\");\n      break;\n    }\n    timing_loop_guard = timing_loop_guard + 1;"
+);
+source = source.replace(
+  "  iVar7 = _DAT_0063737c - iVar7;\n  if ((_DAT_006365a4 != 0) && (iVar7 = iVar7 / 3, iVar7 == 0)) {",
+  "  E2R_TraceFrameStage(\"42a70c.after-timer-loop\");\n  iVar7 = _DAT_0063737c - iVar7;\n  if ((_DAT_006365a4 != 0) && (iVar7 = iVar7 / 3, iVar7 == 0)) {"
+);
+source = source.replace(
+  "  _DAT_00637378 = iVar7;\n  if (DAT_0047a35c != 0) {",
+  "  _DAT_00637378 = iVar7;\n  E2R_TraceFrameStage(\"42a70c.before-debug-fps\");\n  if (DAT_0047a35c != 0) {"
+);
+source = source.replace(
+  "  lVar15 = FUN_0044e354();\n  psVar10 = extraout_ECX_03;",
+  "  E2R_TraceFrameStage(\"42a70c.before-4e354\");\n  lVar15 = FUN_0044e354();\n  E2R_TraceFrameStage(\"42a70c.after-4e354\");\n  psVar10 = extraout_ECX_03;"
+);
+source = source.replace(
+  "  iVar8 = _DAT_0063726c;\n  while( true ) {\n    if (iVar8 == 0) break;",
+  "  iVar8 = _DAT_0063726c;\n  actor_loop_guard = 0;\n  while( true ) {\n    if (iVar8 == 0) break;\n    if (0x4000 <= actor_loop_guard || IsBadReadPtr((void *)(uintptr_t)iVar8,0x136)) {\n      E2R_TraceActorLoopStage(\"42a70c.actor-loop-break\",(uintptr_t)iVar8,actor_loop_guard);\n      break;\n    }\n    actor_loop_guard = actor_loop_guard + 1;\n    E2R_TraceActorLoopStage(\"42a70c.actor-loop-top\",(uintptr_t)iVar8,actor_loop_guard);"
+);
+source = source.replace(
+  "    iVar8 = *(int *)(iVar8 + 0x4c);\n  }\n  local_3c = (short *)0x0;",
+  "    next_actor = *(int *)(iVar8 + 0x4c);\n    if (next_actor == iVar8) {\n      E2R_TraceActorLoopStage(\"42a70c.actor-loop-self-link\",(uintptr_t)iVar8,actor_loop_guard);\n      break;\n    }\n    iVar8 = next_actor;\n  }\n  local_3c = (short *)0x0;"
+);
+source = source.replace(
+  "        lVar15 = FUN_00427584((undefined4)(uintptr_t)iVar8,iVar7);\n        psVar10 = extraout_ECX_10;",
+  "        E2R_TraceActorLoopStage(\"42a70c.before-27584\",(uintptr_t)iVar8,actor_loop_guard);\n        E2R_TraceFrameStage(\"42a70c.before-27584\");\n        lVar15 = FUN_00427584((undefined4)(uintptr_t)iVar8,iVar7);\n        E2R_TraceFrameStage(\"42a70c.after-27584\");\n        E2R_TraceActorLoopStage(\"42a70c.after-27584\",(uintptr_t)iVar8,actor_loop_guard);\n        psVar10 = extraout_ECX_10;"
+);
 source = source.replace(/\(&DAT_00476e8c\)\[([^\]]+)\]/g, "E2R_CtypeFlags($1)");
 source = source.replace(/\(&DAT_00476f90\)\[([^\]]+)\]/g, "E2R_BitMask($1)");
 source = source.replace(/&DAT_00479e24/g, "(char *)0x00479e24");
@@ -2047,8 +2237,48 @@ source = source.replace(
   "$1in_EAX = (short *)(uintptr_t)param_1;\n  if (in_EAX == (short *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      0x1000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,0x17c)) {\n    return 0;\n  }\n  uVar13 = 0;"
 );
 source = source.replace(
+  "  uVar13 = 0;\n  local_58 = 0;",
+  "  E2R_TraceActorUpdateStage(\"27584.entry\",in_EAX);\n  uVar13 = 0;\n  local_58 = 0;"
+);
+source = source.replace(
+  "  psVar8 = DAT_0047a470;",
+  "  E2R_TraceActorUpdateStage(\"27584.after-debug\",local_6c);\n  psVar8 = DAT_0047a470;"
+);
+source = source.replace(
+  "  if (local_6c[0x91] < 0) {",
+  "  E2R_TraceActorUpdateStage(\"27584.before-rep\",local_6c);\n  if (local_6c[0x91] < 0) {"
+);
+source = source.replace(
+  "      FUN_00451998((int)local_6c[0x91],psVar15);\n      *(undefined4 *)(local_6c + 0x8f) =",
+  "      E2R_TraceActorUpdateStage(\"27584.before-51998-nullrep\",local_6c);\n      FUN_00451998((int)local_6c[0x91],psVar15);\n      E2R_TraceActorUpdateStage(\"27584.after-51998-nullrep\",local_6c);\n      *(undefined4 *)(local_6c + 0x8f) ="
+);
+source = source.replace(
+  "        FUN_00451998((int)local_6c[0x91],psVar15);\n        *(undefined4 *)(local_6c + 0x8f) =",
+  "        E2R_TraceActorUpdateStage(\"27584.before-51998-switch\",local_6c);\n        FUN_00451998((int)local_6c[0x91],psVar15);\n        E2R_TraceActorUpdateStage(\"27584.after-51998-switch\",local_6c);\n        *(undefined4 *)(local_6c + 0x8f) ="
+);
+source = source.replace(
+  "  iVar17 = *(int *)(local_6c + 0x93);",
+  "  E2R_TraceActorUpdateStage(\"27584.before-action-select\",local_6c);\n  iVar17 = *(int *)(local_6c + 0x93);"
+);
+source = source.replace(
+  "  if (((*(short **)(local_6c + 0x8f) == (short *)0x0) || (**(short **)(local_6c + 0x8f) == 0)) &&",
+  "  E2R_TraceActorUpdateStage(\"27584.before-idle-test\",local_6c);\n  if (((*(short **)(local_6c + 0x8f) == (short *)0x0) || (**(short **)(local_6c + 0x8f) == 0)) &&"
+);
+source = source.replace(
+  "    *(byte *)((int)local_6c + 3) = *(byte *)((int)local_6c + 3) | 4;\n    return;",
+  "    *(byte *)((int)local_6c + 3) = *(byte *)((int)local_6c + 3) | 4;\n    E2R_TraceActorUpdateStage(\"27584.return-idle\",local_6c);\n    return;"
+);
+source = source.replace(
+  "  uVar19 = 1000;",
+  "  E2R_TraceActorUpdateStage(\"27584.before-target\",local_6c);\n  uVar19 = 1000;"
+);
+source = source.replace(
+  "LAB_00427d14:\n  psVar15 = (short *)((ulonglong)lVar28 >> 0x20);",
+  "LAB_00427d14:\n  E2R_TraceActorUpdateStage(\"27584.after-target-select\",local_6c);\n  psVar15 = (short *)((ulonglong)lVar28 >> 0x20);"
+);
+source = source.replace(
   "        lVar15 = FUN_00427584(psVar10,iVar7);",
-  "        lVar15 = FUN_00427584((undefined4)(uintptr_t)iVar8,iVar7);"
+  "        E2R_TraceActorLoopStage(\"42a70c.before-27584\",(uintptr_t)iVar8,actor_loop_guard);\n        E2R_TraceFrameStage(\"42a70c.before-27584\");\n        lVar15 = FUN_00427584((undefined4)(uintptr_t)iVar8,iVar7);\n        E2R_TraceFrameStage(\"42a70c.after-27584\");\n        E2R_TraceActorLoopStage(\"42a70c.after-27584\",(uintptr_t)iVar8,actor_loop_guard);"
 );
 source = source.replace(
   /(void __fastcall FUN_00421074\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  short \*psVar6;\r?\n\s*)FUN_00457818\(param_1,param_2\);/,

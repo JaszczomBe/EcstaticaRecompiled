@@ -355,6 +355,8 @@ static void e2r_inject_sequence_key(E2R_FrameDumpRequest *request, unsigned key_
     uintptr_t keydown_count_before = E2R_input_probe_keydown_count;
     unsigned inject_key = request->inject_keys[key_index];
     MSG msg;
+    unsigned dispatch_count = 0;
+    int dispatched_target_key = 0;
 
     if (key_index != phase_first_key_index) {
         usleep(request->inject_interval_ms * 1000u);
@@ -375,14 +377,27 @@ static void e2r_inject_sequence_key(E2R_FrameDumpRequest *request, unsigned key_
         fprintf(stderr, "failed to post key 0x%02x through the Win32 message queue\n",
                 inject_key);
     }
-    if ((!request->wait_for_requester_ready || key_index == 0) &&
-        PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE) && msg.message != WM_QUIT) {
-        TranslateMessage(&msg);
-        DispatchMessageA(&msg);
-        fprintf(stderr, "dispatched one queued probe message\n");
-    }
-    else if (!request->wait_for_requester_ready || key_index == 0) {
-        fprintf(stderr, "no queued probe message available for dispatch\n");
+    if (!request->wait_for_requester_ready || key_index == 0) {
+        while (dispatch_count < 16 && PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_QUIT) {
+                break;
+            }
+            TranslateMessage(&msg);
+            DispatchMessageA(&msg);
+            dispatch_count++;
+            if (msg.message == WM_KEYDOWN && (unsigned)msg.wParam == inject_key) {
+                dispatched_target_key = 1;
+                break;
+            }
+        }
+        if (dispatch_count != 0) {
+            fprintf(stderr,
+                    "dispatched %u queued probe message(s), target_key_seen=%d\n",
+                    dispatch_count, dispatched_target_key);
+        }
+        else {
+            fprintf(stderr, "no queued probe message available for dispatch\n");
+        }
     }
     usleep(100000);
     fprintf(stderr,

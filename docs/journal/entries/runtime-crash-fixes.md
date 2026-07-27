@@ -2,6 +2,56 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-27 - Control-Ready Surface Copies Stop Crashing Debug
+
+Area: Step 10 control-ready parity, `FUN_0041868c`, `FUN_00417b20`, generated hidden-register copy helpers
+
+Symptom: after the ASan requester-state residue was fixed, the debug split gameplay probe reached control-ready state and posted delayed `num8`, then segfaulted during the next render/update pass. The first crash was in `FUN_0041868c`'s surface copy loop; after source-surface fallback, the next crash moved to `FUN_00417b20`, called by `FUN_0041760c(2,0,0,0,640,480)`.
+
+Evidence: GDB showed both crashes came from generated helpers that depend on lost hidden register state. `FUN_0041868c` was using stale hidden `EAX` for source surface and stale hidden `EBX` for X. `FUN_00417b20` then reached its software-surface byte-copy loop with an invalid source/destination span.
+
+Change: mirrored two generator-backed guards. `FUN_0041868c` now validates destination/source surface indices, normalizes full-screen X to zero, falls back to the opposite page when the hidden source surface is invalid, and checks read/write spans before copying. `FUN_00417b20` now validates resolved bases, pitches, rectangle bounds, and source/destination spans before its software copy loop.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. Final split control-ready probes pass in both builds:
+
+```text
+build/linux-clang32-debug/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-final-debug5 space,num8 6 10000 180 1
+build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-final-asan2 space,num8 30 10000 60 1
+
+_DAT_00643650=0
+_DAT_0073cc3c=0x681d04
+move=[1,0,0,0,0,0,0,0,0]
+surface 3 nonblank=1 hash=6e39f5ea
+```
+
+Next Frontier: trim or gate temporary frame/actor diagnostics and decide whether Step 10 closes now or keeps a small fidelity follow-up for scene-current/presentation-page bookkeeping and hidden-register recovery in the surface-copy helpers.
+
+Regression Risk: these guards prevent crashes from generated stale register residue but do not fully recover original source/X calling conventions. They are acceptable for the Step 10 control proof; later graphics fidelity work should replace them with call-site/signature recovery where needed.
+
+## 2026-07-27 - ASan Reaches Control-Ready Movement
+
+Area: Step 10 control-ready parity, `FUN_0042a70c`, `FUN_00427584`, dead-current menu request
+
+Symptom: after split input proved delayed `num8` delivery, ASan still kept `_DAT_00643650=5` with requester `0x27` after StartGame and scene activation. Debug returned to `_DAT_00643650=0`.
+
+Evidence: actor/frame traces showed ASan enters `FUN_0042a70c`, calls `FUN_00427584` for actor `0xaa6d64`, returns through the idle path, and then render epilogue selects `_DAT_0073cc3c=0x681d04`. The divergence came afterward: ASan had `DAT_0047a470=0`, and the generated dead-current branch treated null current as a reason to set `DAT_00479db4=1`, causing `FUN_00415d40` to open requester `0x27`. Debug carried a nonzero readable residue instead and therefore did not open the requester.
+
+Change: narrowed the generated `FUN_0042a70c` dead-current requester guard so it only requests the menu for a readable non-null current actor with state `0xb` and expired life. Null current actors no longer open requester `0x27`. Mirrored the repair in `E2Recomp/tools/GenerateRecon.js` and regenerated.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, `cmake --build --preset linux-clang32-debug`, and `cmake --build build/linux-clang32-asan` pass. The ASan control-ready split probe now satisfies the stricter gate and latches movement:
+
+```text
+build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step10-control-asan space,num8 30 10000 60 1
+
+gameplay-control wait satisfied after 0 ms: start_game=1 DAT_00479de8=1 DAT_0047a76c=1 _DAT_00643650=0 _DAT_0073cc3c=0x681d04
+input state after dispatch wait: ... DAT_00479de8=1 move=[1,0,0,0,0,0,0,0,0] ... _DAT_0073cc3c=0x681d04
+surface 3 nonblank=1 hash=6e39f5ea
+```
+
+Next Frontier: review and trim temporary frame/actor diagnostics, then decide whether Step 10 can close or whether scene-current fidelity (`DAT_0047a470` after render setup) needs a small follow-up.
+
+Regression Risk: the null-current behavior is defensive but original-shaped for the observed control-ready path: it preserves the dead-actor menu request when a readable current actor is actually dead, while avoiding a requester open caused solely by generated null residue.
+
 ## 2026-07-27 - Split Gameplay Probe Exposes ASan Requester Residue
 
 Area: Step 10 movement parity probes, native key-sequence harness, ASan gameplay/control readiness

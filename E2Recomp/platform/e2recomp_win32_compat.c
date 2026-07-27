@@ -12,6 +12,7 @@
 #include <unistd.h>
 #ifndef _WIN32
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -483,14 +484,64 @@ BOOL VirtualProtect(LPVOID address, size_t size, DWORD new_protect, DWORD *old_p
 }
 
 void *SetUnhandledExceptionFilter(void *filter) { return filter; }
+
+#ifndef _WIN32
+static int e2r_maps_hex_digit(char ch)
+{
+    if ('0' <= ch && ch <= '9') return ch - '0';
+    if ('a' <= ch && ch <= 'f') return ch - 'a' + 10;
+    if ('A' <= ch && ch <= 'F') return ch - 'A' + 10;
+    return -1;
+}
+
+static const char *e2r_parse_maps_hex(const char *cursor, const char *end, uintptr_t *value)
+{
+    int digit;
+    uintptr_t parsed = 0;
+    int saw_digit = 0;
+
+    while (cursor < end && (digit = e2r_maps_hex_digit(*cursor)) >= 0) {
+        parsed = (parsed << 4) | (uintptr_t)digit;
+        cursor++;
+        saw_digit = 1;
+    }
+    if (!saw_digit) return NULL;
+    *value = parsed;
+    return cursor;
+}
+
+static int e2r_parse_maps_line(const char *line, size_t length, uintptr_t *lo, uintptr_t *hi, char perms[4])
+{
+    const char *cursor = line;
+    const char *end = line + length;
+
+    cursor = e2r_parse_maps_hex(cursor, end, lo);
+    if (cursor == NULL || cursor >= end || *cursor != '-') return 0;
+    cursor++;
+    cursor = e2r_parse_maps_hex(cursor, end, hi);
+    if (cursor == NULL || cursor >= end || *cursor != ' ') return 0;
+    while (cursor < end && *cursor == ' ') cursor++;
+    if ((size_t)(end - cursor) < 4) return 0;
+
+    perms[0] = cursor[0];
+    perms[1] = cursor[1];
+    perms[2] = cursor[2];
+    perms[3] = cursor[3];
+    return 1;
+}
+#endif
+
 static BOOL e2r_is_bad_memory_range(const void *ptr, UINT_PTR size, char permission)
 {
     uintptr_t start = (uintptr_t)ptr;
     uintptr_t end;
     uintptr_t cursor;
 #ifndef _WIN32
-    FILE *maps;
-    char line[256];
+    int maps_fd;
+    char buffer[4096];
+    char line[512];
+    size_t line_length = 0;
+    ssize_t bytes_read;
 #endif
 
     if (size == 0) return FALSE;
@@ -499,33 +550,72 @@ static BOOL e2r_is_bad_memory_range(const void *ptr, UINT_PTR size, char permiss
     if (end <= start) return TRUE;
 
 #ifndef _WIN32
-    maps = fopen("/proc/self/maps", "r");
-    if (!maps) return TRUE;
-
     cursor = start;
-    while (fgets(line, sizeof(line), maps)) {
-        unsigned long lo;
-        unsigned long hi;
-        char perms[5];
+    maps_fd = open("/proc/self/maps", O_RDONLY
+#ifdef O_CLOEXEC
+                   | O_CLOEXEC
+#endif
+    );
+    if (maps_fd < 0) return TRUE;
 
-        if (sscanf(line, "%lx-%lx %4s", &lo, &hi, perms) != 3) continue;
-        if ((uintptr_t)hi <= cursor) continue;
-        if ((uintptr_t)lo > cursor) break;
+    while ((bytes_read = read(maps_fd, buffer, sizeof(buffer))) > 0) {
+        ssize_t i;
 
-        if ((permission == 'r' && perms[0] != 'r') ||
-            (permission == 'w' && perms[1] != 'w')) {
-            fclose(maps);
-            return TRUE;
-        }
+        for (i = 0; i < bytes_read; i++) {
+            char ch = buffer[i];
+            if (ch != '\n') {
+                if (line_length < sizeof(line)) {
+                    line[line_length++] = ch;
+                }
+                continue;
+            }
 
-        cursor = (uintptr_t)hi;
-        if (cursor >= end) {
-            fclose(maps);
-            return FALSE;
+            uintptr_t lo;
+            uintptr_t hi;
+            char perms[4];
+
+            if (!e2r_parse_maps_line(line, line_length, &lo, &hi, perms)) {
+                line_length = 0;
+                continue;
+            }
+            line_length = 0;
+
+            if (hi <= cursor) continue;
+            if (lo > cursor) {
+                close(maps_fd);
+                return TRUE;
+            }
+
+            if ((permission == 'r' && perms[0] != 'r') ||
+                (permission == 'w' && perms[1] != 'w')) {
+                close(maps_fd);
+                return TRUE;
+            }
+
+            cursor = hi;
+            if (cursor >= end) {
+                close(maps_fd);
+                return FALSE;
+            }
         }
     }
 
-    fclose(maps);
+    if (bytes_read == 0 && line_length != 0) {
+        uintptr_t lo;
+        uintptr_t hi;
+        char perms[4];
+
+        if (e2r_parse_maps_line(line, line_length, &lo, &hi, perms) &&
+            hi > cursor && lo <= cursor &&
+            !((permission == 'r' && perms[0] != 'r') ||
+              (permission == 'w' && perms[1] != 'w'))) {
+            cursor = hi;
+        }
+    }
+
+    close(maps_fd);
+    if (bytes_read < 0) return TRUE;
+    if (cursor >= end) return FALSE;
     return TRUE;
 #endif
 
