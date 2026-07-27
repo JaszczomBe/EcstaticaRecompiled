@@ -1,6 +1,6 @@
 # Define Replaceable Host Backend Boundary
 
-Status: active
+Status: completed
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
 Last Updated: 2026-07-27
 
@@ -47,8 +47,8 @@ Stay within the parent implementation's daily 5% weekly usage burn limit. If bou
 
 1. [Inventory Backend Ownership](tasks/task-01-inventory-backend-ownership.md) - completed; record what belongs to compatibility, probes, and host backend.
 2. [Extract Window Input Backend](tasks/task-02-extract-window-input-backend.md) - completed; move X11 window/input details behind `e2recomp_host_backend.*`.
-3. [Define Remaining Backend Contracts](tasks/task-03-define-remaining-backend-contracts.md) - planned; specify timing, presentation, and audio ownership before implementation.
-4. [Close Backend Boundary Step](tasks/task-04-close-backend-boundary-step.md) - planned; verify regressions and prepare Step 13 handoff.
+3. [Define Remaining Backend Contracts](tasks/task-03-define-remaining-backend-contracts.md) - completed; specified timing, presentation, and audio ownership before implementation.
+4. [Close Backend Boundary Step](tasks/task-04-close-backend-boundary-step.md) - completed; verified regressions and prepared Step 13 handoff.
 
 ## Verification
 
@@ -87,11 +87,96 @@ E2R_HostPollEvents
 
 `E2Recomp/platform/e2recomp_win32_compat.c` still owns the game-facing HWND stub, message queue, `PeekMessageA`/`GetMessageA`, `DispatchMessageA`, and `WM_KEYDOWN` semantics. The X11 dynamic loader, display/window state, key-symbol mapping, and X11 event loop now live below the backend boundary.
 
+## Backend Contracts
+
+The remaining backend boundary should expand only where a host-specific implementation is required. The compatibility layer remains responsible for the game-facing API shape and return semantics.
+
+### Timing
+
+Current state:
+
+1. `Sleep`, `GetTickCount`, `timeGetTime`, `SetTimer`, and `KillTimer` live in `E2Recomp/platform/e2recomp_win32_compat.c`.
+2. `Sleep` currently maps directly to `usleep`.
+3. `GetTickCount`/`timeGetTime` currently return coarse wall-clock milliseconds.
+4. `SetTimer`/`KillTimer` are compatibility stubs and do not schedule backend callbacks.
+
+Ownership decision:
+
+1. The Win32 function names and return semantics stay in the compatibility layer.
+2. Host waiting and monotonic-time reads may become backend services when SDL or another backend needs to own event-loop timing.
+3. Timer callback delivery is deferred until a runtime path proves it is needed; it should be added as a compatibility behavior backed by host timing, not as direct SDL calls from reconstructed logic.
+
+Potential backend API, deferred:
+
+```text
+E2R_HostSleepMilliseconds
+E2R_HostMonotonicMilliseconds
+```
+
+### Presentation
+
+Current state:
+
+1. Legacy framebuffer pages are still the reconstructed runtime's compatibility-facing state: `_DAT_00636150`, `_DAT_00636154`, `_DAT_00636158`, `_DAT_0063615c`, `_DAT_006401ec`, `_DAT_006401d4`, and `DAT_0047a279`.
+2. `E2Recomp/native/e2recomp_native_main.c` owns developer-only PGM frame and surface dumps.
+3. The Step 11 regression proof depends on surface dump summaries and should remain independent of live host presentation.
+
+Ownership decision:
+
+1. Legacy framebuffer page selection and DirectDraw-like semantics stay in compatibility/reconstructed state until recovered more precisely.
+2. Host presentation belongs behind the backend boundary and should consume already-established framebuffer/palette state.
+3. Probe dumps remain developer tooling and must not be replaced by live presentation.
+
+Potential backend API, deferred to Step 13 task 03:
+
+```text
+E2R_HostPresentIndexedFrame
+```
+
+### Audio
+
+Current state:
+
+1. `midiOutGetNumDevs`, `midiOutGetDevCapsA`, and MMIO helpers live in `E2Recomp/platform/e2recomp_win32_compat.c`.
+2. MIDI device enumeration currently reports no devices.
+3. MMIO helpers provide file-oriented compatibility behavior used by legacy resource/audio paths.
+4. DirectSound fidelity is not yet recovered enough to specify a full host mixer contract.
+
+Ownership decision:
+
+1. MIDI, MMIO, DirectSound, and wave-style API shapes stay in compatibility.
+2. Actual audio device creation, buffer submission, and mixing belong behind backend APIs once a real runtime path needs them.
+3. SDL audio should not be introduced until a focused audio task names the compatibility calls it backs.
+
+Potential backend API, deferred:
+
+```text
+E2R_HostAudioInit
+E2R_HostAudioSubmit
+E2R_HostAudioShutdown
+```
+
+Deferred risks:
+
+1. Presentation may expose palette/page-flip fidelity issues that belong to DirectDraw compatibility, not the backend.
+2. Timer callbacks may require recovered Win32 message semantics before backend timing is useful.
+3. Audio may need original DirectSound buffer semantics before an SDL queue can be correct.
+
 Verification passed after the move:
 
 ```text
 cmake --build --preset linux-clang32-debug
 cmake --build build/linux-clang32-asan
+scripts/run-e2-runtime-regressions.sh
+
+Runtime regressions passed.
+Debug log: /tmp/e2-step11-regression-debug.log
+ASan log: /tmp/e2-step11-regression-asan.log
+```
+
+Final Step 12 verification also passed before closure:
+
+```text
 scripts/run-e2-runtime-regressions.sh
 
 Runtime regressions passed.
@@ -106,3 +191,5 @@ ASan log: /tmp/e2-step11-regression-asan.log
 1. Created Step 12 after Step 11 completed repeatable runtime-loop regression checks.
 2. Moved X11 host window/input handling behind `e2recomp_host_backend.*`, leaving Win32 compatibility message semantics in `e2recomp_win32_compat.c`.
 3. Reverified debug/ASan builds and the Step 11 regression script after the backend seam.
+4. Completed the remaining backend contract inventory for timing, presentation, and audio without adding speculative APIs.
+5. Closed Step 12 after the backend ownership inventory, first host seam, remaining contract notes, and final runtime regression verification were complete.

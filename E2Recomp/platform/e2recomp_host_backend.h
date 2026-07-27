@@ -12,3 +12,4 @@ void E2R_HostShowWindow(E2R_HostWindow *window);
 void E2R_HostPollEvents(E2R_HostWindow *window,
                         E2R_HostKeyDownCallback keydown_callback,
                         void *user);
+int E2R_HostPushSyntheticKeyDown(E2R_HostWindow *window, UINT vk);

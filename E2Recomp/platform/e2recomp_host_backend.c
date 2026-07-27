@@ -222,6 +222,12 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
         }
     }
 }
+
+int E2R_HostPushSyntheticKeyDown(E2R_HostWindow *window, UINT vk)
+{
+    (void)window; (void)vk;
+    return 0;
+}
 #else
 struct E2R_HostWindow {
     int unused;
@@ -241,5 +247,10 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
                         void *user)
 {
     (void)window; (void)keydown_callback; (void)user;
+}
+int E2R_HostPushSyntheticKeyDown(E2R_HostWindow *window, UINT vk)
+{
+    (void)window; (void)vk;
+    return 0;
 }
 #endif

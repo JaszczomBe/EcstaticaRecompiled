@@ -22,6 +22,9 @@ set(GHIDRA_PROJECT_NAME "E2Win95Project" CACHE STRING
     "Ghidra project name for the original Ecstatica II executable")
 set(GHIDRA_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/E2Recomp" CACHE PATH
     "Directory receiving exported decompilation artifacts")
+set(E2R_HOST_BACKEND "x11" CACHE STRING
+    "Host backend implementation: x11 or sdl")
+set_property(CACHE E2R_HOST_BACKEND PROPERTY STRINGS x11 sdl)
 
 if(EXISTS "${ECSTATICA2_DATA_DIR}")
     file(CREATE_LINK "${ECSTATICA2_DATA_DIR}" "${ECSTATICA2_DATA_LINK}"
@@ -39,6 +42,31 @@ else()
 endif()
 
 find_program(NODE_EXECUTABLE node)
+
+if(E2R_HOST_BACKEND STREQUAL "x11")
+    set(E2R_HOST_BACKEND_SOURCE E2Recomp/platform/e2recomp_host_backend.c)
+elseif(E2R_HOST_BACKEND STREQUAL "sdl")
+    set(E2R_SDL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dep/SDL")
+    if(NOT EXISTS "${E2R_SDL_SOURCE_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR
+            "E2R_HOST_BACKEND=sdl requires the SDL submodule at dep/SDL.\n"
+            "Initialize it with: git submodule update --init --recursive dep/SDL")
+    endif()
+    set(SDL_SHARED OFF CACHE BOOL "Build SDL shared library" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "Build SDL static library" FORCE)
+    set(SDL_TEST_LIBRARY OFF CACHE BOOL "Build SDL test library" FORCE)
+    set(SDL_TESTS OFF CACHE BOOL "Build SDL tests" FORCE)
+    set(SDL_INSTALL OFF CACHE BOOL "Install SDL" FORCE)
+    set(SDL_CCACHE OFF CACHE BOOL "Use ccache when building SDL" FORCE)
+    add_subdirectory("${E2R_SDL_SOURCE_DIR}" dep/SDL-build EXCLUDE_FROM_ALL)
+    set(E2R_HOST_BACKEND_SOURCE E2Recomp/platform/e2recomp_host_backend_sdl.c)
+else()
+    message(FATAL_ERROR
+        "Unsupported E2R_HOST_BACKEND='${E2R_HOST_BACKEND}'. "
+        "Use -DE2R_HOST_BACKEND=x11 or -DE2R_HOST_BACKEND=sdl.")
+endif()
+
+message(STATUS "E2R host backend: ${E2R_HOST_BACKEND}")
 
 add_custom_target(ghidra-export
     COMMAND "${CMAKE_COMMAND}" -E env
@@ -76,7 +104,7 @@ add_executable(e2recomp
     E2Recomp/reconstructed/E2Recomp_globals.c
     E2Recomp/reconstructed/E2Recomp_data_init.c
     E2Recomp/reconstructed/E2Recomp_stubs.c
-    E2Recomp/platform/e2recomp_host_backend.c
+    ${E2R_HOST_BACKEND_SOURCE}
     E2Recomp/platform/e2recomp_win32_compat.c
     E2Recomp/native/e2recomp_native_main.c
 )
@@ -93,6 +121,11 @@ target_compile_definitions(e2recomp PRIVATE
 
 if(UNIX AND NOT APPLE)
     target_link_libraries(e2recomp PRIVATE dl m pthread)
+endif()
+
+if(E2R_HOST_BACKEND STREQUAL "sdl")
+    target_link_libraries(e2recomp PRIVATE SDL3::SDL3)
+    target_compile_definitions(e2recomp PRIVATE E2R_HOST_BACKEND_SDL=1)
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")

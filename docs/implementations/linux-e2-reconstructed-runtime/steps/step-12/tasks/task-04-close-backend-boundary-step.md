@@ -1,6 +1,6 @@
 # Close Backend Boundary Step
 
-Status: planned
+Status: completed
 Parent Step: [Define Replaceable Host Backend Boundary](../step-12-define-replaceable-host-backend-boundary.md)
 Parent Implementation: [Run Reconstructed E2 On Linux](../../../linux-e2-reconstructed-runtime.md)
 Last Updated: 2026-07-27
@@ -24,7 +24,7 @@ Close Step 12 only after the backend boundary is documented, the first seam is v
 
 ## Implementation Notes
 
-This task should be a closure and handoff pass. If new code is needed, create a separate task first.
+Completed as a closure and handoff pass. No new code was added in this task; the final verification reused the Step 11 runtime regression script after the Step 12 backend seam and contract documentation.
 
 ## Acceptance Criteria
 
@@ -40,11 +40,12 @@ This task should be a closure and handoff pass. If new code is needed, create a 
 ## Review State
 
 1. Planning state: discussed
-2. Implementation state: not_started
-3. Notes: Use this to prevent Step 12 from turning into the SDL implementation step.
+2. Implementation state: accepted
+3. Notes: Step 12 is closed and Step 13 is ready to begin with task 01.
 
 ## Change Log
 
 ### 2026-07-27
 
 1. Created task.
+2. Verified `scripts/run-e2-runtime-regressions.sh`, marked Step 12 completed, and prepared the Step 13 handoff.

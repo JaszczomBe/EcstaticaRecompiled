@@ -1,4 +1,5 @@
 #include "E2Recomp_recon.h"
+#include "e2recomp_host_backend.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -781,6 +782,37 @@ static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
 }
 #endif
 
+static int e2r_run_host_backend_key_probe(void)
+{
+    HWND hwnd;
+    MSG msg;
+    unsigned poll;
+
+    hwnd = E2R_CreateWindowExA(0, "E2RProbe", "Ecstatica II backend key probe",
+                               0, 0, 0, 64, 64, NULL, NULL, NULL, NULL);
+    if (hwnd == NULL || hwnd->ptr == NULL) {
+        fprintf(stderr, "host backend key probe failed: window unavailable\n");
+        return 1;
+    }
+    if (!E2R_HostPushSyntheticKeyDown((E2R_HostWindow *)hwnd->ptr, VK_SPACE)) {
+        fprintf(stderr, "host backend key probe failed: synthetic key unsupported\n");
+        return 2;
+    }
+    for (poll = 0; poll < 8; poll++) {
+        if (PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE)) {
+            fprintf(stderr, "host backend key probe message: msg=0x%04x wParam=0x%02lx\n",
+                    msg.message, (unsigned long)msg.wParam);
+            if (msg.message == WM_KEYDOWN && msg.wParam == VK_SPACE) {
+                fprintf(stderr, "host backend key probe passed\n");
+                return 0;
+            }
+        }
+        Sleep(1);
+    }
+    fprintf(stderr, "host backend key probe failed: no WM_KEYDOWN for VK_SPACE\n");
+    return 3;
+}
+
 int main(int argc, char **argv)
 {
     printf("Ecstatica II data: %s\n", E2RECOMP_DATA_DIR);
@@ -801,6 +833,10 @@ int main(int argc, char **argv)
         E2R_WinMainThunk();
         return 0;
 #endif
+    }
+
+    if (argc > 1 && strcmp(argv[1], "--host-backend-key-probe") == 0) {
+        return e2r_run_host_backend_key_probe();
     }
 
     if (argc > 2 && strcmp(argv[1], "--dump-frame") == 0) {
@@ -957,6 +993,7 @@ int main(int argc, char **argv)
     }
 
     puts("Linux scaffold initialized. Pass --run-recon to enter the reconstructed game startup thunk.");
+    puts("Pass --host-backend-key-probe to verify backend key events reach WM_KEYDOWN.");
     puts("Pass --dump-frame <path.pgm> [seconds] to write a bounded framebuffer inspection dump.");
     puts("Pass --dump-surfaces <prefix> [seconds] to write all four bounded framebuffer dumps.");
     puts("Pass --inject-key-dump <path.pgm> <key|vk> [inject_seconds] [dump_seconds] to probe input.");

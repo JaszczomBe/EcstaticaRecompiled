@@ -66,7 +66,9 @@ Step 10 is complete. The original requester `0x27/0x28` record selects Start Gam
 
 Step 11 is complete. `scripts/run-e2-runtime-regressions.sh` is the repeatable build-and-probe command for the stabilized runtime loop: it checks generator syntax, builds debug/ASan, runs the split gameplay control probes, asserts the key proof strings, rejects ASan reports, and rejects opt-in runtime trace families by default. Temporary frame/scene-pointer/actor/requester/current-pointer diagnostics are quiet by default and opt back in with `E2R_RUNTIME_DIAG=1`; the separate FAN parser diagnostics remain under `E2R_FAN_DIAG=1`. The regression harness also exposed and now protects a generated `FUN_0041ad54` draw-fill guard for invalid low surface bases/spans.
 
-Step 12 is active. The first target is to define the replaceable host backend boundary before adding SDL or richer presentation/audio behavior. Current evidence points to host window/input polling as the first practical seam: the compatibility message queue and `WM_KEYDOWN` semantics stay game-facing, while X11 display/window/key-symbol handling belongs behind a backend-owned layer. The first code slice introduced `E2Recomp/platform/e2recomp_host_backend.*` and moved X11 window creation, show/destroy, and event polling behind that API without changing the Step 11 runtime proof.
+Step 12 is complete. It defined the replaceable host backend boundary before SDL or richer presentation/audio behavior. The first code slice introduced `E2Recomp/platform/e2recomp_host_backend.*` and moved X11 window creation, show/destroy, and event polling behind that API without changing the Step 11 runtime proof. Timing, presentation, and audio contracts are documented as ownership decisions; their backend APIs are deferred until a focused implementation task needs them.
+
+Step 13 is active. SDL is now selectable as an optional backend path with `-DE2R_HOST_BACKEND=sdl`, while the current default remains X11. The SDL-selected build path uses the vendored `dep/SDL` submodule pinned to SDL 3.4.12 so SDL source is available during crash investigation, and links a separate backend source. SDL window lifecycle, event polling, and virtual-key mapping are implemented behind the backend API and compile in a separate SDL build tree. A bounded SDL key-delivery probe proves a backend key event reaches the compatibility `WM_KEYDOWN` queue; presentation and parity verification remain split into later task files.
 
 ## Step Roadmap
 
@@ -83,8 +85,8 @@ Each step should be scoped so it can preferably be completed in one context wind
 9. [Wire Menu Input Path](steps/step-09/step-09-wire-menu-input-path.md) - completed; message-queue `WM_KEYDOWN`, X11 host-key poll, legacy key queues, requester navigation/action selection, and Quit confirmation No/Yes outcomes are verified in debug and ASan.
 10. [Reach First Controllable Scene](steps/step-10/step-10-reach-first-controllable-scene.md) - completed; restored the original Start Game path, entered scene loading, captured gameplay surfaces, and proved delayed movement in debug and ASan.
 11. [Harden Runtime Loop Regression Checks](steps/step-11/step-11-harden-runtime-loop-regression-checks.md) - completed; made debug/ASan runtime-loop probes repeatable and quiet by default.
-12. [Define Replaceable Host Backend Boundary](steps/step-12/step-12-define-replaceable-host-backend-boundary.md) - active; isolate window, input, timing, presentation, and audio backend calls below the compatibility layer.
-13. [Add SDL Host Backend](steps/step-13/step-13-add-sdl-host-backend.md) - planned; replace or supplement Linux/X11 scaffolding with SDL once loop, frame, and compatibility semantics are stable enough to specify.
+12. [Define Replaceable Host Backend Boundary](steps/step-12/step-12-define-replaceable-host-backend-boundary.md) - completed; isolated host window/input below compatibility and documented timing, presentation, and audio ownership.
+13. [Add SDL Host Backend](steps/step-13/step-13-add-sdl-host-backend.md) - active; replace or supplement Linux/X11 scaffolding with SDL once loop, frame, and compatibility semantics are stable enough to specify.
 
 ## Journals
 
@@ -215,3 +217,10 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 10. Extended the Step 11 regression script to reject opt-in runtime trace families by default, closed Step 11, and opened Step 12 to define the replaceable host backend boundary.
 11. Added `e2recomp_host_backend.*` as the first host backend seam, moving X11 window/input polling below the Win32 compatibility message layer and revalidating the debug/ASan runtime regression script.
 12. Added missing Step 13 planning docs and split Steps 12 and 13 into task-sized markdown files for future single-context implementation slices.
+13. Completed the Step 12 remaining-contracts task by documenting timing, presentation, and audio ownership decisions and deferring speculative backend APIs.
+14. Closed Step 12 after a final runtime regression pass and activated Step 13 task 01 for SDL build selection.
+15. Added `E2R_HOST_BACKEND=x11|sdl` build selection, kept X11 as default, and verified a separate SDL-selected build tree.
+16. Implemented SDL window lifecycle, event polling, and virtual-key mapping behind `E2R_HostWindow`; verified the SDL-selected build and re-ran the default debug/ASan runtime regression.
+17. Replaced system SDL discovery with the vendored `dep/SDL` submodule so SDL crash investigation can inspect the built source tree.
+18. Added `--host-backend-key-probe` and verified the SDL backend turns a synthetic `space` key event into compatibility `WM_KEYDOWN`.
+19. Renamed the dependency root from `third_party` to `dep` and updated SDL to release 3.4.12.

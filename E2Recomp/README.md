@@ -48,7 +48,7 @@ cmake --build --preset linux-clang32-debug --target ghidra-export
 By default this imports `/home/rgrabowski/Games/Ecstatica2/E2WIN95.EXE` and writes
 the exported C and TSV metadata back into this `E2Recomp` directory. Ghidra is
 found via `GHIDRA_ANALYZE_HEADLESS`, `GHIDRA_HOME`, `analyzeHeadless` on `PATH`,
-or a local `third_party/ghidra` checkout/unpacked release.
+or a local `dep/ghidra` checkout/unpacked release.
 
 To regenerate the normalized reconstruction from the export:
 

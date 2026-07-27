@@ -1,6 +1,6 @@
 # Define Remaining Backend Contracts
 
-Status: planned
+Status: completed
 Parent Step: [Define Replaceable Host Backend Boundary](../step-12-define-replaceable-host-backend-boundary.md)
 Parent Implementation: [Run Reconstructed E2 On Linux](../../../linux-e2-reconstructed-runtime.md)
 Last Updated: 2026-07-27
@@ -25,7 +25,24 @@ Specify the remaining backend-owned service contracts before adding new host beh
 
 ## Implementation Notes
 
-Keep this task documentation-first. If code movement looks necessary, split it into a new task before editing source files.
+Completed as a documentation-first task. No code movement was needed because the current contracts are still ownership decisions rather than stable implementation seams.
+
+Contract summary:
+
+1. Timing: Win32 names and return semantics remain in compatibility; backend sleep/monotonic-time helpers are deferred until SDL/event-loop timing needs them.
+2. Presentation: legacy framebuffer page state and DirectDraw-like semantics remain compatibility/reconstructed state; backend presentation should consume established framebuffer/palette state later without replacing probe dumps.
+3. Audio: MIDI/MMIO/DirectSound API shapes remain compatibility; actual device/mixer behavior is deferred until runtime paths prove the needed semantics.
+
+Deferred backend API candidates:
+
+```text
+E2R_HostSleepMilliseconds
+E2R_HostMonotonicMilliseconds
+E2R_HostPresentIndexedFrame
+E2R_HostAudioInit
+E2R_HostAudioSubmit
+E2R_HostAudioShutdown
+```
 
 ## Acceptance Criteria
 
@@ -42,11 +59,12 @@ Keep this task documentation-first. If code movement looks necessary, split it i
 ## Review State
 
 1. Planning state: discussed
-2. Implementation state: not_started
-3. Notes: Designed to fit in one context window as an inventory and contract-writing task.
+2. Implementation state: accepted
+3. Notes: Completed in one context window as an inventory and contract-writing task.
 
 ## Change Log
 
 ### 2026-07-27
 
 1. Created task.
+2. Documented timing, presentation, and audio backend ownership decisions in Step 12 and marked the task completed.

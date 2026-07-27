@@ -22,9 +22,9 @@ find_headless() {
 
     local candidate
     for candidate in \
-        "${repo_root}"/third_party/ghidra/support/analyzeHeadless \
-        "${repo_root}"/third_party/ghidra/build/dist/ghidra_*_PUBLIC/support/analyzeHeadless \
-        "${repo_root}"/third_party/ghidra/Ghidra/RuntimeScripts/Linux/support/analyzeHeadless
+        "${repo_root}"/dep/ghidra/support/analyzeHeadless \
+        "${repo_root}"/dep/ghidra/build/dist/ghidra_*_PUBLIC/support/analyzeHeadless \
+        "${repo_root}"/dep/ghidra/Ghidra/RuntimeScripts/Linux/support/analyzeHeadless
     do
         if [[ -x "${candidate}" ]]; then
             printf '%s\n' "${candidate}"
@@ -54,7 +54,7 @@ Could not find Ghidra analyzeHeadless.
 Use one of:
   export GHIDRA_HOME=/path/to/ghidra_RELEASE_PUBLIC
   export GHIDRA_ANALYZE_HEADLESS=/path/to/analyzeHeadless
-  git submodule add --depth 1 https://github.com/NationalSecurityAgency/ghidra.git third_party/ghidra
+  git submodule add --depth 1 https://github.com/NationalSecurityAgency/ghidra.git dep/ghidra
 
 If using the source submodule, build Ghidra first; the release distribution is faster for headless export.
 EOF
