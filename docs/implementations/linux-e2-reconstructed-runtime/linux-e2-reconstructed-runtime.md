@@ -84,7 +84,7 @@ Each step should be scoped so it can preferably be completed in one context wind
 10. [Reach First Controllable Scene](steps/step-10/step-10-reach-first-controllable-scene.md) - completed; restored the original Start Game path, entered scene loading, captured gameplay surfaces, and proved delayed movement in debug and ASan.
 11. [Harden Runtime Loop Regression Checks](steps/step-11/step-11-harden-runtime-loop-regression-checks.md) - completed; made debug/ASan runtime-loop probes repeatable and quiet by default.
 12. [Define Replaceable Host Backend Boundary](steps/step-12/step-12-define-replaceable-host-backend-boundary.md) - active; isolate window, input, timing, presentation, and audio backend calls below the compatibility layer.
-13. Add SDL Host Backend - planned; replace or supplement Linux/X11 scaffolding with SDL once loop, frame, and compatibility semantics are stable enough to specify.
+13. [Add SDL Host Backend](steps/step-13/step-13-add-sdl-host-backend.md) - planned; replace or supplement Linux/X11 scaffolding with SDL once loop, frame, and compatibility semantics are stable enough to specify.
 
 ## Journals
 
@@ -214,3 +214,4 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 9. Gated temporary runtime diagnostics behind `E2R_RUNTIME_DIAG=1`, hardened generated `FUN_0041ad54` against invalid draw bases/spans, and reverified the Step 11 regression script with quiet default debug/ASan logs.
 10. Extended the Step 11 regression script to reject opt-in runtime trace families by default, closed Step 11, and opened Step 12 to define the replaceable host backend boundary.
 11. Added `e2recomp_host_backend.*` as the first host backend seam, moving X11 window/input polling below the Win32 compatibility message layer and revalidating the debug/ASan runtime regression script.
+12. Added missing Step 13 planning docs and split Steps 12 and 13 into task-sized markdown files for future single-context implementation slices.
