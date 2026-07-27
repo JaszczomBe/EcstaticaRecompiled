@@ -497,18 +497,25 @@ BOOL ShowWindow(HWND hwnd, int cmd_show)
     (void)hwnd; (void)cmd_show;
     return TRUE;
 }
-BOOL UpdateWindow(HWND hwnd) { (void)hwnd; return TRUE; }
+BOOL UpdateWindow(HWND hwnd)
+{
+    E2R_TryPresentCurrentFrame(hwnd);
+    (void)hwnd;
+    return TRUE;
+}
 HWND SetFocus(HWND hwnd) { return hwnd; }
 int ShowCursor(BOOL show) { (void)show; return 0; }
 BOOL GetCursorPos(POINT *point) { if (point) point->x = point->y = 0; return TRUE; }
 BOOL PeekMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter, UINT remove)
 {
     E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr, e2r_queue_host_keydown, NULL);
+    E2R_TryPresentCurrentFrame(&e2r_window);
     return e2r_pop_message(msg, hwnd, min_filter, max_filter, (remove & PM_REMOVE) != 0);
 }
 BOOL GetMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter)
 {
     E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr, e2r_queue_host_keydown, NULL);
+    E2R_TryPresentCurrentFrame(&e2r_window);
     if (!e2r_pop_message(msg, hwnd, min_filter, max_filter, TRUE)) {
         return FALSE;
     }

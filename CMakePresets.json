@@ -24,6 +24,32 @@
         "CMAKE_EXE_LINKER_FLAGS": "-m32",
         "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2"
       }
+    },
+    {
+      "name": "linux-clang-sdl-debug",
+      "displayName": "Linux Clang SDL Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-clang-sdl-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2",
+        "E2R_HOST_BACKEND": "sdl"
+      }
+    },
+    {
+      "name": "linux-clang32-sdl-debug",
+      "displayName": "Linux Clang 32-bit SDL Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-clang32-sdl-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_EXE_LINKER_FLAGS": "-m32",
+        "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2",
+        "E2R_HOST_BACKEND": "sdl"
+      }
     }
   ],
   "buildPresets": [
@@ -34,6 +60,14 @@
     {
       "name": "linux-clang32-debug",
       "configurePreset": "linux-clang32-debug"
+    },
+    {
+      "name": "linux-clang-sdl-debug",
+      "configurePreset": "linux-clang-sdl-debug"
+    },
+    {
+      "name": "linux-clang32-sdl-debug",
+      "configurePreset": "linux-clang32-sdl-debug"
     }
   ]
 }

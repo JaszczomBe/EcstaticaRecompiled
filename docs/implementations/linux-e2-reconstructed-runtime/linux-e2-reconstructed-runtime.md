@@ -1,9 +1,9 @@
 # Run Reconstructed E2 On Linux
 
-Status: active
+Status: completed
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-27
+Last Updated: 2026-07-28
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -56,9 +56,24 @@ FUN_00410a48 -> FUN_00414b24
 FUN_00410a48 -> thunk_FUN_004620db
 ```
 
-The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been cleared. Runtime stabilization has advanced through config-header, CDPath, hosted file existence, menu/dialog string-list, fixed-address table, framebuffer fill, quick-save writer, HUD icon clear, damage-rectangle table, requester-id frontiers, and the first bounded input-flag probe. Step 7 sustains the reconstructed runtime under ASan for 90 seconds without a sanitizer crash, Step 8 captures an inspectable `640x480` Ecstatica II title-logo frame from the ASan build, and Step 9 now posts recovered key events through the compatibility queue into `E2R_WndProc`/`DAT_006368xx`, polls X11 host keypresses, and confirms the visible-menu gap is not hidden on another framebuffer page.
+The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been cleared. Runtime stabilization advanced through config-header, CDPath, hosted file existence, menu/dialog string-list, fixed-address table, framebuffer fill, quick-save writer, HUD icon clear, damage-rectangle table, requester-id frontiers, and bounded input probes. The reconstructed runtime now reaches first gameplay, accepts delayed movement input, presents real recovered frames through SDL, and has a VS Code SDL F5 launch route.
 
-## Active Steps
+## Completed Result
+
+This implementation has reached its original horizon. Further work belongs in [Playable SDL Runtime](../playable-sdl-runtime/playable-sdl-runtime.md).
+
+The completed runtime proof is:
+
+1. Original Ecstatica II data loads from `/home/rgrabowski/Games/Ecstatica2/`.
+2. The reconstructed main loop survives bounded debug and ASan probes.
+3. Menu input reaches requester navigation and Start Game.
+4. Gameplay control-ready probes reach `_DAT_00643650=0`, `_DAT_0073cc3c=0x681d04`, nonblank surface 3 `hash=6e39f5ea`, and `move=[1,0,0,0,0,0,0,0,0]`.
+5. Host window/input/presentation behavior is isolated behind a backend boundary.
+6. SDL 3.4.12 is vendored under `dep/SDL`.
+7. The SDL backend can receive real recovered `640x480` runtime frames.
+8. VS Code exposes `Ecstatica Recompiled (SDL)` for the live-presentation backend.
+
+## Completed Steps
 
 Step 9 is complete. Its input bridge maps `WM_KEYDOWN` through the compatibility message queue into recovered input globals, feeds legacy key queues, and polls X11 keypresses into the same path. Requester-ready probes reach rendering, keyboard focus movement, action selection, and nested Quit confirmation outcomes in both debug and ASan. Exact recovery of the unnamed fixed English confirmation text at `0x004729b8` remains a fidelity backlog item.
 
@@ -71,6 +86,8 @@ Step 12 is complete. It defined the replaceable host backend boundary before SDL
 Step 13 is complete. SDL is selectable as an optional backend path with `-DE2R_HOST_BACKEND=sdl`, while the current default remains X11. The SDL-selected build path uses the vendored `dep/SDL` submodule pinned to SDL 3.4.12 so SDL source is available during crash investigation, and links a separate backend source. SDL window lifecycle, event polling, virtual-key mapping, and indexed-8 presentation are implemented behind the backend API. Bounded SDL probes prove key delivery reaches compatibility `WM_KEYDOWN`, indexed-8 pixels reach the SDL window-surface presentation path (`hash=a92a7045`), and the 32-bit SDL gameplay parity probe reaches the stabilized movement/surface proof with `_DAT_00643650=0`, `_DAT_0073cc3c=0x681d04`, `move=[1,0,0,0,0,0,0,0,0]`, and surface 3 hash `6e39f5ea`.
 
 The VS Code F5 launch entry `Ecstatica Recompiled` uses the intended raw debug route: `build/linux-clang32-debug/e2recomp --run-recon` from the build directory. A reported `malloc_consolidate(): unaligned fastbin chunk detected` abort on that route was traced to a generated hosted-stream double close in `FUN_0045ec6c`; the `tscreen.raw` open only surfaced the prior heap damage. Hosted read streams are now registered on creation and stale second closes fail without freeing the same buffer/stream twice. The same investigation also repaired remaining fixed-address buffer address-of uses for `0x0061c730` and `0x0047a4e0` in `FUN_0044add8`, preventing those writes from corrupting framebuffer globals during gameplay probes.
+
+Step 14 is complete. Real recovered framebuffer pages are now presented through the backend from main-thread compatibility pump points, and the live SDL backend is reachable from a separate `Ecstatica Recompiled (SDL)` VS Code F5 launch route. The first live path reuses the existing framebuffer selection heuristic, throttles presentation attempts, keeps diagnostics opt-in with `E2R_PRESENT_DIAG=1`, and routes accepted frames through `E2R_HostPresentIndexed8`. SDL live-frame evidence shows real `640x480` surface 3 frames reaching the backend with hashes `6e39f5ea` and `3615add9`; worker-thread PGM dump probes remain unchanged. The SDL configure/build presets are available, the 32-bit SDL preset builds, the synthetic SDL presentation probe still passes with `hash=a92a7045`, and the default debug/ASan runtime regression script remains green. A real-display raw SDL `--run-recon` probe advanced past the previously reported `malloc_consolidate()` crash window and stayed alive until manually interrupted after the timeout wrapper failed to collect a clean terminal status in the PTY session; final visual F5 confirmation moves to the [Playable SDL Runtime](../playable-sdl-runtime/playable-sdl-runtime.md) implementation.
 
 ## Step Roadmap
 
@@ -89,6 +106,9 @@ Each step should be scoped so it can preferably be completed in one context wind
 11. [Harden Runtime Loop Regression Checks](steps/step-11/step-11-harden-runtime-loop-regression-checks.md) - completed; made debug/ASan runtime-loop probes repeatable and quiet by default.
 12. [Define Replaceable Host Backend Boundary](steps/step-12/step-12-define-replaceable-host-backend-boundary.md) - completed; isolated host window/input below compatibility and documented timing, presentation, and audio ownership.
 13. [Add SDL Host Backend](steps/step-13/step-13-add-sdl-host-backend.md) - completed; added an opt-in vendored SDL 3.4.12 backend with window/input/presentation probes and 32-bit gameplay parity.
+14. [Present Live Runtime Frames And SDL F5 Route](steps/step-14/step-14-present-live-runtime-frames.md) - completed; presented recovered runtime framebuffer pages through the host backend during the normal reconstructed main loop, added CMake/VS Code wiring for the SDL-backed F5 route, and verified build/runtime probes.
+
+Next implementation: [Playable SDL Runtime](../playable-sdl-runtime/playable-sdl-runtime.md).
 
 ## Journals
 
@@ -230,3 +250,6 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 21. Stabilized the SDL parity path by guarding SDL event polling to the main thread and recovering generated runtime guards for surface-cache lookup, line drawing, current-action reads, and stale high-half byte-copy residue.
 22. Closed Step 13 after default debug/ASan regressions passed, SDL key/presentation probes passed on 64-bit and 32-bit builds, and the 32-bit SDL gameplay probe matched the movement/surface proof (`surface 3 hash=6e39f5ea`).
 23. Investigated the VS Code F5 raw-run crash, confirmed the launch route was correct, fixed hosted read-stream double closes and `FUN_0044add8` fixed-address buffer writes, then verified raw `--run-recon` survives a 25-second timeout and the debug/ASan regression script still passes.
+24. Created Step 14 to present real runtime frames through the backend from main-thread compatibility pump points.
+25. Closed Step 14 after adding the live presentation pump, verifying SDL accepted real `640x480` runtime frames, rerunning debug/ASan regressions, and confirming the F5 raw route still survives.
+26. Merged the former Step 15 SDL F5 launch work into Step 14, marking first reconstructed-runtime work complete and handing future stabilization/fidelity work to the Playable SDL Runtime implementation.

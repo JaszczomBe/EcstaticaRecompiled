@@ -200,6 +200,9 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
         pixels == NULL || width == 0 || height == 0) {
         return 0;
     }
+    if (!SDL_IsMainThread()) {
+        return 0;
+    }
     if (pitch == 0) {
         pitch = width;
     }

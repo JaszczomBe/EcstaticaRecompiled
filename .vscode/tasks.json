@@ -20,6 +20,23 @@
       },
       "dependsOn": "CMake: Configure",
       "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "CMake: Configure SDL 32-bit",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--preset", "linux-clang32-sdl-debug"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "CMake: Build SDL 32-bit",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/linux-clang32-sdl-debug"],
+      "group": "build",
+      "dependsOn": "CMake: Configure SDL 32-bit",
+      "problemMatcher": ["$gcc"]
     }
   ]
 }

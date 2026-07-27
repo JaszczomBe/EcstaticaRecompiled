@@ -7,6 +7,7 @@
 #include <string.h>
 #if UINTPTR_MAX <= UINT32_MAX
 #include <pthread.h>
+#include <time.h>
 #include <unistd.h>
 #endif
 
@@ -132,6 +133,60 @@ static int e2r_select_framebuffer(uintptr_t *framebuffer_out, unsigned *surface_
     *framebuffer_out = e2r_surface_framebuffer(visible);
     *surface_out = visible;
     return *framebuffer_out != 0 && !IsBadReadPtr((const void *)*framebuffer_out, bytes);
+}
+
+static uint64_t e2r_monotonic_milliseconds(void)
+{
+    struct timespec ts;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
+        return 0;
+    }
+    return ((uint64_t)ts.tv_sec * 1000u) + ((uint64_t)ts.tv_nsec / 1000000u);
+}
+
+int E2R_TryPresentCurrentFrame(HWND hwnd)
+{
+    static uint64_t last_present_ms;
+    static int diag_initialized;
+    static int diag_enabled;
+    static unsigned diag_count;
+    uintptr_t framebuffer;
+    unsigned surface;
+    unsigned width = (unsigned)_DAT_006401ec;
+    unsigned height = (unsigned)_DAT_006401d4;
+    uint64_t now_ms;
+    size_t bytes;
+    int presented;
+
+    if (hwnd == NULL || hwnd->ptr == NULL ||
+        width == 0 || height == 0 || width > 4096u || height > 4096u) {
+        return 0;
+    }
+    now_ms = e2r_monotonic_milliseconds();
+    if (last_present_ms != 0 && now_ms != 0 && now_ms - last_present_ms < 33u) {
+        return 0;
+    }
+    last_present_ms = now_ms;
+    bytes = (size_t)width * (size_t)height;
+    if (!e2r_select_framebuffer(&framebuffer, &surface, bytes)) {
+        return 0;
+    }
+    presented = E2R_HostPresentIndexed8((E2R_HostWindow *)hwnd->ptr,
+                                        (const unsigned char *)framebuffer,
+                                        width, height, width);
+    if (!diag_initialized) {
+        const char *diag = getenv("E2R_PRESENT_DIAG");
+        diag_enabled = diag != NULL && diag[0] != '\0' && diag[0] != '0';
+        diag_initialized = 1;
+    }
+    if (presented && diag_enabled && diag_count < 8u) {
+        fprintf(stderr,
+                "host backend live presentation: surface=%u width=%u height=%u hash=%08x\n",
+                surface, width, height, e2r_frame_hash(framebuffer, bytes));
+        diag_count++;
+    }
+    return presented;
 }
 
 static int e2r_write_frame_pgm(const char *path, unsigned *surface_out)
@@ -779,6 +834,12 @@ static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
     }
     pthread_detach(thread);
     return 1;
+}
+#else
+int E2R_TryPresentCurrentFrame(HWND hwnd)
+{
+    (void)hwnd;
+    return 0;
 }
 #endif
 

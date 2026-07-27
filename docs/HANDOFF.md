@@ -6,19 +6,22 @@ This is the durable root road sign for future context windows. It explains where
 
 Run the decompiled Ecstatica II reconstructed runtime on Linux using original game data, while preserving recovered game behavior and isolating host services behind compatibility boundaries suitable for later replacement.
 
+The first reconstruction implementation is complete: original data loads, the main loop survives bounded debug/ASan probes, Start Game reaches first gameplay, movement input latches, real recovered frames present through SDL, SDL 3.4.12 is vendored under `dep/SDL`, and VS Code has an `Ecstatica Recompiled (SDL)` launch route.
+
 Development is evidence-driven: use repeatable CMake builds, bounded runtime probes, ASan/GDB observations, original disassembly or Ghidra evidence, and concise journal entries.
 
 ## Resume Here
 
 Read these sources in order:
 
-1. [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md) - authoritative rollout state, active step, roadmap, and verification commands.
-2. The active step linked from that implementation - current scope, acceptance criteria, evidence, and next frontier.
-3. [Runtime crash fixes](journal/entries/runtime-crash-fixes.md) and any journal linked by the active step - historical reasoning and regression risks.
-4. [Runtime Milestones](plans/runtime-milestones.md) - durable milestone order and architecture direction.
-5. `git status --short` and `git log -1 --oneline` - worktree and latest-commit state.
+1. [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md) - completed reconstruction result, proof history, roadmap, and verification commands.
+2. [Playable SDL Runtime](implementations/playable-sdl-runtime/playable-sdl-runtime.md) - active post-reconstruction implementation for SDL F5 stability, presentation fidelity, controls, timing, audio, and developer workflow.
+3. The active step linked from the active implementation - current scope, acceptance criteria, evidence, and next frontier.
+4. [Runtime crash fixes](journal/entries/runtime-crash-fixes.md) and any journal linked by the active step - historical reasoning and regression risks.
+5. [Runtime Milestones](plans/runtime-milestones.md) - durable milestone order and architecture direction.
+6. `git status --short` and `git log -1 --oneline` - worktree and latest-commit state.
 
-Do not infer the current step from this file. The active implementation document owns changing execution state so this root anchor cannot drift out of sync.
+Do not infer the current step from this file. The active implementation document owns changing execution state so this root anchor cannot drift out of sync. As of 2026-07-28, the completed reconstruction record is [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md), and the active next horizon is [Playable SDL Runtime](implementations/playable-sdl-runtime/playable-sdl-runtime.md).
 
 ## Blank Context Protocol
 
@@ -70,6 +73,8 @@ When touching generated reconstruction behavior:
 ## Documentation Map
 
 - [Implementation workflow](templates/implementation-workflow.template.md)
+- [Playable SDL Runtime](implementations/playable-sdl-runtime/playable-sdl-runtime.md)
+- [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md)
 - [Journal index](journal/journal.md)
 - [Runtime crash fixes](journal/entries/runtime-crash-fixes.md)
 - [Generated code repairs](journal/entries/generated-code-repairs.md)
