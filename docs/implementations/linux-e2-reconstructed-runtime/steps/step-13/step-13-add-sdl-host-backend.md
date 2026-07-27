@@ -1,6 +1,6 @@
 # Add SDL Host Backend
 
-Status: active
+Status: completed
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
 Last Updated: 2026-07-27
 
@@ -47,8 +47,8 @@ Split implementation into the task files below. If a task exposes a runtime cras
 
 1. [Add SDL Build Selection](tasks/task-01-add-sdl-build-selection.md) - completed; make SDL opt-in without disturbing existing X11 builds.
 2. [Implement SDL Window Input Backend](tasks/task-02-implement-sdl-window-input-backend.md) - completed; map SDL events to backend key callbacks.
-3. [Add Backend Presentation Hook](tasks/task-03-add-backend-presentation-hook.md) - planned; define the first host presentation path without replacing probe dumps.
-4. [Verify SDL Backend Parity](tasks/task-04-verify-sdl-backend-parity.md) - planned; prove SDL does not regress the stabilized runtime loop.
+3. [Add Backend Presentation Hook](tasks/task-03-add-backend-presentation-hook.md) - completed; define the first host presentation path without replacing probe dumps.
+4. [Verify SDL Backend Parity](tasks/task-04-verify-sdl-backend-parity.md) - completed; SDL key, presentation, and 32-bit gameplay-surface probes match the stabilized runtime proof.
 
 ## Verification
 
@@ -85,7 +85,17 @@ cmake --build build/linux-clang-sdl-debug
 
 Configuration reported `E2R host backend: sdl`, built SDL from `dep/SDL` (`release-3.4.12` locally), compiled `E2Recomp/platform/e2recomp_host_backend_sdl.c`, and linked `e2recomp`. SDL's CMake ccache integration is forced off for this subtree because the sandboxed build environment exposes the system ccache directory as read-only.
 
-The second Step 13 slice replaced the SDL backend stub with real SDL video initialization, window creation/show/destroy, event polling, and keyboard mapping to the same virtual-key values used by the X11 backend. The SDL-selected build still compiles and links, and the executable starts far enough to print the normal probe command help. The `--host-backend-key-probe` command runs with `SDL_VIDEODRIVER=dummy` and proves an SDL `space` key event reaches the compatibility message queue as `WM_KEYDOWN`/`wParam=0x20`. The default X11-backed debug/ASan regression remains the canonical runtime proof and still passes.
+The second Step 13 slice replaced the SDL backend stub with real SDL video initialization, window creation/show/destroy, event polling, and keyboard mapping to the same virtual-key values used by the X11 backend. The SDL-selected build still compiles and links, and the executable starts far enough to print the normal probe command help. The `--host-backend-key-probe` command runs with `SDL_VIDEODRIVER=dummy` and proves an SDL `space` key event reaches the compatibility message queue as `WM_KEYDOWN`/`wParam=0x20`.
+
+The third Step 13 slice added `E2R_HostPresentIndexed8`, implemented it in the SDL backend through an SDL3 window surface, and left the current PGM dump probes unchanged. The native `--host-backend-present-probe` command runs with `SDL_VIDEODRIVER=dummy` and proves a synthetic `64x64` indexed-8 frame reaches the backend presentation path (`hash=a92a7045`).
+
+The closing parity slice re-ran the default debug/ASan regression script, then verified SDL key and presentation probes on both the 64-bit and 32-bit SDL builds. The 32-bit SDL gameplay-surface probe also passed:
+
+```text
+SDL_VIDEODRIVER=dummy build/linux-clang32-sdl-debug/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-step13-sdl-debug space,num8 6 10000 180 1
+```
+
+The parity proof reached `_DAT_00643650=0`, `DAT_00479de8=1`, `DAT_0047a76c=1`, `_DAT_0073cc3c=0x681d04`, `move=[1,0,0,0,0,0,0,0,0]`, and a nonblank surface 3 hash of `6e39f5ea`. The runtime stabilizations required to make SDL parity durable are generator-backed: SDL event polling stays on the main thread, cached framebuffer pointers are range/span checked, line drawing verifies its write span, current-action reads validate the actor/action pointer chain, and `FUN_0044add8` no longer uses stale high halves from byte-reader returns.
 
 ## Change Log
 
@@ -98,3 +108,6 @@ The second Step 13 slice replaced the SDL backend stub with real SDL video initi
 5. Switched SDL selection from system SDL discovery to the vendored `dep/SDL` submodule for source-inspectable crash debugging.
 6. Added the SDL host-backend key probe and closed task 02.
 7. Renamed `third_party` to `dep` and updated SDL from the SDL2 branch to release 3.4.12.
+8. Added backend-owned indexed-8 presentation and activated SDL parity verification.
+9. Recovered the runtime guard fixes exposed by SDL parity probing and mirrored them in `GenerateRecon.js`.
+10. Verified SDL backend parity and closed Step 13.

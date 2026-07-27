@@ -68,7 +68,9 @@ Step 11 is complete. `scripts/run-e2-runtime-regressions.sh` is the repeatable b
 
 Step 12 is complete. It defined the replaceable host backend boundary before SDL or richer presentation/audio behavior. The first code slice introduced `E2Recomp/platform/e2recomp_host_backend.*` and moved X11 window creation, show/destroy, and event polling behind that API without changing the Step 11 runtime proof. Timing, presentation, and audio contracts are documented as ownership decisions; their backend APIs are deferred until a focused implementation task needs them.
 
-Step 13 is active. SDL is now selectable as an optional backend path with `-DE2R_HOST_BACKEND=sdl`, while the current default remains X11. The SDL-selected build path uses the vendored `dep/SDL` submodule pinned to SDL 3.4.12 so SDL source is available during crash investigation, and links a separate backend source. SDL window lifecycle, event polling, and virtual-key mapping are implemented behind the backend API and compile in a separate SDL build tree. A bounded SDL key-delivery probe proves a backend key event reaches the compatibility `WM_KEYDOWN` queue; presentation and parity verification remain split into later task files.
+Step 13 is complete. SDL is selectable as an optional backend path with `-DE2R_HOST_BACKEND=sdl`, while the current default remains X11. The SDL-selected build path uses the vendored `dep/SDL` submodule pinned to SDL 3.4.12 so SDL source is available during crash investigation, and links a separate backend source. SDL window lifecycle, event polling, virtual-key mapping, and indexed-8 presentation are implemented behind the backend API. Bounded SDL probes prove key delivery reaches compatibility `WM_KEYDOWN`, indexed-8 pixels reach the SDL window-surface presentation path (`hash=a92a7045`), and the 32-bit SDL gameplay parity probe reaches the stabilized movement/surface proof with `_DAT_00643650=0`, `_DAT_0073cc3c=0x681d04`, `move=[1,0,0,0,0,0,0,0,0]`, and surface 3 hash `6e39f5ea`.
+
+The VS Code F5 launch entry `Ecstatica Recompiled` uses the intended raw debug route: `build/linux-clang32-debug/e2recomp --run-recon` from the build directory. A reported `malloc_consolidate(): unaligned fastbin chunk detected` abort on that route was traced to a generated hosted-stream double close in `FUN_0045ec6c`; the `tscreen.raw` open only surfaced the prior heap damage. Hosted read streams are now registered on creation and stale second closes fail without freeing the same buffer/stream twice. The same investigation also repaired remaining fixed-address buffer address-of uses for `0x0061c730` and `0x0047a4e0` in `FUN_0044add8`, preventing those writes from corrupting framebuffer globals during gameplay probes.
 
 ## Step Roadmap
 
@@ -86,7 +88,7 @@ Each step should be scoped so it can preferably be completed in one context wind
 10. [Reach First Controllable Scene](steps/step-10/step-10-reach-first-controllable-scene.md) - completed; restored the original Start Game path, entered scene loading, captured gameplay surfaces, and proved delayed movement in debug and ASan.
 11. [Harden Runtime Loop Regression Checks](steps/step-11/step-11-harden-runtime-loop-regression-checks.md) - completed; made debug/ASan runtime-loop probes repeatable and quiet by default.
 12. [Define Replaceable Host Backend Boundary](steps/step-12/step-12-define-replaceable-host-backend-boundary.md) - completed; isolated host window/input below compatibility and documented timing, presentation, and audio ownership.
-13. [Add SDL Host Backend](steps/step-13/step-13-add-sdl-host-backend.md) - active; replace or supplement Linux/X11 scaffolding with SDL once loop, frame, and compatibility semantics are stable enough to specify.
+13. [Add SDL Host Backend](steps/step-13/step-13-add-sdl-host-backend.md) - completed; added an opt-in vendored SDL 3.4.12 backend with window/input/presentation probes and 32-bit gameplay parity.
 
 ## Journals
 
@@ -224,3 +226,7 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 17. Replaced system SDL discovery with the vendored `dep/SDL` submodule so SDL crash investigation can inspect the built source tree.
 18. Added `--host-backend-key-probe` and verified the SDL backend turns a synthetic `space` key event into compatibility `WM_KEYDOWN`.
 19. Renamed the dependency root from `third_party` to `dep` and updated SDL to release 3.4.12.
+20. Added backend-owned indexed-8 presentation and verified the SDL window-surface path with `--host-backend-present-probe`.
+21. Stabilized the SDL parity path by guarding SDL event polling to the main thread and recovering generated runtime guards for surface-cache lookup, line drawing, current-action reads, and stale high-half byte-copy residue.
+22. Closed Step 13 after default debug/ASan regressions passed, SDL key/presentation probes passed on 64-bit and 32-bit builds, and the 32-bit SDL gameplay probe matched the movement/surface proof (`surface 3 hash=6e39f5ea`).
+23. Investigated the VS Code F5 raw-run crash, confirmed the launch route was correct, fixed hosted read-stream double closes and `FUN_0044add8` fixed-address buffer writes, then verified raw `--run-recon` survives a 25-second timeout and the debug/ASan regression script still passes.

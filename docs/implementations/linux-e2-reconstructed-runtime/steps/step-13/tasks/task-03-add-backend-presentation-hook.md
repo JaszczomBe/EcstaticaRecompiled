@@ -1,6 +1,6 @@
 # Add Backend Presentation Hook
 
-Status: planned
+Status: completed
 Parent Step: [Add SDL Host Backend](../step-13-add-sdl-host-backend.md)
 Parent Implementation: [Run Reconstructed E2 On Linux](../../../linux-e2-reconstructed-runtime.md)
 Last Updated: 2026-07-27
@@ -25,7 +25,15 @@ Define and add the first backend-owned presentation hook for legacy framebuffer 
 
 ## Implementation Notes
 
-Presentation is higher risk than window/input. Start with an inspectable host display path and preserve the existing `--dump-surfaces` evidence as the source of truth.
+Completed with `E2R_HostPresentIndexed8`, a backend API that accepts indexed-8 pixels selected by native/runtime probe code. The SDL implementation owns conversion to grayscale ARGB and presentation through the SDL3 window-surface path. The X11 backend keeps a no-op return so existing default probes remain unchanged.
+
+The first smoke probe is intentionally synthetic and bounded:
+
+```text
+SDL_VIDEODRIVER=dummy build/linux-clang-sdl-debug/e2recomp --host-backend-present-probe
+```
+
+It proves a `64x64` indexed-8 frame reaches the SDL presentation path and reports `hash=a92a7045`. Real recovered framebuffer selection remains owned by the existing native dump helpers; `/tmp` PGM dump probes are still the source of truth for current scene evidence.
 
 ## Acceptance Criteria
 
@@ -43,11 +51,13 @@ Presentation is higher risk than window/input. Start with an inspectable host di
 ## Review State
 
 1. Planning state: discussed
-2. Implementation state: not_started
-3. Notes: Split further if palette or page-flip fidelity becomes a separate recovery problem.
+2. Implementation state: accepted
+3. Notes: First presentation hook is deliberately grayscale/indexed-8 only; palette fidelity and page-flip semantics remain outside this task.
 
 ## Change Log
 
 ### 2026-07-27
 
 1. Created task.
+2. Added `E2R_HostPresentIndexed8` and implemented SDL3 window-surface presentation.
+3. Added and passed `--host-backend-present-probe` while keeping PGM dumps unchanged.

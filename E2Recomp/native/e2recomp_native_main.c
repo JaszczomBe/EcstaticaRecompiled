@@ -813,6 +813,42 @@ static int e2r_run_host_backend_key_probe(void)
     return 3;
 }
 
+static int e2r_run_host_backend_present_probe(void)
+{
+    enum { E2R_PROBE_WIDTH = 64, E2R_PROBE_HEIGHT = 64 };
+    unsigned char pixels[E2R_PROBE_WIDTH * E2R_PROBE_HEIGHT];
+    HWND hwnd;
+    unsigned x;
+    unsigned y;
+    unsigned hash = 2166136261u;
+
+    for (y = 0; y < E2R_PROBE_HEIGHT; y++) {
+        for (x = 0; x < E2R_PROBE_WIDTH; x++) {
+            pixels[(y * E2R_PROBE_WIDTH) + x] =
+                (unsigned char)(((x * 3u) + (y * 5u)) & 0xffu);
+            hash ^= pixels[(y * E2R_PROBE_WIDTH) + x];
+            hash *= 16777619u;
+        }
+    }
+
+    hwnd = E2R_CreateWindowExA(0, "E2RProbe", "Ecstatica II backend present probe",
+                               0, 0, 0, 128, 128, NULL, NULL, NULL, NULL);
+    if (hwnd == NULL || hwnd->ptr == NULL) {
+        fprintf(stderr, "host backend presentation probe failed: window unavailable\n");
+        return 1;
+    }
+    if (!E2R_HostPresentIndexed8((E2R_HostWindow *)hwnd->ptr, pixels,
+                                 E2R_PROBE_WIDTH, E2R_PROBE_HEIGHT,
+                                 E2R_PROBE_WIDTH)) {
+        fprintf(stderr, "host backend presentation probe failed: present rejected\n");
+        return 2;
+    }
+    fprintf(stderr,
+            "host backend presentation probe passed: width=%u height=%u hash=%08x\n",
+            (unsigned)E2R_PROBE_WIDTH, (unsigned)E2R_PROBE_HEIGHT, hash);
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     printf("Ecstatica II data: %s\n", E2RECOMP_DATA_DIR);
@@ -837,6 +873,10 @@ int main(int argc, char **argv)
 
     if (argc > 1 && strcmp(argv[1], "--host-backend-key-probe") == 0) {
         return e2r_run_host_backend_key_probe();
+    }
+
+    if (argc > 1 && strcmp(argv[1], "--host-backend-present-probe") == 0) {
+        return e2r_run_host_backend_present_probe();
     }
 
     if (argc > 2 && strcmp(argv[1], "--dump-frame") == 0) {
@@ -994,6 +1034,7 @@ int main(int argc, char **argv)
 
     puts("Linux scaffold initialized. Pass --run-recon to enter the reconstructed game startup thunk.");
     puts("Pass --host-backend-key-probe to verify backend key events reach WM_KEYDOWN.");
+    puts("Pass --host-backend-present-probe to verify backend indexed-8 presentation.");
     puts("Pass --dump-frame <path.pgm> [seconds] to write a bounded framebuffer inspection dump.");
     puts("Pass --dump-surfaces <prefix> [seconds] to write all four bounded framebuffer dumps.");
     puts("Pass --inject-key-dump <path.pgm> <key|vk> [inject_seconds] [dump_seconds] to probe input.");

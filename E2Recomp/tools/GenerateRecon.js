@@ -81,6 +81,10 @@ source = source.replace(
   "static uint E2R_actor_current_diag_count;\nstatic int E2R_runtime_diag_enabled;\nstatic uint E2R_current_actor_trace_diag_count;"
 );
 source = source.replace(
+  "static int E2R_actor_calc_context;\n\nstatic void E2R_InitDiagnostics",
+  "static int E2R_actor_calc_context;\nstatic uintptr_t E2R_hosted_streams[1024];\n\nstatic void E2R_InitDiagnostics"
+);
+source = source.replace(
   "  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n\n  if (fan_diag != (char *)0x0 && fan_diag[0] != '\\0' && fan_diag[0] != '0') {",
   "  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n  char *runtime_diag = getenv(\"E2R_RUNTIME_DIAG\");\n\n  if (runtime_diag != (char *)0x0 && runtime_diag[0] != '\\0' && runtime_diag[0] != '0') {\n    E2R_runtime_diag_enabled = 1;\n  }\n\n  if (fan_diag != (char *)0x0 && fan_diag[0] != '\\0' && fan_diag[0] != '0') {"
 );
@@ -90,7 +94,7 @@ source = source.replace(
 );
 source = source.replace(
   "#define E2R_STREAM_MAGIC 0xe25eed01u\n\nstatic int E2R_round_to_int",
-  "#define E2R_STREAM_MAGIC 0xe25eed01u\n\nstatic int E2R_IsKnownActorPointer(int actor)\n{\n  short actor_id;\n\n  if (actor == 0) {\n    return 1;\n  }\n  if ((uint)actor < 0x10000u || 0x70000000u <= (uint)actor ||\n      IsBadReadPtr((void *)(uintptr_t)actor,0x136)) {\n    return 0;\n  }\n  actor_id = *(short *)(uintptr_t)actor;\n  if (actor_id < 0 || 5000 <= actor_id) {\n    return 0;\n  }\n  return *(int *)((undefined1 *)0x00630b60 + actor_id * 4) == actor;\n}\n\nstatic int E2R_CurrentSceneTableSlot(uintptr_t value)\n{\n  uintptr_t offset;\n\n  if (value < (uintptr_t)0x0067c728 ||\n      (uintptr_t)(0x0067c728 + 0x4b0 * 0x1c) <= value) {\n    return -1;\n  }\n  offset = value - (uintptr_t)0x0067c728;\n  if (offset % 0x1c != 0) {\n    return -1;\n  }\n  return (int)(offset / 0x1c);\n}\n\nstatic int E2R_IsReadableCurrentPointer(uintptr_t value)\n{\n  return value != 0 && 0x10000u <= (uint)value && (uint)value < 0x70000000u &&\n         !IsBadReadPtr((void *)value,0xaa);\n}\n\nstatic void E2R_PrintCurrentPointerShape(const char *site, uintptr_t value)\n{\n  int readable;\n  short word0 = 0;\n  short word82 = 0;\n  int dword84 = 0;\n  int dworda6 = 0;\n\n  readable = E2R_IsReadableCurrentPointer(value);\n  if (readable) {\n    word0 = *(short *)value;\n    word82 = *(short *)(value + 0x82);\n    dword84 = *(int *)(value + 0x84);\n    dworda6 = *(int *)(value + 0xa6);\n  }\n  fprintf(stderr,\n          \"current pointer shape: site=%s value=0x%lx readable=%d \"\n          \"known_actor=%d scene=0x%lx eq_scene=%d scene_slot=%d \"\n          \"w0=%d w82=0x%x d84=0x%lx da6=0x%lx table0=0x%lx\\n\",\n          site,(unsigned long)value,readable,E2R_IsKnownActorPointer((int)value),\n          (unsigned long)_DAT_0073cc3c,value == (uintptr_t)_DAT_0073cc3c,\n          E2R_CurrentSceneTableSlot(value),(int)word0,(unsigned int)(ushort)word82,\n          (unsigned long)(uint)dword84,(unsigned long)(uint)dworda6,\n          (unsigned long)*(int *)0x00630b60);\n}\n\nstatic uintptr_t E2R_TraceCurrentActorWrite(const char *site, uintptr_t value)\n{\n  E2R_current_actor_last_site = site;\n  E2R_current_actor_last_value = value;\n  if (value != 0 && E2R_current_actor_trace_diag_count < 32 &&\n      (strcmp(site,\"5233c.archive\") == 0 || strcmp(site,\"525f0.archive\") == 0)) {\n    E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;\n    E2R_PrintCurrentPointerShape(site,value);\n  }\n  return value;\n}\n\nstatic uintptr_t E2R_TraceArchiveCurrentActorWrite(const char *site, uintptr_t value)\n{\n  if (value != 0 && !E2R_IsReadableCurrentPointer(value)) {\n    E2R_current_actor_last_site = site;\n    E2R_current_actor_last_value = 0;\n    if (E2R_current_actor_trace_diag_count < 32) {\n      E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;\n      E2R_PrintCurrentPointerShape(site,value);\n    }\n    return 0;\n  }\n  return E2R_TraceCurrentActorWrite(site,value);\n}\n\nstatic void E2R_SelectSceneRecord(short scene_id)\n{\n  if (scene_id < 0 || 0x4b0 <= scene_id) {\n    return;\n  }\n  _DAT_0073ccba = (ushort)scene_id;\n  FUN_0044c6bc();\n}\n\nstatic int E2R_round_to_int"
+  "#define E2R_STREAM_MAGIC 0xe25eed01u\n\nstatic int E2R_RegisterHostedStream(undefined4 *stream)\n{\n  unsigned i;\n\n  for (i = 0; i < 1024; i++) {\n    if (E2R_hosted_streams[i] == 0 || E2R_hosted_streams[i] == (uintptr_t)stream) {\n      E2R_hosted_streams[i] = (uintptr_t)stream;\n      return 1;\n    }\n  }\n  return 0;\n}\n\nstatic int E2R_UnregisterHostedStream(undefined4 *stream)\n{\n  unsigned i;\n\n  for (i = 0; i < 1024; i++) {\n    if (E2R_hosted_streams[i] == (uintptr_t)stream) {\n      E2R_hosted_streams[i] = 0;\n      return 1;\n    }\n  }\n  return 0;\n}\n\nstatic int E2R_IsKnownActorPointer(int actor)\n{\n  short actor_id;\n\n  if (actor == 0) {\n    return 1;\n  }\n  if ((uint)actor < 0x10000u || 0x70000000u <= (uint)actor ||\n      IsBadReadPtr((void *)(uintptr_t)actor,0x136)) {\n    return 0;\n  }\n  actor_id = *(short *)(uintptr_t)actor;\n  if (actor_id < 0 || 5000 <= actor_id) {\n    return 0;\n  }\n  return *(int *)((undefined1 *)0x00630b60 + actor_id * 4) == actor;\n}\n\nstatic int E2R_CurrentSceneTableSlot(uintptr_t value)\n{\n  uintptr_t offset;\n\n  if (value < (uintptr_t)0x0067c728 ||\n      (uintptr_t)(0x0067c728 + 0x4b0 * 0x1c) <= value) {\n    return -1;\n  }\n  offset = value - (uintptr_t)0x0067c728;\n  if (offset % 0x1c != 0) {\n    return -1;\n  }\n  return (int)(offset / 0x1c);\n}\n\nstatic int E2R_IsReadableCurrentPointer(uintptr_t value)\n{\n  return value != 0 && 0x10000u <= (uint)value && (uint)value < 0x70000000u &&\n         !IsBadReadPtr((void *)value,0xaa);\n}\n\nstatic void E2R_PrintCurrentPointerShape(const char *site, uintptr_t value)\n{\n  int readable;\n  short word0 = 0;\n  short word82 = 0;\n  int dword84 = 0;\n  int dworda6 = 0;\n\n  readable = E2R_IsReadableCurrentPointer(value);\n  if (readable) {\n    word0 = *(short *)value;\n    word82 = *(short *)(value + 0x82);\n    dword84 = *(int *)(value + 0x84);\n    dworda6 = *(int *)(value + 0xa6);\n  }\n  fprintf(stderr,\n          \"current pointer shape: site=%s value=0x%lx readable=%d \"\n          \"known_actor=%d scene=0x%lx eq_scene=%d scene_slot=%d \"\n          \"w0=%d w82=0x%x d84=0x%lx da6=0x%lx table0=0x%lx\\n\",\n          site,(unsigned long)value,readable,E2R_IsKnownActorPointer((int)value),\n          (unsigned long)_DAT_0073cc3c,value == (uintptr_t)_DAT_0073cc3c,\n          E2R_CurrentSceneTableSlot(value),(int)word0,(unsigned int)(ushort)word82,\n          (unsigned long)(uint)dword84,(unsigned long)(uint)dworda6,\n          (unsigned long)*(int *)0x00630b60);\n}\n\nstatic uintptr_t E2R_TraceCurrentActorWrite(const char *site, uintptr_t value)\n{\n  E2R_current_actor_last_site = site;\n  E2R_current_actor_last_value = value;\n  if (value != 0 && E2R_current_actor_trace_diag_count < 32 &&\n      (strcmp(site,\"5233c.archive\") == 0 || strcmp(site,\"525f0.archive\") == 0)) {\n    E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;\n    E2R_PrintCurrentPointerShape(site,value);\n  }\n  return value;\n}\n\nstatic uintptr_t E2R_TraceArchiveCurrentActorWrite(const char *site, uintptr_t value)\n{\n  if (value != 0 && !E2R_IsReadableCurrentPointer(value)) {\n    E2R_current_actor_last_site = site;\n    E2R_current_actor_last_value = 0;\n    if (E2R_current_actor_trace_diag_count < 32) {\n      E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;\n      E2R_PrintCurrentPointerShape(site,value);\n    }\n    return 0;\n  }\n  return E2R_TraceCurrentActorWrite(site,value);\n}\n\nstatic void E2R_SelectSceneRecord(short scene_id)\n{\n  if (scene_id < 0 || 0x4b0 <= scene_id) {\n    return;\n  }\n  _DAT_0073ccba = (ushort)scene_id;\n  FUN_0044c6bc();\n}\n\nstatic int E2R_round_to_int"
 );
 source = source.replace(
   "static undefined4 E2R_OpenReadStream(LPCSTR path)",
@@ -113,6 +117,10 @@ source = source.replace(
   "  if (size != 0 && ReadFile(file,buffer,size,&bytes_read,(LPOVERLAPPED)0x0) == 0) {\n    if (E2R_open_diag_count < 12) {\n      E2R_open_diag_count = E2R_open_diag_count + 1;\n      fprintf(stderr,\"E2R read failed: path=%s size=%u read=%u\\n\",path,size,bytes_read);\n    }\n    LocalFree(buffer);"
 );
 source = source.replace("  stream[3] = 0;\n  stream[4] = 0xffffffff;", "  stream[3] = 0x41;\n  stream[4] = 0xffffffff;");
+source = source.replace(
+  "  stream[5] = (undefined4)(uintptr_t)buffer;\n  stream[6] = E2R_STREAM_MAGIC;\n  return (undefined4)(uintptr_t)stream;",
+  "  stream[5] = (undefined4)(uintptr_t)buffer;\n  stream[6] = E2R_STREAM_MAGIC;\n  E2R_RegisterHostedStream(stream);\n  return (undefined4)(uintptr_t)stream;"
+);
 
 const protoMatches = source.matchAll(/^\s*((?:[A-Za-z_][A-Za-z0-9_]*\s+|[*]\s*)+[A-Za-z_][A-Za-z0-9_]*\s*\([^;{}]*?\))\s*\r?\n\s*\{/gms);
 const prototypes = [];
@@ -249,7 +257,11 @@ source = source.replace(
 );
 source = source.replace(
   /(void __fastcall FUN_00415d40\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  bool bVar3;\r?\n\s*)undefined8 uVar4;/,
-  "$1int requester_id;\n  undefined8 uVar4;"
+  "$1int current_action_flag;\n  int requester_id;\n  undefined8 uVar4;"
+);
+source = source.replace(
+  "    else {\n      if (((((DAT_0063685c != '\\0') || (DAT_0063685a != '\\0')) || (DAT_00636855 != '\\0')) ||\n          (((DAT_00636854 != '\\0' || (DAT_00636856 != '\\0')) ||\n           ((DAT_00636857 != '\\0' || ((DAT_00636859 != '\\0' || (DAT_00636858 != '\\0')))))))) ||\n         ((DAT_0063685b != '\\0' ||\n          ((DAT_00636850 != '\\0' ||\n           ((*(int *)(DAT_0047a470 + 0xa6) != 0 &&\n            ((*(byte *)(*(int *)(DAT_0047a470 + 0xa6) + 0xc) & 2) != 0)))))))) {",
+  "    else {\n      current_action_flag = 0;\n      if (E2R_IsReadableCurrentPointer(DAT_0047a470)) {\n        iVar2 = *(int *)(DAT_0047a470 + 0xa6);\n        if (iVar2 != 0 && 0x10000u <= (uint)iVar2 && (uint)iVar2 < 0x70000000u &&\n            !IsBadReadPtr((void *)(uintptr_t)iVar2,0x10)) {\n          current_action_flag = (*(byte *)(iVar2 + 0xc) & 2) != 0;\n        }\n      }\n      if (DAT_0063685c != '\\0' || DAT_0063685a != '\\0' || DAT_00636855 != '\\0' ||\n          DAT_00636854 != '\\0' || DAT_00636856 != '\\0' || DAT_00636857 != '\\0' ||\n          DAT_00636859 != '\\0' || DAT_00636858 != '\\0' || DAT_0063685b != '\\0' ||\n          DAT_00636850 != '\\0' || current_action_flag != 0) {"
 );
 source = source.replace(
   "    DAT_0047a788 = 1;\n    DAT_00636844 = '\\0';\n    _DAT_00643650 = 5;\n    if (DAT_00479db4 != 0) {\n      param_1 = 0;\n      DAT_00479db4 = 0;\n    }\n    uVar4 = FUN_0043ce58(param_1,5);",
@@ -419,10 +431,22 @@ source = source.replace(
 );
 source = source.replace(/(undefined4 __fastcall FUN_0041af88\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  int iVar2;\r?\n\s*)iVar2 = 0;/, "$1in_EAX = (char *)(uintptr_t)param_1;\n  if ((uintptr_t)in_EAX < 0x10000u || (uintptr_t)in_EAX >= 0x01000000u ||\n      IsBadReadPtr(in_EAX,0x300)) return 0;\n  iVar2 = 0;");
 source = source.replace(/&DAT_006366c0/g, "&_DAT_006366c0");
+source = source.replace(
+  /(undefined4 __fastcall FUN_00418a04\(undefined4 param_1,undefined4 \*param_2\)[\s\S]*?\r?\n  int iVar1;\r?\n\s*)int extraout_ECX;/,
+  "$1uintptr_t cached;\n  int extraout_ECX;\n  size_t span;"
+);
 source = source.replace(/(undefined4 __fastcall FUN_00418a04\(undefined4 param_1,undefined4 \*param_2\)[\s\S]*?\r?\n  int extraout_ECX;\r?\n\s*)if \(1 < in_EAX\) \{/, "$1in_EAX = (int)(uintptr_t)param_1;\n  if (1 < in_EAX) {");
 source = source.replace(
+  "  size_t span;\n\n  if (1 < in_EAX) {",
+  "  size_t span;\n\n  in_EAX = (int)(uintptr_t)param_1;\n  if (1 < in_EAX) {"
+);
+source = source.replace(
   "  if (1 < in_EAX) {\n    *param_2 = _DAT_006401ec;\n    return *(undefined4 *)(&DAT_00636150 + in_EAX * 4);\n  }",
-  "  if (1 < in_EAX) {\n    *param_2 = _DAT_006401ec;\n    if (in_EAX == 2) {\n      return _DAT_00636158;\n    }\n    if (in_EAX == 3) {\n      return _DAT_0063615c;\n    }\n    return *(undefined4 *)(&DAT_00636150 + in_EAX * 4);\n  }"
+  "  if (1 < in_EAX) {\n    *param_2 = _DAT_006401ec;\n    if (in_EAX == 2) {\n      cached = _DAT_00636158;\n    }\n    else if (in_EAX == 3) {\n      cached = _DAT_0063615c;\n    }\n    else {\n      cached = *(undefined4 *)((undefined1 *)0x00636150 + in_EAX * 4);\n    }\n    if (cached < 0x10000u || cached >= 0x70000000u) {\n      return 0;\n    }\n    if (_DAT_006401ec > 0 && _DAT_006401d4 > 0 &&\n        _DAT_006401ec <= 0x1000 && _DAT_006401d4 <= 0x1000) {\n      span = ((size_t)_DAT_006401d4 - 1u) * (size_t)_DAT_006401ec +\n             (size_t)_DAT_006401ec;\n      if (E2R_IsBadWritePtr((void *)cached,span)) {\n        return 0;\n      }\n    }\n    else if (E2R_IsBadWritePtr((void *)cached,1)) {\n      return 0;\n    }\n    return (undefined4)cached;\n  }"
+);
+source = source.replace(
+  "  size_t span;\n\n  if (1 < in_EAX) {",
+  "  size_t span;\n\n  in_EAX = (int)(uintptr_t)param_1;\n  if (1 < in_EAX) {"
 );
 source = source.replace(
   /void __fastcall FUN_0041ad54\(undefined4 param_1,int param_2,int param_3\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0041af88 \*\//,
@@ -443,6 +467,14 @@ source = source.replace(
 source = source.replace(
   /\/\* 0041b078 \*\/[\s\S]*?\r?\n\s*\r?\n\/\* 0041b920 \*\//,
   "/* 0041b078 */\n\nvoid __fastcall FUN_0041b078(undefined4 param_1,undefined2 param_2)\n\n{\n  int surface;\n  \n  surface = DAT_0047a279 >> 0x18;\n  if (DAT_0047a43c != 0) {\n    surface = surface + 2;\n  }\n  if (surface < 0 || 3 < surface) {\n    return;\n  }\n  *(undefined2 *)(0x006366c4 + surface * 2) = (undefined2)(uintptr_t)param_1;\n  *(undefined2 *)(0x006366d0 + surface * 2) = param_2;\n  return;\n}\n\n\n\n/* 0041b34c */\n\nvoid __fastcall FUN_0041b34c(undefined4 param_1,int param_2)\n\n{\n  int base;\n  int color_index;\n  int dx;\n  int dy;\n  int e2;\n  int err;\n  int pitch;\n  int sx;\n  int sy;\n  int surface;\n  int x0;\n  int x1;\n  int y0;\n  int y1;\n  undefined1 *pixel;\n  undefined1 color;\n  \n  surface = DAT_0047a279 >> 0x18;\n  if (DAT_0047a43c != 0) {\n    surface = surface + 2;\n  }\n  if (surface < 0 || 3 < surface) {\n    return;\n  }\n  x0 = (short)*(undefined2 *)(0x006366c4 + surface * 2);\n  y0 = (short)*(undefined2 *)(0x006366d0 + surface * 2);\n  x1 = (short)(uintptr_t)param_1;\n  y1 = (short)param_2;\n  *(undefined2 *)(0x006366c4 + surface * 2) = (undefined2)x1;\n  *(undefined2 *)(0x006366d0 + surface * 2) = (undefined2)y1;\n  base = FUN_00418a04((undefined4)(uintptr_t)surface,&pitch);\n  if (base == 0 || pitch <= 0 || _DAT_006401ec <= 0 || _DAT_006401d4 <= 0) {\n    return;\n  }\n  dx = x1 - x0;\n  if (dx < 0) {\n    dx = -dx;\n  }\n  dy = y1 - y0;\n  if (dy < 0) {\n    dy = -dy;\n  }\n  sx = x0 < x1 ? 1 : -1;\n  sy = y0 < y1 ? 1 : -1;\n  err = dx - dy;\n  color_index = surface * 2;\n  color = ((undefined1 *)0x006366dc)[color_index];\n  while (1) {\n    if (0 <= x0 && x0 < _DAT_006401ec && 0 <= y0 && y0 < _DAT_006401d4) {\n      pixel = (undefined1 *)(base + y0 * pitch + x0);\n      if (*(short *)(0x006366a8 + color_index) == 0) {\n        *pixel = *pixel ^ color;\n      }\n      else {\n        *pixel = color;\n      }\n    }\n    if (x0 == x1 && y0 == y1) {\n      break;\n    }\n    e2 = err * 2;\n    if (-dy < e2) {\n      err = err - dy;\n      x0 = x0 + sx;\n    }\n    if (e2 < dx) {\n      err = err + dx;\n      y0 = y0 + sy;\n    }\n  }\n  return;\n}\n\n\n\n/* 0041b540 */\n\nvoid __fastcall FUN_0041b540(undefined4 param_1,int param_2)\n\n{\n  FUN_0041b34c(param_1,param_2);\n  return;\n}\n\n\n\n/* 0041b920 */"
+);
+source = source.replace(
+  "  undefined1 *pixel;\n  undefined1 color;\n  \n  surface = DAT_0047a279 >> 0x18;",
+  "  undefined1 *pixel;\n  undefined1 color;\n  size_t write_span;\n  \n  surface = DAT_0047a279 >> 0x18;"
+);
+source = source.replace(
+  "  if (base == 0 || pitch <= 0 || _DAT_006401ec <= 0 || _DAT_006401d4 <= 0) {\n    return;\n  }\n  dx = x1 - x0;",
+  "  if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||\n      (uintptr_t)base >= 0x70000000u || _DAT_006401ec <= 0 ||\n      0x1000 < _DAT_006401ec || _DAT_006401d4 <= 0 ||\n      0x1000 < _DAT_006401d4) {\n    return;\n  }\n  write_span = ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +\n               (size_t)_DAT_006401ec;\n  if (E2R_IsBadWritePtr((void *)(uintptr_t)base,write_span)) {\n    return;\n  }\n  dx = x1 - x0;"
 );
 source = source.replace(
   /(int __fastcall FUN_00419af4\(int param_1,byte \*param_2,undefined4 param_3,int param_4\)[\s\S]*?\r?\n  undefined1 local_10;\r?\n\s*)pbVar5 = \(undefined1 \*\)0x00477068;/,
@@ -1546,6 +1578,8 @@ source = source.replace(/&DAT_0068cd6f/g, "(undefined1 *)0x0068cd6f");
 source = source.replace(/&DAT_0068cd70/g, "(undefined1 *)0x0068cd70");
 source = source.replace(/&DAT_0068cd72/g, "(undefined1 *)0x0068cd72");
 source = source.replace(/&DAT_0067c728/g, "(undefined1 *)0x0067c728");
+source = source.replace(/&DAT_0061c730/g, "(undefined1 *)0x0061c730");
+source = source.replace(/&DAT_0047a4e0/g, "(undefined4 *)0x0047a4e0");
 source = source.replace(/&DAT_0067c72a/g, "(undefined1 *)0x0067c72a");
 source = source.replace(/&DAT_0067c72c/g, "(undefined1 *)0x0067c72c");
 source = source.replace(/&DAT_0067c72e/g, "(undefined1 *)0x0067c72e");
@@ -1562,7 +1596,7 @@ source = source.replace(
 );
 source = source.replace(
   /(undefined8 __fastcall FUN_0045ec6c\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n  undefined4 extraout_ECX;\r?\n\s*)\(\*\(code \*\)PTR_FUN_0047d3b0\)\(\);/,
-  "$1undefined4 *stream;\n  \n  (void)param_1;\n  stream = (undefined4 *)(uintptr_t)param_2;\n  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||\n      IsBadReadPtr(stream,0x1c)) {\n    return CONCAT44(param_2,0xffffffff);\n  }\n  if (stream[6] == E2R_STREAM_MAGIC) {\n    if (stream[5] != 0) {\n      LocalFree((HLOCAL)(uintptr_t)stream[5]);\n    }\n    stream[6] = 0;\n    LocalFree((HLOCAL)stream);\n    return (ulonglong)param_2 << 0x20;\n  }\n  (*(code *)PTR_FUN_0047d3b0)();"
+  "$1undefined4 *stream;\n  \n  (void)param_1;\n  stream = (undefined4 *)(uintptr_t)param_2;\n  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||\n      IsBadReadPtr(stream,0x1c)) {\n    return CONCAT44(param_2,0xffffffff);\n  }\n  if (stream[6] == E2R_STREAM_MAGIC) {\n    if (!E2R_UnregisterHostedStream(stream)) {\n      return CONCAT44(param_2,0xffffffff);\n    }\n    if (stream[5] != 0) {\n      LocalFree((HLOCAL)(uintptr_t)stream[5]);\n    }\n    stream[6] = 0;\n    LocalFree((HLOCAL)stream);\n    return (ulonglong)param_2 << 0x20;\n  }\n  (*(code *)PTR_FUN_0047d3b0)();"
 );
 source = source.replace(
   /(undefined8 __fastcall FUN_0045f38a\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n  undefined8 uVar5;\r?\n\s*)\(\*\(code \*\)PTR_FUN_0047d3a0\)\(\);/,
@@ -2705,6 +2739,14 @@ source = source.replace(
   "  (void)DAT_0047a279;"
 );
 source = source.replace(
+  "        puVar8 = (undefined1 *)((ulonglong)uVar12 >> 0x20);\n        puVar7 = puVar8 + 1;",
+  "        puVar8 = puVar7;\n        puVar7 = puVar7 + 1;"
+);
+source = source.replaceAll(
+  "        iVar10 = (int)((ulonglong)uVar12 >> 0x20) + 1;",
+  "        iVar10 = iVar10 + 1;"
+);
+source = source.replace(
   /(longlong __fastcall FUN_004142e4\(undefined4 param_1,uint param_2\)[\s\S]*?\r?\n  char local_24 \[8\];\r?\n  undefined1 local_1c;\r?\n\s*)if \(DAT_0047ab10 == 0\) \{/,
   "$1(void)param_1;\n  if (DAT_00479e3c == (char *)0x0) {\n    FUN_004142b8(0xc350,param_2);\n  }\n  return CONCAT44(param_2,1);\n  if (DAT_0047ab10 == 0) {"
 );
@@ -3168,6 +3210,10 @@ source = source.replace(
 source = source.replace(
   /if \(E2R_scene_pointer_diag_count < ([0-9]+) &&/g,
   "if (E2R_RuntimeDiagEnabled() && E2R_scene_pointer_diag_count < $1 &&"
+);
+source = source.replace(
+  /(undefined4 __fastcall FUN_00418a04\(undefined4 param_1,undefined4 \*param_2\)[\s\S]*?size_t span;\r?\n\s*)if \(1 < in_EAX\) \{/,
+  "$1in_EAX = (int)(uintptr_t)param_1;\n  if (1 < in_EAX) {"
 );
 source = source.replace(/[ \t]+$/gm, "").replace(/\n*$/, "\n");
 fs.writeFileSync(outSrc, source);

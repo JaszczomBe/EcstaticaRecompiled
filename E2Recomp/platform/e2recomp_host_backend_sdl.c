@@ -7,6 +7,9 @@
 
 struct E2R_HostWindow {
     SDL_Window *window;
+    SDL_Surface *present_surface;
+    unsigned present_width;
+    unsigned present_height;
 };
 
 static E2R_HostWindow e2r_sdl_backend;
@@ -98,6 +101,12 @@ void E2R_HostDestroyWindow(E2R_HostWindow *window)
     if (window != &e2r_sdl_backend || window->window == NULL) {
         return;
     }
+    if (window->present_surface != NULL) {
+        SDL_DestroySurface(window->present_surface);
+        window->present_surface = NULL;
+        window->present_width = 0;
+        window->present_height = 0;
+    }
     SDL_DestroyWindow(window->window);
     window->window = NULL;
 }
@@ -117,6 +126,9 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
     SDL_Event event;
 
     if (window != &e2r_sdl_backend || window->window == NULL) {
+        return;
+    }
+    if (!SDL_IsMainThread()) {
         return;
     }
     while (SDL_PollEvent(&event)) {
@@ -149,6 +161,94 @@ int E2R_HostPushSyntheticKeyDown(E2R_HostWindow *window, UINT vk)
     event.key.key = key;
     return SDL_PushEvent(&event);
 }
+
+static int e2r_sdl_ensure_present_surface(E2R_HostWindow *window,
+                                          unsigned width, unsigned height)
+{
+    if (window->present_surface != NULL &&
+        window->present_width == width && window->present_height == height) {
+        return 1;
+    }
+    if (window->present_surface != NULL) {
+        SDL_DestroySurface(window->present_surface);
+        window->present_surface = NULL;
+    }
+    window->present_surface =
+        SDL_CreateSurface((int)width, (int)height, SDL_PIXELFORMAT_ARGB8888);
+    if (window->present_surface == NULL) {
+        fprintf(stderr, "warning: SDL presentation surface creation failed: %s\n",
+                SDL_GetError());
+        window->present_width = 0;
+        window->present_height = 0;
+        return 0;
+    }
+    window->present_width = width;
+    window->present_height = height;
+    return 1;
+}
+
+int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
+                            unsigned width, unsigned height, unsigned pitch)
+{
+    SDL_Surface *window_surface;
+    SDL_Rect dst_rect;
+    Uint32 grayscale[256];
+    unsigned i;
+    unsigned y;
+
+    if (window != &e2r_sdl_backend || window->window == NULL ||
+        pixels == NULL || width == 0 || height == 0) {
+        return 0;
+    }
+    if (pitch == 0) {
+        pitch = width;
+    }
+    if (pitch < width || width > 4096u || height > 4096u) {
+        return 0;
+    }
+    if (!e2r_sdl_ensure_present_surface(window, width, height)) {
+        return 0;
+    }
+    if (!SDL_LockSurface(window->present_surface)) {
+        fprintf(stderr, "warning: SDL presentation surface lock failed: %s\n",
+                SDL_GetError());
+        return 0;
+    }
+    for (i = 0; i < 256u; i++) {
+        grayscale[i] = SDL_MapSurfaceRGBA(window->present_surface,
+                                          (Uint8)i, (Uint8)i, (Uint8)i, 255);
+    }
+    for (y = 0; y < height; y++) {
+        const unsigned char *src = pixels + ((size_t)y * pitch);
+        Uint32 *dst = (Uint32 *)((unsigned char *)window->present_surface->pixels +
+                                 ((size_t)y * (size_t)window->present_surface->pitch));
+        unsigned x;
+        for (x = 0; x < width; x++) {
+            dst[x] = grayscale[src[x]];
+        }
+    }
+    SDL_UnlockSurface(window->present_surface);
+
+    window_surface = SDL_GetWindowSurface(window->window);
+    if (window_surface == NULL) {
+        fprintf(stderr, "warning: SDL window surface unavailable: %s\n", SDL_GetError());
+        return 0;
+    }
+    dst_rect.x = 0;
+    dst_rect.y = 0;
+    dst_rect.w = window_surface->w;
+    dst_rect.h = window_surface->h;
+    if (!SDL_BlitSurfaceScaled(window->present_surface, NULL, window_surface,
+                               &dst_rect, SDL_SCALEMODE_PIXELART)) {
+        fprintf(stderr, "warning: SDL presentation blit failed: %s\n", SDL_GetError());
+        return 0;
+    }
+    if (!SDL_UpdateWindowSurface(window->window)) {
+        fprintf(stderr, "warning: SDL presentation update failed: %s\n", SDL_GetError());
+        return 0;
+    }
+    return 1;
+}
 #else
 struct E2R_HostWindow {
     int unused;
@@ -172,6 +272,12 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
 int E2R_HostPushSyntheticKeyDown(E2R_HostWindow *window, UINT vk)
 {
     (void)window; (void)vk;
+    return 0;
+}
+int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
+                            unsigned width, unsigned height, unsigned pitch)
+{
+    (void)window; (void)pixels; (void)width; (void)height; (void)pitch;
     return 0;
 }
 #endif
