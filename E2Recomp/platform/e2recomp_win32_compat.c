@@ -1,4 +1,5 @@
 #include "e2recomp_win32_compat.h"
+#include "e2recomp_host_backend.h"
 
 #include <stdarg.h>
 #include <errno.h>
@@ -11,7 +12,6 @@
 #include <time.h>
 #include <unistd.h>
 #ifndef _WIN32
-#include <dlfcn.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
@@ -109,164 +109,11 @@ static BOOL e2r_push_message(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     return queued;
 }
 
-#ifndef _WIN32
-typedef struct E2R_XDisplay E2R_XDisplay;
-typedef unsigned long E2R_XWindow;
-
-typedef struct E2R_XKeyEvent {
-    int type;
-    unsigned long serial;
-    int send_event;
-    E2R_XDisplay *display;
-    E2R_XWindow window;
-    E2R_XWindow root;
-    E2R_XWindow subwindow;
-    unsigned long time;
-    int x;
-    int y;
-    int x_root;
-    int y_root;
-    unsigned int state;
-    unsigned int keycode;
-    int same_screen;
-} E2R_XKeyEvent;
-
-typedef union E2R_XEvent {
-    int type;
-    E2R_XKeyEvent xkey;
-    long pad[24];
-} E2R_XEvent;
-
-typedef struct E2R_X11_API {
-    void *lib;
-    E2R_XDisplay *(*XOpenDisplay)(const char *);
-    int (*XDefaultScreen)(E2R_XDisplay *);
-    E2R_XWindow (*XRootWindow)(E2R_XDisplay *, int);
-    unsigned long (*XBlackPixel)(E2R_XDisplay *, int);
-    unsigned long (*XWhitePixel)(E2R_XDisplay *, int);
-    E2R_XWindow (*XCreateSimpleWindow)(E2R_XDisplay *, E2R_XWindow, int, int, unsigned int, unsigned int, unsigned int, unsigned long, unsigned long);
-    int (*XStoreName)(E2R_XDisplay *, E2R_XWindow, const char *);
-    int (*XMapWindow)(E2R_XDisplay *, E2R_XWindow);
-    int (*XDestroyWindow)(E2R_XDisplay *, E2R_XWindow);
-    int (*XFlush)(E2R_XDisplay *);
-    int (*XCloseDisplay)(E2R_XDisplay *);
-    int (*XSelectInput)(E2R_XDisplay *, E2R_XWindow, long);
-    int (*XPending)(E2R_XDisplay *);
-    int (*XNextEvent)(E2R_XDisplay *, E2R_XEvent *);
-    unsigned long (*XLookupKeysym)(E2R_XKeyEvent *, int);
-} E2R_X11_API;
-
-typedef struct E2R_X11_Window {
-    E2R_XDisplay *display;
-    E2R_XWindow window;
-} E2R_X11_Window;
-
-static E2R_X11_API e2r_x11;
-static E2R_X11_Window e2r_x11_window;
-static int e2r_x11_load_attempted;
-static int e2r_x11_warned;
-
-#define E2R_X11_KEY_PRESS 2
-#define E2R_X11_KEY_PRESS_MASK (1L << 0)
-
-static void *e2r_x11_symbol(const char *name)
+static void e2r_queue_host_keydown(UINT vk, void *user)
 {
-    return e2r_x11.lib ? dlsym(e2r_x11.lib, name) : NULL;
+    (void)user;
+    e2r_push_message(&e2r_window, WM_KEYDOWN, vk, 0);
 }
-
-static int e2r_load_x11(void)
-{
-    if (e2r_x11_load_attempted) return e2r_x11.lib != NULL;
-    e2r_x11_load_attempted = 1;
-
-    e2r_x11.lib = dlopen("libX11.so.6", RTLD_LAZY);
-    if (!e2r_x11.lib) return 0;
-
-    e2r_x11.XOpenDisplay = (E2R_XDisplay *(*)(const char *))e2r_x11_symbol("XOpenDisplay");
-    e2r_x11.XDefaultScreen = (int (*)(E2R_XDisplay *))e2r_x11_symbol("XDefaultScreen");
-    e2r_x11.XRootWindow = (E2R_XWindow (*)(E2R_XDisplay *, int))e2r_x11_symbol("XRootWindow");
-    e2r_x11.XBlackPixel = (unsigned long (*)(E2R_XDisplay *, int))e2r_x11_symbol("XBlackPixel");
-    e2r_x11.XWhitePixel = (unsigned long (*)(E2R_XDisplay *, int))e2r_x11_symbol("XWhitePixel");
-    e2r_x11.XCreateSimpleWindow = (E2R_XWindow (*)(E2R_XDisplay *, E2R_XWindow, int, int, unsigned int, unsigned int, unsigned int, unsigned long, unsigned long))e2r_x11_symbol("XCreateSimpleWindow");
-    e2r_x11.XStoreName = (int (*)(E2R_XDisplay *, E2R_XWindow, const char *))e2r_x11_symbol("XStoreName");
-    e2r_x11.XMapWindow = (int (*)(E2R_XDisplay *, E2R_XWindow))e2r_x11_symbol("XMapWindow");
-    e2r_x11.XDestroyWindow = (int (*)(E2R_XDisplay *, E2R_XWindow))e2r_x11_symbol("XDestroyWindow");
-    e2r_x11.XFlush = (int (*)(E2R_XDisplay *))e2r_x11_symbol("XFlush");
-    e2r_x11.XCloseDisplay = (int (*)(E2R_XDisplay *))e2r_x11_symbol("XCloseDisplay");
-    e2r_x11.XSelectInput = (int (*)(E2R_XDisplay *, E2R_XWindow, long))e2r_x11_symbol("XSelectInput");
-    e2r_x11.XPending = (int (*)(E2R_XDisplay *))e2r_x11_symbol("XPending");
-    e2r_x11.XNextEvent = (int (*)(E2R_XDisplay *, E2R_XEvent *))e2r_x11_symbol("XNextEvent");
-    e2r_x11.XLookupKeysym = (unsigned long (*)(E2R_XKeyEvent *, int))e2r_x11_symbol("XLookupKeysym");
-
-    if (!e2r_x11.XOpenDisplay || !e2r_x11.XDefaultScreen || !e2r_x11.XRootWindow ||
-        !e2r_x11.XBlackPixel || !e2r_x11.XWhitePixel || !e2r_x11.XCreateSimpleWindow ||
-        !e2r_x11.XStoreName || !e2r_x11.XMapWindow || !e2r_x11.XDestroyWindow ||
-        !e2r_x11.XFlush || !e2r_x11.XCloseDisplay || !e2r_x11.XSelectInput ||
-        !e2r_x11.XPending || !e2r_x11.XNextEvent || !e2r_x11.XLookupKeysym) {
-        dlclose(e2r_x11.lib);
-        memset(&e2r_x11, 0, sizeof(e2r_x11));
-        return 0;
-    }
-
-    return 1;
-}
-
-static UINT e2r_virtual_key_from_keysym(unsigned long keysym)
-{
-    if (keysym >= 'a' && keysym <= 'z') {
-        keysym -= 'a' - 'A';
-    }
-    if (keysym >= 0xffb0u && keysym <= 0xffb9u) {
-        return 0x60u + (UINT)(keysym - 0xffb0u);
-    }
-    if (keysym >= 0xffbeu && keysym <= 0xffc9u) {
-        return 0x70u + (UINT)(keysym - 0xffbeu);
-    }
-    switch (keysym) {
-    case 0xff1b: return VK_ESCAPE;
-    case 0xff0d: return VK_RETURN;
-    case 0x20: return VK_SPACE;
-    case 0xffe3:
-    case 0xffe4: return 0x11;
-    case 0xff51: return 0x64;
-    case 0xff52: return 0x68;
-    case 0xff53: return 0x66;
-    case 0xff54: return 0x62;
-    default:
-        if (keysym >= 'A' && keysym <= 'Z') {
-            return (UINT)keysym;
-        }
-        return 0;
-    }
-}
-
-static void e2r_poll_host_events(void)
-{
-    if (!e2r_x11_window.display || !e2r_x11_window.window || !e2r_x11.XPending ||
-        !e2r_x11.XNextEvent || !e2r_x11.XLookupKeysym) {
-        return;
-    }
-
-    while (e2r_x11.XPending(e2r_x11_window.display) > 0) {
-        E2R_XEvent event;
-        e2r_x11.XNextEvent(e2r_x11_window.display, &event);
-        if (event.type == E2R_X11_KEY_PRESS) {
-            UINT vk = e2r_virtual_key_from_keysym(e2r_x11.XLookupKeysym(&event.xkey, 0));
-            if (vk != 0) {
-                e2r_push_message(&e2r_window, WM_KEYDOWN, vk, 0);
-            }
-        }
-    }
-}
-
-static void e2r_warn_window_unavailable(void)
-{
-    if (!e2r_x11_warned) {
-        fprintf(stderr, "warning: X11 window unavailable; continuing with headless HWND stub\n");
-        e2r_x11_warned = 1;
-    }
-}
-#endif
 
 void E2R_MapLegacyAddressSpace(void)
 {
@@ -635,25 +482,18 @@ BOOL E2R_IsBadWritePtr(const void *ptr, UINT_PTR size)
 BOOL IsWindow(HWND hwnd) { return hwnd != NULL; }
 BOOL DestroyWindow(HWND hwnd)
 {
-#ifndef _WIN32
-    if (hwnd == &e2r_window && e2r_x11_window.display && e2r_x11_window.window) {
-        e2r_x11.XDestroyWindow(e2r_x11_window.display, e2r_x11_window.window);
-        e2r_x11.XFlush(e2r_x11_window.display);
-        e2r_x11_window.window = 0;
+    if (hwnd == &e2r_window && hwnd->ptr != NULL) {
+        E2R_HostDestroyWindow((E2R_HostWindow *)hwnd->ptr);
         hwnd->ptr = NULL;
     }
-#endif
     (void)hwnd;
     return TRUE;
 }
 BOOL ShowWindow(HWND hwnd, int cmd_show)
 {
-#ifndef _WIN32
-    if (hwnd == &e2r_window && e2r_x11_window.display && e2r_x11_window.window && cmd_show != 0) {
-        e2r_x11.XMapWindow(e2r_x11_window.display, e2r_x11_window.window);
-        e2r_x11.XFlush(e2r_x11_window.display);
+    if (hwnd == &e2r_window && hwnd->ptr != NULL && cmd_show != 0) {
+        E2R_HostShowWindow((E2R_HostWindow *)hwnd->ptr);
     }
-#endif
     (void)hwnd; (void)cmd_show;
     return TRUE;
 }
@@ -663,16 +503,12 @@ int ShowCursor(BOOL show) { (void)show; return 0; }
 BOOL GetCursorPos(POINT *point) { if (point) point->x = point->y = 0; return TRUE; }
 BOOL PeekMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter, UINT remove)
 {
-#ifndef _WIN32
-    e2r_poll_host_events();
-#endif
+    E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr, e2r_queue_host_keydown, NULL);
     return e2r_pop_message(msg, hwnd, min_filter, max_filter, (remove & PM_REMOVE) != 0);
 }
 BOOL GetMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter)
 {
-#ifndef _WIN32
-    e2r_poll_host_events();
-#endif
+    E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr, e2r_queue_host_keydown, NULL);
     if (!e2r_pop_message(msg, hwnd, min_filter, max_filter, TRUE)) {
         return FALSE;
     }
@@ -714,45 +550,17 @@ HWND CreateWindowExA(DWORD ex_style, LPCSTR class_name, LPCSTR window_name,
                      HWND parent, HMENU menu, HINSTANCE instance, LPVOID param)
 {
     (void)ex_style; (void)class_name; (void)style; (void)menu; (void)instance; (void)param;
-#ifndef _WIN32
     if (!parent) {
-        int screen;
+        E2R_HostWindow *host_window;
         unsigned int w = width > 0 ? (unsigned int)width : 640u;
         unsigned int h = height > 0 ? (unsigned int)height : 480u;
 
-        if (!e2r_load_x11()) {
-            e2r_warn_window_unavailable();
-            return &e2r_window;
-        }
-
-        if (!e2r_x11_window.display) {
-            e2r_x11_window.display = e2r_x11.XOpenDisplay(NULL);
-            if (!e2r_x11_window.display) {
-                e2r_warn_window_unavailable();
-                return &e2r_window;
-            }
-        }
-
-        screen = e2r_x11.XDefaultScreen(e2r_x11_window.display);
-        if (e2r_x11_window.window == 0) {
-            E2R_XWindow root = e2r_x11.XRootWindow(e2r_x11_window.display, screen);
-            unsigned long black = e2r_x11.XBlackPixel(e2r_x11_window.display, screen);
-            unsigned long white = e2r_x11.XWhitePixel(e2r_x11_window.display, screen);
-            e2r_x11_window.window =
-                e2r_x11.XCreateSimpleWindow(e2r_x11_window.display, root, x, y, w, h, 1, black, white);
-        }
-        if (e2r_x11_window.window != 0) {
-            e2r_x11.XSelectInput(e2r_x11_window.display, e2r_x11_window.window, E2R_X11_KEY_PRESS_MASK);
-            e2r_x11.XStoreName(e2r_x11_window.display, e2r_x11_window.window,
-                               window_name ? window_name : "Ecstatica II");
-            e2r_x11.XMapWindow(e2r_x11_window.display, e2r_x11_window.window);
-            e2r_x11.XFlush(e2r_x11_window.display);
-            e2r_window.ptr = &e2r_x11_window;
+        host_window = E2R_HostCreateWindow(window_name ? window_name : "Ecstatica II",
+                                           x, y, w, h);
+        if (host_window != NULL) {
+            e2r_window.ptr = host_window;
         }
     }
-#else
-    (void)window_name; (void)x; (void)y; (void)width; (void)height; (void)parent;
-#endif
     return &e2r_window;
 }
 INT_PTR DialogBoxParamA(HINSTANCE inst, LPCSTR tmpl, HWND parent, DLGPROC proc,

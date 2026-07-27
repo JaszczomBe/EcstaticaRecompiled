@@ -1,6 +1,6 @@
 # Reach First Controllable Scene
 
-Status: active
+Status: completed
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
 Last Updated: 2026-07-27
 
@@ -323,7 +323,7 @@ input state after dispatch wait: ... DAT_00479de8=1 move=[1,0,0,0,0,0,0,0,0] DAT
 surface 3 nonblank=1 hash=6e39f5ea
 ```
 
-Current frontier: Step 10 has a debug and ASan control-ready movement proof. The remaining cleanup is to trim temporary diagnostics once the generated repairs are reviewed, then decide whether to close Step 10 or keep a small follow-up for scene-current and surface-copy hidden-register fidelity. The final dumps report `visible=0` while surface 3 is nonblank; this appears to be a presentation-page bookkeeping issue, not a blocker for the movement/control proof.
+Completion: Step 10 has a debug and ASan control-ready movement proof, satisfying the acceptance criteria. Follow-up cleanup moved to Step 11: trim temporary diagnostics under regression protection, and decide whether scene-current and surface-copy hidden-register fidelity need a focused later step. The final dumps report `visible=0` while surface 3 is nonblank; this appears to be a presentation-page bookkeeping issue, not a blocker for the movement/control proof.
 
 ## Original Runtime Video Workflow Evidence
 

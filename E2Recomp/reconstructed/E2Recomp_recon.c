@@ -33,6 +33,7 @@ static uint E2R_fan_actor_diag_count;
 static uint E2R_fan_action_summary_diag_count;
 static uint E2R_fan_phase_diag_count;
 static uint E2R_actor_current_diag_count;
+static int E2R_runtime_diag_enabled;
 static uint E2R_current_actor_trace_diag_count;
 static uint E2R_requester_state_diag_count;
 static uint E2R_start_game_stage_diag_count;
@@ -48,6 +49,11 @@ static void E2R_InitDiagnostics(void) __attribute__((constructor));
 static void E2R_InitDiagnostics(void)
 {
   char *fan_diag = getenv("E2R_FAN_DIAG");
+  char *runtime_diag = getenv("E2R_RUNTIME_DIAG");
+
+  if (runtime_diag != (char *)0x0 && runtime_diag[0] != '\0' && runtime_diag[0] != '0') {
+    E2R_runtime_diag_enabled = 1;
+  }
 
   if (fan_diag != (char *)0x0 && fan_diag[0] != '\0' && fan_diag[0] != '0') {
     return;
@@ -59,6 +65,11 @@ static void E2R_InitDiagnostics(void)
   E2R_fan_actor_diag_count = 0x7fffffff;
   E2R_fan_action_summary_diag_count = 0x7fffffff;
   E2R_fan_phase_diag_count = 0x7fffffff;
+}
+
+static int E2R_RuntimeDiagEnabled(void)
+{
+  return E2R_runtime_diag_enabled;
 }
 
 static uint E2R_FanStreamOffset(void)
@@ -140,7 +151,7 @@ static uintptr_t E2R_TraceCurrentActorWrite(const char *site, uintptr_t value)
 {
   E2R_current_actor_last_site = site;
   E2R_current_actor_last_value = value;
-  if (value != 0 && E2R_current_actor_trace_diag_count < 32 &&
+  if (value != 0 && E2R_RuntimeDiagEnabled() && E2R_current_actor_trace_diag_count < 32 &&
       (strcmp(site,"5233c.archive") == 0 || strcmp(site,"525f0.archive") == 0)) {
     E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;
     E2R_PrintCurrentPointerShape(site,value);
@@ -153,7 +164,7 @@ static uintptr_t E2R_TraceArchiveCurrentActorWrite(const char *site, uintptr_t v
   if (value != 0 && !E2R_IsReadableCurrentPointer(value)) {
     E2R_current_actor_last_site = site;
     E2R_current_actor_last_value = 0;
-    if (E2R_current_actor_trace_diag_count < 32) {
+    if (E2R_RuntimeDiagEnabled() && E2R_current_actor_trace_diag_count < 32) {
       E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;
       E2R_PrintCurrentPointerShape(site,value);
     }
@@ -175,7 +186,7 @@ static uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)
 {
   uintptr_t old_value = _DAT_0073cc3c;
 
-  if (E2R_scene_pointer_diag_count < 96 && old_value != value) {
+  if (E2R_RuntimeDiagEnabled() && E2R_scene_pointer_diag_count < 96 && old_value != value) {
     E2R_scene_pointer_diag_count = E2R_scene_pointer_diag_count + 1;
     fprintf(stderr,
             "scene pointer write: site=%s old=0x%lx new=0x%lx "
@@ -193,7 +204,7 @@ static uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)
 
 static void E2R_TraceFrameStage(const char *stage)
 {
-  if (E2R_frame_stage_diag_count < 96) {
+  if (E2R_RuntimeDiagEnabled() && E2R_frame_stage_diag_count < 96) {
     E2R_frame_stage_diag_count = E2R_frame_stage_diag_count + 1;
     fprintf(stderr,
             "frame stage: %s DAT_00479de8=%lu DAT_0047a76c=%lu "
@@ -233,7 +244,7 @@ static void E2R_TraceActorLoopStage(const char *stage, uintptr_t actor, uint gua
       dep_c = *(byte *)(dep + 0xc);
     }
   }
-  if (E2R_actor_loop_diag_count < 128) {
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {
     E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;
     fprintf(stderr,
             "actor loop: %s guard=%lu actor=0x%lx bad=%d next=0x%lx "
@@ -288,7 +299,7 @@ static void E2R_TraceActorUpdateStage(const char *stage, short *actor)
     byteb3 = *(byte *)(value + 0xb3);
     byteb6 = *(byte *)(value + 0xb6);
   }
-  if (E2R_actor_update_diag_count < 192) {
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_update_diag_count < 192) {
     E2R_actor_update_diag_count = E2R_actor_update_diag_count + 1;
     fprintf(stderr,
             "actor update: %s actor=0x%lx bad180=%d current=0x%lx scene=0x%lx "
@@ -306,7 +317,7 @@ static void E2R_TraceActorUpdateStage(const char *stage, short *actor)
 
 static void E2R_TraceStartGameStage(const char *stage)
 {
-  if (E2R_start_game_stage_diag_count < 64) {
+  if (E2R_RuntimeDiagEnabled() && E2R_start_game_stage_diag_count < 64) {
     E2R_start_game_stage_diag_count = E2R_start_game_stage_diag_count + 1;
     fprintf(stderr,
             "start-game stage: %s count=%lu mode=%lu DAT_00479de8=%lu "
@@ -329,7 +340,7 @@ static uintptr_t E2R_TraceRequesterState(const char *site, uintptr_t value)
 {
   uintptr_t old_value = _DAT_00643650;
 
-  if (E2R_requester_state_diag_count < 64) {
+  if (E2R_RuntimeDiagEnabled() && E2R_requester_state_diag_count < 64) {
     E2R_requester_state_diag_count = E2R_requester_state_diag_count + 1;
     fprintf(stderr,
             "requester state write: site=%s old=%lu new=%lu "
@@ -359,7 +370,7 @@ static uintptr_t E2R_TraceMenuRequestFlag(const char *site, uintptr_t value)
     word82 = *(short *)(current + 0x82);
     worde8 = *(short *)(current + 0xe8);
   }
-  if (E2R_requester_state_diag_count < 64) {
+  if (E2R_RuntimeDiagEnabled() && E2R_requester_state_diag_count < 64) {
     E2R_requester_state_diag_count = E2R_requester_state_diag_count + 1;
     fprintf(stderr,
             "menu request flag write: site=%s old=%lu new=%lu "
@@ -10376,12 +10387,16 @@ void __fastcall FUN_0041ad54(undefined4 param_1,int param_2,int param_3)
   int surface;
   undefined1 color;
   undefined1 *row;
+  size_t write_span;
 
   x2 = (int)(uintptr_t)param_1;
   y1 = 0;
   surface = DAT_0047a279 >> 0x18;
   if (DAT_0047a43c != 0) {
     surface = surface + 2;
+  }
+  if (surface < 0 || 3 < surface) {
+    return;
   }
   if (param_2 < 0) {
     param_2 = 0;
@@ -10396,9 +10411,14 @@ void __fastcall FUN_0041ad54(undefined4 param_1,int param_2,int param_3)
     return;
   }
   base = FUN_00418a04((undefined4)(uintptr_t)surface,&pitch);
-  if (base == 0 || pitch <= 0 || (uintptr_t)base >= 0x70000000u ||
-      _DAT_006401ec <= 0 || 0x1000 < _DAT_006401ec ||
-      _DAT_006401d4 <= 0 || 0x1000 < _DAT_006401d4) {
+  if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||
+      (uintptr_t)base >= 0x70000000u || _DAT_006401ec <= 0 ||
+      0x1000 < _DAT_006401ec || _DAT_006401d4 <= 0 ||
+      0x1000 < _DAT_006401d4) {
+    return;
+  }
+  write_span = (size_t)param_3 * (size_t)pitch + (size_t)x2 + 1;
+  if (E2R_IsBadWritePtr((void *)(uintptr_t)base,write_span)) {
     return;
   }
   color = ((undefined1 *)0x006366dc)[surface * 2];
@@ -41922,7 +41942,7 @@ void __fastcall FUN_0044c164(undefined4 param_1)
 
 #if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
   if (!E2R_IsKnownActorPointer(DAT_0047a470)) {
-    if (E2R_actor_current_diag_count < 16) {
+    if (E2R_RuntimeDiagEnabled() && E2R_actor_current_diag_count < 16) {
       E2R_actor_current_diag_count = E2R_actor_current_diag_count + 1;
       fprintf(stderr,
               "current actor invalid at 4c164: current=0x%lx param=0x%lx "
@@ -45980,7 +46000,7 @@ void FUN_00451f5c(void)
   actor_id = (short)in_EAX;
   uVar3 = DAT_0047a470;
   if ((actor_id < 0) || (5000 <= actor_id)) {
-    if (E2R_actor_load_diag_count < 48) {
+    if (E2R_RuntimeDiagEnabled() && E2R_actor_load_diag_count < 48) {
       E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;
       fprintf(stderr,
               "actor load invalid id: id=%d DAT_0047ab10=%lu current=0x%lx "
@@ -45993,7 +46013,7 @@ void FUN_00451f5c(void)
     return;
   }
   parse_result = 0;
-  if (E2R_actor_load_diag_count < 48) {
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_load_diag_count < 48) {
     E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;
     fprintf(stderr,
             "actor load enter: id=%d table=0x%lx flags=0x%02x DAT_0047ab10=%lu "
@@ -46068,7 +46088,7 @@ void FUN_00451f5c(void)
     }
   }
   DAT_0047a470 = E2R_TraceCurrentActorWrite("51f5c.exit",(uintptr_t)uVar3);
-  if (E2R_actor_load_diag_count < 48) {
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_load_diag_count < 48) {
     E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;
     fprintf(stderr,
             "actor load exit: id=%d restored_current=0x%lx flags=0x%02x "

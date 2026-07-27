@@ -62,7 +62,11 @@ The original post-main-loop `"e_config"` crash through `FUN_0046055c` has been c
 
 Step 9 is complete. Its input bridge maps `WM_KEYDOWN` through the compatibility message queue into recovered input globals, feeds legacy key queues, and polls X11 keypresses into the same path. Requester-ready probes reach rendering, keyboard focus movement, action selection, and nested Quit confirmation outcomes in both debug and ASan. Exact recovery of the unnamed fixed English confirmation text at `0x004729b8` remains a fidelity backlog item.
 
-Step 10 is active and ready for cleanup/closure review. The original requester `0x27/0x28` record selects Start Game item `0x00643b30`, and matching debug/ASan probes prove entry into `FUN_0043a39c`. The parser handoff, packed name tables, table ordinals, Start-code lookup, action-node parser, FAN section readers, archive table loader, direct archive resource wrapper, actor-loader handoffs, scene-current recovery, and current-frame guards are generator-backed. A split gameplay probe now posts `space`, waits for scene/control state, then posts `num8`. Both debug and ASan satisfy the control-ready gate with `_DAT_00643650=0`, `DAT_00479de8=1`, `_DAT_0073cc3c=0x681d04`, a nonblank surface 3 hash `6e39f5ea`, and `move=[1,0,0,0,0,0,0,0,0]`; ASan exits without a sanitizer report. The remaining Step 10 work is to trim temporary diagnostics and decide how much hidden-register fidelity to recover in the guarded surface-copy helpers before closing the step.
+Step 10 is complete. The original requester `0x27/0x28` record selects Start Game item `0x00643b30`, and matching debug/ASan probes prove entry into `FUN_0043a39c`. The parser handoff, packed name tables, table ordinals, Start-code lookup, action-node parser, FAN section readers, archive table loader, direct archive resource wrapper, actor-loader handoffs, scene-current recovery, and current-frame guards are generator-backed. A split gameplay probe posts `space`, waits for scene/control state, then posts `num8`. Both debug and ASan satisfy the control-ready gate with `_DAT_00643650=0`, `DAT_00479de8=1`, `_DAT_0073cc3c=0x681d04`, a nonblank surface 3 hash `6e39f5ea`, and `move=[1,0,0,0,0,0,0,0,0]`; ASan exits without a sanitizer report.
+
+Step 11 is complete. `scripts/run-e2-runtime-regressions.sh` is the repeatable build-and-probe command for the stabilized runtime loop: it checks generator syntax, builds debug/ASan, runs the split gameplay control probes, asserts the key proof strings, rejects ASan reports, and rejects opt-in runtime trace families by default. Temporary frame/scene-pointer/actor/requester/current-pointer diagnostics are quiet by default and opt back in with `E2R_RUNTIME_DIAG=1`; the separate FAN parser diagnostics remain under `E2R_FAN_DIAG=1`. The regression harness also exposed and now protects a generated `FUN_0041ad54` draw-fill guard for invalid low surface bases/spans.
+
+Step 12 is active. The first target is to define the replaceable host backend boundary before adding SDL or richer presentation/audio behavior. Current evidence points to host window/input polling as the first practical seam: the compatibility message queue and `WM_KEYDOWN` semantics stay game-facing, while X11 display/window/key-symbol handling belongs behind a backend-owned layer. The first code slice introduced `E2Recomp/platform/e2recomp_host_backend.*` and moved X11 window creation, show/destroy, and event polling behind that API without changing the Step 11 runtime proof.
 
 ## Step Roadmap
 
@@ -77,9 +81,9 @@ Each step should be scoped so it can preferably be completed in one context wind
 7. [Sustain Main Loop Heartbeat](steps/step-07/step-07-sustain-main-loop-heartbeat.md) - completed; recovered HUD icon clearing, damage-rectangle table access, and loop requester-id handoff, then verified 90 seconds under ASan.
 8. [Present Inspectable Title Or Menu Frame](steps/step-08/step-08-present-inspectable-title-or-menu-frame.md) - completed; added bounded frame dumping and captured a real Ecstatica II title-logo frame from ASan surface 3.
 9. [Wire Menu Input Path](steps/step-09/step-09-wire-menu-input-path.md) - completed; message-queue `WM_KEYDOWN`, X11 host-key poll, legacy key queues, requester navigation/action selection, and Quit confirmation No/Yes outcomes are verified in debug and ASan.
-10. [Reach First Controllable Scene](steps/step-10/step-10-reach-first-controllable-scene.md) - active; restore the original Start Game menu path, enter scene loading, capture a gameplay frame, and prove one control-driven state change.
-11. Harden Runtime Loop Regression Checks - planned; make debug/ASan/GDB probes repeatable for the stabilized loop path.
-12. Define Replaceable Host Backend Boundary - planned; isolate window, input, timing, presentation, and audio backend calls below the compatibility layer.
+10. [Reach First Controllable Scene](steps/step-10/step-10-reach-first-controllable-scene.md) - completed; restored the original Start Game path, entered scene loading, captured gameplay surfaces, and proved delayed movement in debug and ASan.
+11. [Harden Runtime Loop Regression Checks](steps/step-11/step-11-harden-runtime-loop-regression-checks.md) - completed; made debug/ASan runtime-loop probes repeatable and quiet by default.
+12. [Define Replaceable Host Backend Boundary](steps/step-12/step-12-define-replaceable-host-backend-boundary.md) - active; isolate window, input, timing, presentation, and audio backend calls below the compatibility layer.
 13. Add SDL Host Backend - planned; replace or supplement Linux/X11 scaffolding with SDL once loop, frame, and compatibility semantics are stable enough to specify.
 
 ## Journals
@@ -120,8 +124,9 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 
 1. `cmake --build --preset linux-clang32-debug`
 2. `cmake --build build/linux-clang32-asan`
-3. GDB run from `build/linux-clang32-debug`: `./e2recomp --run-recon`
-4. Journal the next crash frontier after each successful repair.
+3. `scripts/run-e2-runtime-regressions.sh`
+4. GDB run from `build/linux-clang32-debug`: `./e2recomp --run-recon`
+5. Journal the next crash frontier after each successful repair.
 
 ## Change Log
 
@@ -204,3 +209,8 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 4. Recorded the new frontier as ASan requester-state residue after StartGame, not a missing movement-key delivery path.
 5. Recovered the ASan requester-state residue by tracing `FUN_0042a70c -> FUN_00427584` and narrowing the dead-current requester guard to readable non-null actors. ASan now satisfies the control-ready movement probe with `_DAT_00643650=0`, `_DAT_0073cc3c=0x681d04`, surface 3 hash `6e39f5ea`, and `move=[1,0,0,0,0,0,0,0,0]`.
 6. Stabilized the debug post-control surface-copy path by guarding generated `FUN_0041868c` and `FUN_00417b20` against stale hidden source/X register residue and invalid copy spans. Final debug and ASan split probes both exit cleanly, keep requester state clear, latch delayed movement, and dump nonblank surface 3 hash `6e39f5ea`.
+7. Closed Step 10 and opened Step 11 for repeatable runtime-loop regression checks.
+8. Added `scripts/run-e2-runtime-regressions.sh` to validate generator syntax, build debug/ASan, run the split gameplay probes, assert control/movement/surface evidence, and reject ASan reports.
+9. Gated temporary runtime diagnostics behind `E2R_RUNTIME_DIAG=1`, hardened generated `FUN_0041ad54` against invalid draw bases/spans, and reverified the Step 11 regression script with quiet default debug/ASan logs.
+10. Extended the Step 11 regression script to reject opt-in runtime trace families by default, closed Step 11, and opened Step 12 to define the replaceable host backend boundary.
+11. Added `e2recomp_host_backend.*` as the first host backend seam, moving X11 window/input polling below the Win32 compatibility message layer and revalidating the debug/ASan runtime regression script.

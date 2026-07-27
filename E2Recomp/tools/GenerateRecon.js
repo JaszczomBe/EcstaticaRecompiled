@@ -77,6 +77,18 @@ source = source.replace(
   "static uint E2R_file_flags[256];\nstatic uint E2R_open_diag_count;\nstatic uint E2R_archive_read_diag_count;\nstatic uint E2R_archive_resource_diag_count;\nstatic uint E2R_archive_parse_summary_count;\nstatic uint E2R_actor_load_diag_count;\nstatic int E2R_actor_load_id_override = -1;\nstatic int *E2R_fan_parse_stream;\nstatic short *E2R_fan_parse_record;\nstatic uint E2R_fan_parse_record_count;\nstatic uint E2R_fan_word_read_diag_count;\nstatic uint E2R_fan_action_read_diag_count;\nstatic uint E2R_fan_dispatch_diag_count;\nstatic uint E2R_fan_actor_diag_count;\nstatic uint E2R_fan_action_summary_diag_count;\nstatic uint E2R_fan_phase_diag_count;\nstatic uint E2R_actor_current_diag_count;\nstatic uint E2R_current_actor_trace_diag_count;\nstatic const char *E2R_current_actor_last_site;\nstatic uintptr_t E2R_current_actor_last_value;\nstatic int E2R_actor_calc_context;\n\nstatic void E2R_InitDiagnostics(void) __attribute__((constructor));\nstatic void E2R_InitDiagnostics(void)\n{\n  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n\n  if (fan_diag != (char *)0x0 && fan_diag[0] != '\\0' && fan_diag[0] != '0') {\n    return;\n  }\n\n  E2R_fan_word_read_diag_count = 0x7fffffff;\n  E2R_fan_action_read_diag_count = 0x7fffffff;\n  E2R_fan_dispatch_diag_count = 0x7fffffff;\n  E2R_fan_actor_diag_count = 0x7fffffff;\n  E2R_fan_action_summary_diag_count = 0x7fffffff;\n  E2R_fan_phase_diag_count = 0x7fffffff;\n}\n\nstatic uint E2R_FanStreamOffset(void)\n{\n  if (E2R_fan_parse_stream == (int *)0x0 || IsBadReadPtr(E2R_fan_parse_stream,0x1c)) {\n    return 0;\n  }\n  return (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -\n                (byte *)(uintptr_t)E2R_fan_parse_stream[5]);\n}\n#define E2R_STREAM_MAGIC"
 );
 source = source.replace(
+  "static uint E2R_actor_current_diag_count;\nstatic uint E2R_current_actor_trace_diag_count;",
+  "static uint E2R_actor_current_diag_count;\nstatic int E2R_runtime_diag_enabled;\nstatic uint E2R_current_actor_trace_diag_count;"
+);
+source = source.replace(
+  "  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n\n  if (fan_diag != (char *)0x0 && fan_diag[0] != '\\0' && fan_diag[0] != '0') {",
+  "  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n  char *runtime_diag = getenv(\"E2R_RUNTIME_DIAG\");\n\n  if (runtime_diag != (char *)0x0 && runtime_diag[0] != '\\0' && runtime_diag[0] != '0') {\n    E2R_runtime_diag_enabled = 1;\n  }\n\n  if (fan_diag != (char *)0x0 && fan_diag[0] != '\\0' && fan_diag[0] != '0') {"
+);
+source = source.replace(
+  "static uint E2R_FanStreamOffset(void)",
+  "static int E2R_RuntimeDiagEnabled(void)\n{\n  return E2R_runtime_diag_enabled;\n}\n\nstatic uint E2R_FanStreamOffset(void)"
+);
+source = source.replace(
   "#define E2R_STREAM_MAGIC 0xe25eed01u\n\nstatic int E2R_round_to_int",
   "#define E2R_STREAM_MAGIC 0xe25eed01u\n\nstatic int E2R_IsKnownActorPointer(int actor)\n{\n  short actor_id;\n\n  if (actor == 0) {\n    return 1;\n  }\n  if ((uint)actor < 0x10000u || 0x70000000u <= (uint)actor ||\n      IsBadReadPtr((void *)(uintptr_t)actor,0x136)) {\n    return 0;\n  }\n  actor_id = *(short *)(uintptr_t)actor;\n  if (actor_id < 0 || 5000 <= actor_id) {\n    return 0;\n  }\n  return *(int *)((undefined1 *)0x00630b60 + actor_id * 4) == actor;\n}\n\nstatic int E2R_CurrentSceneTableSlot(uintptr_t value)\n{\n  uintptr_t offset;\n\n  if (value < (uintptr_t)0x0067c728 ||\n      (uintptr_t)(0x0067c728 + 0x4b0 * 0x1c) <= value) {\n    return -1;\n  }\n  offset = value - (uintptr_t)0x0067c728;\n  if (offset % 0x1c != 0) {\n    return -1;\n  }\n  return (int)(offset / 0x1c);\n}\n\nstatic int E2R_IsReadableCurrentPointer(uintptr_t value)\n{\n  return value != 0 && 0x10000u <= (uint)value && (uint)value < 0x70000000u &&\n         !IsBadReadPtr((void *)value,0xaa);\n}\n\nstatic void E2R_PrintCurrentPointerShape(const char *site, uintptr_t value)\n{\n  int readable;\n  short word0 = 0;\n  short word82 = 0;\n  int dword84 = 0;\n  int dworda6 = 0;\n\n  readable = E2R_IsReadableCurrentPointer(value);\n  if (readable) {\n    word0 = *(short *)value;\n    word82 = *(short *)(value + 0x82);\n    dword84 = *(int *)(value + 0x84);\n    dworda6 = *(int *)(value + 0xa6);\n  }\n  fprintf(stderr,\n          \"current pointer shape: site=%s value=0x%lx readable=%d \"\n          \"known_actor=%d scene=0x%lx eq_scene=%d scene_slot=%d \"\n          \"w0=%d w82=0x%x d84=0x%lx da6=0x%lx table0=0x%lx\\n\",\n          site,(unsigned long)value,readable,E2R_IsKnownActorPointer((int)value),\n          (unsigned long)_DAT_0073cc3c,value == (uintptr_t)_DAT_0073cc3c,\n          E2R_CurrentSceneTableSlot(value),(int)word0,(unsigned int)(ushort)word82,\n          (unsigned long)(uint)dword84,(unsigned long)(uint)dworda6,\n          (unsigned long)*(int *)0x00630b60);\n}\n\nstatic uintptr_t E2R_TraceCurrentActorWrite(const char *site, uintptr_t value)\n{\n  E2R_current_actor_last_site = site;\n  E2R_current_actor_last_value = value;\n  if (value != 0 && E2R_current_actor_trace_diag_count < 32 &&\n      (strcmp(site,\"5233c.archive\") == 0 || strcmp(site,\"525f0.archive\") == 0)) {\n    E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;\n    E2R_PrintCurrentPointerShape(site,value);\n  }\n  return value;\n}\n\nstatic uintptr_t E2R_TraceArchiveCurrentActorWrite(const char *site, uintptr_t value)\n{\n  if (value != 0 && !E2R_IsReadableCurrentPointer(value)) {\n    E2R_current_actor_last_site = site;\n    E2R_current_actor_last_value = 0;\n    if (E2R_current_actor_trace_diag_count < 32) {\n      E2R_current_actor_trace_diag_count = E2R_current_actor_trace_diag_count + 1;\n      E2R_PrintCurrentPointerShape(site,value);\n    }\n    return 0;\n  }\n  return E2R_TraceCurrentActorWrite(site,value);\n}\n\nstatic void E2R_SelectSceneRecord(short scene_id)\n{\n  if (scene_id < 0 || 0x4b0 <= scene_id) {\n    return;\n  }\n  _DAT_0073ccba = (ushort)scene_id;\n  FUN_0044c6bc();\n}\n\nstatic int E2R_round_to_int"
 );
@@ -415,6 +427,18 @@ source = source.replace(
 source = source.replace(
   /void __fastcall FUN_0041ad54\(undefined4 param_1,int param_2,int param_3\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0041af88 \*\//,
   "void __fastcall FUN_0041ad54(undefined4 param_1,int param_2,int param_3)\n\n{\n  int x;\n  int y;\n  int x2;\n  int y1;\n  int pitch;\n  int base;\n  int surface;\n  undefined1 color;\n  undefined1 *row;\n  \n  x2 = (int)(uintptr_t)param_1;\n  y1 = 0;\n  surface = DAT_0047a279 >> 0x18;\n  if (DAT_0047a43c != 0) {\n    surface = surface + 2;\n  }\n  if (param_2 < 0) {\n    param_2 = 0;\n  }\n  if (x2 >= _DAT_006401ec) {\n    x2 = _DAT_006401ec + -1;\n  }\n  if (param_3 >= _DAT_006401d4) {\n    param_3 = _DAT_006401d4 + -1;\n  }\n  if (x2 < param_2 || param_3 < y1) {\n    return;\n  }\n  base = FUN_00418a04((undefined4)(uintptr_t)surface,&pitch);\n  if (base == 0 || pitch <= 0 || (uintptr_t)base >= 0x70000000u ||\n      _DAT_006401ec <= 0 || 0x1000 < _DAT_006401ec ||\n      _DAT_006401d4 <= 0 || 0x1000 < _DAT_006401d4) {\n    return;\n  }\n  color = ((undefined1 *)0x006366dc)[surface * 2];\n  for (y = y1; y <= param_3; y = y + 1) {\n    row = (undefined1 *)(base + y * pitch + param_2);\n    for (x = param_2; x <= x2; x = x + 1) {\n      *row = color;\n      row = row + 1;\n    }\n  }\n  return;\n}\n\n\n\n/* 0041af88 */"
+);
+source = source.replace(
+  "  undefined1 color;\n  undefined1 *row;\n  \n  x2 = (int)(uintptr_t)param_1;",
+  "  undefined1 color;\n  undefined1 *row;\n  size_t write_span;\n  \n  x2 = (int)(uintptr_t)param_1;"
+);
+source = source.replace(
+  "  if (DAT_0047a43c != 0) {\n    surface = surface + 2;\n  }\n  if (param_2 < 0) {",
+  "  if (DAT_0047a43c != 0) {\n    surface = surface + 2;\n  }\n  if (surface < 0 || 3 < surface) {\n    return;\n  }\n  if (param_2 < 0) {"
+);
+source = source.replace(
+  "  if (base == 0 || pitch <= 0 || (uintptr_t)base >= 0x70000000u ||\n      _DAT_006401ec <= 0 || 0x1000 < _DAT_006401ec ||\n      _DAT_006401d4 <= 0 || 0x1000 < _DAT_006401d4) {\n    return;\n  }\n  color = ((undefined1 *)0x006366dc)[surface * 2];",
+  "  if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||\n      (uintptr_t)base >= 0x70000000u || _DAT_006401ec <= 0 ||\n      0x1000 < _DAT_006401ec || _DAT_006401d4 <= 0 ||\n      0x1000 < _DAT_006401d4) {\n    return;\n  }\n  write_span = (size_t)param_3 * (size_t)pitch + (size_t)x2 + 1;\n  if (E2R_IsBadWritePtr((void *)(uintptr_t)base,write_span)) {\n    return;\n  }\n  color = ((undefined1 *)0x006366dc)[surface * 2];"
 );
 source = source.replace(
   /\/\* 0041b078 \*\/[\s\S]*?\r?\n\s*\r?\n\/\* 0041b920 \*\//,
@@ -3133,6 +3157,18 @@ const currentActorTraceReplacements = [
 for (const [before, after] of currentActorTraceReplacements) {
   source = source.replace(before, after);
 }
+source = source.replace(
+  /if \(E2R_(actor_current_diag_count|actor_load_diag_count|actor_loop_diag_count|actor_update_diag_count|current_actor_trace_diag_count|frame_stage_diag_count|requester_state_diag_count|scene_pointer_diag_count|start_game_stage_diag_count) < ([0-9]+)\)/g,
+  "if (E2R_RuntimeDiagEnabled() && E2R_$1 < $2)"
+);
+source = source.replace(
+  /if \(value != 0 && E2R_current_actor_trace_diag_count < ([0-9]+) &&/g,
+  "if (value != 0 && E2R_RuntimeDiagEnabled() && E2R_current_actor_trace_diag_count < $1 &&"
+);
+source = source.replace(
+  /if \(E2R_scene_pointer_diag_count < ([0-9]+) &&/g,
+  "if (E2R_RuntimeDiagEnabled() && E2R_scene_pointer_diag_count < $1 &&"
+);
 source = source.replace(/[ \t]+$/gm, "").replace(/\n*$/, "\n");
 fs.writeFileSync(outSrc, source);
 

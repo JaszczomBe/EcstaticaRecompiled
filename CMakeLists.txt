@@ -76,6 +76,7 @@ add_executable(e2recomp
     E2Recomp/reconstructed/E2Recomp_globals.c
     E2Recomp/reconstructed/E2Recomp_data_init.c
     E2Recomp/reconstructed/E2Recomp_stubs.c
+    E2Recomp/platform/e2recomp_host_backend.c
     E2Recomp/platform/e2recomp_win32_compat.c
     E2Recomp/native/e2recomp_native_main.c
 )
