@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-28
+Last Updated: 2026-07-29
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -51,6 +51,18 @@ Each step should be small enough for a single context window. If a step starts c
 5. [Begin DirectSound Compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) - planned; map startup sound behavior and define the first replaceable audio boundary.
 6. [Package Reproducible Developer Runtime](steps/step-06/step-06-package-reproducible-developer-runtime.md) - planned; make clone/submodule/build/launch validation boring and repeatable.
 
+## Active Frontier
+
+The current user-facing target is E2WIN95 startup-sequence parity, not only palette or front-buffer selection. The expected reference path is:
+
+1. Psygnosis logo.
+2. Andrew Spencer Studios logo.
+3. Ecstatica II loading/logo screen.
+4. Engine intro sequence starting with the horseback/credits scene.
+5. `Esc` can enter the menu during the intro; `Space` skips toward the first gameplay sequence.
+
+Current rebuilt SDL behavior has advanced past several crash boundaries, but it still does not match that sequence. Startup diagnostics now prove the route finds and dispatches `ken:StartUp`, and `FUN_00447d94` now recognizes the flat `FANT` layout in `Files/ECSTATIC` instead of treating it as an offset-indexed archive. The flat-FANT scan populates the scene offset table at `0x650fa0`, so opcode-`0x4d` preloads install matching scene records and child-list passes execute instead of walking empty table slots. The current bounded/gdb frontier is later: after correct preloads through opcode/action count `64`, loading scene id `1424` removes an existing scene and crashes in `FUN_0043aa98` while unlinking scene children/lists, after the last successful `rist10` scene record install. The runtime still has not reached `mar:StartGame`, so the next implementation slice is to stabilize scene-removal list unlinking enough to continue to the scripted intro path, then verify `PlayScene "horse"` resolves and executes before returning to front-buffer closeout.
+
 ## Invariants
 
 1. Keep SDL below the host backend; reconstructed C must not call SDL directly.
@@ -77,3 +89,9 @@ Each step should be small enough for a single context window. If a step starts c
 1. Created implementation after the reconstructed-runtime plan reached first gameplay, live SDL presentation, and an SDL F5 launch route.
 2. Completed Step 1 with a stable SDL F5/no-crash boundary and activated DirectDraw page/palette/front-buffer recovery.
 3. Step 2 advanced post-logo startup scene selection by initializing archive-loaded actor live positions through the original `FUN_0044146c` helper.
+
+### 2026-07-29
+
+1. Reframed the active frontier around E2WIN95 startup-sequence parity after palette recovery proved the logo colors but F5 still skipped the Psygnosis/Andrew Spencer screens and entered the wrong scene/stall path.
+2. Recorded the latest bounded result: SDL startup survives to timeout after archive load with crash fixes applied, but does not reach `mar:StartGame` or the expected horseback intro yet.
+3. Recovered flat-FANT startup preloads by scanning `Files/ECSTATIC` scene records into `0x650fa0`; opcode-`0x4d` now installs requested scene ids, and the active crash frontier moved to `FUN_0043aa98` scene-removal/list unlinking while loading scene id `1424` before `mar:StartGame`.

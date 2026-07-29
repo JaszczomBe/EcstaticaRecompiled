@@ -356,7 +356,7 @@ source = source.replace(
 );
 source = source.replace(
   /(void __fastcall FUN_0044f508\(ushort \*param_1,ushort \*param_2,ushort \*param_3\)[\s\S]*?\r?\n  undefined2 uVar21;\r?\n\s*)local_34 = 0xffffffff;/,
-  "$1if (E2R_action_dispatch_node != (short *)0x0) {\n    in_EAX = (int)(uintptr_t)E2R_action_dispatch_node;\n  }\n  if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xe)) {\n    return;\n  }\n  \n  local_34 = 0xffffffff;"
+  "$1uint preload_child_guard;\n  uint preload_token;\n\n  if (E2R_action_dispatch_node != (short *)0x0) {\n    in_EAX = (int)(uintptr_t)E2R_action_dispatch_node;\n  }\n  if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xe)) {\n    return;\n  }\n  \n  local_34 = 0xffffffff;"
 );
 source = source.replace(
   "      uVar25 = CONCAT44(puVar18,_DAT_00ac4a54);\n      switch((int)(uintptr_t)((short)*local_2c)) {",
@@ -2440,11 +2440,20 @@ source = source.replace(
 `undefined8 __fastcall FUN_00447d94(undefined4 param_1,undefined4 param_2)
 
 {
+  byte *base;
+  byte *end;
+  byte *limit;
+  byte *rec;
+  byte *scan;
   int *stream;
   undefined8 uVar1;
+  uint id;
   uint offset;
+  uint resource_offset;
   uint row;
   uint row_end;
+  uint scene_count;
+  uint type;
 
   stream = (int *)(uintptr_t)DAT_0047a724;
   if ((uintptr_t)stream < 0x10000u || IsBadReadPtr(stream,0x1c) ||
@@ -2464,6 +2473,61 @@ source = source.replace(
   stream[0] = stream[5];
   stream[1] = (int)((byte *)(uintptr_t)stream[2] - (byte *)(uintptr_t)stream[5]);
   *(byte *)(stream + 3) = *(byte *)(stream + 3) | 0x40;
+  base = (byte *)(uintptr_t)stream[5];
+  end = (byte *)(uintptr_t)stream[2];
+
+  if (base + 4 <= end && base[0] == 'F' && base[1] == 'A' &&
+      base[2] == 'N' && base[3] == 'T') {
+    for (offset = 0; offset < 2500; offset = offset + 1) {
+      *(int *)(0x650fa0 + offset * 4) = -1;
+    }
+    for (offset = 0; offset < 5000; offset = offset + 1) {
+      *(int *)(0x653840 + offset * 4) = -1;
+    }
+    for (offset = 0; offset < 2000; offset = offset + 1) {
+      *(int *)(0x64f060 + offset * 4) = -1;
+    }
+    for (offset = 0; offset < 500; offset = offset + 1) {
+      *(int *)(0x663a10 + offset * 4) = -1;
+    }
+    for (offset = 0; offset < 700; offset = offset + 1) {
+      *(int *)(0x662f20 + offset * 4) = -1;
+    }
+    for (offset = 0; offset < 1200; offset = offset + 1) {
+      *(int *)(0x6445e8 + offset * 4) = -1;
+      *(int *)(0x6467a8 + offset * 4) = -1;
+    }
+    scene_count = 0;
+    for (scan = base; scan + 14 <= end; scan = scan + 1) {
+      if (scan[0] != 'F' || scan[1] != 'A' || scan[2] != 'N' || scan[3] != 'T') {
+        continue;
+      }
+      resource_offset = (uint)(scan - base);
+      limit = scan + 0x4000;
+      if (end < limit) {
+        limit = end;
+      }
+      for (rec = scan + 4; rec + 10 <= limit; rec = rec + 10) {
+        type = ((uint)rec[0] << 8) | (uint)rec[1];
+        id = ((uint)rec[2] << 8) | (uint)rec[3];
+        if (type == 0x19 && id < 0x9c4) {
+          if (*(int *)(0x650fa0 + id * 4) < 0) {
+            scene_count = scene_count + 1;
+          }
+          *(int *)(0x650fa0 + id * 4) = (int)resource_offset;
+          break;
+        }
+      }
+    }
+    stream[0] = (int)(uintptr_t)base;
+    stream[1] = (int)(uint)(end - base);
+    if (E2R_archive_read_diag_count < 8) {
+      E2R_archive_read_diag_count = E2R_archive_read_diag_count + 1;
+      fprintf(stderr,"archive 47d94 flat FANT: scenes=%u bytes=%u\\n",
+              scene_count,(uint)(end - base));
+    }
+    return CONCAT44(param_2,1);
+  }
 
   for (offset = 4; offset <= 10000; offset = offset + 4) {
     uVar1 = FUN_00441444((undefined4)(uintptr_t)stream,offset);
@@ -3637,11 +3701,11 @@ source = source.replace(
 );
 source = source.replace(
   "      local_20 = (short *)uVar15;\n      *local_20 = *psVar8;\n      local_20[1] = psVar8[2];\n      local_20[6] = psVar8[3];\n      if (_DAT_0067bc92 < 8) {\n        local_20[0x4c] = -1;\n      }\n      else {\n        local_20[0x4c] = psVar8[4];\n      }\n      local_20[0x53] = DAT_00479e50;\n      *(short **)(*local_20 * 4 + 0x62e450) = local_20;",
-  "      local_20 = (short *)uVar15;\n      if (local_20 != (short *)0x0) {\n        *local_20 = *psVar8;\n        local_20[1] = psVar8[2];\n        local_20[6] = psVar8[3];\n        if (_DAT_0067bc92 < 8) {\n          local_20[0x4c] = -1;\n        }\n        else {\n          local_20[0x4c] = psVar8[4];\n        }\n        local_20[0x53] = DAT_00479e50;\n        *(short **)(*local_20 * 4 + 0x62e450) = local_20;\n      }"
+  "      local_20 = (short *)uVar15;\n      if (local_20 != (short *)0x0) {\n        *local_20 = *psVar8;\n        local_20[1] = psVar8[2];\n        local_20[6] = psVar8[3];\n        if (_DAT_0067bc92 < 8) {\n          local_20[0x4c] = -1;\n        }\n        else {\n          local_20[0x4c] = psVar8[4];\n        }\n        local_20[0x53] = DAT_00479e50;\n        *(short **)(*local_20 * 4 + 0x62e450) = local_20;\n        E2R_TraceSceneRecordInstall(\"install\",local_20,psVar8);\n      }"
 );
 source = source.replace(
   "    else if (sVar9 == 0x34) {\n      local_20[0x4d] = psVar8[2];",
-  "    else if (sVar9 == 0x34) {\n      if (local_20 != (short *)0x0) {\n        local_20[0x4d] = psVar8[2];\n      }"
+  "    else if (sVar9 == 0x34) {\n      if (local_20 != (short *)0x0) {\n        local_20[0x4d] = psVar8[2];\n        E2R_TraceSceneRecordInstall(\"action-ref\",local_20,psVar8);\n      }"
 );
 source = source.replace(
   "    else if (sVar9 == 0x1b) {\n      local_20[*psVar8 + 7] = psVar8[2];",
@@ -3793,6 +3857,14 @@ for (const [before, after] of currentActorTraceReplacements) {
   source = source.replace(before, after);
 }
 source = source.replace(
+  "  if (in_EAX == (short *)0x0) {\n    FUN_00414e68();\n    param_1 = extraout_ECX;\n    param_2 = extraout_EDX;\n  }\n  FUN_00441e38(param_1,param_2);",
+  "  in_EAX = (short *)(uintptr_t)param_1;\n  if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,0xa8)) {\n    return;\n  }\n  FUN_00441e38((undefined4)(int)*in_EAX,param_2);"
+);
+source = source.replace(
+  "  *(undefined4 *)(*in_EAX * 4 + 0x62e450) = 0;\n  FUN_0043aa98();",
+  "  *(undefined4 *)(*in_EAX * 4 + 0x62e450) = 0;\n  E2R_scene_remove_context = in_EAX;\n  FUN_0043aa98();\n  E2R_scene_remove_context = (short *)0x0;"
+);
+source = source.replace(
   "  undefined4 extraout_ECX_04;\n  undefined8 uVar3;\n  \n  iVar2 = (int)(short)param_2;\n  iVar1 = iVar2 * 4;",
   "  undefined4 extraout_ECX_04;\n  undefined8 uVar3;\n  E2R_SceneGridSnapshot grid_snapshot;\n  short *saved_current;\n  \n  iVar2 = (int)(short)param_2;\n  iVar1 = iVar2 * 4;\n  memset(&grid_snapshot,0,sizeof(grid_snapshot));\n  saved_current = DAT_0047a470;"
 );
@@ -3895,6 +3967,149 @@ source = source.replace(
 source = source.replace(
   /(\s+uVar25 = CONCAT44\(puVar18,_DAT_00ac4a54\);\r?\n)\s+switch\(\(int\)\(uintptr_t\)\(\(short\)\*local_2c\)\) \{/,
   "$1      E2R_action_opcode_count++;\n      E2R_action_last_opcode = (ushort)sVar9;\n      E2R_action_last_cursor = (uintptr_t)local_2c;\n      if (E2R_RuntimeDiagEnabled() &&\n          (E2R_action_opcode_count < 16 ||\n           (E2R_action_opcode_count & 0x1ffu) == 0)) {\n        fprintf(stderr,\"action opcode: ordinal=%lu cursor=0x%lx pool=0x%lx op=%04x next=%04x scene=0x%lx mode=%lu dispatch=%lu\\n\",\n                (unsigned long)E2R_action_opcode_count,\n                (unsigned long)(uintptr_t)local_2c,\n                (unsigned long)((byte *)(uintptr_t)local_2c - (byte *)(uintptr_t)_DAT_006366a0),\n                (unsigned int)(ushort)sVar9,\n                (unsigned int)*(ushort *)((int)local_2c + 2),\n                (unsigned long)_DAT_0073cc3c,(unsigned long)DAT_0047a76c,\n                (unsigned long)E2R_start_code_probe_dispatches);\n      }\n      if ((ushort)sVar9 == 0x75) {\n        E2R_action_hit_75_count++;\n      }\n      switch((int)(uintptr_t)((short)*local_2c)) {"
+);
+
+// Keep the startup-preload frontier observable without enabling the broad runtime
+// diagnostics used by older crash hunts.
+source = source.replace(
+  "static uint E2R_action_invoke_diag_count;\nstatic const char *E2R_current_actor_last_site;",
+  "static uint E2R_action_invoke_diag_count;\nstatic int E2R_startup_diag_enabled;\nstatic int E2R_scene_load_request_id = -1;\nstatic short *E2R_scene_remove_context;\nstatic uint E2R_startup_action_diag_count;\nstatic uint E2R_startup_preload_diag_count;\nstatic uint E2R_scene_record_install_diag_count;\nstatic uint E2R_scene_grid_restore_diag_count;\nstatic const char *E2R_current_actor_last_site;"
+);
+source = source.replace(
+  "  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n  char *runtime_diag = getenv(\"E2R_RUNTIME_DIAG\");\n\n  if (runtime_diag != (char *)0x0 && runtime_diag[0] != '\\0' && runtime_diag[0] != '0') {\n    E2R_runtime_diag_enabled = 1;\n  }",
+  "  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n  char *runtime_diag = getenv(\"E2R_RUNTIME_DIAG\");\n  char *startup_diag = getenv(\"E2R_STARTUP_DIAG\");\n\n  if (runtime_diag != (char *)0x0 && runtime_diag[0] != '\\0' && runtime_diag[0] != '0') {\n    E2R_runtime_diag_enabled = 1;\n  }\n  if (startup_diag != (char *)0x0 && startup_diag[0] != '\\0' && startup_diag[0] != '0') {\n    E2R_startup_diag_enabled = 1;\n  }"
+);
+source = source.replace(
+  "static int E2R_RuntimeDiagEnabled(void)\n{\n  return E2R_runtime_diag_enabled;\n}\n\ntypedef struct E2R_SceneGridSnapshot",
+  "static int E2R_RuntimeDiagEnabled(void)\n{\n  return E2R_runtime_diag_enabled;\n}\n\nstatic int E2R_StartupDiagEnabled(void)\n{\n  return E2R_startup_diag_enabled || E2R_runtime_diag_enabled;\n}\n\nstatic int E2R_ShouldTraceStartupProgress(uint count,uint first,uint interval)\n{\n  return count <= first || (interval != 0 && (count % interval) == 0);\n}\n\ntypedef struct E2R_SceneGridSnapshot"
+);
+source = source.replace(
+  "  if (E2R_RuntimeDiagEnabled()) {\n    fprintf(stderr,\"scene grid restore: opcode=0x%lx count=%d bytes=%u\\n\",",
+  "  if (E2R_StartupDiagEnabled() && E2R_scene_grid_restore_diag_count < 64) {\n    E2R_scene_grid_restore_diag_count = E2R_scene_grid_restore_diag_count + 1;\n    fprintf(stderr,\"scene grid restore: opcode=0x%lx count=%d bytes=%u\\n\","
+);
+source = source.replace(
+  "\n\nstatic short *E2R_action_dispatch_node;",
+  "\n\nstatic char *E2R_PackedNameByIndex(char *table,uint capacity,short max_names,short index)\n{\n  uint length;\n  uint offset = 0;\n  short item = 0;\n\n  if (index < 0 || max_names <= index || table == (char *)0x0 ||\n      IsBadReadPtr(table,1)) {\n    return (char *)0x0;\n  }\n  while (item < max_names && offset < capacity) {\n    for (length = 0; offset + length < capacity; length = length + 1) {\n      if (IsBadReadPtr(table + offset + length,1)) {\n        return (char *)0x0;\n      }\n      if (table[offset + length] == '\\0') {\n        break;\n      }\n    }\n    if (offset + length == capacity || length == 0) {\n      return (char *)0x0;\n    }\n    if (item == index) {\n      return table + offset;\n    }\n    offset = offset + length + 1;\n    item = item + 1;\n  }\n  return (char *)0x0;\n}\n\nstatic short *E2R_action_dispatch_node;"
+);
+source = source.replace(
+  "static int E2R_ScriptDiagEnabled(void)\n{\n  char *value = getenv(\"E2R_SCRIPT_DIAG\");\n\n  return value != (char *)0x0 && value[0] != '\\0' && value[0] != '0';\n}\n\nstatic short *E2R_FindActionCodeBySuffix",
+  "static int E2R_ScriptDiagEnabled(void)\n{\n  char *value = getenv(\"E2R_SCRIPT_DIAG\");\n\n  return value != (char *)0x0 && value[0] != '\\0' && value[0] != '0';\n}\n\nstatic void E2R_TraceStartupActionNode(const char *stage,uint guard,short *action,int match)\n{\n  char *name;\n  uint offset = 0;\n\n  if (!E2R_StartupDiagEnabled() || E2R_startup_action_diag_count >= 192) {\n    return;\n  }\n  if (!match && !E2R_ShouldTraceStartupProgress(guard,16,0x100)) {\n    return;\n  }\n  name = E2R_ActionCodeName(action);\n  if (action != (short *)0x0 && !IsBadReadPtr(action,0xe)) {\n    offset = *(uint *)(action + 3);\n  }\n  E2R_startup_action_diag_count = E2R_startup_action_diag_count + 1;\n  fprintf(stderr,\n          \"startup action: %s guard=%lu node=0x%lx name_index=%d name=%s \"\n          \"code=0x%x match=%d startup=%lu/%lu action=%lu/%lu dispatch=%lu\\n\",\n          stage,(unsigned long)guard,(unsigned long)(uintptr_t)action,\n          action != (short *)0x0 && !IsBadReadPtr(action,2) ? (int)(ushort)action[0] : -1,\n          name != (char *)0x0 ? name : \"(null)\",offset,match,\n          (unsigned long)E2R_start_code_probe_startup_scans,\n          (unsigned long)E2R_start_code_probe_startup_matches,\n          (unsigned long)E2R_start_code_probe_action_scans,\n          (unsigned long)E2R_start_code_probe_action_matches,\n          (unsigned long)E2R_start_code_probe_dispatches);\n}\n\nstatic void E2R_TraceScenePreload(const char *stage,uint token,uintptr_t scene,uintptr_t cursor,uint count)\n{\n  char *name;\n  byte flags = 0;\n\n  if (!E2R_StartupDiagEnabled() || E2R_startup_preload_diag_count >= 256) {\n    return;\n  }\n  if (stage[0] == 'c' && !E2R_ShouldTraceStartupProgress(count,16,0x80)) {\n    return;\n  }\n  name = E2R_PackedNameByIndex(_DAT_006366bc,20000,0x9c4,(short)token);\n  if (token < 0x9c4) {\n    flags = *(byte *)(token * 2 + 0x670c38);\n  }\n  E2R_startup_preload_diag_count = E2R_startup_preload_diag_count + 1;\n  fprintf(stderr,\n          \"startup preload: %s token=%04x name=%s scene=0x%lx cursor=0x%lx \"\n          \"child=%lu flags=0x%02x opcodes=%lu dispatch=%lu\\n\",\n          stage,(unsigned int)token,name != (char *)0x0 ? name : \"(null)\",\n          (unsigned long)scene,(unsigned long)cursor,(unsigned long)count,\n          (unsigned int)flags,(unsigned long)E2R_action_opcode_count,\n          (unsigned long)E2R_start_code_probe_dispatches);\n}\n\nstatic short *E2R_FindActionCodeBySuffix"
+);
+source = source.replace(
+  "          (unsigned int)flags,(unsigned long)E2R_action_opcode_count,\n          (unsigned long)E2R_start_code_probe_dispatches);\n}\n\nstatic short *E2R_FindActionCodeBySuffix",
+  `          (unsigned int)flags,(unsigned long)E2R_action_opcode_count,
+          (unsigned long)E2R_start_code_probe_dispatches);
+}
+
+static void E2R_TraceSceneRecordInstall(const char *stage,short *record,short *source)
+{
+  int requested;
+  int record_id = -1;
+  int source_id = -1;
+  int source_type = -1;
+  int requested_slot = 0;
+  int record_slot = 0;
+  int offset = -1;
+  char *requested_name;
+  char *record_name;
+
+  if (!E2R_StartupDiagEnabled() || E2R_scene_record_install_diag_count >= 128) {
+    return;
+  }
+  requested = E2R_scene_load_request_id;
+  if (record != (short *)0x0 && !IsBadReadPtr(record,0xa8)) {
+    record_id = (int)(ushort)record[0];
+    record_slot = *(int *)(record_id * 4 + 0x62e450);
+  }
+  if (source != (short *)0x0 && !IsBadReadPtr(source,4)) {
+    source_id = (int)(ushort)source[0];
+    source_type = (int)(ushort)source[1];
+  }
+  if (requested >= 0 && requested < 0x9c4) {
+    requested_slot = *(int *)(requested * 4 + 0x62e450);
+    offset = *(int *)(requested * 4 + 0x650fa0);
+  }
+  requested_name = E2R_PackedNameByIndex(_DAT_006366bc,20000,0x9c4,(short)requested);
+  record_name = E2R_PackedNameByIndex(_DAT_006366bc,20000,0x9c4,(short)record_id);
+  E2R_scene_record_install_diag_count = E2R_scene_record_install_diag_count + 1;
+  fprintf(stderr,
+          "scene record %s: requested=%d/%s offset=%d record=%d/%s ptr=0x%lx "
+          "requested_slot=0x%lx record_slot=0x%lx source=%d type=%04x action_ref=%d "
+          "action_op=%lu opcodes=%lu\\n",
+          stage,requested,requested_name != (char *)0x0 ? requested_name : "(null)",
+          offset,record_id,record_name != (char *)0x0 ? record_name : "(null)",
+          (unsigned long)(uintptr_t)record,(unsigned long)requested_slot,
+          (unsigned long)record_slot,source_id,source_type,
+          record != (short *)0x0 && !IsBadReadPtr(record,0x9c) ? (int)record[0x4d] : -1,
+          (unsigned long)E2R_action_last_opcode,
+          (unsigned long)E2R_action_opcode_count);
+}
+
+static short *E2R_FindActionCodeBySuffix`
+);
+source = source.replace(
+  "  if (E2R_RuntimeDiagEnabled() && E2R_start_game_stage_diag_count < 64) {",
+  "  if (E2R_StartupDiagEnabled() && E2R_start_game_stage_diag_count < 64) {"
+);
+source = source.replace(
+  "  if (_DAT_0063725c != 0) {\n    if (in_EAX == _DAT_0063725c) {",
+  "  if (E2R_scene_remove_context != (short *)0x0) {\n    in_EAX = (int)(uintptr_t)E2R_scene_remove_context;\n  }\n  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xa8)) {\n    return;\n  }\n  if (_DAT_0063725c != 0) {\n    if (in_EAX == _DAT_0063725c) {"
+);
+source = source.replace(
+  "      if (E2R_RuntimeDiagEnabled() &&\n          (E2R_action_opcode_count < 16 ||",
+  "      if (E2R_StartupDiagEnabled() &&\n          (E2R_action_opcode_count < 16 ||"
+);
+source = source.replace(
+  /if \(E2R_RuntimeDiagEnabled\(\) && E2R_scene_load_diag_count < 128\)/g,
+  "if (E2R_StartupDiagEnabled() && E2R_scene_load_diag_count < 128)"
+);
+source = source.replace(
+  "        fprintf(stderr,\"scene load exit: id=%d result=%d action_count=%lu\\n\",\n                (int)(short)param_2,iVar2,\n                (unsigned long)E2R_action_opcode_count);",
+  "        fprintf(stderr,\"scene load exit: id=%d result=%d table=0x%lx action_count=%lu\\n\",\n                (int)(short)param_2,iVar2,\n                (unsigned long)*(int *)((int)(short)param_2 * 4 + 0x62e450),\n                (unsigned long)E2R_action_opcode_count);"
+);
+source = source.replace(
+  "      grid_snapshot = E2R_CaptureSceneGridSnapshot();\n      FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x650fa0));\n      iVar2 = E2R_ParseArchiveFanResource();\n      E2R_RestoreSceneGridSnapshot(&grid_snapshot);",
+  "      grid_snapshot = E2R_CaptureSceneGridSnapshot();\n      E2R_scene_load_request_id = (int)(short)param_2;\n      FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x650fa0));\n      iVar2 = E2R_ParseArchiveFanResource();\n      E2R_scene_load_request_id = -1;\n      E2R_RestoreSceneGridSnapshot(&grid_snapshot);"
+);
+source = source.replace(
+  "      E2R_start_code_probe_startup_scans++;\n      if (E2R_ActionCodeMatches((short *)(uintptr_t)iVar1,s_StartUp_004725ec)) {",
+  "      E2R_start_code_probe_startup_scans++;\n      E2R_TraceStartupActionNode(\"startup-scan\",action_guard,(short *)(uintptr_t)iVar1,0);\n      if (E2R_ActionCodeMatches((short *)(uintptr_t)iVar1,s_StartUp_004725ec)) {"
+);
+source = source.replace(
+  "        E2R_start_code_probe_startup_matches++;\n        E2R_TraceStartGameStage(\"before-startup-action\");",
+  "        E2R_start_code_probe_startup_matches++;\n        E2R_TraceStartupActionNode(\"startup-match\",action_guard,(short *)(uintptr_t)iVar1,1);\n        E2R_TraceStartGameStage(\"before-startup-action\");"
+);
+source = source.replace(
+  "    E2R_start_code_probe_action_scans++;\n    action_guard = action_guard + 1;",
+  "    E2R_start_code_probe_action_scans++;\n    E2R_TraceStartupActionNode(\"start-scan\",action_guard,(short *)(uintptr_t)iVar1,0);\n    action_guard = action_guard + 1;"
+);
+source = source.replace(
+  "      E2R_start_code_probe_action_matches++;\n      E2R_TraceStartGameStage(\"before-list-action\");",
+  "      E2R_start_code_probe_action_matches++;\n      E2R_TraceStartupActionNode(\"start-match\",action_guard,(short *)(uintptr_t)iVar1,1);\n      E2R_TraceStartGameStage(\"before-list-action\");"
+);
+source = source.replace(
+  "      case 0x4d:\n        local_12 = CONCAT22(*(ushort *)((int)local_2c + 2),(undefined2)local_12) & 0xfffffff;\n        if ((*(ushort *)((int)local_2c + 2) & 0xfff) < 0x9c4) {\n          uVar24 = FUN_0045233c(puVar13,(int)((uint)local_12 >> 0x10));\n          puVar3 = *(ushort **)(((int)local_12 >> 0x10) * 4 + 0x62e450);",
+  "      case 0x4d:\n        local_12 = CONCAT22(*(ushort *)((int)local_2c + 2),(undefined2)local_12) & 0xfffffff;\n        preload_token = (uint)local_12 >> 0x10;\n        E2R_TraceScenePreload(\"enter\",preload_token,0,(uintptr_t)local_2c,0);\n        if ((*(ushort *)((int)local_2c + 2) & 0xfff) < 0x9c4) {\n          uVar24 = FUN_0045233c(puVar13,(int)((uint)local_12 >> 0x10));\n          puVar3 = *(ushort **)(((int)local_12 >> 0x10) * 4 + 0x62e450);\n          E2R_TraceScenePreload(\"after-load\",preload_token,(uintptr_t)puVar3,(uintptr_t)local_2c,0);"
+);
+source = source.replace(
+  "          if (puVar3 != (ushort *)0x0) {\n            for (psVar16 = *(short **)(puVar3 + 2); psVar16 != (short *)0x0;\n                psVar16 = *(short **)(psVar16 + 0xc)) {",
+  "          if (puVar3 != (ushort *)0x0) {\n            preload_child_guard = 0;\n            for (psVar16 = *(short **)(puVar3 + 2); psVar16 != (short *)0x0;\n                psVar16 = *(short **)(psVar16 + 0xc)) {\n              preload_child_guard = preload_child_guard + 1;\n              E2R_TraceScenePreload(\"child-reset\",preload_token,(uintptr_t)puVar3,\n                                    (uintptr_t)psVar16,preload_child_guard);"
+);
+source = source.replace(
+  "            for (psVar16 = *(short **)(puVar3 + 2); psVar16 != (short *)0x0;\n                psVar16 = *(short **)(psVar16 + 0xc)) {",
+  "            preload_child_guard = 0;\n            for (psVar16 = *(short **)(puVar3 + 2); psVar16 != (short *)0x0;\n                psVar16 = *(short **)(psVar16 + 0xc)) {\n              preload_child_guard = preload_child_guard + 1;\n              E2R_TraceScenePreload(\"child-actions\",preload_token,(uintptr_t)puVar3,\n                                    (uintptr_t)psVar16,preload_child_guard);"
+);
+source = source.replace(
+  "            *(int *)(puVar3 + 0x50) = _DAT_00636588 + -1;\n            puVar18 = puVar3;",
+  "            E2R_TraceScenePreload(\"done\",preload_token,(uintptr_t)puVar3,(uintptr_t)local_2c,0);\n            *(int *)(puVar3 + 0x50) = _DAT_00636588 + -1;\n            puVar18 = puVar3;"
+);
+source = source.replace(
+  "            preload_child_guard = 0;\n            preload_child_guard = 0;\n            for (psVar16 = *(short **)(puVar3 + 2); psVar16 != (short *)0x0;\n                psVar16 = *(short **)(psVar16 + 0xc)) {\n              preload_child_guard = preload_child_guard + 1;\n              E2R_TraceScenePreload(\"child-actions\",preload_token,(uintptr_t)puVar3,\n                                    (uintptr_t)psVar16,preload_child_guard);\n              preload_child_guard = preload_child_guard + 1;\n              E2R_TraceScenePreload(\"child-reset\",preload_token,(uintptr_t)puVar3,\n                                    (uintptr_t)psVar16,preload_child_guard);",
+  "            preload_child_guard = 0;\n            for (psVar16 = *(short **)(puVar3 + 2); psVar16 != (short *)0x0;\n                psVar16 = *(short **)(psVar16 + 0xc)) {\n              preload_child_guard = preload_child_guard + 1;\n              E2R_TraceScenePreload(\"child-reset\",preload_token,(uintptr_t)puVar3,\n                                    (uintptr_t)psVar16,preload_child_guard);"
+);
+source = source.replace(
+  "            }\n            for (psVar16 = *(short **)(puVar3 + 2); psVar16 != (short *)0x0;\n                psVar16 = *(short **)(psVar16 + 0xc)) {\n              if ((*(int *)(psVar16 + 3) != 0) &&",
+  "            }\n            preload_child_guard = 0;\n            for (psVar16 = *(short **)(puVar3 + 2); psVar16 != (short *)0x0;\n                psVar16 = *(short **)(psVar16 + 0xc)) {\n              preload_child_guard = preload_child_guard + 1;\n              E2R_TraceScenePreload(\"child-actions\",preload_token,(uintptr_t)puVar3,\n                                    (uintptr_t)psVar16,preload_child_guard);\n              if ((*(int *)(psVar16 + 3) != 0) &&"
 );
 source = source.replace(/[ \t]+$/gm, "").replace(/\n*$/, "\n");
 fs.writeFileSync(outSrc, source);

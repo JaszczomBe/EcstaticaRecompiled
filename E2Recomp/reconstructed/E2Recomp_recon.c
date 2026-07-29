@@ -43,6 +43,13 @@ static uint E2R_frame_stage_diag_count;
 static uint E2R_actor_loop_diag_count;
 static uint E2R_actor_update_diag_count;
 static uint E2R_action_invoke_diag_count;
+static int E2R_startup_diag_enabled;
+static int E2R_scene_load_request_id = -1;
+static short *E2R_scene_remove_context;
+static uint E2R_startup_action_diag_count;
+static uint E2R_startup_preload_diag_count;
+static uint E2R_scene_record_install_diag_count;
+static uint E2R_scene_grid_restore_diag_count;
 static const char *E2R_current_actor_last_site;
 static uintptr_t E2R_current_actor_last_value;
 static int E2R_actor_calc_context;
@@ -53,9 +60,13 @@ static void E2R_InitDiagnostics(void)
 {
   char *fan_diag = getenv("E2R_FAN_DIAG");
   char *runtime_diag = getenv("E2R_RUNTIME_DIAG");
+  char *startup_diag = getenv("E2R_STARTUP_DIAG");
 
   if (runtime_diag != (char *)0x0 && runtime_diag[0] != '\0' && runtime_diag[0] != '0') {
     E2R_runtime_diag_enabled = 1;
+  }
+  if (startup_diag != (char *)0x0 && startup_diag[0] != '\0' && startup_diag[0] != '0') {
+    E2R_startup_diag_enabled = 1;
   }
 
   if (fan_diag != (char *)0x0 && fan_diag[0] != '\0' && fan_diag[0] != '0') {
@@ -75,6 +86,16 @@ static void E2R_InitDiagnostics(void)
 static int E2R_RuntimeDiagEnabled(void)
 {
   return E2R_runtime_diag_enabled;
+}
+
+static int E2R_StartupDiagEnabled(void)
+{
+  return E2R_startup_diag_enabled || E2R_runtime_diag_enabled;
+}
+
+static int E2R_ShouldTraceStartupProgress(uint count,uint first,uint interval)
+{
+  return count <= first || (interval != 0 && (count % interval) == 0);
 }
 
 typedef struct E2R_SceneGridSnapshot {
@@ -122,7 +143,8 @@ static void E2R_RestoreSceneGridSnapshot(E2R_SceneGridSnapshot *snapshot)
   memcpy((void *)0x00684d68,snapshot->grid,0x8000);
   memcpy((void *)0x0068cd68,snapshot->desc,snapshot->desc_bytes);
   DAT_0047a77c = snapshot->count;
-  if (E2R_RuntimeDiagEnabled()) {
+  if (E2R_StartupDiagEnabled() && E2R_scene_grid_restore_diag_count < 64) {
+    E2R_scene_grid_restore_diag_count = E2R_scene_grid_restore_diag_count + 1;
     fprintf(stderr,"scene grid restore: opcode=0x%lx count=%d bytes=%u\n",
             (unsigned long)E2R_action_last_opcode,snapshot->count,
             snapshot->desc_bytes);
@@ -469,7 +491,7 @@ static void E2R_TraceActorUpdateStage(const char *stage, short *actor)
 
 static void E2R_TraceStartGameStage(const char *stage)
 {
-  if (E2R_RuntimeDiagEnabled() && E2R_start_game_stage_diag_count < 64) {
+  if (E2R_StartupDiagEnabled() && E2R_start_game_stage_diag_count < 64) {
     E2R_start_game_stage_diag_count = E2R_start_game_stage_diag_count + 1;
     fprintf(stderr,
             "start-game stage: %s count=%lu mode=%lu DAT_00479de8=%lu "
@@ -1737,6 +1759,37 @@ static short E2R_FindPackedNameIndex(char *input,char *table,uint capacity,short
 }
 
 
+static char *E2R_PackedNameByIndex(char *table,uint capacity,short max_names,short index)
+{
+  uint length;
+  uint offset = 0;
+  short item = 0;
+
+  if (index < 0 || max_names <= index || table == (char *)0x0 ||
+      IsBadReadPtr(table,1)) {
+    return (char *)0x0;
+  }
+  while (item < max_names && offset < capacity) {
+    for (length = 0; offset + length < capacity; length = length + 1) {
+      if (IsBadReadPtr(table + offset + length,1)) {
+        return (char *)0x0;
+      }
+      if (table[offset + length] == '\0') {
+        break;
+      }
+    }
+    if (offset + length == capacity || length == 0) {
+      return (char *)0x0;
+    }
+    if (item == index) {
+      return table + offset;
+    }
+    offset = offset + length + 1;
+    item = item + 1;
+  }
+  return (char *)0x0;
+}
+
 static short *E2R_action_dispatch_node;
 static char *E2R_action_name_cache[0x4000];
 static char *E2R_action_name_cache_base;
@@ -1981,6 +2034,104 @@ static int E2R_ScriptDiagEnabled(void)
   char *value = getenv("E2R_SCRIPT_DIAG");
 
   return value != (char *)0x0 && value[0] != '\0' && value[0] != '0';
+}
+
+static void E2R_TraceStartupActionNode(const char *stage,uint guard,short *action,int match)
+{
+  char *name;
+  uint offset = 0;
+
+  if (!E2R_StartupDiagEnabled() || E2R_startup_action_diag_count >= 192) {
+    return;
+  }
+  if (!match && !E2R_ShouldTraceStartupProgress(guard,16,0x100)) {
+    return;
+  }
+  name = E2R_ActionCodeName(action);
+  if (action != (short *)0x0 && !IsBadReadPtr(action,0xe)) {
+    offset = *(uint *)(action + 3);
+  }
+  E2R_startup_action_diag_count = E2R_startup_action_diag_count + 1;
+  fprintf(stderr,
+          "startup action: %s guard=%lu node=0x%lx name_index=%d name=%s "
+          "code=0x%x match=%d startup=%lu/%lu action=%lu/%lu dispatch=%lu\n",
+          stage,(unsigned long)guard,(unsigned long)(uintptr_t)action,
+          action != (short *)0x0 && !IsBadReadPtr(action,2) ? (int)(ushort)action[0] : -1,
+          name != (char *)0x0 ? name : "(null)",offset,match,
+          (unsigned long)E2R_start_code_probe_startup_scans,
+          (unsigned long)E2R_start_code_probe_startup_matches,
+          (unsigned long)E2R_start_code_probe_action_scans,
+          (unsigned long)E2R_start_code_probe_action_matches,
+          (unsigned long)E2R_start_code_probe_dispatches);
+}
+
+static void E2R_TraceScenePreload(const char *stage,uint token,uintptr_t scene,uintptr_t cursor,uint count)
+{
+  char *name;
+  byte flags = 0;
+
+  if (!E2R_StartupDiagEnabled() || E2R_startup_preload_diag_count >= 256) {
+    return;
+  }
+  if (stage[0] == 'c' && !E2R_ShouldTraceStartupProgress(count,16,0x80)) {
+    return;
+  }
+  name = E2R_PackedNameByIndex(_DAT_006366bc,20000,0x9c4,(short)token);
+  if (token < 0x9c4) {
+    flags = *(byte *)(token * 2 + 0x670c38);
+  }
+  E2R_startup_preload_diag_count = E2R_startup_preload_diag_count + 1;
+  fprintf(stderr,
+          "startup preload: %s token=%04x name=%s scene=0x%lx cursor=0x%lx "
+          "child=%lu flags=0x%02x opcodes=%lu dispatch=%lu\n",
+          stage,(unsigned int)token,name != (char *)0x0 ? name : "(null)",
+          (unsigned long)scene,(unsigned long)cursor,(unsigned long)count,
+          (unsigned int)flags,(unsigned long)E2R_action_opcode_count,
+          (unsigned long)E2R_start_code_probe_dispatches);
+}
+
+static void E2R_TraceSceneRecordInstall(const char *stage,short *record,short *source)
+{
+  int requested;
+  int record_id = -1;
+  int source_id = -1;
+  int source_type = -1;
+  int requested_slot = 0;
+  int record_slot = 0;
+  int offset = -1;
+  char *requested_name;
+  char *record_name;
+
+  if (!E2R_StartupDiagEnabled() || E2R_scene_record_install_diag_count >= 128) {
+    return;
+  }
+  requested = E2R_scene_load_request_id;
+  if (record != (short *)0x0 && !IsBadReadPtr(record,0xa8)) {
+    record_id = (int)(ushort)record[0];
+    record_slot = *(int *)(record_id * 4 + 0x62e450);
+  }
+  if (source != (short *)0x0 && !IsBadReadPtr(source,4)) {
+    source_id = (int)(ushort)source[0];
+    source_type = (int)(ushort)source[1];
+  }
+  if (requested >= 0 && requested < 0x9c4) {
+    requested_slot = *(int *)(requested * 4 + 0x62e450);
+    offset = *(int *)(requested * 4 + 0x650fa0);
+  }
+  requested_name = E2R_PackedNameByIndex(_DAT_006366bc,20000,0x9c4,(short)requested);
+  record_name = E2R_PackedNameByIndex(_DAT_006366bc,20000,0x9c4,(short)record_id);
+  E2R_scene_record_install_diag_count = E2R_scene_record_install_diag_count + 1;
+  fprintf(stderr,
+          "scene record %s: requested=%d/%s offset=%d record=%d/%s ptr=0x%lx "
+          "requested_slot=0x%lx record_slot=0x%lx source=%d type=%04x action_ref=%d "
+          "action_op=%lu opcodes=%lu\n",
+          stage,requested,requested_name != (char *)0x0 ? requested_name : "(null)",
+          offset,record_id,record_name != (char *)0x0 ? record_name : "(null)",
+          (unsigned long)(uintptr_t)record,(unsigned long)requested_slot,
+          (unsigned long)record_slot,source_id,source_type,
+          record != (short *)0x0 && !IsBadReadPtr(record,0x9c) ? (int)record[0x4d] : -1,
+          (unsigned long)E2R_action_last_opcode,
+          (unsigned long)E2R_action_opcode_count);
 }
 
 static short *E2R_FindActionCodeBySuffix(char *suffix)
@@ -29498,8 +29649,10 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
          !IsBadReadPtr((void *)(uintptr_t)iVar1,0xe);
          action_guard = action_guard + 1, iVar1 = *(int *)(iVar1 + 10)) {
       E2R_start_code_probe_startup_scans++;
+      E2R_TraceStartupActionNode("startup-scan",action_guard,(short *)(uintptr_t)iVar1,0);
       if (E2R_ActionCodeMatches((short *)(uintptr_t)iVar1,s_StartUp_004725ec)) {
         E2R_start_code_probe_startup_matches++;
+        E2R_TraceStartupActionNode("startup-match",action_guard,(short *)(uintptr_t)iVar1,1);
         E2R_TraceStartGameStage("before-startup-action");
         E2R_InvokeActionCode((short *)(uintptr_t)iVar1);
         E2R_TraceStartGameStage("after-startup-action");
@@ -29556,6 +29709,7 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
     int prefix_matches = 1;
 
     E2R_start_code_probe_action_scans++;
+    E2R_TraceStartupActionNode("start-scan",action_guard,(short *)(uintptr_t)iVar1,0);
     action_guard = action_guard + 1;
     if (DAT_00479e20 != 0 && action_name != (char *)0x0) {
       if (DAT_00479d74 == 0) {
@@ -29572,6 +29726,7 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
     }
     if (prefix_matches && E2R_ActionCodeMatches((short *)(uintptr_t)iVar1,pcVar4)) {
       E2R_start_code_probe_action_matches++;
+      E2R_TraceStartupActionNode("start-match",action_guard,(short *)(uintptr_t)iVar1,1);
       E2R_TraceStartGameStage("before-list-action");
       E2R_InvokeActionCode((short *)(uintptr_t)iVar1);
       E2R_TraceStartGameStage("after-list-action");
@@ -29932,6 +30087,12 @@ void FUN_0043aa98(void)
   int in_EAX;
   int extraout_EDX;
 
+  if (E2R_scene_remove_context != (short *)0x0) {
+    in_EAX = (int)(uintptr_t)E2R_scene_remove_context;
+  }
+  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xa8)) {
+    return;
+  }
   if (_DAT_0063725c != 0) {
     if (in_EAX == _DAT_0063725c) {
       _DAT_0063725c = *(int *)(_DAT_0063725c + 8);
@@ -38028,6 +38189,7 @@ LAB_00446189:
         }
         local_20[0x53] = DAT_00479e50;
         *(short **)(*local_20 * 4 + 0x62e450) = local_20;
+        E2R_TraceSceneRecordInstall("install",local_20,psVar8);
       }
       FUN_00453264();
       uVar10 = extraout_ECX_71;
@@ -38036,6 +38198,7 @@ LAB_00446189:
     else if (sVar9 == 0x34) {
       if (local_20 != (short *)0x0) {
         local_20[0x4d] = psVar8[2];
+        E2R_TraceSceneRecordInstall("action-ref",local_20,psVar8);
       }
       FUN_00453264();
       uVar10 = extraout_ECX_72;
@@ -40102,11 +40265,20 @@ LAB_0044796b:
 undefined8 __fastcall FUN_00447d94(undefined4 param_1,undefined4 param_2)
 
 {
+  byte *base;
+  byte *end;
+  byte *limit;
+  byte *rec;
+  byte *scan;
   int *stream;
   undefined8 uVar1;
+  uint id;
   uint offset;
+  uint resource_offset;
   uint row;
   uint row_end;
+  uint scene_count;
+  uint type;
 
   stream = (int *)(uintptr_t)DAT_0047a724;
   if ((uintptr_t)stream < 0x10000u || IsBadReadPtr(stream,0x1c) ||
@@ -40126,6 +40298,61 @@ undefined8 __fastcall FUN_00447d94(undefined4 param_1,undefined4 param_2)
   stream[0] = stream[5];
   stream[1] = (int)((byte *)(uintptr_t)stream[2] - (byte *)(uintptr_t)stream[5]);
   *(byte *)(stream + 3) = *(byte *)(stream + 3) | 0x40;
+  base = (byte *)(uintptr_t)stream[5];
+  end = (byte *)(uintptr_t)stream[2];
+
+  if (base + 4 <= end && base[0] == 'F' && base[1] == 'A' &&
+      base[2] == 'N' && base[3] == 'T') {
+    for (offset = 0; offset < 2500; offset = offset + 1) {
+      *(int *)(0x650fa0 + offset * 4) = -1;
+    }
+    for (offset = 0; offset < 5000; offset = offset + 1) {
+      *(int *)(0x653840 + offset * 4) = -1;
+    }
+    for (offset = 0; offset < 2000; offset = offset + 1) {
+      *(int *)(0x64f060 + offset * 4) = -1;
+    }
+    for (offset = 0; offset < 500; offset = offset + 1) {
+      *(int *)(0x663a10 + offset * 4) = -1;
+    }
+    for (offset = 0; offset < 700; offset = offset + 1) {
+      *(int *)(0x662f20 + offset * 4) = -1;
+    }
+    for (offset = 0; offset < 1200; offset = offset + 1) {
+      *(int *)(0x6445e8 + offset * 4) = -1;
+      *(int *)(0x6467a8 + offset * 4) = -1;
+    }
+    scene_count = 0;
+    for (scan = base; scan + 14 <= end; scan = scan + 1) {
+      if (scan[0] != 'F' || scan[1] != 'A' || scan[2] != 'N' || scan[3] != 'T') {
+        continue;
+      }
+      resource_offset = (uint)(scan - base);
+      limit = scan + 0x4000;
+      if (end < limit) {
+        limit = end;
+      }
+      for (rec = scan + 4; rec + 10 <= limit; rec = rec + 10) {
+        type = ((uint)rec[0] << 8) | (uint)rec[1];
+        id = ((uint)rec[2] << 8) | (uint)rec[3];
+        if (type == 0x19 && id < 0x9c4) {
+          if (*(int *)(0x650fa0 + id * 4) < 0) {
+            scene_count = scene_count + 1;
+          }
+          *(int *)(0x650fa0 + id * 4) = (int)resource_offset;
+          break;
+        }
+      }
+    }
+    stream[0] = (int)(uintptr_t)base;
+    stream[1] = (int)(uint)(end - base);
+    if (E2R_archive_read_diag_count < 8) {
+      E2R_archive_read_diag_count = E2R_archive_read_diag_count + 1;
+      fprintf(stderr,"archive 47d94 flat FANT: scenes=%u bytes=%u\n",
+              scene_count,(uint)(end - base));
+    }
+    return CONCAT44(param_2,1);
+  }
 
   for (offset = 4; offset <= 10000; offset = offset + 4) {
     uVar1 = FUN_00441444((undefined4)(uintptr_t)stream,offset);
@@ -44936,6 +45163,9 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
   uint local_12;
   undefined2 uVar21;
 
+  uint preload_child_guard;
+  uint preload_token;
+
   if (E2R_action_dispatch_node != (short *)0x0) {
     in_EAX = (int)(uintptr_t)E2R_action_dispatch_node;
   }
@@ -44959,7 +45189,7 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
       E2R_action_opcode_count++;
       E2R_action_last_opcode = (ushort)sVar9;
       E2R_action_last_cursor = (uintptr_t)local_2c;
-      if (E2R_RuntimeDiagEnabled() &&
+      if (E2R_StartupDiagEnabled() &&
           (E2R_action_opcode_count < 16 ||
            (E2R_action_opcode_count & 0x1ffu) == 0)) {
         fprintf(stderr,"action opcode: ordinal=%lu cursor=0x%lx pool=0x%lx op=%04x next=%04x scene=0x%lx mode=%lu dispatch=%lu\n",
@@ -45623,14 +45853,21 @@ LAB_0044f7a9:
         break;
       case 0x4d:
         local_12 = CONCAT22(*(ushort *)((int)local_2c + 2),(undefined2)local_12) & 0xfffffff;
+        preload_token = (uint)local_12 >> 0x10;
+        E2R_TraceScenePreload("enter",preload_token,0,(uintptr_t)local_2c,0);
         if ((*(ushort *)((int)local_2c + 2) & 0xfff) < 0x9c4) {
           uVar24 = FUN_0045233c(puVar13,(int)((uint)local_12 >> 0x10));
           puVar3 = *(ushort **)(((int)local_12 >> 0x10) * 4 + 0x62e450);
+          E2R_TraceScenePreload("after-load",preload_token,(uintptr_t)puVar3,(uintptr_t)local_2c,0);
           puVar13 = extraout_ECX_18;
           puVar18 = (ushort *)((ulonglong)uVar24 >> 0x20);
           if (puVar3 != (ushort *)0x0) {
+            preload_child_guard = 0;
             for (psVar16 = *(short **)(puVar3 + 2); psVar16 != (short *)0x0;
                 psVar16 = *(short **)(psVar16 + 0xc)) {
+              preload_child_guard = preload_child_guard + 1;
+              E2R_TraceScenePreload("child-reset",preload_token,(uintptr_t)puVar3,
+                                    (uintptr_t)psVar16,preload_child_guard);
               *(undefined2 *)(*psVar16 * 2 + 0x6648e8) = 0xffff;
               *(undefined2 *)(*psVar16 * 2 + 0x65feb0) = 0xffff;
               if (*(int *)((undefined1 *)0x00630b60 + *psVar16 * 4) != 0) {
@@ -45638,8 +45875,12 @@ LAB_0044f7a9:
                 puVar13 = extraout_ECX_19;
               }
             }
+            preload_child_guard = 0;
             for (psVar16 = *(short **)(puVar3 + 2); psVar16 != (short *)0x0;
                 psVar16 = *(short **)(psVar16 + 0xc)) {
+              preload_child_guard = preload_child_guard + 1;
+              E2R_TraceScenePreload("child-actions",preload_token,(uintptr_t)puVar3,
+                                    (uintptr_t)psVar16,preload_child_guard);
               if ((*(int *)(psVar16 + 3) != 0) &&
                  (puVar13 = *(ushort **)(*(int *)(psVar16 + 3) + 6), puVar18 = puVar13,
                  puVar13 != (ushort *)0x0)) {
@@ -45663,6 +45904,7 @@ LAB_0044f7a9:
                 ((undefined1 *)0x0064a178)[*psVar16 * 2] = ((undefined1 *)0x0064a178)[*psVar16 * 2] | 2;
               }
             }
+            E2R_TraceScenePreload("done",preload_token,(uintptr_t)puVar3,(uintptr_t)local_2c,0);
             *(int *)(puVar3 + 0x50) = _DAT_00636588 + -1;
             puVar18 = puVar3;
           }
@@ -46911,7 +47153,7 @@ undefined8 __fastcall FUN_0045233c(undefined4 param_1,undefined4 param_2)
         DAT_0047a470 = E2R_TraceCurrentActorWrite("5233c.missing",(uintptr_t)saved_current);
         return CONCAT44(param_2,(int)uVar3);
       }
-      if (E2R_RuntimeDiagEnabled() && E2R_scene_load_diag_count < 128) {
+      if (E2R_StartupDiagEnabled() && E2R_scene_load_diag_count < 128) {
         E2R_scene_load_diag_count = E2R_scene_load_diag_count + 1;
         fprintf(stderr,"scene load enter: id=%d offset=%d action_op=%lu cursor=0x%lx\n",
                 iVar2,*(int *)(iVar1 + 0x650fa0),
@@ -46919,13 +47161,16 @@ undefined8 __fastcall FUN_0045233c(undefined4 param_1,undefined4 param_2)
                 (unsigned long)E2R_action_last_cursor);
       }
       grid_snapshot = E2R_CaptureSceneGridSnapshot();
+      E2R_scene_load_request_id = (int)(short)param_2;
       FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x650fa0));
       iVar2 = E2R_ParseArchiveFanResource();
+      E2R_scene_load_request_id = -1;
       E2R_RestoreSceneGridSnapshot(&grid_snapshot);
-      if (E2R_RuntimeDiagEnabled() && E2R_scene_load_diag_count < 128) {
+      if (E2R_StartupDiagEnabled() && E2R_scene_load_diag_count < 128) {
         E2R_scene_load_diag_count = E2R_scene_load_diag_count + 1;
-        fprintf(stderr,"scene load exit: id=%d result=%d action_count=%lu\n",
+        fprintf(stderr,"scene load exit: id=%d result=%d table=0x%lx action_count=%lu\n",
                 (int)(short)param_2,iVar2,
+                (unsigned long)*(int *)((int)(short)param_2 * 4 + 0x62e450),
                 (unsigned long)E2R_action_opcode_count);
       }
       DAT_0047a470 = E2R_TraceCurrentActorWrite("5233c.archive",(uintptr_t)saved_current);
@@ -47150,12 +47395,11 @@ void __fastcall FUN_00452738(undefined4 param_1,undefined4 param_2)
   undefined1 local_80 [52];
   undefined1 local_4c [52];
 
-  if (in_EAX == (short *)0x0) {
-    FUN_00414e68();
-    param_1 = extraout_ECX;
-    param_2 = extraout_EDX;
+  in_EAX = (short *)(uintptr_t)param_1;
+  if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,0xa8)) {
+    return;
   }
-  FUN_00441e38(param_1,param_2);
+  FUN_00441e38((undefined4)(int)*in_EAX,param_2);
   FUN_0045f0a1((int)local_4c,(byte *)s_Removing_scene___s__00475690);
   for (psVar2 = _DAT_00637260; psVar2 != (short *)0x0; psVar2 = *(short **)(psVar2 + 0x4e)) {
     if (psVar2 == in_EAX) {
@@ -47185,7 +47429,9 @@ void __fastcall FUN_00452738(undefined4 param_1,undefined4 param_2)
     *(undefined4 *)(psVar1 + 4) = *(undefined4 *)(in_EAX + 4);
   }
   *(undefined4 *)(*in_EAX * 4 + 0x62e450) = 0;
+  E2R_scene_remove_context = in_EAX;
   FUN_0043aa98();
+  E2R_scene_remove_context = (short *)0x0;
   FUN_0045f0a1((int)local_80,(byte *)s_Removed_scene___s__00475734);
   return;
 }

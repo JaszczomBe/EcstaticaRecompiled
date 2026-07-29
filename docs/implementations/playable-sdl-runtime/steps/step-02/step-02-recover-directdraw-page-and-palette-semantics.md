@@ -2,7 +2,7 @@
 
 Status: active
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-07-28
+Last Updated: 2026-07-29
 
 ## Goal
 
@@ -71,6 +71,30 @@ Activated after Step 1 proved SDL F5 launch stability: the window presents real 
 
 2026-07-29 F5 startup-regression repair: a clean rebuild exposed two launch regressions before visual fidelity could be judged. SDL printed only the data directory because hosted `ReadFile` entered libc `FILE*` buffer allocation after SDL/Wayland helper threads were live; `CreateFileA` now makes compatibility file streams unbuffered. The shared X11/SDL path also spent excessive time in repeated Linux `IsBadReadPtr` scans while interning FAN names; `/proc/self/maps` parsing is now cached and refreshed on a cached miss so newly allocated heap ranges are not rejected. A follow-up crash in `FUN_0044c224` was another stale-register loop artifact: the actor flag loops now preserve their own actor index and mask after `FUN_0044d34c`/`FUN_0044d4b4`. With `E2R_STARTUP_LOGO_DELAY_MS=0`, both default and SDL real-display runs reach `E2R open failed: path=rb`, `E2R open failed: path=SCENES`, and `archive 47d94 loaded: cursor=56240 remaining=33019366`; the SDL timeout wrapper still requires manual cleanup, so F5 remains the preferred visual smoke check.
 
+2026-07-29 startup-sequence parity result: comparison against `/home/rgrabowski/Games/Ecstatica2/E2WIN95.EXE` shows the expected startup sequence is Psygnosis logo, Andrew Spencer Studios logo, Ecstatica II loading/logo, then the engine intro beginning with the horseback/credits scene. The rebuilt SDL route still does not match that: user F5 reports missing first two logos, the Ecstatica II logo appears too briefly, and the runtime enters a wrong/stalled scene path. Investigation showed the source FAN text contains `PlayScene "horse"`, but generated scene-name lookup had been capped to `5000` bytes despite `_DAT_006366bc` being allocated as `20000`; the active generated helpers now use `20000`, preventing that class of `4fff` unresolved scene token. Additional clean-start crash frontiers were repaired: Win32 compatibility allocations now use zeroed mmap-backed blocks instead of libc `calloc`, fixed-slot actor-name table copies no longer depend on stale hidden `in_EAX`, opcode `0x4d` child-list walks no longer overwrite their cursor with `extraout_EDX_11`, and long scene-preload restores call `E2R_PumpHost()` so SDL can process events and present frames during startup work. Verification passed generator syntax/regeneration, debug and SDL builds, `git diff --check`, and a quiet bounded SDL dummy-driver probe that survived to forced timeout after `archive 47d94 loaded`. The probe still did not reach `mar:StartGame` within 60 seconds, so startup/preload progress is now the active blocker before front-buffer presentation can be closed.
+
+2026-07-29 flat-FANT startup-preload result: narrow `E2R_STARTUP_DIAG=1` logs proved startup does find and dispatch `ken:StartUp` at guard `822`, so the previous 60-second no-progress window was inside long opcode-`0x4d` preload work rather than before `FUN_0043a39c`. The root cause was `FUN_00447d94` treating `/home/rgrabowski/Games/Ecstatica2/Files/ECSTATIC` as if it had an offset-index preamble; the file actually starts with flat `FANT` resources. `FUN_00447d94` now detects that layout, clears archive offset tables to `-1`, scans `0x19` scene records, and builds `0x650fa0` scene offsets by record id while leaving the old indexed path intact for non-flat archives. Probe logs now report `archive 47d94 flat FANT: scenes=1205 bytes=33075606`, and opcode-`0x4d` preloads install matching scene records such as `requested=2086/scepboms record=2086/scepboms`, `requested=2095/hbowl record=2095/hbowl`, and `requested=1560/necchest record=1560/necchest`; child-list walks now run instead of seeing zeroed slots. Scene removal also received two hidden-register repairs: `FUN_00452738` initializes `in_EAX` from `param_1` before naming by scene id, and `FUN_0043aa98` can receive `E2R_scene_remove_context` instead of relying on a stale hidden scene pointer. The current frontier is later: after the last successful `rist10` install (`scene id 1664`, `opcodes=64`), loading scene id `1424` removes a scene and segfaults in `FUN_0043aa98` at `E2Recomp_recon.c:30109` before `mar:StartGame`.
+
+## Next Implementation Step
+
+Stabilize `FUN_0043aa98` scene-removal/list unlinking after flat-FANT preloads, then continue until the bounded SDL route reaches `mar:StartGame` and resolves `PlayScene "horse"` to a real scene id.
+
+Scope for the next slice:
+
+1. Inspect and repair `FUN_0043aa98` cursor preservation/validity while scene removal is invoked through `FUN_00452738`/`FUN_00452ebc`.
+2. Keep the flat-FANT archive scan scoped to the scene-offset table; add other resource tables only when a real load proves they are needed.
+3. Re-run bounded `E2R_STARTUP_DIAG=1 E2R_SCRIPT_DIAG=1` dummy-SDL/gdb probes until execution passes opcode/action count `64` and reaches either `mar:StartGame` or a later named frontier.
+4. Prove `PlayScene "horse"` tokenization after the `_DAT_006366bc` capacity repair; expected bad state was `0007,4fff`, expected repaired state is `0007,4xxx` with low bits below `0x9c4`.
+5. Once `PlayScene "horse"` executes, compare the next visible scene against E2WIN95's horseback/credits intro before returning to page/front-buffer proof.
+
+Acceptance for the next slice:
+
+1. The current `FUN_0043aa98` crash is resolved without regressing matching opcode-`0x4d` scene preloads.
+2. A bounded probe reaches and logs `mar:StartGame` without global diagnostic flood, or records a later named crash frontier with stack and last successful scene.
+3. The `PlayScene "horse"` operand is resolved or the remaining remap failure is named with table index and lookup evidence.
+4. F5/real-display startup no longer triggers the system "not responding" watchdog during the preload pass.
+5. Any generated C repair is mirrored in `E2Recomp/tools/GenerateRecon.js` and regenerated.
+
 ## Change Log
 
 ### 2026-07-28
@@ -82,3 +106,11 @@ Activated after Step 1 proved SDL F5 launch stability: the window presents real 
 5. Recovered first post-logo actor live-position initialization enough for startup scene selection to advance from fallback scene `7` to scene `420`.
 6. Preserved the world scene-selection grid across opcode-`0x4d` scene preloads, repaired post-scene-420 actor visibility child walks, and recovered `FUN_00424ed0` actor context enough for the dummy SDL runtime to stay alive past 30 seconds outside the sandbox.
 7. Repaired the clean-build F5 startup regression by avoiding SDL-era stdio buffer allocation, caching Linux memory-map pointer checks with refresh-on-miss, and preserving actor-loop indices around the scene-change visibility passes.
+
+### 2026-07-29
+
+1. Repaired additional startup crash classes with mmap-backed compatibility allocation, fixed-slot actor-name copies, opcode-`0x4d` cursor preservation, and host event pumping during scene-preload restores.
+2. Recovered the likely `PlayScene "horse"` remap failure class by using the full `20000` byte `_DAT_006366bc` scene-name table capacity.
+3. Recorded the next active frontier: the SDL route survives to timeout but does not reach `mar:StartGame` within 60 seconds, so startup action/preload progress must be mapped next.
+4. Added narrow startup/action/preload diagnostics and proved `ken:StartUp` dispatches; the stall was inside opcode-`0x4d` preload work rather than before startup action execution.
+5. Recovered flat-FANT scene-offset population for `Files/ECSTATIC`, verified matching requested/installed scene records through startup preloads, repaired scene-remove hidden context, and moved the active frontier to `FUN_0043aa98` list unlinking while loading scene id `1424`.

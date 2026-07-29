@@ -1,5 +1,6 @@
 address	old_name	new_name	reason
 0043c1b8	FUN_0043c1b8	savegame_handler_0043c1b8	string/import heuristic
+00447d94	FUN_00447d94	asset_path_or_fan_loader_00447d94	string/import heuristic
 00451998	FUN_00451998	savegame_handler_00451998	string/import heuristic
 0045233c	FUN_0045233c	savegame_handler_0045233c	string/import heuristic
 00459190	FUN_00459190	window_or_dialog_proc_00459190	string/import heuristic
