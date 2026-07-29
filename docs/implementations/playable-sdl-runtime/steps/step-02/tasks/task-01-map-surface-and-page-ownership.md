@@ -1,6 +1,6 @@
 # Map Surface And Page Ownership
 
-Status: planned
+Status: active
 Parent Step: [Recover DirectDraw Page And Palette Semantics](../step-02-recover-directdraw-page-and-palette-semantics.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
 Last Updated: 2026-07-28
@@ -48,11 +48,12 @@ Prefer compatibility-layer instrumentation. Generated C tracing belongs here onl
 ## Review State
 
 1. Planning state: discussed
-2. Implementation state: not_started
-3. Notes: First DirectDraw fidelity task.
+2. Implementation state: in_progress
+3. Notes: Activated after SDL F5 stabilization. Start from `E2R_HostPresentIndexed8`, DirectDraw compatibility state, and the known nonblank surface proofs.
 
 ## Change Log
 
 ### 2026-07-28
 
 1. Created task.
+2. Activated as the next concrete task after Step 1 closed with a stable SDL launch boundary.

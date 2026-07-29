@@ -44,8 +44,8 @@ The completed [Run Reconstructed E2 On Linux](../linux-e2-reconstructed-runtime/
 
 Each step should be small enough for a single context window. If a step starts collecting unrelated fixes, split it before implementation continues.
 
-1. [Stabilize Interactive SDL F5 Runtime](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) - active; capture the user's F5 behavior, classify the first interactive frontier, and turn it into a bounded repro.
-2. [Recover DirectDraw Page And Palette Semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) - planned; replace grayscale page heuristics with recovered front-buffer/page/palette ownership.
+1. [Stabilize Interactive SDL F5 Runtime](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) - completed; captured the user's F5 behavior, reproduced the stable SDL boundary, and classified the first frontier as DirectDraw page/palette/front-buffer fidelity.
+2. [Recover DirectDraw Page And Palette Semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) - active; replace grayscale page heuristics with recovered front-buffer/page/palette ownership.
 3. [Expand Gameplay Control And Camera Proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) - planned; grow from one movement latch to a compact control-state matrix.
 4. [Define Runtime Timing And Frame Pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) - planned; identify timing ownership and add a backend timing contract only where needed.
 5. [Begin DirectSound Compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) - planned; map startup sound behavior and define the first replaceable audio boundary.
@@ -75,3 +75,4 @@ Each step should be small enough for a single context window. If a step starts c
 ### 2026-07-28
 
 1. Created implementation after the reconstructed-runtime plan reached first gameplay, live SDL presentation, and an SDL F5 launch route.
+2. Completed Step 1 with a stable SDL F5/no-crash boundary and activated DirectDraw page/palette/front-buffer recovery.

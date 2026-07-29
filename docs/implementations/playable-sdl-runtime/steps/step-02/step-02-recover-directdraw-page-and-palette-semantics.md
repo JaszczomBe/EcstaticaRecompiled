@@ -1,6 +1,6 @@
 # Recover DirectDraw Page And Palette Semantics
 
-Status: planned
+Status: active
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-07-28
 
@@ -37,7 +37,7 @@ Split this step if page ownership and palette recovery turn into separate Ghidra
 
 ## Tasks
 
-1. [Map Surface And Page Ownership](tasks/task-01-map-surface-and-page-ownership.md) - planned.
+1. [Map Surface And Page Ownership](tasks/task-01-map-surface-and-page-ownership.md) - active.
 2. [Recover Palette Update Path](tasks/task-02-recover-palette-update-path.md) - planned.
 3. [Verify Front Buffer Presentation](tasks/task-03-verify-front-buffer-presentation.md) - planned.
 
@@ -57,8 +57,11 @@ Split this step if page ownership and palette recovery turn into separate Ghidra
 
 This step should start from existing `E2R_HostPresentIndexed8` and DirectDraw compatibility state, not from direct SDL presentation changes.
 
+Activated after Step 1 proved SDL F5 launch stability: the window presents real frames without crashing, while the visible output remains grayscale/incorrectly colored and page selection still depends on presentation heuristics.
+
 ## Change Log
 
 ### 2026-07-28
 
 1. Created step.
+2. Activated after SDL F5 stabilization classified the first frontier as DirectDraw page/palette/front-buffer fidelity.

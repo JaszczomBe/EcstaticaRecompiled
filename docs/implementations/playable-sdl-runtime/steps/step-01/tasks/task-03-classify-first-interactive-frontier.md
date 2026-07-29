@@ -1,6 +1,6 @@
 # Classify First Interactive Frontier
 
-Status: planned
+Status: completed
 Parent Step: [Stabilize Interactive SDL F5 Runtime](../step-01-stabilize-interactive-sdl-f5-runtime.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
 Last Updated: 2026-07-28
@@ -34,6 +34,19 @@ Decide whether the first SDL F5 issue belongs to runtime reconstruction, Win32/D
 
 This is the gate between launch stabilization and the later fidelity steps. A clear crash fix can land here; ambiguous visual accuracy work should move to Step 2.
 
+## Classification
+
+Owner: DirectDraw compatibility semantics, specifically page selection, palette ownership, and front-buffer presentation.
+
+Evidence:
+
+1. Manual `Ecstatica Recompiled (SDL)` F5 opens a window, presents the logo and then a partial city/gameplay-like frame, and does not crash.
+2. Real-display command-line `./e2recomp --run-recon` from `build/linux-clang32-sdl-debug` reproduces the same console/log frontier and stays alive.
+3. Automated SDL dummy-driver gameplay probe exits `0`, reaches control-ready gameplay, latches movement, and dumps nonblank surface 3 `hash=3615add9`.
+4. The visible output is grayscale/incorrectly colored and still depends on the first-live-frame page heuristic documented in the previous SDL presentation milestone.
+
+Result: Step 1 has a stable launch boundary, not a runtime crash frontier. No generated-code or SDL-backend stability repair is needed in this step. The next implementation step should recover DirectDraw page/palette/front-buffer semantics. Archive parser console diagnostics remain a secondary log-hygiene issue unless they interfere with future bounded assertions.
+
 ## Acceptance Criteria
 
 1. The first frontier has an owner and evidence.
@@ -49,11 +62,13 @@ This is the gate between launch stabilization and the later fidelity steps. A cl
 ## Review State
 
 1. Planning state: discussed
-2. Implementation state: not_started
-3. Notes: Final task for Step 1.
+2. Implementation state: completed
+3. Notes: First SDL interactive frontier classified as DirectDraw page/palette/front-buffer fidelity. Continue with Step 2 Task 1.
 
 ## Change Log
 
 ### 2026-07-28
 
 1. Created task.
+2. Activated after bounded SDL reproduction passed and the manual F5 route showed no crash.
+3. Completed classification: stable SDL launch, no crash repair needed, next owner is DirectDraw compatibility fidelity.
