@@ -41,17 +41,18 @@ Latest implementation work moved the blocker past the scene-removal crash and th
 
 The latest Ghidra-backed repair narrowed the `mar:StartGame` scene opcode itself. Original `E2WIN95.EXE` disassembly around `0044f6cc`/`0044f6f3` and `0044f770`/`0044f78f` shows opcodes `0x07` and `0x0c` pass the loaded scene record to `FUN_004523f8`, not the current-scene global. The generated reconstruction now does the same and adds gated `E2R_SCRIPT_DIAG=1` scene-opcode traces. A bounded dummy-SDL probe proves `mar:StartGame` token `0x061c` resolves to `horse`, flat-FANT offset `607214`, scene slot `0xac2594`, and flags change to `0x02` after activation. This means `PlayScene "horse"` is no longer the unknown.
 
-The current frontier is still a non-crash scene ownership gap after activation. `_DAT_0073cc3c` remains `0x0`, `DAT_0047a470` remains `0x0`, and `E2R_RUNTIME_DIAG=1` frame-loop traces show `current=0x0 actors=0x0 links=0x0` even after `DAT_00479de8` becomes `1`. The same run reports actor `0` load entering with `table=0x0`, and a 20-second dump remains on surface 3 hash `6e39f5ea` with an all-zero palette (`palette_nonzero=0`, `palette_hash=f59c39c5`). The next proof should therefore shift from `PlayScene "horse"` resolution to why actor/scene tables are empty when the active `horse` scene enters the frame loop.
+The actor/current ownership gap is now narrowed. `FUN_00447d94` also scans flat-FANT type `0x08` actor records into `0x653840`; generated-code probes report `archive 47d94 flat FANT: actors=81 scenes=1205 bytes=33075606`. The normal `mar:StartGame` route loads actor `0` from offset `12773490`, activates `horse` at slot `0xac2594`, sets the active scene record to `0x67c728`, and reaches the frame loop with `current=0xaa6bd8 actors=0xaa6bd8 links=0xaa6bd8`. The first frame still clears `_DAT_0073cc3c`, but actor `0` keeps `p132=0xac2594`, tying it back to the active `horse` scene.
+
+The raw view/camera crash is now cleared. Original disassembly shows both the `FUN_004211c8 -> FUN_0044be20` render epilogue path and the `FUN_004523f8` current-actor child pass pass `scene_record[0] >> 16` into `FUN_0044be20`; the generated code now makes that hidden `AX` value explicit. The adjacent `FUN_0044add8` palette path builder now uses a full local path buffer, writes the four scene digits from `_DAT_0073ccba`, appends it to the data directory buffer, and the shared `FUN_0045fd2c`/`FUN_0045fd4b` helpers initialize their hidden `EAX` destination from `param_1`. A regenerated 30-frame dummy-SDL probe exits successfully after `view raw open: scene=1073 camera=1073 hires=1 path=hires\1073.raw`, stable actor-loop updates, and a nonblank surface-3 dump (`hash=44b33248`).
 
 ## Next Implementation Slice
 
-Prove scene-current ownership after `mar:StartGame` now that startup preloads and scene removal no longer crash, then compare the first post-startup presentation against the E2WIN95 horseback/credits intro.
+Compare the first post-startup presentation against the E2WIN95 horseback/credits intro now that raw-view/camera ownership survives the frame loop.
 
-1. Trace `FUN_00451f5c` actor `0` loading under the normal `mar:StartGame` route; the latest proof shows `table=0x0`, so the actor archive/table handoff may be missing.
-2. Inspect `FUN_00452140`/`FUN_004523f8` child-list passes for hidden actor context loss. The `horse` scene is active, but no actor/current-scene ownership reaches the frame loop.
-3. Determine whether `_DAT_0073cc3c` should remain separate from active scene records during the intro, or whether a later recovered scene-select path is failing to run.
-4. Run a real-display/F5 visual smoke test against the E2WIN95 logo and horseback-intro sequence before returning to page/front-buffer proof.
-5. If the route stays in the frame loop with no actors/current scene, record the next named non-crash frontier with stack sample and last scene/action evidence.
+1. Run a real-display/F5 visual smoke test against the E2WIN95 logo and horseback-intro sequence.
+2. Compare the nonblank surface-3 dump against the expected horseback/credits scene and decide whether SDL should present surface 3 or another page at this stage.
+3. Reconcile why the route still skips or shortens the Psygnosis, Andrew Spencer Studios, and loading-logo timing if the first gameplay render is now stable.
+4. If the route still does not present the intro, record the next named visual/state frontier with last actor/scene/view evidence.
 
 ## Acceptance Criteria
 
@@ -70,7 +71,7 @@ Prove scene-current ownership after `mar:StartGame` now that startup preloads an
 
 1. Planning state: discussed
 2. Implementation state: in_progress
-3. Notes: Active frontier is startup-sequence parity before final front-buffer/page ownership proof; flat-FANT scene preloads and `mar:StartGame` now execute without crashing, and `PlayScene "horse"` now loads/activates the correct scene record, but no current actor/current scene reaches the frame loop.
+3. Notes: Active frontier is startup-sequence parity before final front-buffer/page ownership proof; flat-FANT scene and actor tables now let `mar:StartGame` load actor `0`, activate `horse`, enter the frame loop, load raw view `1073`, and dump nonblank surface 3 through a regenerated 30-frame SDL probe.
 
 ## Change Log
 
@@ -89,3 +90,5 @@ Prove scene-current ownership after `mar:StartGame` now that startup preloads an
 5. Moved the task frontier to the `FUN_0043aa98` scene-removal/list unlink crash while loading scene id `1424`, before `mar:StartGame`.
 6. Cleared the scene-removal, scene-activation, and actor-name lookup crash chain: bounded SDL/gdb now reaches `mar:StartGame` `before-return` and interrupts later in the frame loop. The next frontier is explaining scene-current ownership and the missing horseback/credits intro.
 7. Repaired generated opcode `0x07`/`0x0c` scene activation to pass the loaded scene record into `FUN_004523f8`, matching original disassembly. `E2R_SCRIPT_DIAG=1` proves `mar:StartGame` activates `horse` (`token=0x061c`, slot `0xac2594`, offset `607214`, flags `0x02`), but runtime traces still show no current actor/current scene in the frame loop.
+8. Recovered flat-FANT actor offsets and hidden actor context in the `FUN_004523f8` child pass. Generated probes now load actor `0` from offset `12773490` and enter the frame loop with `current=0xaa6bd8 actors=0xaa6bd8 links=0xaa6bd8`; the new crash frontier is bogus raw view/camera ids in `FUN_00449b4c -> FUN_0043cbb4 -> FUN_0043cbf0 -> FUN_0043b384 -> FUN_0041ab4c`.
+9. Recovered the hidden scene-id argument to `FUN_0044be20`, repaired `FUN_0044add8` palette path construction, and initialized `FUN_0045fd2c`/`FUN_0045fd4b` destination pointers from their explicit arguments. Regenerated 30-frame SDL probes now survive through repeated actor updates and dump nonblank surface 3 after loading raw view `1073`.

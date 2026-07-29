@@ -522,6 +522,11 @@ source = source.replace(
   "void __fastcall FUN_0044d4b4(undefined4 param_1)\n\n{\n  int actor;\n  int actor_id;\n  int cell;\n  int child;\n  int link;\n  int link_flags;\n  short visible;\n  undefined8 result;\n\n  actor_id = (int)(short)(uintptr_t)param_1;\n  if (actor_id < 0 || 5000 <= actor_id) {\n    return;\n  }\n  actor = *(int *)((undefined1 *)0x00630b60 + actor_id * 4);\n  if (actor == 0 || (uintptr_t)actor < 0x10000u ||\n      IsBadReadPtr((void *)(uintptr_t)actor,0x188)) {\n    if ((*(int *)(actor_id * 2 + 0x666ff6) >> 0x10 & 0xc000U) == 0xc000) {\n      result = FUN_004488a4(param_1,(undefined4)actor_id);\n      visible = (int)result < 0 ? 0 :\n        ((*(ushort *)((undefined1 *)0x0068cd6a + (int)result * 0xc) >> 8 & 0x40) << 8);\n      if (visible != 0 && *(short *)(actor_id * 2 + 0x65feb0) < 0) {\n        FUN_0044d634();\n      }\n    }\n    return;\n  }\n  if (*(int *)(actor + 0xf2) != 0) {\n    return;\n  }\n  link = *(int *)(actor + 0xa6);\n  link_flags = 0;\n  if (link != 0 && 0x10000u <= (uintptr_t)link &&\n      (uintptr_t)link < 0x70000000u && !IsBadReadPtr((void *)(uintptr_t)link,0x10)) {\n    link_flags = *(byte *)(link + 0xc) & 2;\n  }\n  if (actor != DAT_0047a470 && link_flags == 0) {\n    result = FUN_004488a4((undefined4)(uintptr_t)(actor + 0x84),(undefined4)actor);\n    visible = (int)result < 0 ? 0 :\n      ((*(ushort *)((undefined1 *)0x0068cd6a + (int)result * 0xc) >> 8 & 0x40) << 8);\n    if (visible == 0) {\n      return;\n    }\n  }\n  *(byte *)(actor + 2) = *(byte *)(actor + 2) | 8;\n  E2R_actor_calc_context = actor;\n  FUN_00426c3c();\n  E2R_actor_calc_context = 0;\n  for (link = *(int *)(actor + 0x1e); link != 0; link = *(int *)(link + 0x4c)) {\n    if ((uintptr_t)link < 0x10000u || IsBadReadPtr((void *)(uintptr_t)link,0x140)) {\n      break;\n    }\n    child = *(int *)(link + 0x13a);\n    if (child != 0) {\n      FUN_0044d608(0,(undefined4)(uintptr_t)link);\n    }\n  }\n  return;\n}\n\n\n\n/* 0044d608 */"
 );
 source = source.replace(
+  "      result = FUN_004488a4(param_1,(undefined4)actor_id);",
+  "      result = FUN_004488a4((undefined4)(uintptr_t)(actor_id * 6 + 0x669708),\n" +
+  "                            (undefined4)actor_id);"
+);
+source = source.replace(
   /void __fastcall FUN_0044d608\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0044d634 \*\//,
   "void __fastcall FUN_0044d608(undefined4 param_1,undefined4 param_2)\n\n{\n  int actor;\n  int child;\n  int link;\n\n  (void)param_1;\n  link = (int)(uintptr_t)param_2;\n  actor = link;\n  if (0x10000u <= (uintptr_t)link && (uintptr_t)link < 0x70000000u &&\n      !IsBadReadPtr((void *)(uintptr_t)link,0x140) && *(int *)(link + 0x13a) != 0) {\n    actor = *(int *)(link + 0x13a);\n  }\n  if (actor == 0 || (uintptr_t)actor < 0x10000u ||\n      IsBadReadPtr((void *)(uintptr_t)actor,0x188)) {\n    return;\n  }\n  E2R_actor_calc_context = actor;\n  FUN_00426c3c();\n  E2R_actor_calc_context = 0;\n  for (link = *(int *)(actor + 0x1e); link != 0; link = *(int *)(link + 0x4c)) {\n    if ((uintptr_t)link < 0x10000u || IsBadReadPtr((void *)(uintptr_t)link,0x140)) {\n      break;\n    }\n    child = *(int *)(link + 0x13a);\n    if (child != 0) {\n      FUN_0044d608(0,(undefined4)(uintptr_t)link);\n    }\n  }\n  return;\n}\n\n\n\n/* 0044d634 */"
 );
@@ -2450,6 +2455,7 @@ source = source.replace(
   uint id;
   uint offset;
   uint resource_offset;
+  uint actor_count;
   uint row;
   uint row_end;
   uint scene_count;
@@ -2497,6 +2503,7 @@ source = source.replace(
       *(int *)(0x6445e8 + offset * 4) = -1;
       *(int *)(0x6467a8 + offset * 4) = -1;
     }
+    actor_count = 0;
     scene_count = 0;
     for (scan = base; scan + 14 <= end; scan = scan + 1) {
       if (scan[0] != 'F' || scan[1] != 'A' || scan[2] != 'N' || scan[3] != 'T') {
@@ -2510,6 +2517,13 @@ source = source.replace(
       for (rec = scan + 4; rec + 10 <= limit; rec = rec + 10) {
         type = ((uint)rec[0] << 8) | (uint)rec[1];
         id = ((uint)rec[2] << 8) | (uint)rec[3];
+        if (type == 0x08 && id < 5000) {
+          if (*(int *)(0x653840 + id * 4) < 0) {
+            actor_count = actor_count + 1;
+          }
+          *(int *)(0x653840 + id * 4) = (int)resource_offset;
+          break;
+        }
         if (type == 0x19 && id < 0x9c4) {
           if (*(int *)(0x650fa0 + id * 4) < 0) {
             scene_count = scene_count + 1;
@@ -2523,8 +2537,8 @@ source = source.replace(
     stream[1] = (int)(uint)(end - base);
     if (E2R_archive_read_diag_count < 8) {
       E2R_archive_read_diag_count = E2R_archive_read_diag_count + 1;
-      fprintf(stderr,"archive 47d94 flat FANT: scenes=%u bytes=%u\\n",
-              scene_count,(uint)(end - base));
+      fprintf(stderr,"archive 47d94 flat FANT: actors=%u scenes=%u bytes=%u\\n",
+              actor_count,scene_count,(uint)(end - base));
     }
     return CONCAT44(param_2,1);
   }
@@ -2810,6 +2824,42 @@ source = source.replaceAll(
   "FUN_004523f8((undefined4)(uintptr_t)_DAT_0073cc3c);"
 );
 source = source.replace(
+  "void FUN_0044be20(void)",
+  "void FUN_0044be20(undefined4 param_1)"
+);
+source = source.replace(
+  /(void __fastcall FUN_004211c8\(int param_1,undefined4 param_2\)\s*\n\s*\{\s*\n  int iVar1;\n)/,
+  "$1  int iVar4;\n"
+);
+source = source.replace(
+  "    else if (*(int *)(DAT_0047a470 + 0x132) != 0) {\n      FUN_0044be20();\n    }",
+  "    else if (*(int *)(DAT_0047a470 + 0x132) != 0) {\n      iVar4 = *(int *)(DAT_0047a470 + 0x132);\n      if (0x10000u <= (uint)iVar4 && (uint)iVar4 < 0x70000000u &&\n         !IsBadReadPtr((void *)(uintptr_t)iVar4,4)) {\n        FUN_0044be20((undefined4)(uintptr_t)(short)(*(int *)iVar4 >> 0x10));\n      }\n    }"
+);
+source = source.replace(
+  /(void FUN_0044be20\(undefined4 param_1\)[\s\S]*?\r?\n  undefined4 \*puVar7;\r?\n  longlong lVar8;\r?\n\s*)if \(\(undefined1 \*\)0x0067c728 \+ in_AX \* 0x1c == _DAT_0073cc3c\) \{/,
+  "$1in_AX = (short)param_1;\n  if ((undefined1 *)0x0067c728 + in_AX * 0x1c == _DAT_0073cc3c) {"
+);
+source = source.replace(
+  "        FUN_0044be20();\n      }\n    }\n    for (psVar2 = *(short **)(in_EAX + 2); psVar2 != (short *)0x0;",
+  "        FUN_0044be20((undefined4)(uintptr_t)(short)(*(int *)in_EAX >> 0x10));\n      }\n    }\n    for (psVar2 = *(short **)(in_EAX + 2); psVar2 != (short *)0x0;"
+);
+source = source.replace(
+  "  char local_40 [6];\n  char acStack_3a [18];",
+  "  char local_40 [64];\n  char acStack_3a [18];"
+);
+source = source.replace(
+  "    FUN_0045fd2c(param_1,pcVar6);\n    cStack_1c = (char)((uint)_DAT_0073ccb8 >> 0x10);\n    uStack_1b = (undefined1)((uint)_DAT_0073ccb8 >> 0x18);\n    iVar10 = 9;\n    do {\n      iVar4 = (CONCAT13(uStack_1b,CONCAT12(cStack_1c,uStack_1e)) >> 0x10) / 10;\n      cVar3 = (char)iVar4;\n      iVar9 = iVar10 + -1;\n      uStack_1b = (undefined1)((uint)iVar4 >> 8);\n      local_40[iVar10] = cStack_1c + cVar3 * -10 + '0';\n      iVar10 = iVar9;\n      cStack_1c = cVar3;\n    } while (iVar9 != 5);\n    FUN_0045fd2c(10,_DAT_006365e0);\n    FUN_0045fd4b(extraout_ECX,local_40);\n    uVar12 = FUN_0045e594(extraout_ECX_00,extraout_EDX,&stack_ffffff94,0x200,in_stack_ffffff94);",
+  "    FUN_0045fd2c((undefined4)(uintptr_t)local_40,pcVar6);\n    iVar10 = (int)(short)_DAT_0073ccba;\n    for (iVar9 = 9; 5 < iVar9; iVar9 = iVar9 + -1) {\n      local_40[iVar9] = (char)(iVar10 % 10) + '0';\n      iVar10 = iVar10 / 10;\n    }\n    FUN_0045fd2c((undefined4)(uintptr_t)stack_ffffff94,_DAT_006365e0);\n    FUN_0045fd4b((undefined4)(uintptr_t)stack_ffffff94,local_40);\n    uVar12 = FUN_0045e594(extraout_ECX_00,extraout_EDX,(LPCSTR)stack_ffffff94,0x200,\n                           in_stack_ffffff94);"
+);
+source = source.replace(
+  /(char \* __fastcall FUN_0045fd2c\(undefined4 param_1,char \*param_2\)[\s\S]*?\r?\n  char \*pcVar2;\r?\n\s*)pcVar2 = in_EAX;/,
+  "$1in_EAX = (char *)(uintptr_t)param_1;\n  pcVar2 = in_EAX;"
+);
+source = source.replace(
+  /(char \* __fastcall FUN_0045fd4b\(undefined4 param_1,char \*param_2\)[\s\S]*?\r?\n  char \*pcVar3;\r?\n  char \*pcVar4;\r?\n\s*)iVar2 = -1;/,
+  "$1in_EAX = (char *)(uintptr_t)param_1;\n  iVar2 = -1;"
+);
+source = source.replace(
   "  sVar1 = 0;\n  do {\n    iVar2 = (int)sVar1;\n    *(undefined2 *)(&DAT_006372c2 + iVar2 * 2) = *(undefined2 *)(in_EAX + iVar2 * 2);",
   "  if ((short)_DAT_0073ccba < 0 || 0x4b0 <= (short)_DAT_0073ccba) {\n    return;\n  }\n  in_EAX = 0x0067c728 + (short)_DAT_0073ccba * 0x1c;\n  sVar1 = 0;\n  do {\n    iVar2 = (int)sVar1;\n    *(undefined2 *)(&DAT_006372c2 + iVar2 * 2) = *(undefined2 *)(in_EAX + iVar2 * 2);"
 );
@@ -2996,6 +3046,26 @@ source = source.replace(
 source = source.replace(
   "            *(undefined4 *)((undefined1 *)0x00630b60 + *psVar16 * 4) = 0;\n            FUN_00426ca4();",
   "            *(undefined4 *)((undefined1 *)0x00630b60 + *psVar16 * 4) = 0;\n            E2R_actor_calc_context = (int)(uintptr_t)psVar16;\n            FUN_00426ca4();\n            E2R_actor_calc_context = 0;"
+);
+source = source.replace(
+  /void FUN_00426a80\(void\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 00426ac4 \*\//,
+  "void FUN_00426a80(void)\n\n{\n  int iVar1;\n  int iVar2;\n  int *in_EAX;\n\n  if (E2R_actor_calc_context != 0) {\n    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);\n  }\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12)) {\n    return;\n  }\n  iVar1 = *in_EAX;\n  if (iVar1 != 0) {\n    if ((uintptr_t)iVar1 < 0x10000u || IsBadReadPtr((void *)(uintptr_t)iVar1,0xe)) {\n      return;\n    }\n    *(undefined2 *)((int)in_EAX + 6) = 0;\n    *(undefined2 *)(in_EAX + 1) = *(undefined2 *)(iVar1 + 2);\n    *(undefined2 *)(in_EAX + 3) = *(undefined2 *)(iVar1 + 0xc);\n    iVar2 = *(int *)(iVar1 + 4);\n    *(undefined2 *)((int)in_EAX + 0xe) = 0;\n    in_EAX[2] = iVar2;\n    if ((*(byte *)(iVar1 + 0xc) & 1) != 0) {\n      *(undefined2 *)(in_EAX + 4) = 0;\n      return;\n    }\n    *(undefined2 *)(in_EAX + 4) = 1;\n  }\n  return;\n}\n\n\n\n/* 00426ac4 */"
+);
+source = source.replace(
+  /void __fastcall FUN_0042ad60\(undefined4 param_1,int param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0042ae80 \*\//,
+  "void __fastcall FUN_0042ad60(undefined4 param_1,int param_2)\n\n{\n  int *in_EAX;\n  int extraout_ECX;\n  int extraout_ECX_00;\n  int *extraout_ECX_01;\n  int *extraout_ECX_02;\n  int *extraout_ECX_03;\n  int unaff_EBX;\n  uint uVar1;\n\n  if (param_2 != 0 && 0x10000u <= (uintptr_t)param_2 &&\n      !IsBadReadPtr((void *)(uintptr_t)param_2,0xb8)) {\n    in_EAX = (int *)(uintptr_t)(param_2 + 0xa6);\n  }\n  else if (E2R_actor_calc_context != 0) {\n    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);\n  }\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12)) {\n    return;\n  }\n  if (*in_EAX != 0) {\n    if ((uintptr_t)*in_EAX < 0x10000u ||\n        IsBadReadPtr((void *)(uintptr_t)*in_EAX,0x12)) {\n      return;\n    }\n    if ((*(byte *)(*in_EAX + 0xc) & 2) == 0) {\n      uVar1 = (uint)*(ushort *)((int)in_EAX + 6) +\n              (unaff_EBX << 0x10) / (int)(uint)*(ushort *)(in_EAX + 1);\n      do {\n        if (uVar1 < 0x10000) {\nLAB_0042ae53:\n          if ((*(byte *)((int)in_EAX + 0xd) & 4) == 0) {\n            FUN_0042b338(in_EAX,(ushort)uVar1);\n          }\n          *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) & 0xfb;\n          return;\n        }\n        if (*(ushort *)(in_EAX + 4) < 2) {\n          if (*(ushort *)(in_EAX + 4) != 0) {\n            FUN_0042b004();\n            *(undefined2 *)((int)extraout_ECX_02 + 6) = 0xffff;\n            *(byte *)((int)extraout_ECX_02 + 0xd) = *(byte *)((int)extraout_ECX_02 + 0xd) | 4;\n            in_EAX = extraout_ECX_02;\n            goto LAB_0042ae53;\n          }\n          FUN_0042b004();\n          in_EAX = extraout_ECX_03;\n        }\n        else {\n          FUN_0042b004();\n          *(short *)(extraout_ECX_01 + 4) = (short)extraout_ECX_01[4] + -1;\n          in_EAX = extraout_ECX_01;\n        }\n        uVar1 = uVar1 - 0x10000;\n      } while( true );\n    }\n    uVar1 = unaff_EBX + (uint)*(ushort *)((int)in_EAX + 6);\n    if (*(ushort *)(in_EAX + 1) < uVar1) {\n      FUN_0042b004();\n      *(undefined2 *)(extraout_ECX + 6) = *(undefined2 *)(extraout_ECX + 4);\n      *(byte *)(extraout_ECX + 0xd) = *(byte *)(extraout_ECX + 0xd) | 4;\n    }\n    else {\n      FUN_0042b338(in_EAX,(ushort)uVar1);\n      if ((in_EAX[2] != 0) && 0x10000u <= (uintptr_t)in_EAX[2] &&\n          !IsBadReadPtr((void *)(uintptr_t)in_EAX[2],0xa) &&\n          (*(int *)(in_EAX[2] + 6) == 0)) goto joined_r0x0042ae76;\n    }\n    *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) & 0xfb;\n    return;\n  }\njoined_r0x0042ae76:\n  if (DAT_0047a3b4 == 0) {\n    *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) | 4;\n  }\n  return;\n}\n\n\n\n/* 0042ae80 */"
+);
+source = source.replace(
+  "  if ((*(byte *)(in_EAX + 0x146) & 1) == 0) {",
+  "  if (E2R_actor_calc_context != 0) {\n    in_EAX = E2R_actor_calc_context;\n  }\n  if (in_EAX == 0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x148)) {\n    return 0;\n  }\n  if ((*(byte *)(in_EAX + 0x146) & 1) == 0) {"
+);
+source = source.replace(
+  /void __fastcall FUN_0042b338\(undefined4 param_1,ushort param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0042b490 \*\//,
+  "void __fastcall FUN_0042b338(undefined4 param_1,ushort param_2)\n\n{\n  ushort *puVar1;\n  int iVar2;\n  int *in_EAX;\n  uint uVar3;\n  uint uVar4;\n  uint extraout_ECX;\n  short *unaff_EBX;\n\n  in_EAX = (int *)(uintptr_t)param_1;\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12)) {\n    return;\n  }\n  if (*in_EAX != 0 && ((uintptr_t)*in_EAX < 0x10000u ||\n      IsBadReadPtr((void *)(uintptr_t)*in_EAX,0xe))) {\n    return;\n  }\n  if (param_2 < *(ushort *)((int)in_EAX + 6)) {\n    FUN_0042b004();\n  }\n  for (puVar1 = (ushort *)in_EAX[2]; (puVar1 != (ushort *)0x0 && (*puVar1 <= param_2));\n      puVar1 = *(ushort **)(puVar1 + 1)) {\n    for (iVar2 = *(int *)(puVar1 + 3); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {\n      FUN_0042b880(*in_EAX,unaff_EBX);\n    }\n    if ((puVar1 == (ushort *)in_EAX[2]) && ((*(byte *)(*in_EAX + 0xc) & 2) == 0)) {\n      FUN_0042b5fc();\n    }\n    *(ushort *)((int)in_EAX + 6) = *puVar1;\n  }\n  if (puVar1 != (ushort *)0x0) {\n    uVar4 = (uint)*puVar1 - (uint)*(ushort *)((int)in_EAX + 6);\n    uVar3 = (((uint)param_2 - (uint)*(ushort *)((int)in_EAX + 6)) * 0x4000) / uVar4;\n    if (uVar3 != 0) {\n      for (iVar2 = *(int *)(puVar1 + 3); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {\n        FUN_0042c790(*in_EAX,uVar3);\n        uVar4 = extraout_ECX;\n      }\n      if ((*(byte *)(*in_EAX + 0xc) & 2) == 0) {\n        FUN_0042b490(uVar4,uVar3);\n      }\n    }\n  }\n  in_EAX[2] = (int)puVar1;\n  *(ushort *)((int)in_EAX + 6) = param_2;\n  return;\n}\n\n\n\n/* 0042b490 */"
+);
+source = source.replace(
+  "  local_28 = 0xffffffff;\n  local_20 = 0xffffffff;\n  iVar6 =",
+  "  local_28 = 0xffffffff;\n  local_20 = 0xffffffff;\n  in_EAX = (ushort *)(uintptr_t)param_1;\n  if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr(in_EAX,0x6)) {\n    return CONCAT44(param_2,0xffffffff);\n  }\n  iVar6 ="
 );
 source = source.replace(
   /undefined8 __fastcall FUN_004268e4\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0042692c \*\//,
@@ -3671,6 +3741,10 @@ for (let i = 0; i < prototypes.length; i++) {
   prototypes[i] = prototypes[i].replace(
     "undefined4 FUN_004523f8(void);",
     "undefined4 FUN_004523f8(undefined4 param_1);"
+  );
+  prototypes[i] = prototypes[i].replace(
+    "void FUN_0044be20(void);",
+    "void FUN_0044be20(undefined4 param_1);"
   );
   prototypes[i] = prototypes[i].replace(
     "void FUN_0044d3e8(void);",
@@ -4412,6 +4486,14 @@ source = source.replace(
 source = source.replace(
   "  ushort *extraout_EDX_01;\n  undefined8 uVar8;\n\n  uVar5 = DAT_0047a470;\n  in_EAX = E2R_NormalizeSceneRecordPointer(in_EAX);",
   "  ushort *extraout_EDX_01;\n  uint guard;\n  undefined8 uVar8;\n\n  uVar5 = DAT_0047a470;\n  in_EAX = E2R_NormalizeSceneRecordPointer(in_EAX);"
+);
+source = source.replace(
+  "        FUN_0042b0f4();\n        *(byte *)(psVar4 + 1) = *(byte *)(psVar4 + 1) | 8;",
+  "        E2R_actor_calc_context = (int)(uintptr_t)psVar4;\n        FUN_0042b0f4();\n        *(byte *)(psVar4 + 1) = *(byte *)(psVar4 + 1) | 8;"
+);
+source = source.replace(
+  "        FUN_0042ad60(extraout_ECX,(int)psVar4);\n      }\n    }\n  }\n  return;",
+  "        FUN_0042ad60(extraout_ECX,(int)psVar4);\n        E2R_actor_calc_context = 0;\n      }\n    }\n  }\n  return;"
 );
 source = source.replace(
   /(\/\* 00452140 \*\/[\s\S]*?  ushort \*extraout_EDX_01;\r?\n)(  undefined8 uVar8;\r?\n\r?\n  uVar5 = DAT_0047a470;\r?\n  in_EAX = E2R_NormalizeSceneRecordPointer\(in_EAX\);)/,

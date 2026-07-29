@@ -2,6 +2,38 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-29 - Raw View Ownership Reaches Stable Horse Frames
+
+Area: Playable SDL runtime startup parity, render epilogue scene id recovery, palette filename construction
+
+Symptom: after flat-FANT actor offsets restored actor/current ownership, the first render epilogue still crashed while opening impossible raw-view paths such as `hires\2191.raw` and `views\2191.raw`. GDB showed the failure path entering `FUN_00449b4c -> FUN_0043cbb4 -> FUN_0043cbf0 -> FUN_0043b384 -> FUN_0041ab4c`, meaning the bogus view id was cascading into the requester/error renderer.
+
+Evidence: original `E2WIN95.EXE` disassembly shows `FUN_004211c8` loads `EAX = *(int *)(*(int *)(DAT_0047a470 + 0x132)) >> 16` before calling `FUN_0044be20`; the current-actor child pass in `FUN_004523f8` uses the same `scene_record[0] >> 16` setup. Original `FUN_0044add8` also builds `views\XXXX.pal`/`pa2`/`pa3` in a stack path buffer and writes the four digits from `_DAT_0073ccba`, while the generated body copied into a stale register destination and indexed a six-byte local.
+
+Change: made `FUN_0044be20` take the recovered scene id explicitly and updated both call sites. Repaired `FUN_0044add8` to use a real local path buffer, fill digits from `_DAT_0073ccba`, and append it to the data-directory buffer. Initialized `FUN_0045fd2c` and `FUN_0045fd4b` hidden `EAX` destinations from their explicit first argument. Mirrored all repairs in `E2Recomp/tools/GenerateRecon.js` and regenerated.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, `cmake --build --preset linux-clang32-sdl-debug`, and `cmake --build --preset linux-clang32-debug` pass. A regenerated 30-frame dummy-SDL probe exits successfully with `view raw open: scene=1073 camera=1073 hires=1 path=hires\1073.raw`, stable actor-loop updates, `_DAT_0073cc3c=0x683c84`, palette hash `29b6fa49`, and nonblank surface 3 `hash=44b33248`.
+
+Next Frontier: compare the first post-startup rendered surface against the E2WIN95 horseback/credits intro, then finish front-buffer page ownership and startup-logo timing parity.
+
+Regression Risk: the scene-id recovery matches original call-site register flow and is narrow. The string helper destination initialization is broader but aligns with their original `EAX` destination convention and generated callers already pass destination pointers; future string-helper crashes should still be checked against original call setup before broadening file/path behavior.
+
+## 2026-07-29 - Flat-FANT Actor Offsets Restore Horse Ownership
+
+Area: Playable SDL runtime startup parity, flat-FANT actor archive indexing, scene activation actor context
+
+Symptom: after `mar:StartGame` activated `PlayScene "horse"`, the frame loop still had no actor/current ownership. Runtime traces showed actor `0` entering `FUN_00451f5c` with `table=0x0`, while the flat-FANT startup archive reader had only populated scene offsets.
+
+Evidence: original data inspection showed flat-FANT actor resources use primary record type `0x08`; scene resources use type `0x19`. A generated dummy-SDL probe now logs `archive 47d94 flat FANT: actors=81 scenes=1205 bytes=33075606`, then `actor load archive: id=0 offset=12773490 result=1 table=0xaa6bd8`. The same run activates `horse` from offset `607214`, slot `0xac2594`, flags `0x02`, and returns from startup with scene record `0x67c728`. Frame-loop diagnostics then show `current=0xaa6bd8 actors=0xaa6bd8 links=0xaa6bd8`; actor `0` retains `p132=0xac2594` even though the first frame clears `_DAT_0073cc3c`.
+
+Change: extended `FUN_00447d94`'s flat-FANT scan to populate `0x653840` from type `0x08` actor records. Recovered explicit pointer/context flow for generated stale-register helpers in the activation path: `FUN_004488a4`, `FUN_0044d4b4`, `FUN_0042b0f4`, `FUN_00426a80`, `FUN_0042ad60`, `FUN_0042b338`, and the third child pass in `FUN_004523f8`. Mirrored all durable repairs in `E2Recomp/tools/GenerateRecon.js` and regenerated.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, `cmake --build --preset linux-clang32-sdl-debug`, and `cmake --build --preset linux-clang32-debug` pass. The normal dummy-SDL probe advances past the previous empty-ownership gap and now exits with the next crash after raw view opens such as `hires\2191.raw` and `views\2191.raw`.
+
+Next Frontier: recover raw-view/camera argument ownership in the render epilogue. GDB lands at `FUN_0041ab4c(param_1=-1,param_2=0,param_3=199)`, called by `FUN_0043b384 -> FUN_0043cbf0 -> FUN_0043cbb4 -> FUN_00449b4c -> FUN_0044be20 -> FUN_004211c8`. The next investigation should compare original E2WIN95 register flow for this path before adding guards.
+
+Regression Risk: the flat-FANT actor index is a format recovery matching the proven data shape and is low risk. The helper guards repair generated hidden-register loss in a narrow activation/render setup path, but some helpers are shared; future crashes should recover their original call-site conventions rather than broadening these guards blindly.
+
 ## 2026-07-29 - `mar:StartGame` Activates Horse Scene
 
 Area: Playable SDL runtime startup parity, script scene opcodes, active scene ownership

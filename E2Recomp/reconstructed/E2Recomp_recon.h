@@ -446,7 +446,7 @@ undefined4 __fastcall FUN_0044a178(undefined4 param_1,int *param_2);
 undefined8 __fastcall FUN_0044a318(undefined4 param_1,undefined4 param_2);
 undefined8 __fastcall FUN_0044add8(undefined4 param_1,undefined4 param_2);
 undefined8 __fastcall FUN_0044b0ac(undefined4 param_1,undefined4 param_2);
-void FUN_0044be20(void);
+void FUN_0044be20(undefined4 param_1);
 void __fastcall FUN_0044c164(undefined4 param_1);
 void __fastcall FUN_0044c224(undefined4 param_1);
 void FUN_0044c4e4(void);
