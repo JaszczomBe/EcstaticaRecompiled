@@ -444,16 +444,57 @@ static void *E2R_surf_obj[64];
 static void *E2R_palette_obj[16];
 static void *E2R_ds_obj[64];
 static void *E2R_dsbuf_obj[64];
+uint32_t E2R_active_palette[256];
+uintptr_t E2R_active_palette_valid;
+uintptr_t E2R_active_palette_update_count;
 
 static int E2R_DD_Generic(void) { return 0; }
+
+static void E2R_DD_CopyPaletteEntries(const void *entries, unsigned start, unsigned count) {
+    const unsigned char *src = (const unsigned char *)entries;
+    unsigned i;
+
+    if (entries == NULL || start >= 256u) {
+        return;
+    }
+    if (count > 256u - start) {
+        count = 256u - start;
+    }
+    if (count == 0 || IsBadReadPtr(entries, (UINT_PTR)count * 4u)) {
+        return;
+    }
+    for (i = 0; i < count; i++) {
+        E2R_active_palette[start + i] =
+            ((uint32_t)src[i * 4u] << 16) |
+            ((uint32_t)src[i * 4u + 1u] << 8) |
+            (uint32_t)src[i * 4u + 2u];
+    }
+    E2R_active_palette_valid = 1;
+    E2R_active_palette_update_count++;
+}
+
 static int E2R_DD_CreatePalette(void *self, unsigned int flags, void *entries, void **out, void *outer) {
-    (void)self; (void)flags; (void)entries; (void)outer;
+    (void)self; (void)flags; (void)outer;
+    E2R_DD_CopyPaletteEntries(entries, 0, 256);
     if (out) *out = E2R_palette_obj;
     return 0;
 }
 static int E2R_DD_CreateSurface(void *self, void *desc, void **out, void *outer) {
     (void)self; (void)desc; (void)outer;
     if (out) *out = E2R_surf_obj;
+    return 0;
+}
+static int E2R_DDS_SetPalette(void *self, void *palette) {
+    (void)self;
+    if (palette == E2R_palette_obj && E2R_active_palette_update_count != 0) {
+        E2R_active_palette_valid = 1;
+    }
+    return 0;
+}
+static int E2R_DDP_SetEntries(void *self, unsigned int flags, unsigned int start,
+                              unsigned int count, void *entries) {
+    (void)self; (void)flags;
+    E2R_DD_CopyPaletteEntries(entries, start, count);
     return 0;
 }
 static int E2R_DS_CreateSoundBuffer(void) {
@@ -477,6 +518,8 @@ HRESULT DirectDrawCreate(void *guid, void **ddraw, void *outer) {
     E2R_palette_obj[0] = E2R_palette_obj;
     E2R_dd_obj[5] = (void *)E2R_DD_CreatePalette;
     E2R_dd_obj[6] = (void *)E2R_DD_CreateSurface;
+    E2R_surf_obj[31] = (void *)E2R_DDS_SetPalette;
+    E2R_palette_obj[6] = (void *)E2R_DDP_SetEntries;
     if (ddraw) *ddraw = E2R_dd_obj;
     return 0;
 }

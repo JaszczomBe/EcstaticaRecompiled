@@ -188,11 +188,12 @@ static int e2r_sdl_ensure_present_surface(E2R_HostWindow *window,
 }
 
 int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
-                            unsigned width, unsigned height, unsigned pitch)
+                            unsigned width, unsigned height, unsigned pitch,
+                            const uint32_t *palette_rgb)
 {
     SDL_Surface *window_surface;
     SDL_Rect dst_rect;
-    Uint32 grayscale[256];
+    Uint32 colors[256];
     unsigned i;
     unsigned y;
 
@@ -218,8 +219,17 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
         return 0;
     }
     for (i = 0; i < 256u; i++) {
-        grayscale[i] = SDL_MapSurfaceRGBA(window->present_surface,
-                                          (Uint8)i, (Uint8)i, (Uint8)i, 255);
+        if (palette_rgb != NULL) {
+            uint32_t color = palette_rgb[i];
+            colors[i] = SDL_MapSurfaceRGBA(window->present_surface,
+                                           (Uint8)((color >> 16) & 0xffu),
+                                           (Uint8)((color >> 8) & 0xffu),
+                                           (Uint8)(color & 0xffu), 255);
+        }
+        else {
+            colors[i] = SDL_MapSurfaceRGBA(window->present_surface,
+                                           (Uint8)i, (Uint8)i, (Uint8)i, 255);
+        }
     }
     for (y = 0; y < height; y++) {
         const unsigned char *src = pixels + ((size_t)y * pitch);
@@ -227,7 +237,7 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
                                  ((size_t)y * (size_t)window->present_surface->pitch));
         unsigned x;
         for (x = 0; x < width; x++) {
-            dst[x] = grayscale[src[x]];
+            dst[x] = colors[src[x]];
         }
     }
     SDL_UnlockSurface(window->present_surface);
@@ -278,9 +288,11 @@ int E2R_HostPushSyntheticKeyDown(E2R_HostWindow *window, UINT vk)
     return 0;
 }
 int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
-                            unsigned width, unsigned height, unsigned pitch)
+                            unsigned width, unsigned height, unsigned pitch,
+                            const uint32_t *palette_rgb)
 {
     (void)window; (void)pixels; (void)width; (void)height; (void)pitch;
+    (void)palette_rgb;
     return 0;
 }
 #endif

@@ -2,6 +2,7 @@
 #include "e2recomp_host_backend.h"
 
 #include <stdarg.h>
+#include <ctype.h>
 #include <errno.h>
 #include <dirent.h>
 #include <limits.h>
@@ -34,10 +35,16 @@ static DWORD e2r_next_tls;
 static WNDPROC e2r_window_proc;
 
 #define E2R_MESSAGE_QUEUE_CAPACITY 32
+#define E2R_HOST_ALLOC_MAGIC 0xe2a110c0u
 
 static MSG e2r_message_queue[E2R_MESSAGE_QUEUE_CAPACITY];
 static unsigned e2r_message_head;
 static unsigned e2r_message_tail;
+
+typedef struct E2R_HOST_ALLOC_HEADER {
+    size_t mapping_size;
+    unsigned magic;
+} E2R_HOST_ALLOC_HEADER;
 
 #ifndef _WIN32
 static pthread_mutex_t e2r_message_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -149,9 +156,46 @@ void E2R_MapLegacyAddressSpace(void)
 #endif
 }
 
+static void *e2r_host_alloc_zero(size_t bytes)
+{
+    size_t payload_size = bytes == 0 ? 1 : bytes;
+#ifndef _WIN32
+    size_t mapping_size;
+    E2R_HOST_ALLOC_HEADER *header;
+
+    if (payload_size > ((size_t)-1) - sizeof(*header)) return NULL;
+    mapping_size = sizeof(*header) + payload_size;
+    header = (E2R_HOST_ALLOC_HEADER *)mmap(NULL, mapping_size, PROT_READ | PROT_WRITE,
+                                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (header == MAP_FAILED) return NULL;
+    header->mapping_size = mapping_size;
+    header->magic = E2R_HOST_ALLOC_MAGIC;
+    return (void *)(header + 1);
+#else
+    return calloc(1, payload_size);
+#endif
+}
+
+static void e2r_host_free(void *mem)
+{
+#ifndef _WIN32
+    E2R_HOST_ALLOC_HEADER *header;
+
+    if (mem == NULL) return;
+    header = ((E2R_HOST_ALLOC_HEADER *)mem) - 1;
+    if (header->magic == E2R_HOST_ALLOC_MAGIC) {
+        size_t mapping_size = header->mapping_size;
+        header->magic = 0;
+        munmap(header, mapping_size);
+        return;
+    }
+#endif
+    free(mem);
+}
+
 static HANDLE e2r_alloc_handle(void *ptr)
 {
-    E2R_HANDLE__ *handle = (E2R_HANDLE__ *)calloc(1, sizeof(*handle));
+    E2R_HANDLE__ *handle = (E2R_HANDLE__ *)e2r_host_alloc_zero(sizeof(*handle));
     if (!handle) return NULL;
     handle->ptr = ptr;
     return handle;
@@ -235,13 +279,64 @@ static int e2r_resolve_case_path(const char *input, char *resolved, size_t resol
     return 1;
 }
 
+static int e2r_resolve_known_data_path(const char *input, char *resolved, size_t resolved_size)
+{
+    static const struct {
+        const char *lower;
+        const char *actual;
+    } dirs[] = {
+        {"code", "Code"},
+        {"files", "Files"},
+        {"graphics", "Graphics"},
+        {"hires", "Hires"},
+        {"lowgraph", "Lowgraph"},
+        {"music", "Music"},
+        {"saved", "Saved"},
+        {"views", "Views"},
+    };
+    const char *slash;
+    const char *rest;
+    size_t dir_len;
+    size_t i;
+    size_t out;
+
+    if (!input || input[0] == '/' || resolved_size == 0) return 0;
+    slash = strchr(input, '/');
+    if (!slash) {
+        struct stat st;
+        for (out = 0; input[out] != '\0' && out + 1 < resolved_size; out++) {
+            resolved[out] = (char)toupper((unsigned char)input[out]);
+        }
+        if (input[out] != '\0') return 0;
+        resolved[out] = '\0';
+        return stat(resolved, &st) == 0;
+    }
+    dir_len = (size_t)(slash - input);
+    rest = slash + 1;
+    for (i = 0; i < sizeof(dirs) / sizeof(dirs[0]); i++) {
+        if (strlen(dirs[i].lower) == dir_len && strncasecmp(input, dirs[i].lower, dir_len) == 0) {
+            break;
+        }
+    }
+    if (i == sizeof(dirs) / sizeof(dirs[0])) return 0;
+    if (snprintf(resolved, resolved_size, "%s/%s", dirs[i].actual, rest) >= (int)resolved_size) {
+        return 0;
+    }
+    for (out = strlen(dirs[i].actual) + 1; resolved[out] != '\0'; out++) {
+        resolved[out] = (char)toupper((unsigned char)resolved[out]);
+    }
+    return 1;
+}
+
 HANDLE CreateFileA(LPCSTR name, DWORD access, DWORD share, LPVOID security,
                    DWORD creation, DWORD flags, HANDLE template_file)
 {
     char normalized[PATH_MAX];
     char resolved[PATH_MAX];
+    char cwd[PATH_MAX];
     const char *open_name;
     FILE *file;
+    int resolved_case = 0;
     (void)share;
     (void)security;
     (void)creation;
@@ -250,11 +345,30 @@ HANDLE CreateFileA(LPCSTR name, DWORD access, DWORD share, LPVOID security,
     e2r_normalize_path(normalized, sizeof(normalized), name);
     open_name = normalized;
     file = fopen(open_name, (access & GENERIC_WRITE) ? "wb+" : "rb");
-    if (!file && (access & GENERIC_WRITE) == 0 && e2r_resolve_case_path(normalized, resolved, sizeof(resolved))) {
+    if (!file && (access & GENERIC_WRITE) == 0 && e2r_resolve_known_data_path(normalized, resolved, sizeof(resolved))) {
         open_name = resolved;
+        resolved_case = 2;
         file = fopen(open_name, "rb");
     }
-    if (!file) return INVALID_HANDLE_VALUE;
+    if (!file && (access & GENERIC_WRITE) == 0 && strchr(normalized, '/') != NULL &&
+        e2r_resolve_case_path(normalized, resolved, sizeof(resolved))) {
+        open_name = resolved;
+        resolved_case = 1;
+        file = fopen(open_name, "rb");
+    }
+    if (!file) {
+        const char *diag = getenv("E2R_FILE_DIAG");
+        if (diag && diag[0] && diag[0] != '0') {
+            if (!getcwd(cwd, sizeof(cwd))) {
+                snprintf(cwd, sizeof(cwd), "(getcwd failed)");
+            }
+            fprintf(stderr,
+                    "CreateFileA failed: name=%s normalized=%s resolved_case=%d open_name=%s cwd=%s errno=%d\n",
+                    name ? name : "(null)", normalized, resolved_case, open_name, cwd, errno);
+        }
+        return INVALID_HANDLE_VALUE;
+    }
+    setvbuf(file, NULL, _IONBF, 0);
     return e2r_alloc_handle(file);
 }
 
@@ -284,7 +398,7 @@ BOOL CloseHandle(HANDLE file)
 {
     if (!file || file == INVALID_HANDLE_VALUE) return FALSE;
     if (file->ptr) fclose((FILE *)file->ptr);
-    free(file);
+    e2r_host_free(file);
     return TRUE;
 }
 
@@ -318,7 +432,7 @@ LPVOID VirtualAlloc(LPVOID address, size_t size, DWORD allocation_type, DWORD pr
     (void)address;
     (void)allocation_type;
     (void)protect;
-    return calloc(1, size);
+    return e2r_host_alloc_zero(size);
 }
 
 BOOL VirtualProtect(LPVOID address, size_t size, DWORD new_protect, DWORD *old_protect)
@@ -376,34 +490,35 @@ static int e2r_parse_maps_line(const char *line, size_t length, uintptr_t *lo, u
     perms[3] = cursor[3];
     return 1;
 }
-#endif
 
-static BOOL e2r_is_bad_memory_range(const void *ptr, UINT_PTR size, char permission)
+typedef struct E2R_MemoryMapRange {
+    uintptr_t lo;
+    uintptr_t hi;
+    char perms[4];
+} E2R_MemoryMapRange;
+
+#define E2R_MEMORY_MAP_CACHE_CAPACITY 1024
+
+static E2R_MemoryMapRange e2r_memory_map_cache[E2R_MEMORY_MAP_CACHE_CAPACITY];
+static size_t e2r_memory_map_cache_count;
+static int e2r_memory_map_cache_valid;
+static pthread_mutex_t e2r_memory_map_cache_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static int e2r_refresh_memory_map_cache(void)
 {
-    uintptr_t start = (uintptr_t)ptr;
-    uintptr_t end;
-    uintptr_t cursor;
-#ifndef _WIN32
     int maps_fd;
     char buffer[4096];
     char line[512];
     size_t line_length = 0;
+    size_t count = 0;
     ssize_t bytes_read;
-#endif
 
-    if (size == 0) return FALSE;
-    if (ptr == NULL || start < 0x10000u) return TRUE;
-    end = start + (uintptr_t)size;
-    if (end <= start) return TRUE;
-
-#ifndef _WIN32
-    cursor = start;
     maps_fd = open("/proc/self/maps", O_RDONLY
 #ifdef O_CLOEXEC
                    | O_CLOEXEC
 #endif
     );
-    if (maps_fd < 0) return TRUE;
+    if (maps_fd < 0) return 0;
 
     while ((bytes_read = read(maps_fd, buffer, sizeof(buffer))) > 0) {
         ssize_t i;
@@ -417,53 +532,81 @@ static BOOL e2r_is_bad_memory_range(const void *ptr, UINT_PTR size, char permiss
                 continue;
             }
 
-            uintptr_t lo;
-            uintptr_t hi;
-            char perms[4];
-
-            if (!e2r_parse_maps_line(line, line_length, &lo, &hi, perms)) {
-                line_length = 0;
-                continue;
+            if (count < E2R_MEMORY_MAP_CACHE_CAPACITY) {
+                E2R_MemoryMapRange *range = &e2r_memory_map_cache[count];
+                if (e2r_parse_maps_line(line, line_length, &range->lo, &range->hi,
+                                        range->perms)) {
+                    count++;
+                }
             }
             line_length = 0;
-
-            if (hi <= cursor) continue;
-            if (lo > cursor) {
-                close(maps_fd);
-                return TRUE;
-            }
-
-            if ((permission == 'r' && perms[0] != 'r') ||
-                (permission == 'w' && perms[1] != 'w')) {
-                close(maps_fd);
-                return TRUE;
-            }
-
-            cursor = hi;
-            if (cursor >= end) {
-                close(maps_fd);
-                return FALSE;
-            }
         }
     }
 
-    if (bytes_read == 0 && line_length != 0) {
-        uintptr_t lo;
-        uintptr_t hi;
-        char perms[4];
-
-        if (e2r_parse_maps_line(line, line_length, &lo, &hi, perms) &&
-            hi > cursor && lo <= cursor &&
-            !((permission == 'r' && perms[0] != 'r') ||
-              (permission == 'w' && perms[1] != 'w'))) {
-            cursor = hi;
+    if (bytes_read == 0 && line_length != 0 && count < E2R_MEMORY_MAP_CACHE_CAPACITY) {
+        E2R_MemoryMapRange *range = &e2r_memory_map_cache[count];
+        if (e2r_parse_maps_line(line, line_length, &range->lo, &range->hi,
+                                range->perms)) {
+            count++;
         }
     }
 
     close(maps_fd);
-    if (bytes_read < 0) return TRUE;
-    if (cursor >= end) return FALSE;
+    if (bytes_read < 0) return 0;
+    e2r_memory_map_cache_count = count;
+    e2r_memory_map_cache_valid = 1;
+    return 1;
+}
+
+static BOOL e2r_is_bad_memory_range_cached(uintptr_t start, uintptr_t end, char permission)
+{
+    uintptr_t cursor = start;
+    size_t i;
+
+    for (i = 0; i < e2r_memory_map_cache_count; i++) {
+        const E2R_MemoryMapRange *range = &e2r_memory_map_cache[i];
+
+        if (range->hi <= cursor) continue;
+        if (range->lo > cursor) return TRUE;
+        if ((permission == 'r' && range->perms[0] != 'r') ||
+            (permission == 'w' && range->perms[1] != 'w')) {
+            return TRUE;
+        }
+
+        cursor = range->hi;
+        if (cursor >= end) return FALSE;
+    }
+
     return TRUE;
+}
+#endif
+
+static BOOL e2r_is_bad_memory_range(const void *ptr, UINT_PTR size, char permission)
+{
+    uintptr_t start = (uintptr_t)ptr;
+    uintptr_t end;
+
+    if (size == 0) return FALSE;
+    if (ptr == NULL || start < 0x10000u) return TRUE;
+    end = start + (uintptr_t)size;
+    if (end <= start) return TRUE;
+
+#ifndef _WIN32
+    {
+        BOOL bad;
+
+        pthread_mutex_lock(&e2r_memory_map_cache_mutex);
+        if (!e2r_memory_map_cache_valid && !e2r_refresh_memory_map_cache()) {
+            pthread_mutex_unlock(&e2r_memory_map_cache_mutex);
+            return TRUE;
+        }
+        bad = e2r_is_bad_memory_range_cached(start, end, permission);
+        if (bad && e2r_refresh_memory_map_cache()) {
+            bad = e2r_is_bad_memory_range_cached(start, end, permission);
+        }
+        pthread_mutex_unlock(&e2r_memory_map_cache_mutex);
+        return bad;
+    }
 #endif
 
     return FALSE;
@@ -506,16 +649,22 @@ BOOL UpdateWindow(HWND hwnd)
 HWND SetFocus(HWND hwnd) { return hwnd; }
 int ShowCursor(BOOL show) { (void)show; return 0; }
 BOOL GetCursorPos(POINT *point) { if (point) point->x = point->y = 0; return TRUE; }
+void E2R_PumpHost(void)
+{
+    if (e2r_window.ptr != NULL) {
+        E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr,
+                           e2r_queue_host_keydown, NULL);
+        E2R_TryPresentCurrentFrame(&e2r_window);
+    }
+}
 BOOL PeekMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter, UINT remove)
 {
-    E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr, e2r_queue_host_keydown, NULL);
-    E2R_TryPresentCurrentFrame(&e2r_window);
+    E2R_PumpHost();
     return e2r_pop_message(msg, hwnd, min_filter, max_filter, (remove & PM_REMOVE) != 0);
 }
 BOOL GetMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter)
 {
-    E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr, e2r_queue_host_keydown, NULL);
-    E2R_TryPresentCurrentFrame(&e2r_window);
+    E2R_PumpHost();
     if (!e2r_pop_message(msg, hwnd, min_filter, max_filter, TRUE)) {
         return FALSE;
     }
@@ -533,7 +682,32 @@ LRESULT DispatchMessageA(const MSG *msg)
     return DefWindowProcA(msg->hwnd, msg->message, msg->wParam, msg->lParam);
 }
 void WaitMessage(void) {}
-void Sleep(DWORD milliseconds) { usleep(milliseconds * 1000u); }
+void Sleep(DWORD milliseconds)
+{
+#ifndef _WIN32
+    DWORD remaining = milliseconds;
+    int presented = 0;
+
+    do {
+        DWORD slice = remaining > 16u ? 16u : remaining;
+        if (!presented) {
+            E2R_PumpHost();
+            presented = 1;
+        }
+        else if (e2r_window.ptr != NULL) {
+            E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr,
+                               e2r_queue_host_keydown, NULL);
+        }
+        usleep((slice == 0u ? 1u : slice) * 1000u);
+        if (remaining <= slice) {
+            break;
+        }
+        remaining -= slice;
+    } while (remaining != 0u);
+#else
+    (void)milliseconds;
+#endif
+}
 void PostQuitMessage(int exit_code)
 {
     e2r_push_message(NULL, WM_QUIT, (WPARAM)exit_code, 0);
@@ -619,7 +793,7 @@ BOOL KillTimer(HWND hwnd, UINT_PTR id_event) { (void)hwnd; (void)id_event; retur
 HGLOBAL GlobalAlloc(UINT flags, size_t bytes)
 {
     (void)flags;
-    return (HGLOBAL)calloc(1, bytes);
+    return (HGLOBAL)e2r_host_alloc_zero(bytes);
 }
 LPVOID GlobalLock(HGLOBAL mem) { return mem; }
 BOOL GlobalUnlock(HGLOBAL mem) { (void)mem; return TRUE; }
@@ -627,7 +801,7 @@ HGLOBAL GlobalHandle(LPCVOID mem) { return (HGLOBAL)mem; }
 HGLOBAL GlobalFree(HGLOBAL mem)
 {
     if (!mem) return NULL;
-    free(mem);
+    e2r_host_free(mem);
     return NULL;
 }
 HLOCAL LocalAlloc(UINT flags, size_t bytes) { return (HLOCAL)GlobalAlloc(flags, bytes); }

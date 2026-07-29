@@ -20,7 +20,7 @@ run_capture() {
 
     echo "+ $*"
     set +e
-    "$@" >"${log_file}" 2>&1
+    E2R_STARTUP_LOGO_DELAY_MS="${E2R_STARTUP_LOGO_DELAY_MS:-0}" "$@" >"${log_file}" 2>&1
     local status=$?
     set -e
 

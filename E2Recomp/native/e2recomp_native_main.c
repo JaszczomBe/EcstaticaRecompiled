@@ -1,6 +1,7 @@
 #include "E2Recomp_recon.h"
 #include "e2recomp_host_backend.h"
 
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,6 +77,9 @@ extern uintptr_t E2R_action_opcode_count;
 extern uintptr_t E2R_action_last_opcode;
 extern uintptr_t E2R_action_last_cursor;
 extern uintptr_t E2R_action_hit_75_count;
+extern uint32_t E2R_active_palette[256];
+extern uintptr_t E2R_active_palette_valid;
+extern uintptr_t E2R_active_palette_update_count;
 
 static uintptr_t e2r_surface_framebuffer(unsigned surface)
 {
@@ -114,13 +118,60 @@ static unsigned e2r_frame_hash(uintptr_t framebuffer, size_t bytes)
     return hash;
 }
 
+static unsigned e2r_palette_hash(void)
+{
+    unsigned hash = 2166136261u;
+    unsigned i;
+
+    for (i = 0; i < 256u; i++) {
+        uint32_t color = E2R_active_palette[i];
+        hash ^= color & 0xffu;
+        hash *= 16777619u;
+        hash ^= (color >> 8) & 0xffu;
+        hash *= 16777619u;
+        hash ^= (color >> 16) & 0xffu;
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
+static unsigned e2r_palette_nonzero_count(void)
+{
+    unsigned count = 0;
+    unsigned i;
+
+    for (i = 0; i < 256u; i++) {
+        if (E2R_active_palette[i] != 0) {
+            count++;
+        }
+    }
+    return count;
+}
+
 static int e2r_select_framebuffer(uintptr_t *framebuffer_out, unsigned *surface_out, size_t bytes)
 {
     unsigned visible = (unsigned)(DAT_0047a279 >> 24) & 3u;
+    unsigned visible_pair = visible ^ 1u;
+    unsigned low_visible = visible & 1u;
+    unsigned low_pair = low_visible ^ 1u;
+    unsigned candidates[4];
     unsigned attempt;
 
+    if (DAT_0047a43c != 0) {
+        candidates[0] = low_visible + 2u;
+        candidates[1] = low_pair + 2u;
+        candidates[2] = low_visible;
+        candidates[3] = low_pair;
+    }
+    else {
+        candidates[0] = visible;
+        candidates[1] = visible_pair;
+        candidates[2] = (visible + 2u) & 3u;
+        candidates[3] = (visible + 3u) & 3u;
+    }
+
     for (attempt = 0; attempt < 4; attempt++) {
-        unsigned surface = (visible + attempt) & 3u;
+        unsigned surface = candidates[attempt];
         uintptr_t framebuffer = e2r_surface_framebuffer(surface);
         if (framebuffer != 0 && !IsBadReadPtr((const void *)framebuffer, bytes) &&
             e2r_frame_has_pixels(framebuffer, bytes)) {
@@ -133,6 +184,29 @@ static int e2r_select_framebuffer(uintptr_t *framebuffer_out, unsigned *surface_
     *framebuffer_out = e2r_surface_framebuffer(visible);
     *surface_out = visible;
     return *framebuffer_out != 0 && !IsBadReadPtr((const void *)*framebuffer_out, bytes);
+}
+
+static void e2r_trace_present_surfaces(unsigned selected_surface, size_t bytes)
+{
+    unsigned surface;
+
+    fprintf(stderr,
+            "host backend live presentation: selected=%u visible=%u hires=%lu "
+            "width=%lu height=%lu palette=%lu updates=%lu\n",
+            selected_surface, (unsigned)(DAT_0047a279 >> 24) & 3u,
+            (unsigned long)DAT_0047a43c,
+            (unsigned long)_DAT_006401ec, (unsigned long)_DAT_006401d4,
+            (unsigned long)E2R_active_palette_valid,
+            (unsigned long)E2R_active_palette_update_count);
+    for (surface = 0; surface < 4u; surface++) {
+        uintptr_t framebuffer = e2r_surface_framebuffer(surface);
+        int readable = framebuffer != 0 && !IsBadReadPtr((const void *)framebuffer, bytes);
+        fprintf(stderr,
+                "  surface %u fb=0x%lx readable=%d nonblank=%d hash=%08x\n",
+                surface, (unsigned long)framebuffer, readable,
+                readable ? e2r_frame_has_pixels(framebuffer, bytes) : 0,
+                readable ? e2r_frame_hash(framebuffer, bytes) : 0u);
+    }
 }
 
 static uint64_t e2r_monotonic_milliseconds(void)
@@ -174,16 +248,15 @@ int E2R_TryPresentCurrentFrame(HWND hwnd)
     }
     presented = E2R_HostPresentIndexed8((E2R_HostWindow *)hwnd->ptr,
                                         (const unsigned char *)framebuffer,
-                                        width, height, width);
+                                        width, height, width,
+                                        E2R_active_palette_valid ? E2R_active_palette : NULL);
     if (!diag_initialized) {
         const char *diag = getenv("E2R_PRESENT_DIAG");
         diag_enabled = diag != NULL && diag[0] != '\0' && diag[0] != '0';
         diag_initialized = 1;
     }
     if (presented && diag_enabled && diag_count < 8u) {
-        fprintf(stderr,
-                "host backend live presentation: surface=%u width=%u height=%u hash=%08x\n",
-                surface, width, height, e2r_frame_hash(framebuffer, bytes));
+        e2r_trace_present_surfaces(surface, bytes);
         diag_count++;
     }
     return presented;
@@ -238,14 +311,62 @@ static int e2r_write_surface_pgm(const char *path, unsigned surface, unsigned *h
     *hash_out = e2r_frame_hash(framebuffer, bytes);
     *nonblank_out = e2r_frame_has_pixels(framebuffer, bytes);
 
+    errno = 0;
     out = fopen(path, "wb");
     if (out == NULL) {
+        fprintf(stderr, "surface dump fopen failed: %s errno=%d %s\n",
+                path, errno, strerror(errno));
         return 0;
     }
     fprintf(out, "P5\n%u %u\n255\n", width, height);
     if (fwrite((const void *)framebuffer, 1, bytes, out) != bytes) {
+        fprintf(stderr, "surface dump fwrite failed: %s errno=%d %s\n",
+                path, errno, strerror(errno));
         fclose(out);
         return 0;
+    }
+    fclose(out);
+    return 1;
+}
+
+static int e2r_write_surface_ppm(const char *path, unsigned surface)
+{
+    uintptr_t framebuffer;
+    unsigned width = (unsigned)_DAT_006401ec;
+    unsigned height = (unsigned)_DAT_006401d4;
+    size_t bytes;
+    FILE *out;
+    unsigned y;
+
+    if (!E2R_active_palette_valid ||
+        width == 0 || height == 0 || width > 4096 || height > 4096) {
+        return 0;
+    }
+    bytes = (size_t)width * (size_t)height;
+    framebuffer = e2r_surface_framebuffer(surface);
+    if (framebuffer == 0 || IsBadReadPtr((const void *)framebuffer, bytes)) {
+        return 0;
+    }
+
+    out = fopen(path, "wb");
+    if (out == NULL) {
+        return 0;
+    }
+    fprintf(out, "P6\n%u %u\n255\n", width, height);
+    for (y = 0; y < height; y++) {
+        const unsigned char *src = (const unsigned char *)framebuffer + ((size_t)y * width);
+        unsigned x;
+        for (x = 0; x < width; x++) {
+            uint32_t color = E2R_active_palette[src[x]];
+            unsigned char rgb[3];
+            rgb[0] = (unsigned char)((color >> 16) & 0xffu);
+            rgb[1] = (unsigned char)((color >> 8) & 0xffu);
+            rgb[2] = (unsigned char)(color & 0xffu);
+            if (fwrite(rgb, 1, sizeof(rgb), out) != sizeof(rgb)) {
+                fclose(out);
+                return 0;
+            }
+        }
     }
     fclose(out);
     return 1;
@@ -265,14 +386,18 @@ static int e2r_write_surface_set(const char *prefix)
 
     fprintf(stderr,
             "surface dump state: width=%u height=%u visible=%u "
-            "fb=[0x%lx,0x%lx,0x%lx,0x%lx] bad=[%d,%d,%d,%d]\n",
+            "fb=[0x%lx,0x%lx,0x%lx,0x%lx] bad=[%d,%d,%d,%d] "
+            "palette=%lu updates=%lu palette_nonzero=%u palette_hash=%08x\n",
             width, height, (unsigned)(DAT_0047a279 >> 24) & 3u,
             (unsigned long)_DAT_00636150, (unsigned long)_DAT_00636154,
             (unsigned long)_DAT_00636158, (unsigned long)_DAT_0063615c,
             bytes == 0 ? 1 : IsBadReadPtr((const void *)_DAT_00636150, bytes),
             bytes == 0 ? 1 : IsBadReadPtr((const void *)_DAT_00636154, bytes),
             bytes == 0 ? 1 : IsBadReadPtr((const void *)_DAT_00636158, bytes),
-            bytes == 0 ? 1 : IsBadReadPtr((const void *)_DAT_0063615c, bytes));
+            bytes == 0 ? 1 : IsBadReadPtr((const void *)_DAT_0063615c, bytes),
+            (unsigned long)E2R_active_palette_valid,
+            (unsigned long)E2R_active_palette_update_count,
+            e2r_palette_nonzero_count(), e2r_palette_hash());
 
     for (surface = 0; surface < 4; surface++) {
         char path[512];
@@ -286,7 +411,20 @@ static int e2r_write_surface_set(const char *prefix)
             wrote++;
         }
         else {
+            uintptr_t framebuffer = e2r_surface_framebuffer(surface);
+            if (bytes != 0 && framebuffer != 0 &&
+                !IsBadReadPtr((const void *)framebuffer, bytes)) {
+                hash = e2r_frame_hash(framebuffer, bytes);
+                nonblank = e2r_frame_has_pixels(framebuffer, bytes);
+                fprintf(stderr,
+                        "surface dump candidate: %s (surface %u nonblank=%d hash=%08x)\n",
+                        path, surface, nonblank, hash);
+            }
             fprintf(stderr, "failed to write surface dump: %s (surface %u)\n", path, surface);
+        }
+        snprintf(path, sizeof(path), "%s-s%u.ppm", prefix, surface);
+        if (e2r_write_surface_ppm(path, surface)) {
+            fprintf(stderr, "wrote color surface dump: %s (surface %u)\n", path, surface);
         }
     }
     return wrote;
@@ -900,7 +1038,7 @@ static int e2r_run_host_backend_present_probe(void)
     }
     if (!E2R_HostPresentIndexed8((E2R_HostWindow *)hwnd->ptr, pixels,
                                  E2R_PROBE_WIDTH, E2R_PROBE_HEIGHT,
-                                 E2R_PROBE_WIDTH)) {
+                                 E2R_PROBE_WIDTH, NULL)) {
         fprintf(stderr, "host backend presentation probe failed: present rejected\n");
         return 2;
     }

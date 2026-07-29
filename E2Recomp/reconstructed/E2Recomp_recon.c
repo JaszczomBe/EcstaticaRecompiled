@@ -21,6 +21,7 @@ static uint E2R_open_diag_count;
 static uint E2R_archive_read_diag_count;
 static uint E2R_archive_resource_diag_count;
 static uint E2R_archive_parse_summary_count;
+static uint E2R_scene_load_diag_count;
 static uint E2R_actor_load_diag_count;
 static int E2R_actor_load_id_override = -1;
 static int *E2R_fan_parse_stream;
@@ -41,6 +42,7 @@ static uint E2R_scene_pointer_diag_count;
 static uint E2R_frame_stage_diag_count;
 static uint E2R_actor_loop_diag_count;
 static uint E2R_actor_update_diag_count;
+static uint E2R_action_invoke_diag_count;
 static const char *E2R_current_actor_last_site;
 static uintptr_t E2R_current_actor_last_value;
 static int E2R_actor_calc_context;
@@ -66,11 +68,108 @@ static void E2R_InitDiagnostics(void)
   E2R_fan_actor_diag_count = 0x7fffffff;
   E2R_fan_action_summary_diag_count = 0x7fffffff;
   E2R_fan_phase_diag_count = 0x7fffffff;
+  E2R_archive_resource_diag_count = 0x7fffffff;
+  E2R_archive_parse_summary_count = 0x7fffffff;
 }
 
 static int E2R_RuntimeDiagEnabled(void)
 {
   return E2R_runtime_diag_enabled;
+}
+
+typedef struct E2R_SceneGridSnapshot {
+  int active;
+  int count;
+  uint desc_bytes;
+  void *grid;
+  void *desc;
+} E2R_SceneGridSnapshot;
+
+static E2R_SceneGridSnapshot E2R_CaptureSceneGridSnapshot(void)
+{
+  E2R_SceneGridSnapshot snapshot;
+
+  memset(&snapshot,0,sizeof(snapshot));
+  if (E2R_action_last_opcode != 0x4d || DAT_0047a77c <= 0 ||
+      0x10000 < DAT_0047a77c) {
+    return snapshot;
+  }
+  snapshot.count = DAT_0047a77c;
+  snapshot.desc_bytes = (uint)DAT_0047a77c * 0xc;
+  snapshot.grid = LocalAlloc(0x40,0x8000);
+  snapshot.desc = LocalAlloc(0x40,snapshot.desc_bytes);
+  if (snapshot.grid == (void *)0x0 || snapshot.desc == (void *)0x0) {
+    if (snapshot.grid != (void *)0x0) {
+      LocalFree(snapshot.grid);
+    }
+    if (snapshot.desc != (void *)0x0) {
+      LocalFree(snapshot.desc);
+    }
+    memset(&snapshot,0,sizeof(snapshot));
+    return snapshot;
+  }
+  memcpy(snapshot.grid,(void *)0x00684d68,0x8000);
+  memcpy(snapshot.desc,(void *)0x0068cd68,snapshot.desc_bytes);
+  snapshot.active = 1;
+  return snapshot;
+}
+
+static void E2R_RestoreSceneGridSnapshot(E2R_SceneGridSnapshot *snapshot)
+{
+  if (snapshot == (E2R_SceneGridSnapshot *)0x0 || snapshot->active == 0) {
+    return;
+  }
+  memcpy((void *)0x00684d68,snapshot->grid,0x8000);
+  memcpy((void *)0x0068cd68,snapshot->desc,snapshot->desc_bytes);
+  DAT_0047a77c = snapshot->count;
+  if (E2R_RuntimeDiagEnabled()) {
+    fprintf(stderr,"scene grid restore: opcode=0x%lx count=%d bytes=%u\n",
+            (unsigned long)E2R_action_last_opcode,snapshot->count,
+            snapshot->desc_bytes);
+  }
+  LocalFree(snapshot->grid);
+  LocalFree(snapshot->desc);
+  memset(snapshot,0,sizeof(*snapshot));
+  E2R_PumpHost();
+}
+
+static void E2R_LogSceneGridProbe(const char *site,int x,int z)
+{
+  int x_cell;
+  int z_cell;
+  uint direct_cell;
+  uint swapped_cell;
+  uintptr_t direct_desc;
+  uintptr_t swapped_desc;
+  uintptr_t known_desc;
+
+  if (!E2R_RuntimeDiagEnabled()) {
+    return;
+  }
+  x_cell = (x >> 9) + 0x40;
+  z_cell = (z >> 9) + 0x40;
+  if (x_cell < 0 || 0x80 <= x_cell || z_cell < 0 || 0x80 <= z_cell) {
+    fprintf(stderr,"scene grid probe: site=%s x=%d z=%d x_cell=%d z_cell=%d out_of_range=1 count=%d\n",
+            site,x,z,x_cell,z_cell,DAT_0047a77c);
+    return;
+  }
+  direct_cell = (uint)*(ushort *)((undefined1 *)0x00684d68 + x_cell * 2 + z_cell * 0x100);
+  swapped_cell = (uint)*(ushort *)((undefined1 *)0x00684d68 + z_cell * 2 + x_cell * 0x100);
+  direct_desc = 0x0068cd68 + (uintptr_t)direct_cell * 0xc;
+  swapped_desc = 0x0068cd68 + (uintptr_t)swapped_cell * 0xc;
+  known_desc = 0x0068cd68 + (uintptr_t)0x5b96 * 0xc;
+  fprintf(stderr,
+          "scene grid probe: site=%s x=%d z=%d x_cell=%d z_cell=%d "
+          "direct=0x%x swapped=0x%x count=%d direct_words=%04x,%04x "
+          "swapped_words=%04x,%04x known5b96_words=%04x,%04x\n",
+          site,x,z,x_cell,z_cell,(unsigned int)direct_cell,
+          (unsigned int)swapped_cell,DAT_0047a77c,
+          !IsBadReadPtr((void *)direct_desc,0xc) ? (unsigned int)*(ushort *)(direct_desc + 8) : 0xffff,
+          !IsBadReadPtr((void *)direct_desc,0xc) ? (unsigned int)*(ushort *)(direct_desc + 10) : 0xffff,
+          !IsBadReadPtr((void *)swapped_desc,0xc) ? (unsigned int)*(ushort *)(swapped_desc + 8) : 0xffff,
+          !IsBadReadPtr((void *)swapped_desc,0xc) ? (unsigned int)*(ushort *)(swapped_desc + 10) : 0xffff,
+          !IsBadReadPtr((void *)known_desc,0xc) ? (unsigned int)*(ushort *)(known_desc + 8) : 0xffff,
+          !IsBadReadPtr((void *)known_desc,0xc) ? (unsigned int)*(ushort *)(known_desc + 10) : 0xffff);
 }
 
 static uint E2R_FanStreamOffset(void)
@@ -200,13 +299,39 @@ static uintptr_t E2R_TraceArchiveCurrentActorWrite(const char *site, uintptr_t v
   return E2R_TraceCurrentActorWrite(site,value);
 }
 
+static void E2R_SyncSceneViewId(void)
+{
+  _DAT_0073ccb8 = CONCAT22((ushort)_DAT_0073ccba,(ushort)_DAT_0073ccb8);
+}
+
 static void E2R_SelectSceneRecord(short scene_id)
 {
   if (scene_id < 0 || 0x4b0 <= scene_id) {
     return;
   }
   _DAT_0073ccba = (ushort)scene_id;
+  E2R_SyncSceneViewId();
   FUN_0044c6bc();
+}
+
+static int E2R_ShouldForceScene785Fallback(void)
+{
+  char *value = getenv("E2R_FORCE_SCENE_785");
+
+  return value != (char *)0x0 && value[0] != '\0' && value[0] != '0';
+}
+
+static void E2R_WaitStartupLogo(void)
+{
+  char *value = getenv("E2R_STARTUP_LOGO_DELAY_MS");
+  unsigned long delay_ms = 5000;
+
+  if (value != (char *)0x0 && value[0] != '\0') {
+    delay_ms = strtoul(value,(char **)0x0,10);
+  }
+  if (delay_ms != 0) {
+    Sleep((DWORD)delay_ms);
+  }
 }
 
 static uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)
@@ -506,6 +631,104 @@ static int E2R_ReadFanWordByte(int *stream)
   return E2R_ReadHostedStreamByte((undefined4 *)stream);
 }
 
+static void E2R_MarkVisibilityRecords(byte *records,int record_count)
+{
+  byte b0;
+  byte b1;
+  byte *desc;
+  int guard;
+  int i;
+  uint slot;
+
+  for (i = 0; i < record_count; i = i + 1) {
+    slot = (uint)*(ushort *)((undefined1 *)0x00684d68 +
+                             (uint)records[0] * 2 + (uint)records[1] * 0x100);
+    b0 = records[2];
+    b1 = records[3];
+    desc = (byte *)0x0068cd68 + slot * 0xc;
+    guard = 0;
+    while (slot != 0xffff && guard < 0x10000) {
+      if (desc[0] == b0 && desc[1] == b1) {
+        desc[3] = desc[3] | 0x40;
+      }
+      if ((*(int *)desc >> 0x10 & 0x8000U) != 0) {
+        break;
+      }
+      desc = desc + 0xc;
+      slot = slot + 1;
+      guard = guard + 1;
+    }
+    records = records + 4;
+  }
+}
+
+static int E2R_ReadHostedVisibilityFromArchive(void)
+{
+  byte magic_bytes[4];
+  undefined4 *stream;
+  int byte_value;
+  int count;
+  int i;
+  int offset;
+  int scene_id;
+  uint magic;
+
+  scene_id = (int)(_DAT_0073ccb8 >> 0x10);
+  if (scene_id < 0 || 0x4b0 <= scene_id) {
+    return 0;
+  }
+  offset = *(int *)((undefined1 *)0x006467a8 + scene_id * 4);
+  if (offset < 0 || (int)FUN_0045f296(DAT_0047a724,offset) == -1) {
+    return 0;
+  }
+  stream = (undefined4 *)(uintptr_t)DAT_0047a724;
+  if ((uintptr_t)stream < 0x10000u || IsBadReadPtr(stream,0x1c) ||
+      stream[6] != E2R_STREAM_MAGIC) {
+    return 0;
+  }
+  for (i = 0; i < 4; i = i + 1) {
+    byte_value = E2R_ReadHostedStreamByte(stream);
+    if (byte_value < 0) {
+      return 0;
+    }
+    magic_bytes[i] = (byte)byte_value;
+  }
+  magic = (uint)magic_bytes[0] | ((uint)magic_bytes[1] << 8) |
+          ((uint)magic_bytes[2] << 0x10) | ((uint)magic_bytes[3] << 0x18);
+  if (magic != 0x4d736956U) {
+    if (E2R_RuntimeDiagEnabled()) {
+      fprintf(stderr,"visibility magic mismatch: scene=%d offset=%d value=%08x\n",
+              scene_id,offset,magic);
+    }
+    return 0;
+  }
+  byte_value = E2R_ReadHostedStreamByte(stream);
+  if (byte_value < 0) {
+    return 0;
+  }
+  count = byte_value;
+  byte_value = E2R_ReadHostedStreamByte(stream);
+  if (byte_value < 0) {
+    return 0;
+  }
+  count = count | (byte_value << 8);
+  if (0x1f3ff < count * 4) {
+    if (E2R_RuntimeDiagEnabled()) {
+      fprintf(stderr,"visibility info too big: scene=%d count=%d\n",scene_id,count);
+    }
+    return 0;
+  }
+  for (i = 0; i < count * 4; i = i + 1) {
+    byte_value = E2R_ReadHostedStreamByte(stream);
+    if (byte_value < 0) {
+      return 0;
+    }
+    ((byte *)(uintptr_t)_DAT_00636668)[i] = (byte)byte_value;
+  }
+  E2R_MarkVisibilityRecords((byte *)(uintptr_t)_DAT_00636668,count);
+  return count;
+}
+
 static undefined4 E2R_OpenReadStream(LPCSTR path)
 {
   HANDLE file;
@@ -619,6 +842,23 @@ static byte E2R_CtypeFlags(uint index)
 static byte E2R_BitMask(uint index)
 {
   return (byte)(1u << (index & 7));
+}
+
+static void E2R_CopyCStringBounded(char *dest,char *source,uint size)
+{
+  uint i;
+
+  if (dest == (char *)0x0 || source == (char *)0x0 || size == 0 ||
+      E2R_IsBadWritePtr(dest,size) || IsBadReadPtr(source,1)) {
+    return;
+  }
+  memset(dest,0,size);
+  for (i = 0; i + 1 < size; i = i + 1) {
+    if (IsBadReadPtr(source + i,1) || source[i] == '\0') {
+      break;
+    }
+    dest[i] = source[i];
+  }
 }
 
 static void E2R_FormatOneString(char *dest,char *format,char *value)
@@ -1736,6 +1976,13 @@ static int E2R_ActionCodeMatches(short *action,char *suffix)
   return 4 < length && strcmp(name + 4,suffix) == 0;
 }
 
+static int E2R_ScriptDiagEnabled(void)
+{
+  char *value = getenv("E2R_SCRIPT_DIAG");
+
+  return value != (char *)0x0 && value[0] != '\0' && value[0] != '0';
+}
+
 static short *E2R_FindActionCodeBySuffix(char *suffix)
 {
   short *node;
@@ -1767,10 +2014,41 @@ static short *E2R_FindActionCodeBySuffix(char *suffix)
 
 static void E2R_InvokeActionCode(short *action)
 {
+  char *name;
+  short *pool;
+  uint offset;
+  uint token_count;
+
   E2R_start_code_probe_dispatches++;
   E2R_start_code_probe_last_node = (uintptr_t)action;
   E2R_start_code_probe_last_name_index = (ushort)action[0];
   E2R_start_code_probe_last_bytecode_offset = *(uint *)(action + 3);
+  name = E2R_ActionCodeName(action);
+  if ((E2R_RuntimeDiagEnabled() && E2R_action_invoke_diag_count < 64) ||
+      (E2R_ScriptDiagEnabled() && name != (char *)0x0 &&
+       strcmp(name,"mar:StartGame") == 0)) {
+    offset = *(uint *)(action + 3);
+    pool = (short *)(uintptr_t)_DAT_006366a0;
+    fprintf(stderr,
+            "action invoke: node=0x%lx name_index=%u name=%s code=0x%x tokens=",
+            (unsigned long)(uintptr_t)action,(unsigned int)(ushort)action[0],
+            name != (char *)0x0 ? name : "(null)",offset);
+    if (pool != (short *)0x0 && offset < 19999 &&
+        !IsBadReadPtr(pool + offset,8 * sizeof(short))) {
+      for (token_count = 0; token_count < 8; token_count = token_count + 1) {
+        fprintf(stderr,"%s%04x",token_count == 0 ? "" : ",",
+                (unsigned int)(ushort)pool[offset + token_count]);
+        if (pool[offset + token_count] == 0) {
+          break;
+        }
+      }
+    }
+    else {
+      fprintf(stderr,"(unreadable)");
+    }
+    fprintf(stderr,"\n");
+    E2R_action_invoke_diag_count = E2R_action_invoke_diag_count + 1;
+  }
   E2R_action_dispatch_node = action;
   FUN_0044f2fc();
   E2R_action_dispatch_node = (short *)0x0;
@@ -2330,12 +2608,12 @@ void __fastcall FUN_00410a48(undefined4 param_1)
   uVar5 = 0;
   if (DAT_00479dfc != 0) {
     FUN_00414998(s_gbnklogo_raw_00470500);
-    Sleep(5);
+    E2R_WaitStartupLogo();
   }
   FUN_00414998(s_psyglogo_raw_00470510);
-  Sleep(5);
+  E2R_WaitStartupLogo();
   FUN_00414998(s_aasglogo_raw_00470520);
-  Sleep(5);
+  E2R_WaitStartupLogo();
   uVar3 = 0;
   uVar11 = FUN_00414a94(uVar5,uVar3);
   uVar6 = (undefined4)((ulonglong)uVar11 >> 0x20);
@@ -7082,10 +7360,10 @@ void __fastcall FUN_00414998(undefined4 param_1)
       } while (iVar2 < 0x300);
       E2R_ReadOpenFileBytes(iVar4,_DAT_0063615c,_DAT_006401ec * _DAT_006401d4);
       uVar3 = FUN_0045e8e6(iVar4,extraout_EDX_00);
-      FUN_0041af88(extraout_ECX_03,(int)((ulonglong)uVar3 >> 0x20));
+      FUN_0041af88(0x621030,(int)((ulonglong)uVar3 >> 0x20));
       FUN_0041760c(0,0,0,0,_DAT_006401ec,_DAT_006401d4);
       FUN_0041760c(1,0,0,0,_DAT_006401ec,_DAT_006401d4);
-      FUN_0041af88(extraout_ECX_04,extraout_EDX_01);
+      FUN_0041af88(0x621030,extraout_EDX_01);
     }
   }
   return;
@@ -7202,10 +7480,10 @@ undefined8 __fastcall FUN_00414b24(undefined4 param_1,undefined4 param_2)
       } while (iVar3 < 0x300);
       E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,_DAT_006401ec * _DAT_006401d4);
       uVar8 = FUN_0045e8e6(iVar10,extraout_EDX_00);
-      FUN_0041af88(extraout_ECX_03,(int)((ulonglong)uVar8 >> 0x20));
+      FUN_0041af88(0x61ca30,(int)((ulonglong)uVar8 >> 0x20));
       FUN_0041760c(0,0,0,0,_DAT_006401ec,_DAT_006401d4);
       FUN_0041760c(1,0,0,0,_DAT_006401ec,_DAT_006401d4);
-      uVar4 = FUN_0041af88(extraout_ECX_04,extraout_EDX_01);
+      uVar4 = FUN_0041af88(0x61ca30,extraout_EDX_01);
       return CONCAT44(param_2,uVar4);
     }
   }
@@ -7225,7 +7503,7 @@ undefined8 __fastcall FUN_00414b24(undefined4 param_1,undefined4 param_2)
     } while (iVar3 < 0x300);
     E2R_ReadOpenFileBytes(iVar10,_DAT_0063615c,_DAT_006401ec * _DAT_006401d4);
     uVar8 = FUN_0045e8e6(iVar10,extraout_EDX_03);
-    FUN_0041af88(extraout_ECX_10,(int)((ulonglong)uVar8 >> 0x20));
+    FUN_0041af88(0x00621330,(int)((ulonglong)uVar8 >> 0x20));
     if (DAT_0047a43c != 0) {
       local_28 = 0;
       local_2c = 0;
@@ -10926,9 +11204,9 @@ void __fastcall FUN_0041bd1c(undefined4 param_1)
   int local_1c;
 
   if (DAT_0047a43c == 0) {
-    if ((DAT_00479e74 != 0) && (uVar2 = E2R_READ2(DAT_00479e8a,2), -1 < DAT_00479e8a)) {
+    if ((DAT_00479e74 != 0) && (uVar2 = (undefined2)(DAT_00479e8a >> 0x10), -1 < DAT_00479e8a)) {
       iVar3 = DAT_0047a279 >> 0x18;
-      *(ushort *)((undefined1 *)0x00479e8e + iVar3 * 2) = E2R_READ2(DAT_00479e8a,2);
+      *(ushort *)((undefined1 *)0x00479e8e + iVar3 * 2) = (undefined2)(DAT_00479e8a >> 0x10);
       iVar7 = DAT_00479e8a;
       local_1c = (int)(short)(uVar2 & 3);
       *(undefined2 *)(iVar3 * 2 + 0x636580) = _DAT_0063683e;
@@ -11011,7 +11289,7 @@ void __fastcall FUN_0041be94(undefined4 param_1)
     iVar3 = FUN_00418a04(param_1,&local_20);
     iVar7 = DAT_0047a279 >> 0x18;
     uVar2 = *(undefined4 *)(iVar7 * 2 + 0x6366da);
-    *(undefined2 *)((undefined1 *)0x00479e8e + iVar7 * 2) = E2R_READ2(DAT_00479e8a,2);
+    *(undefined2 *)((undefined1 *)0x00479e8e + iVar7 * 2) = (undefined2)(DAT_00479e8a >> 0x10);
     iVar4 = DAT_00479e8a >> 0x10;
     *(undefined2 *)(iVar7 * 2 + 0x636580) = _DAT_0063683e;
     iVar9 = 0;
@@ -11080,7 +11358,7 @@ void __fastcall FUN_0041bffc(undefined4 param_1)
     }
     iVar3 = FUN_00418a04(param_1,&local_1c);
     iVar6 = 1 - (DAT_0047a279 >> 0x18);
-    *(undefined2 *)((undefined1 *)0x00479e8e + iVar6 * 2) = E2R_READ2(DAT_00479e8a,2);
+    *(undefined2 *)((undefined1 *)0x00479e8e + iVar6 * 2) = (undefined2)(DAT_00479e8a >> 0x10);
     *(undefined2 *)(iVar6 * 2 + 0x636580) = _DAT_0063683e;
     uVar2 = *(undefined4 *)(iVar6 * 2 + 0x6366da);
     iVar9 = 0;
@@ -11232,9 +11510,9 @@ undefined4 __fastcall FUN_0041c518(undefined4 param_1)
   if (DAT_0047a43c == 0) {
     if ((DAT_00479e74 != 0) && (-1 < DAT_00479e8a)) {
       iVar2 = 1 - (DAT_0047a279 >> 0x18);
-      *(ushort *)((undefined1 *)0x00479e8e + iVar2 * 2) = E2R_READ2(DAT_00479e8a,2);
+      *(ushort *)((undefined1 *)0x00479e8e + iVar2 * 2) = (undefined2)(DAT_00479e8a >> 0x10);
       *(undefined2 *)(iVar2 * 2 + 0x636580) = _DAT_0063683e;
-      local_1c = (int)(short)(E2R_READ2(DAT_00479e8a,2) & 3);
+      local_1c = (int)(short)((undefined2)(DAT_00479e8a >> 0x10) & 3);
       puVar4 = (undefined1 *)
                (*(int *)((undefined1 *)0x00636150 + iVar2 * 4) + (DAT_00479e8a >> 0x12) +
                (_DAT_0063683c >> 0x10) * 0x50);
@@ -13860,7 +14138,9 @@ void __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)
       0x1000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,0x17c)) {
     return;
   }
+  E2R_TraceActorLoopStage("21074.entry",(uintptr_t)in_EAX,0);
   FUN_00457818(param_1,param_2);
+  E2R_TraceActorLoopStage("21074.after-57818",(uintptr_t)in_EAX,0);
   psVar6 = *(short **)(in_EAX + 0x79);
   if (psVar6 != (short *)0x0 && IsBadReadPtr(psVar6,0x17c)) {
     psVar6 = (short *)0x0;
@@ -13901,7 +14181,9 @@ void __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)
     }
     _DAT_006368d8 = 0;
     _DAT_00637240 = 0;
+    E2R_TraceActorLoopStage("21074.before-23858-root",(uintptr_t)in_EAX,0);
     FUN_00423858((undefined4)(uintptr_t)in_EAX,0);
+    E2R_TraceActorLoopStage("21074.after-23858-root",(uintptr_t)in_EAX,0);
     iVar5 = extraout_ECX_04;
     do {
       if (*(int *)(&DAT_006368d8 + _DAT_00637240 * 4) == 0) break;
@@ -13909,13 +14191,16 @@ void __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)
       *(undefined4 *)(&DAT_006368d8 + _DAT_00637240 * 4) = 0;
       for (iVar1 = *(int *)(&DAT_006368d8 + (1 - _DAT_00637240) * 4); iVar1 != 0;
           iVar1 = *(int *)(iVar1 + 0x132)) {
-        FUN_00423858(iVar5,0);
+        E2R_TraceActorLoopStage("21074.before-23858-linked",(uintptr_t)*(int *)(iVar1 + 0x44),0);
+        FUN_00423858((undefined4)(uintptr_t)*(int *)(iVar1 + 0x44),0);
+        E2R_TraceActorLoopStage("21074.after-23858-linked",(uintptr_t)*(int *)(iVar1 + 0x44),0);
         iVar5 = extraout_ECX_05;
       }
       iVar5 = iVar5 + 1;
     } while ((short)iVar5 < 5);
   }
   *(byte *)(in_EAX + 0xa3) = *(byte *)(in_EAX + 0xa3) | 0x80;
+  E2R_TraceActorLoopStage("21074.exit",(uintptr_t)in_EAX,0);
   return;
 }
 
@@ -13950,6 +14235,7 @@ void __fastcall FUN_004211c8(int param_1,undefined4 param_2)
   int extraout_EDX_04;
   undefined4 uVar6;
 
+  E2R_TraceFrameStage("211c8.entry");
   if (DAT_0047a470 != 0 &&
      ((uint)DAT_0047a470 < 0x10000u || 0x70000000u <= (uint)DAT_0047a470 ||
       IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,0x136))) {
@@ -13965,22 +14251,30 @@ void __fastcall FUN_004211c8(int param_1,undefined4 param_2)
     }
     if ((param_1 == 0) || ((*(byte *)(param_1 + 0xc) & 2) == 0)) {
       if (DAT_0047a3b4 == 0) {
-        FUN_0044c224(param_1);
+        E2R_TraceFrameStage("211c8.before-4c224");
+        FUN_0044c224((undefined4)(uintptr_t)DAT_0047a470);
+        E2R_TraceFrameStage("211c8.after-4c224");
         param_1 = extraout_ECX;
       }
-      FUN_0044c164(param_1);
+      E2R_TraceFrameStage("211c8.before-4c164");
+      FUN_0044c164((undefined4)(uintptr_t)DAT_0047a470);
+      E2R_TraceFrameStage("211c8.after-4c164");
     }
     else if (*(int *)(DAT_0047a470 + 0x132) != 0) {
       FUN_0044be20();
     }
+    E2R_TraceFrameStage("211c8.before-575c4");
     FUN_004575c4();
+    E2R_TraceFrameStage("211c8.after-575c4");
     FUN_00457780(extraout_ECX_00,extraout_EDX);
+    E2R_TraceFrameStage("211c8.after-57780");
     param_1 = extraout_ECX_01;
     param_2 = extraout_EDX_00;
   }
   if (_DAT_0073cc3c != 0) {
     *(int *)(_DAT_0073cc3c + 0x16) = _DAT_00636588;
   }
+  E2R_TraceFrameStage("211c8.before-list-pass");
   iVar7 = _DAT_0063726c;
   if (_DAT_00636690 != 0) {
     if (_DAT_0073cc3c != DAT_0047a2ac) {
@@ -13994,9 +14288,12 @@ void __fastcall FUN_004211c8(int param_1,undefined4 param_2)
   for (; iVar5 = _DAT_0063726c, iVar7 != 0; iVar7 = *(int *)(iVar7 + 0x4c)) {
     *(byte *)(iVar7 + 0x146) = *(byte *)(iVar7 + 0x146) & 0x7f;
   }
+  E2R_TraceFrameStage("211c8.after-clear-146");
   for (; iVar5 != 0; iVar5 = *(int *)(iVar5 + 0x4c)) {
     if ((*(byte *)(iVar5 + 0x146) & 0x80) == 0) {
+      E2R_TraceActorLoopStage("211c8.before-21074",(uintptr_t)iVar5,0);
       FUN_00421074((undefined4)(uintptr_t)iVar5,param_2);
+      E2R_TraceActorLoopStage("211c8.after-21074",(uintptr_t)iVar5,0);
       param_1 = extraout_ECX_02;
       param_2 = extraout_EDX_01;
     }
@@ -14632,7 +14929,8 @@ undefined8 __fastcall FUN_00422238(undefined4 param_1,undefined4 param_2)
     uVar3 = FUN_00458094(param_1,uVar3);
   }
   DAT_00479de8 = 1;
-  if (_DAT_0073cc3c == 0 && E2R_start_game_probe_last_mode == 0) {
+  if (_DAT_0073cc3c == 0 && E2R_start_game_probe_last_mode == 0 &&
+      E2R_ShouldForceScene785Fallback()) {
     E2R_SelectSceneRecord(785);
   }
   return CONCAT44(param_2,uVar3);
@@ -16172,7 +16470,9 @@ void FUN_004249f4(undefined4 param_1)
     return;
   }
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0xca)) {
+    E2R_actor_calc_context = iVar1;
     FUN_00424ed0();
+    E2R_actor_calc_context = 0;
     iVar6 = extraout_ECX;
     for (iVar2 = *(int *)(iVar1 + 0x11e); iVar2 != 0; iVar2 = *(int *)(iVar2 + 0x26)) {
       FUN_00422fd8(iVar6,iVar2 + 0x10);
@@ -16458,6 +16758,11 @@ void FUN_00424ed0(void)
   short sVar3;
   short local_20 [4];
 
+  in_EAX = E2R_actor_calc_context;
+  if (in_EAX == 0 || (uintptr_t)in_EAX < 0x10000u ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x12c)) {
+    return;
+  }
   if ((DAT_0047a34a == 0) || (DAT_0047a366 != 0)) {
     sVar3 = 0;
     do {
@@ -16924,6 +17229,7 @@ void FUN_00426220(void)
   iVar1 = *(int *)(in_EAX + 0x1e);
   *(undefined2 *)(in_EAX + 0x124) = *(undefined2 *)(in_EAX + 0x122);
   for (; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
+    if ((uint)iVar1 < 0x10000u || IsBadReadPtr((void *)(uintptr_t)iVar1,0xca)) break;
     iVar3 = iVar1;
     do {
       iVar2 = iVar3 + 2;
@@ -16941,6 +17247,7 @@ void FUN_00426220(void)
     iVar3 = *(int *)(iVar1 + 0x11e);
     *(undefined2 *)(iVar1 + 0xc4) = *(undefined2 *)(iVar1 + 0xce);
     for (; iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x26)) {
+      if ((uint)iVar3 < 0x10000u || IsBadReadPtr((void *)(uintptr_t)iVar3,0x20)) break;
       iVar2 = iVar3;
       do {
         iVar4 = iVar2 + 2;
@@ -16950,6 +17257,7 @@ void FUN_00426220(void)
     }
   }
   for (iVar1 = *(int *)(in_EAX + 0xd8); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x1e)) {
+    if ((uint)iVar1 < 0x10000u || IsBadReadPtr((void *)(uintptr_t)iVar1,0x1a)) break;
     *(undefined2 *)(iVar1 + 0x14) = *(undefined2 *)(iVar1 + 0x10);
     *(undefined2 *)(iVar1 + 0x16) = *(undefined2 *)(iVar1 + 0x12);
     *(undefined2 *)(iVar1 + 0x18) = *(undefined2 *)(iVar1 + 2);
@@ -16966,41 +17274,44 @@ void FUN_00426220(void)
 undefined8 __fastcall FUN_00426320(undefined4 param_1,undefined4 param_2)
 
 {
-  undefined4 uVar1;
-  undefined2 *puVar2;
-  short sVar3;
-  undefined2 *puVar4;
-  int iVar5;
-  undefined8 uVar6;
+  byte *node;
+  int offset;
+  int i;
 
-  uVar6 = FUN_00453588(param_1,param_2);
-  puVar4 = (undefined2 *)uVar6;
-  *puVar4 = 0xffff;
-  *(undefined4 *)(puVar4 + 2) = 0;
-  puVar4[1] = 0xffff;
-  puVar4[6] = 0xffff;
-  puVar4[0x4d] = 0xffff;
-  puVar4[0x4c] = 0xffff;
-  puVar4[0x4b] = 2;
-  uVar1 = _DAT_00636588;
-  puVar4[0x53] = 0xffff;
-  *(undefined4 *)(puVar4 + 0x50) = uVar1;
-  puVar2 = puVar4;
-  *(undefined2 **)(puVar4 + 4) = _DAT_0063725c;
-  _DAT_0063725c = puVar2;
-  sVar3 = 0;
+  (void)param_1;
   do {
-    iVar5 = (int)sVar3;
-    sVar3 = sVar3 + 1;
-    puVar4[iVar5 + 7] = 0xffff;
-  } while (sVar3 < 0x12);
-  sVar3 = 0;
-  do {
-    iVar5 = (int)sVar3;
-    sVar3 = sVar3 + 1;
-    *(undefined1 *)((int)puVar4 + iVar5 * 0x19 + 0x32) = 0;
-  } while (sVar3 < 4);
-  return CONCAT44(param_2,puVar4);
+    node = (byte *)0x0;
+    for (offset = 0; offset < 0x8340; offset = offset + 0xa8) {
+      if ((*(ushort *)((byte *)0x00aba392 + offset) & 0x8000U) != 0) {
+        node = (byte *)0x00aba2fc + offset;
+        memset(node,0,0xa8);
+        break;
+      }
+    }
+    if (node != (byte *)0x0) {
+      *(ushort *)(node + 0x00) = 0xffff;
+      *(ushort *)(node + 0x02) = 0xffff;
+      *(int *)(node + 0x04) = 0;
+      *(int *)(node + 0x08) = (int)(uintptr_t)_DAT_0063725c;
+      *(ushort *)(node + 0x0c) = 0xffff;
+      *(ushort *)(node + 0x96) = 2;
+      *(ushort *)(node + 0x98) = 0xffff;
+      *(ushort *)(node + 0x9a) = 0xffff;
+      *(int *)(node + 0xa0) = _DAT_00636588;
+      *(ushort *)(node + 0xa6) = 0xffff;
+      _DAT_0063725c = (short *)(uintptr_t)node;
+      for (i = 0; i < 0x12; i = i + 1) {
+        *(ushort *)(node + 0x0e + i * 2) = 0xffff;
+      }
+      for (i = 0; i < 4; i = i + 1) {
+        node[0x32 + i * 0x19] = 0;
+      }
+      return CONCAT44(param_2,(undefined4)(uintptr_t)node);
+    }
+    if ((int)FUN_00452ebc(0,0) == 0) {
+      return CONCAT44(param_2,0);
+    }
+  } while( true );
 }
 
 
@@ -17010,34 +17321,47 @@ undefined8 __fastcall FUN_00426320(undefined4 param_1,undefined4 param_2)
 undefined8 __fastcall FUN_004263ac(undefined4 param_1,undefined4 param_2)
 
 {
-  int iVar1;
-  int iVar2;
-  int in_EAX;
-  undefined2 *puVar3;
-  undefined8 uVar4;
+  int cursor;
+  int next;
+  int parent;
+  undefined2 *node;
+  undefined8 result;
 
-  uVar4 = FUN_004533ac(param_1,param_2);
-  puVar3 = (undefined2 *)uVar4;
-  *puVar3 = 0xffff;
-  iVar1 = *(int *)(in_EAX + 4);
-  if (iVar1 == 0) {
-    *(undefined2 **)(in_EAX + 4) = puVar3;
+  parent = (int)(uintptr_t)param_1;
+  if ((uintptr_t)parent < 0x10000u || IsBadReadPtr((void *)(uintptr_t)parent,0x8)) {
+    return CONCAT44(param_2,0);
+  }
+  result = FUN_004533ac(param_1,param_2);
+  node = (undefined2 *)result;
+  if (node == (undefined2 *)0x0) {
+    return CONCAT44(param_2,0);
+  }
+  *node = 0xffff;
+  cursor = *(int *)(parent + 4);
+  if (cursor == 0) {
+    *(undefined2 **)(parent + 4) = node;
   }
   else {
-    iVar2 = *(int *)(iVar1 + 0x18);
-    while (iVar2 != 0) {
-      iVar1 = *(int *)(iVar1 + 0x18);
-      iVar2 = *(int *)(iVar1 + 0x18);
+    if ((uintptr_t)cursor < 0x10000u || IsBadReadPtr((void *)(uintptr_t)cursor,0x1c)) {
+      return CONCAT44(param_2,node);
     }
-    *(undefined2 **)(iVar1 + 0x18) = puVar3;
+    next = *(int *)(cursor + 0x18);
+    while (next != 0) {
+      cursor = next;
+      if ((uintptr_t)cursor < 0x10000u || IsBadReadPtr((void *)(uintptr_t)cursor,0x1c)) {
+        return CONCAT44(param_2,node);
+      }
+      next = *(int *)(cursor + 0x18);
+    }
+    *(undefined2 **)(cursor + 0x18) = node;
   }
-  *(undefined4 *)(puVar3 + 0xc) = 0;
-  puVar3[1] = 0xffff;
-  puVar3[2] = 0;
-  *(undefined4 *)(puVar3 + 3) = 0;
-  puVar3[7] = 2;
-  *(undefined4 *)(puVar3 + 5) = 0;
-  return CONCAT44(param_2,puVar3);
+  *(undefined4 *)(node + 0xc) = 0;
+  node[1] = 0xffff;
+  node[2] = 0;
+  *(undefined4 *)(node + 3) = 0;
+  node[7] = 2;
+  *(undefined4 *)(node + 5) = 0;
+  return CONCAT44(param_2,node);
 }
 
 
@@ -17049,35 +17373,28 @@ undefined8 __fastcall FUN_004263ac(undefined4 param_1,undefined4 param_2)
 undefined8 __fastcall FUN_00426410(undefined4 param_1,undefined4 param_2)
 
 {
-  int iVar1;
-  int iVar2;
-  undefined4 uVar3;
-  int iVar4;
-  undefined8 uVar5;
+  int action;
+  int cursor;
 
-  uVar5 = FUN_00453338(param_1,param_2);
-  iVar4 = (int)uVar5;
-  *(undefined2 *)(iVar4 + 2) = 0x100;
-  *(undefined4 *)(iVar4 + 4) = 0;
-  *(undefined4 *)(iVar4 + 8) = 0;
-  *(undefined2 *)(iVar4 + 0xe) = 0xffff;
-  uVar3 = _DAT_00636588;
-  *(undefined2 *)(iVar4 + 0x10) = 0xffff;
-  *(undefined4 *)(iVar4 + 0x12) = uVar3;
-  iVar2 = _DAT_00637270;
-  *(undefined2 *)(iVar4 + 0xc) = 0x200;
-  iVar1 = iVar4;
-  if (iVar2 != 0) {
-    iVar1 = *(int *)(iVar2 + 8);
-    while (iVar1 != 0) {
-      iVar2 = *(int *)(iVar2 + 8);
-      iVar1 = *(int *)(iVar2 + 8);
-    }
-    *(int *)(iVar2 + 8) = iVar4;
-    iVar1 = _DAT_00637270;
+  action = (int)FUN_00453338(param_1,param_2);
+  *(undefined2 *)(action + 2) = 0x100;
+  *(undefined4 *)(action + 4) = 0;
+  *(undefined4 *)(action + 8) = 0;
+  *(undefined2 *)(action + 0xe) = 0xffff;
+  *(undefined2 *)(action + 0x10) = 0xffff;
+  *(undefined4 *)(action + 0x12) = _DAT_00636588;
+  *(undefined2 *)(action + 0xc) = 0x200;
+  cursor = (int)(uintptr_t)_DAT_00637270;
+  if (cursor == 0) {
+    _DAT_00637270 = (short *)(uintptr_t)action;
   }
-  _DAT_00637270 = iVar1;
-  return CONCAT44(param_2,iVar4);
+  else {
+    while (*(int *)(cursor + 8) != 0) {
+      cursor = *(int *)(cursor + 8);
+    }
+    *(int *)(cursor + 8) = action;
+  }
+  return CONCAT44(param_2,action);
 }
 
 
@@ -17274,6 +17591,11 @@ undefined2 * __fastcall FUN_00426798(undefined4 param_1,undefined4 *param_2)
     return (undefined2 *)0x0;
   }
   iVar1 = *(int *)((int)(uintptr_t)in_EAX + 0xd8);
+  if (iVar1 != 0 &&
+      ((uint)iVar1 < 0x10000u || IsBadReadPtr((void *)(uintptr_t)iVar1,0x22))) {
+    iVar1 = 0;
+    *(undefined4 *)((int)(uintptr_t)in_EAX + 0xd8) = 0;
+  }
   if (iVar1 == 0) {
     *(undefined2 **)((int)(uintptr_t)in_EAX + 0xd8) = puVar4;
   }
@@ -17307,7 +17629,7 @@ undefined2 * __fastcall FUN_00426798(undefined4 param_1,undefined4 *param_2)
   puVar4[0x1d] = 0x40;
   puVar4[0x1e] = 0x40;
   *(undefined4 *)(puVar4 + 0x14) = uVar3;
-  *(int *)(puVar4 + 0x11) = extraout_ECX;
+  *(undefined4 *)(puVar4 + 0x11) = in_EAX;
   return puVar4;
 }
 
@@ -17386,9 +17708,12 @@ undefined8 __fastcall FUN_004268e4(undefined4 param_1,undefined4 param_2)
   int iVar2;
 
   iVar2 = (int)(uintptr_t)param_1;
+  if ((uint)iVar2 < 0x10000u || IsBadReadPtr((void *)(uintptr_t)iVar2,6)) {
+    return CONCAT44(param_2,0);
+  }
   iVar1 = FUN_0045f1ff(1,0x39);
   if (iVar1 == 0) {
-    FUN_00414e68();
+    return CONCAT44(param_2,0);
   }
   FUN_0045fc70(0x35,0x20202020);
   *(undefined4 *)(iVar1 + 0x35) = *(undefined4 *)(iVar2 + 2);
@@ -17407,9 +17732,12 @@ undefined8 __fastcall FUN_0042692c(undefined4 param_1,undefined4 param_2)
   int iVar2;
 
   iVar2 = (int)(uintptr_t)param_1;
+  if ((uint)iVar2 < 0x10000u || IsBadReadPtr((void *)(uintptr_t)iVar2,0x39)) {
+    return CONCAT44(param_2,0);
+  }
   iVar1 = FUN_0045f1ff(1,0x39);
   if (iVar1 == 0) {
-    FUN_00414e68();
+    return CONCAT44(param_2,0);
   }
   FUN_0045fc70(0x35,0x20202020);
   *(undefined4 *)(iVar1 + 0x35) = *(undefined4 *)(iVar2 + 0x35);
@@ -17460,6 +17788,13 @@ undefined4 __fastcall FUN_004269d4(undefined4 param_1,undefined4 param_2)
 
   uVar2 = FUN_004537d8(param_1,param_2);
   puVar1 = (undefined2 *)uVar2;
+  if (puVar1 == (undefined2 *)0x0) {
+    puVar1 = (undefined2 *)FUN_0045f1ff(1,0x3c);
+    if (puVar1 == (undefined2 *)0x0) {
+      return 0;
+    }
+    memset(puVar1,0,0x3c);
+  }
   *puVar1 = 0xffff;
   puVar1[3] = 1;
   puVar1[0xb] = 100;
@@ -17483,6 +17818,13 @@ undefined4 __fastcall FUN_00426a04(undefined4 param_1,undefined4 param_2)
 
   uVar2 = FUN_0045384c(param_1,param_2);
   puVar1 = (undefined2 *)uVar2;
+  if (puVar1 == (undefined2 *)0x0) {
+    puVar1 = (undefined2 *)FUN_0045f1ff(1,0x14);
+    if (puVar1 == (undefined2 *)0x0) {
+      return 0;
+    }
+    memset(puVar1,0,0x14);
+  }
   *puVar1 = 0xffff;
   puVar1[7] = 1;
   *(undefined2 **)(puVar1 + 5) = _DAT_00637264;
@@ -17554,6 +17896,7 @@ void __fastcall FUN_00426ac4(undefined4 param_1,int param_2)
   int in_EAX;
   int iVar2;
 
+  in_EAX = (int)(uintptr_t)param_1;
   iVar1 = *(int *)(param_2 + 6);
   if (iVar1 == 0) {
     *(int *)(param_2 + 6) = in_EAX;
@@ -17597,6 +17940,7 @@ ushort * __fastcall FUN_00426b54(undefined4 param_1,undefined4 param_2)
   ushort uVar5;
   undefined8 uVar6;
 
+  in_EAX = (int)(uintptr_t)param_1;
   uVar6 = FUN_00453754(param_1,param_2);
   puVar4 = (ushort *)uVar6;
   puVar1 = *(ushort **)(in_EAX + 4);
@@ -17734,8 +18078,8 @@ void FUN_00426ca4(void)
       }
     }
     if (bVar4) {
-      FUN_00422aa0((undefined4)(uintptr_t)in_EAX,in_EAX + 0x42);
-      FUN_00422aa0((undefined4)(uintptr_t)in_EAX,(undefined2 *)((undefined1 *)in_EAX + 0x90));
+      FUN_00422aa0((undefined4)(uintptr_t)(*in_EAX * 6 + 0x669708),in_EAX + 0x42);
+      FUN_00422aa0((undefined4)(uintptr_t)(*in_EAX * 6 + 0x658980),in_EAX + 0x48);
       *(short *)(*in_EAX * 2 + 0x671fc0) = in_EAX[0x91];
       *(short *)(*in_EAX * 2 + 0x647a68) = in_EAX[0x76];
       *(char *)(*in_EAX + 0x64c950) = (char)in_EAX[0xc2];
@@ -20754,6 +21098,7 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
   if (DAT_0047a3b4 == 0) {
     E2R_TraceFrameStage("42a70c.enter-render-epilogue");
     FUN_004211c8((int)psVar10,psVar12);
+    E2R_TraceFrameStage("42a70c.after-211c8");
     FUN_00421a14();
     FUN_00421f54(extraout_ECX_12);
     E2R_TraceFrameStage("42a70c.before-22238");
@@ -29235,7 +29580,7 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
     iVar1 = *(int *)(iVar1 + 10);
   }
   if (iVar1 != 0) {
-    iVar1 = 0;
+    iVar1 = 1;
   }
   if (iVar1 == 0) {
     short *action = E2R_FindActionCodeBySuffix(pcVar4);
@@ -29274,7 +29619,8 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
   E2R_TraceStartGameStage("before-5fc70");
   FUN_0045fc70(extraout_ECX_20,0);
   E2R_TraceStartGameStage("after-5fc70");
-  if (_DAT_0073cc3c == 0 && E2R_start_game_probe_last_mode == 0) {
+  if (_DAT_0073cc3c == 0 && E2R_start_game_probe_last_mode == 0 &&
+      E2R_ShouldForceScene785Fallback()) {
     E2R_TraceStartGameStage("before-select-785");
     E2R_SelectSceneRecord(785);
     E2R_TraceStartGameStage("after-select-785");
@@ -29296,25 +29642,43 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
 undefined8 __fastcall FUN_0043a6e0(undefined4 param_1,undefined4 param_2)
 
 {
+  int scene_id;
+  int scene_record;
+  int scene_offset;
+  int first_entry;
   undefined4 uVar1;
-  undefined4 extraout_ECX;
-  undefined4 extraout_EDX;
-  int extraout_EDX_00;
-  undefined8 uVar2;
 
+  scene_id = (int)(short)param_2;
+  if (scene_id == 0 && param_1 != 0) {
+    scene_id = (int)(short)param_1;
+  }
+  scene_offset = *(int *)(scene_id * 4 + 0x650fa0);
   DAT_0047a788 = 1;
   DAT_0047a428 = 1;
   FUN_00413e88();
   FUN_0043a1fc();
-  uVar2 = FUN_0045233c(extraout_ECX,extraout_EDX);
-  uVar1 = (undefined4)uVar2;
-  if (*(int *)((int)((ulonglong)uVar2 >> 0x20) * 4 + 0x62e450) != 0) {
+  FUN_0045233c((undefined4)scene_id,(undefined4)scene_id);
+  scene_record = *(int *)(scene_id * 4 + 0x62e450);
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {
+    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;
+    fprintf(stderr,"scene fallback 3a6e0: scene_id=%d offset=%d record=0x%lx before_current=0x%lx\n",
+            scene_id,scene_offset,(unsigned long)scene_record,(unsigned long)DAT_0047a470);
+  }
+  uVar1 = (undefined4)scene_id;
+  if (scene_record != 0) {
     _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
-    FUN_00452140(0);
-    if (*(short **)(extraout_EDX_00 + 4) != (short *)0x0) {
-      DAT_0047a470 = *(undefined4 *)((undefined1 *)0x00630b60 + **(short **)(extraout_EDX_00 + 4) * 4);
+    FUN_00452140((undefined4)(uintptr_t)scene_record);
+    first_entry = *(int *)(scene_record + 4);
+    if (first_entry != 0 && !IsBadReadPtr((void *)(uintptr_t)first_entry,2)) {
+      DAT_0047a470 = *(undefined4 *)((undefined1 *)0x00630b60 + *(short *)first_entry * 4);
     }
-    uVar1 = FUN_004523f8();
+    uVar1 = FUN_004523f8((undefined4)(uintptr_t)scene_record);
+  }
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {
+    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;
+    fprintf(stderr,"scene fallback 3a6e0 exit: current=0x%lx actors=0x%lx scene=0x%lx\n",
+            (unsigned long)DAT_0047a470,(unsigned long)_DAT_0063726c,
+            (unsigned long)_DAT_0073cc3c);
   }
   return CONCAT44(param_2,uVar1);
 }
@@ -29700,6 +30064,7 @@ void FUN_0043ac60(void)
   FUN_00449b30();
   FUN_0041bcfc(extraout_ECX);
   _DAT_0073ccba = 0xffff;
+  E2R_SyncSceneViewId();
   _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
   DAT_0047a43c = extraout_EDX;
   FUN_00458984(0,0x1e0);
@@ -29744,6 +30109,7 @@ void FUN_0043acec(void)
   FUN_00449b30();
   FUN_0041bcfc(extraout_ECX);
   _DAT_0073ccba = 0xffff;
+  E2R_SyncSceneViewId();
   DAT_0047a43c = extraout_EDX;
   _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.extraout_EDX",extraout_EDX);
   FUN_00458984(extraout_ECX_00,200);
@@ -30153,7 +30519,7 @@ undefined4 __fastcall FUN_0043b708(undefined4 param_1,short *param_2)
 
   uVar4 = _DAT_00643430;
   uVar3 = DAT_0047a45e;
-  if ((((E2R_READ2(DAT_00479e8a,2) < param_2[0xb]) || (param_2[0xc] <= E2R_READ2(DAT_00479e8a,2))) ||
+  if (((((undefined2)(DAT_00479e8a >> 0x10) < param_2[0xb]) || (param_2[0xc] <= (undefined2)(DAT_00479e8a >> 0x10))) ||
       (_DAT_0063683e < param_2[0xd])) || (param_2[0xe] <= _DAT_0063683e)) {
     return 0;
   }
@@ -33855,7 +34221,9 @@ undefined8 __fastcall FUN_004413fc(undefined4 param_1,undefined4 param_2)
   puVar1[4] = (short)uVar2;
   E2R_fan_parse_record = (short *)puVar1;
   E2R_fan_parse_record_count = E2R_fan_parse_record_count + 1;
-  if (E2R_fan_phase_diag_count < 64 && E2R_fan_parse_record_count <= 64) {
+  if (E2R_fan_phase_diag_count < 64 &&
+      (E2R_fan_parse_record_count <= 64 ||
+       (640 <= E2R_fan_parse_record_count && E2R_fan_parse_record_count <= 690))) {
     fprintf(stderr,"FAN record: ordinal=%u caller=%p offset=%u fields=%04x,%04x,%04x,%04x,%04x\n",
             E2R_fan_parse_record_count,__builtin_return_address(0),
             (uint)((byte *)(uintptr_t)E2R_fan_parse_stream[0] -
@@ -33936,6 +34304,16 @@ void FUN_0044146c(void)
     *(undefined2 *)(iVar1 + 0xea) = 0x7fff;
     *(undefined2 *)(iVar1 + 0xec) = 0;
     *(undefined2 *)(iVar1 + 0xee) = 0;
+  }
+  if (E2R_RuntimeDiagEnabled()) {
+    short *actor0 = *(short **)0x00630b60;
+    if (actor0 != (short *)0x0) {
+      fprintf(stderr,
+              "4146c actor0: actor=0x%lx head=0x%lx live=%d,%d,%d stand=%d,%d,%d\n",
+              (unsigned long)actor0,(unsigned long)_DAT_00637248,
+              (int)actor0[0x42],(int)actor0[0x43],(int)actor0[0x44],
+              (int)actor0[0x4e],(int)actor0[0x4f],(int)actor0[0x50]);
+    }
   }
   return;
 }
@@ -34309,7 +34687,7 @@ undefined8 __fastcall FUN_00441b24(undefined4 param_1,undefined4 param_2)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-undefined8 __fastcall FUN_00441e38(undefined4 param_1,undefined4 param_2)
+undefined8 __fastcall FUN_00441e38(short param_1,undefined4 param_2)
 
 {
   char cVar1;
@@ -34323,6 +34701,7 @@ undefined8 __fastcall FUN_00441e38(undefined4 param_1,undefined4 param_2)
   short sVar5;
   char *pcVar6;
 
+  in_AX = param_1;
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -34375,7 +34754,7 @@ undefined8 __fastcall FUN_00441ea4(undefined4 param_1,undefined4 param_2)
 
 {
   return CONCAT44(param_2,(int)E2R_FindPackedNameIndex((char *)(uintptr_t)param_1,
-                                                       _DAT_006366bc,5000,0x9c4));
+                                                       _DAT_006366bc,20000,0x9c4));
 }
 
 
@@ -35400,11 +35779,11 @@ ulonglong __fastcall FUN_004435e8(undefined4 param_1,undefined4 param_2)
       else if ((uVar2 < 0xe001) || (bVar1 == 0xf0)) goto LAB_004437e7;
     }
   }
-  FUN_0045f0a1((int)local_38,(byte *)s_Unknown_name_indicator_in_token___00474158);
-  uVar4 = FUN_0043cac0(extraout_ECX,extraout_EDX);
-  FUN_00460215(extraout_ECX_00,(int)((ulonglong)uVar4 >> 0x20));
-  FUN_00414e68();
-  in_EAX = extraout_EDX_00;
+  if (E2R_fan_phase_diag_count < 64) {
+    E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+    fprintf(stderr,"FAN action token passthrough: token=%04x class=%04x offset=%u\n",
+            (ushort)in_EAX,uVar2,E2R_FanStreamOffset());
+  }
 LAB_004437e7:
   return CONCAT44(uStack_4,in_EAX);
 }
@@ -35598,7 +35977,7 @@ void __fastcall FUN_00444330(undefined4 param_1)
     }
     FUN_00447090();
     sVar9 = *(short *)(iVar4 + 2);
-    if (E2R_fan_actor_diag_count < 8) {
+    if (E2R_fan_actor_diag_count < 128) {
       E2R_fan_actor_diag_count = E2R_fan_actor_diag_count + 1;
       fprintf(stderr,"FAN 44330: ordinal=%u local_type=%04x version=%d offset=%u\n",
               E2R_fan_parse_record_count,(ushort)sVar9,(int)_DAT_0067bc92,
@@ -35610,8 +35989,22 @@ void __fastcall FUN_00444330(undefined4 param_1)
        ((DAT_0047a470 != (short *)0x0 &&
         (E2R_actor_calc_context = (int)(uintptr_t)DAT_0047a470, FUN_00426220(),
          E2R_actor_calc_context = 0, iVar5 = extraout_EDX_00, _DAT_0067bc92 < 0x16)))) {
-      FUN_00422aa0(extraout_ECX,DAT_0047a470 + 0x7e);
-      FUN_00422aa0(extraout_ECX_00,DAT_0047a470 + 0x7b);
+      FUN_00422aa0((undefined4)(uintptr_t)((short *)(uintptr_t)DAT_0047a470 + 0x84),
+                  (short *)(uintptr_t)DAT_0047a470 + 0x7e);
+      FUN_00422aa0((undefined4)(uintptr_t)((short *)(uintptr_t)DAT_0047a470 + 0x81),
+                  (short *)(uintptr_t)DAT_0047a470 + 0x7b);
+      if (E2R_fan_actor_diag_count < 16) {
+        E2R_fan_actor_diag_count = E2R_fan_actor_diag_count + 1;
+        fprintf(stderr,
+                "FAN 44330 coord copy: actor=0x%lx type=%04x pos=%d,%d,%d src=%d,%d,%d\n",
+                (unsigned long)DAT_0047a470,(ushort)sVar9,
+                (int)((short *)(uintptr_t)DAT_0047a470)[0x84],
+                (int)((short *)(uintptr_t)DAT_0047a470)[0x85],
+                (int)((short *)(uintptr_t)DAT_0047a470)[0x86],
+                (int)((short *)(uintptr_t)DAT_0047a470)[0x7e],
+                (int)((short *)(uintptr_t)DAT_0047a470)[0x7f],
+                (int)((short *)(uintptr_t)DAT_0047a470)[0x80]);
+      }
       iVar5 = extraout_EDX_01;
     }
     iVar6 = unaff_EBX;
@@ -35690,6 +36083,17 @@ LAB_004444a9:
       *(undefined2 *)(iVar4 + 8) = 0xffff;
     }
     FUN_0042b880(0,DAT_0047a470);
+    if (E2R_RuntimeDiagEnabled() && DAT_0047a470 != 0 &&
+        *(short *)(uintptr_t)DAT_0047a470 == 0 &&
+        (sVar9 == 0x14 || sVar9 == 0x16 || sVar9 == 0x31 || sVar9 == 0x32)) {
+      short *actor0 = (short *)(uintptr_t)DAT_0047a470;
+      fprintf(stderr,
+              "FAN 44330 actor0 after type=%04x live=%d,%d,%d stand=%d,%d,%d old=%d,%d,%d\n",
+              (ushort)sVar9,(int)actor0[0x42],(int)actor0[0x43],
+              (int)actor0[0x44],(int)actor0[0x4e],(int)actor0[0x4f],
+              (int)actor0[0x50],(int)actor0[0x7e],(int)actor0[0x7f],
+              (int)actor0[0x80]);
+    }
     sVar3 = _DAT_0067bc92;
     psVar2 = DAT_0047a470;
     if (sVar9 == 0x15) {
@@ -35860,7 +36264,7 @@ LAB_00444743:
       psVar3 = extraout_EDX_06;
     }
     else if (sVar1 == 0xc) {
-      local_1c = FUN_00426b54(uVar2,*(int *)(psVar3 + 1) >> 0x10);
+      local_1c = FUN_00426b54((undefined4)(uintptr_t)local_14,*(int *)(psVar3 + 1) >> 0x10);
       FUN_00453264();
       uVar2 = extraout_ECX_06;
       psVar3 = extraout_EDX_07;
@@ -35877,7 +36281,7 @@ LAB_00444743:
         *(byte *)(psVar3 + 3) = *(byte *)(psVar3 + 3) & 0xbf;
         uVar2 = extraout_ECX_08;
       }
-      FUN_00426ac4(uVar2,(int)local_1c);
+      FUN_00426ac4((undefined4)(uintptr_t)psVar3,(int)local_1c);
       uVar2 = extraout_ECX_09;
       psVar3 = extraout_EDX_09;
     }
@@ -36134,10 +36538,16 @@ LAB_004449f5:
         FUN_00453264();
         return;
       }
-      FUN_0043cac0(uVar4,iVar2);
-      FUN_00414e68();
-      uVar4 = extraout_ECX_10;
-      uVar5 = extraout_EDX_09;
+      if (E2R_fan_phase_diag_count < 32) {
+        E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+        fprintf(stderr,
+                "FAN 448e4 unsupported record: ordinal=%u offset=%u fields=%04x,%04x,%04x,%04x,%04x\n",
+                E2R_fan_parse_record_count,E2R_FanStreamOffset(),
+                (ushort)psVar1[0],(ushort)psVar1[1],(ushort)psVar1[2],
+                (ushort)psVar1[3],(ushort)psVar1[4]);
+      }
+      FUN_00453264();
+      return;
     }
     if ((short)uVar4 == 0) {
       return;
@@ -36380,6 +36790,9 @@ LAB_00445024:
     _DAT_0067b820 = 1;
     uVar10 = FUN_004269d4(uVar8,uVar7);
     psVar6 = (short *)uVar10;
+    if (psVar6 == (short *)0x0) {
+      return;
+    }
     uVar10 = FUN_004173c8(extraout_ECX_06,(int)((ulonglong)uVar10 >> 0x20));
     sVar5 = (short)uVar10;
     if (-1 < sVar5) {
@@ -36807,6 +37220,7 @@ undefined4 __fastcall FUN_004453a4(undefined4 param_1,int param_2)
   undefined8 uVar15;
   longlong lVar16;
   ulonglong uVar17;
+  short e2r_record_type;
   undefined1 local_e8 [103];
   char acStack_81 [53];
   undefined1 local_4c [28];
@@ -37597,33 +38011,40 @@ LAB_004460f9:
     iVar7 = extraout_EDX_27;
 LAB_00446189:
     sVar9 = (short)uVar10;
+    e2r_record_type = sVar9;
     if (sVar9 == 0x19) {
-      uVar15 = FUN_0041ba7c(uVar10,iVar7);
-      uVar15 = FUN_00426320(extraout_ECX_70,(int)((ulonglong)uVar15 >> 0x20));
+      FUN_0041ba7c(uVar10,iVar7);
+      uVar15 = FUN_00426320(0,0);
       local_20 = (short *)uVar15;
-      *local_20 = *psVar8;
-      local_20[1] = psVar8[2];
-      local_20[6] = psVar8[3];
-      if (_DAT_0067bc92 < 8) {
-        local_20[0x4c] = -1;
+      if (local_20 != (short *)0x0) {
+        *local_20 = *psVar8;
+        local_20[1] = psVar8[2];
+        local_20[6] = psVar8[3];
+        if (_DAT_0067bc92 < 8) {
+          local_20[0x4c] = -1;
+        }
+        else {
+          local_20[0x4c] = psVar8[4];
+        }
+        local_20[0x53] = DAT_00479e50;
+        *(short **)(*local_20 * 4 + 0x62e450) = local_20;
       }
-      else {
-        local_20[0x4c] = psVar8[4];
-      }
-      local_20[0x53] = DAT_00479e50;
-      *(short **)(*local_20 * 4 + 0x62e450) = local_20;
       FUN_00453264();
       uVar10 = extraout_ECX_71;
       uVar13 = extraout_EDX_30;
     }
     else if (sVar9 == 0x34) {
-      local_20[0x4d] = psVar8[2];
+      if (local_20 != (short *)0x0) {
+        local_20[0x4d] = psVar8[2];
+      }
       FUN_00453264();
       uVar10 = extraout_ECX_72;
       uVar13 = extraout_EDX_31;
     }
     else if (sVar9 == 0x1b) {
-      local_20[*psVar8 + 7] = psVar8[2];
+      if (local_20 != (short *)0x0) {
+        local_20[*psVar8 + 7] = psVar8[2];
+      }
       if (*psVar8 != 0) {
         iVar12 = 0;
         do {
@@ -37638,33 +38059,38 @@ LAB_00446189:
             *in_EAX = (int)(pbVar4 + 1);
             uVar15 = CONCAT44(iVar12,(uint)*pbVar4);
           }
-          E2R_READ1(local_30,0) = (char)uVar15;
+          local_30 = (local_30 & 0xffffff00) | ((uint)uVar15 & 0xff);
           sVar9 = (short)((ulonglong)uVar15 >> 0x20);
-          if (sVar9 < 0x19) {
+          if (local_20 != (short *)0x0 && sVar9 < 0x19) {
             *(char *)((int)local_20 + (int)sVar9 + (*psVar8 + -1) * 0x19 + 0x32) = (char)local_30;
           }
           iVar12 = (int)((ulonglong)uVar15 >> 0x20) + 1;
           bVar14 = (char)local_30 != '\0';
           local_30 = (int)uVar15;
         } while (bVar14);
-        *(undefined1 *)((int)local_20 + (*psVar8 + -1) * 0x19 + 0x4a) = 0;
+        if (local_20 != (short *)0x0) {
+          *(undefined1 *)((int)local_20 + (*psVar8 + -1) * 0x19 + 0x4a) = 0;
+        }
       }
       FUN_00453264();
       uVar10 = extraout_ECX_74;
       uVar13 = extraout_EDX_32;
     }
     else if (sVar9 == 0x1a) {
-      uVar15 = FUN_004263ac(uVar10,iVar7);
+      uVar15 = FUN_004263ac((undefined4)(uintptr_t)local_20,iVar7);
       local_24 = (short *)uVar15;
-      local_24[2] = psVar8[2];
-      local_24[7] = psVar8[3];
-      *local_24 = psVar8[4];
+      if (local_24 != (short *)0x0) {
+        local_24[2] = psVar8[2];
+        local_24[7] = psVar8[3];
+        *local_24 = psVar8[4];
+      }
       FUN_00453264();
       uVar10 = extraout_ECX_75;
       uVar13 = extraout_EDX_33;
     }
     else if (sVar9 == 0xc) {
-      local_1c = FUN_00426b54(uVar10,*(int *)(psVar8 + 1) >> 0x10);
+      local_1c = FUN_00426b54((undefined4)(uintptr_t)(local_24 + 1),
+                              *(int *)(psVar8 + 1) >> 0x10);
       FUN_00453264();
       uVar10 = extraout_ECX_76;
       uVar13 = extraout_EDX_34;
@@ -37704,11 +38130,11 @@ LAB_00446189:
         *(byte *)(psVar8 + 3) = *(byte *)(psVar8 + 3) & 0xbf;
         uVar10 = extraout_ECX_80;
       }
-      FUN_00426ac4(uVar10,(int)local_1c);
+      FUN_00426ac4((undefined4)(uintptr_t)psVar8,(int)local_1c);
       uVar10 = extraout_ECX_81;
       uVar13 = extraout_EDX_38;
     }
-    if (sVar9 == 0) {
+    if (e2r_record_type == 0) {
       if (5 < _DAT_0067bc92) {
         FUN_00444c10(uVar10,local_18);
         if (E2R_fan_phase_diag_count < 32) {
@@ -38186,7 +38612,7 @@ undefined8 __fastcall FUN_00446874(undefined4 param_1,undefined4 param_2)
   undefined2 uStack_1a;
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
-                                                       _DAT_006366bc,5000,0x9c4));
+                                                       _DAT_006366bc,20000,0x9c4));
 
   local_1c = 0;
   puVar5 = _DAT_006366bc;
@@ -38840,6 +39266,8 @@ static undefined4 E2R_ParseArchiveFanResource(void)
   byte *end;
   byte *cursor;
   byte *scan;
+  byte *scan_limit;
+  byte *resource_end;
   uint ordinal;
   uint original_offset;
   uint mapped_offset;
@@ -38856,6 +39284,16 @@ static undefined4 E2R_ParseArchiveFanResource(void)
   cursor = (byte *)(uintptr_t)stream[0];
   original_offset = (uint)(cursor - base);
   mapped_offset = original_offset;
+  if ((*(byte *)(stream + 3) & 0x10) != 0) {
+    if (E2R_archive_parse_summary_count < 32) {
+      E2R_archive_parse_summary_count = E2R_archive_parse_summary_count + 1;
+      fprintf(stderr,
+              "archive resource parse: input=%u mapped=%u result=0 final=%u remaining=%d\n",
+              original_offset,mapped_offset,(uint)((byte *)(uintptr_t)stream[0] - base),
+              stream[1]);
+    }
+    return 0;
+  }
   if ((cursor + 4 <= end) &&
       (cursor[0] != 'F' || cursor[1] != 'A' || cursor[2] != 'N' || cursor[3] != 'T')) {
     ordinal = original_offset;
@@ -38875,7 +39313,8 @@ static undefined4 E2R_ParseArchiveFanResource(void)
       }
     }
     else {
-      for (scan = cursor; scan >= base; scan = scan - 1) {
+      scan_limit = (uint)(cursor - base) > 0x10000u ? cursor - 0x10000 : base;
+      for (scan = cursor; scan >= scan_limit; scan = scan - 1) {
         if (scan[0] == 'F' && scan[1] == 'A' && scan[2] == 'N' && scan[3] == 'T') {
           stream[0] = (int)(uintptr_t)scan;
           stream[1] = (int)(uint)(end - scan);
@@ -38883,11 +39322,23 @@ static undefined4 E2R_ParseArchiveFanResource(void)
           *(byte *)(stream + 3) = *(byte *)(stream + 3) | 0x40;
           break;
         }
-        if (scan == base) {
+        if (scan == scan_limit) {
           break;
         }
       }
     }
+  }
+  cursor = (byte *)(uintptr_t)stream[0];
+  resource_end = end;
+  if ((cursor + 4 <= end) && cursor[0] == 'F' && cursor[1] == 'A' &&
+      cursor[2] == 'N' && cursor[3] == 'T') {
+    for (scan = cursor + 4; scan + 4 <= end; scan = scan + 1) {
+      if (scan[0] == 'F' && scan[1] == 'A' && scan[2] == 'N' && scan[3] == 'T') {
+        resource_end = scan;
+        break;
+      }
+    }
+    stream[1] = (int)(uint)(resource_end - cursor);
   }
   previous_stream = E2R_fan_parse_stream;
   E2R_fan_parse_stream = stream;
@@ -39275,6 +39726,18 @@ void __fastcall FUN_00447638(undefined4 param_1)
     fprintf(stderr,"FAN 47638 count: entries=%d offset=%u remaining=%d\n",
             DAT_0047a77c,E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
   }
+  if (E2R_fan_parse_stream != (int *)0x0 &&
+      (uint)E2R_fan_parse_stream[6] == E2R_STREAM_MAGIC &&
+      0x33 <= _DAT_0067bc92 && 0 < DAT_0047a77c &&
+      (uint)DAT_0047a77c > (uint)E2R_fan_parse_stream[1] / 36u) {
+    if (E2R_fan_phase_diag_count < 32) {
+      E2R_fan_phase_diag_count = E2R_fan_phase_diag_count + 1;
+      fprintf(stderr,"FAN 47638 invalid count: entries=%d offset=%u remaining=%d\n",
+              DAT_0047a77c,E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
+    }
+    *(byte *)(E2R_fan_parse_stream + 3) = *(byte *)(E2R_fan_parse_stream + 3) | 0x10;
+    return;
+  }
   if ((0x21 < _DAT_0067bc92) && (_DAT_0067bc92 < 0x28)) {
     uVar16 = FUN_004171b8(extraout_ECX_04,piVar11);
     uVar16 = FUN_004171b8(extraout_ECX_05,(int)((ulonglong)uVar16 >> 0x20));
@@ -39628,6 +40091,7 @@ LAB_0044796b:
     fprintf(stderr,"FAN 47638 complete: offset=%u remaining=%d\n",
             E2R_FanStreamOffset(),E2R_fan_parse_stream[1]);
   }
+  E2R_LogSceneGridProbe("47638.complete",-8448,-15616);
   return;
 }
 
@@ -39747,8 +40211,8 @@ undefined8 __fastcall FUN_00448744(undefined4 param_1,ushort *param_2)
 
   local_20 = 0xffffffff;
   local_28 = 0xffffffff;
-  actor = param_2;
-  if ((uintptr_t)actor < 0x10000u || IsBadReadPtr(actor,0x88)) {
+  actor = (ushort *)(uintptr_t)param_1;
+  if ((uintptr_t)actor < 0x10000u || IsBadReadPtr(actor,0x6)) {
     return CONCAT44(param_2,0xffffffff);
   }
   uVar5 = (uint)*(ushort *)
@@ -39757,6 +40221,31 @@ undefined8 __fastcall FUN_00448744(undefined4 param_1,ushort *param_2)
                  ((*(int *)(actor + 1) >> 0x19) + 0x40) * 0x100);
   iVar6 = (short)(*actor & 0x1ff) + -0x100;
   iVar4 = (short)(actor[2] & 0x1ff) + -0x100;
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {
+    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;
+    fprintf(stderr,
+            "scene lookup 48744: coord=0x%lx x=%d z=%d cell=0x%x current=0x%lx\n",
+            (unsigned long)actor,(int)(short)*actor,(int)(short)actor[2],
+            (unsigned int)uVar5,(unsigned long)DAT_0047a470);
+    {
+      uint swapped_cell = (uint)*(ushort *)
+        ((undefined1 *)0x00684d68 +
+         ((*(int *)(actor + 1) >> 0x19) + 0x40) * 2 +
+         (((int)(short)*actor >> 9) + 0x40) * 0x100);
+      uintptr_t desc = 0x0068cd68 + (uintptr_t)uVar5 * 0xc;
+      uintptr_t swapped_desc = 0x0068cd68 + (uintptr_t)swapped_cell * 0xc;
+      if (swapped_cell != uVar5 && swapped_cell != 0xffff &&
+          !IsBadReadPtr((void *)desc,0xc) && !IsBadReadPtr((void *)swapped_desc,0xc)) {
+        fprintf(stderr,
+                "scene lookup 48744 alt: swapped_cell=0x%x desc_words=%04x,%04x swapped_words=%04x,%04x\n",
+                (unsigned int)swapped_cell,
+                (unsigned int)*(ushort *)(desc + 8),(unsigned int)*(ushort *)(desc + 10),
+                (unsigned int)*(ushort *)(swapped_desc + 8),
+                (unsigned int)*(ushort *)(swapped_desc + 10));
+      }
+    }
+    E2R_LogSceneGridProbe("48744.lookup",(int)(short)*actor,(int)(short)actor[2]);
+  }
   if (uVar5 != 0xffff) {
     pbVar7 = (undefined1 *)0x0068cd68 + uVar5 * 0xc;
     do {
@@ -39807,6 +40296,11 @@ switchD_004487ea_caseD_1:
       pbVar7 = pbVar7 + 0xc;
       uVar5 = uVar5 + 1;
     } while ((iVar1 >> 0x10 & 0x8000U) == 0);
+  }
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {
+    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;
+    fprintf(stderr,"scene lookup 48744 result: result=%d coord=0x%lx\n",
+            (int)local_20,(unsigned long)actor);
   }
   return CONCAT44(param_2,local_20);
 }
@@ -39935,7 +40429,7 @@ int __fastcall FUN_00448a48(undefined4 param_1,undefined4 param_2)
          (iVar4 = (short)(*(ushort *)((undefined1 *)0x0068cd6a + iVar3 * 0xc) & 0x3fff) + -1, -1 < iVar4)) &&
         (iVar4 = *(int *)(iVar4 * 4 + 0x6297c0), iVar4 != 0)) &&
        (iVar4 = *(int *)(iVar4 + 6), iVar4 != 0)) {
-      piVar5 = (int *)(_DAT_006366a0 + iVar4 * 2);
+      piVar5 = (int *)((byte *)(uintptr_t)_DAT_006366a0 + iVar4 * 2);
       sVar1 = (short)*piVar5;
       while (sVar1 != 0) {
         sVar1 = (short)*piVar5;
@@ -40659,6 +41153,11 @@ longlong __fastcall FUN_00449b4c(undefined4 param_1,uint param_2)
       uVar7 = (undefined4)(uintptr_t)stack_ffffff98;
     }
     strncat((char *)stack_ffffff98,local_3c,0x1ff - strlen((char *)stack_ffffff98));
+    if (E2R_RuntimeDiagEnabled()) {
+      fprintf(stderr,"view raw open: scene=%d camera=%d hires=%d path=%s\n",
+              (int)(short)_DAT_0073ccba,(int)(_DAT_0073ccb8 >> 0x10),
+              DAT_0047a43c != 0,(char *)stack_ffffff98);
+    }
     uVar13 = FUN_0045e594(extraout_ECX_03,extraout_EDX,(LPCSTR)stack_ffffff98,0x200,
                            in_stack_ffffff98);
     if ((int)uVar13 != -1) {
@@ -40737,7 +41236,7 @@ longlong __fastcall FUN_00449b4c(undefined4 param_1,uint param_2)
       }
       return (ulonglong)param_2 << 0x20;
     }
-    FUN_0043cbb4(extraout_ECX_04);
+    FUN_0043cbb4(0x004749e0);
   }
   return CONCAT44(param_2,0xffffffff);
 }
@@ -41646,6 +42145,10 @@ undefined8 __fastcall FUN_0044b0ac(undefined4 param_1,undefined4 param_2)
     local_2c = local_2c + 2;
     local_3c = local_3c + 1;
   } while (local_3c < 0x80);
+  if (DAT_0047ab10 != 0) {
+    iVar14 = E2R_ReadHostedVisibilityFromArchive();
+    return CONCAT44(param_2,iVar14);
+  }
   if (DAT_0047ab10 == 0) {
     FUN_0045fd2c(local_2c,s_visib_XXXX_vis_00474aec);
     cStack_20 = (char)((uint)_DAT_0073ccb8 >> 0x10);
@@ -41869,6 +42372,7 @@ void FUN_0044be20(void)
   if (in_AX < 0) goto joined_r0x0044c0e3;
   DAT_0047a788 = 1;
   _DAT_0073ccba = in_AX;
+  E2R_SyncSceneViewId();
   FUN_0044c6bc();
   iVar2 = _DAT_0064020c;
   uVar3 = extraout_ECX;
@@ -41938,9 +42442,7 @@ LAB_0044bfdd:
     uVar3 = 2;
     do {
       if ((*(ushort *)((undefined1 *)0x0064a178 + iVar1) & (ushort)uVar3) != 0) {
-        FUN_0044d34c(uVar3);
-        uVar3 = extraout_ECX_02;
-        iVar2 = extraout_EDX_03;
+        FUN_0044d34c(iVar2);
       }
       iVar2 = iVar2 + 1;
       iVar1 = iVar1 + 2;
@@ -41950,9 +42452,7 @@ LAB_0044bfdd:
     uVar3 = 2;
     do {
       if ((*(ushort *)((undefined1 *)0x0064a178 + iVar4) & (ushort)uVar3) != 0) {
-        FUN_0044d4b4(uVar3);
-        uVar3 = extraout_ECX_03;
-        iVar1 = extraout_EDX_04;
+        FUN_0044d4b4(iVar1);
       }
       iVar1 = iVar1 + 1;
       iVar4 = iVar4 + 2;
@@ -42023,7 +42523,7 @@ void __fastcall FUN_0044c164(undefined4 param_1)
   }
 #endif
   if (((DAT_0047a470 != 0) && (*(short *)(DAT_0047a470 + 0x82) != 0xb)) && (DAT_0047a438 == 0)) {
-    uVar2 = FUN_00448744(param_1,DAT_0047a470);
+    uVar2 = FUN_00448744((undefined4)(uintptr_t)(DAT_0047a470 + 0x84),DAT_0047a470);
     if (((int)uVar2 < 0) ||
        (iVar1 = (int)uVar2 * 0xc,
        7 < (int)(((-(*(int *)(DAT_0047a470 + 0x84) >> 0x10) >> (DAT_0047a738 & 0x1f)) + 0x80) -
@@ -42072,7 +42572,7 @@ void __fastcall FUN_0044c224(undefined4 param_1)
   if (DAT_0047a470 == 0) {
     return;
   }
-  uVar7 = FUN_00448744(param_1,DAT_0047a470);
+  uVar7 = FUN_00448744((undefined4)(uintptr_t)(DAT_0047a470 + 0x84),DAT_0047a470);
   if ((int)uVar7 < 0) {
     uVar3 = 0;
   }
@@ -42091,19 +42591,37 @@ void __fastcall FUN_0044c224(undefined4 param_1)
     }
   }
   sVar2 = (short)uVar3;
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {
+    uintptr_t desc = 0x0068cd68 + (uintptr_t)((int)uVar7 * 0xc);
+    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;
+    if ((int)uVar7 < 0 || IsBadReadPtr((void *)desc,0xc)) {
+      fprintf(stderr,"scene select 4c224: lookup=%d scene_id=%d desc=0x%lx bad_desc=1 current=0x%lx scene=0x%lx\n",
+              (int)uVar7,(int)sVar2,(unsigned long)desc,
+              (unsigned long)DAT_0047a470,(unsigned long)_DAT_0073cc3c);
+    }
+    else {
+      fprintf(stderr,"scene select 4c224: lookup=%d scene_id=%d desc=0x%lx bytes=%02x,%02x,%02x,%02x words=%04x,%04x current=0x%lx scene=0x%lx\n",
+              (int)uVar7,(int)sVar2,(unsigned long)desc,
+              (unsigned int)*(byte *)desc,(unsigned int)*(byte *)(desc + 1),
+              (unsigned int)*(byte *)(desc + 2),(unsigned int)*(byte *)(desc + 3),
+              (unsigned int)*(ushort *)(desc + 8),(unsigned int)*(ushort *)(desc + 10),
+              (unsigned long)DAT_0047a470,(unsigned long)_DAT_0073cc3c);
+    }
+  }
   if ((undefined1 *)0x0067c728 + sVar2 * 0x1c == _DAT_0073cc3c) {
     return;
   }
   if (sVar2 < 1) {
     iVar1 = _DAT_0063726c;
     if ((DAT_0047a34a == 0) && ((DAT_0064a178 & 4) == 0)) {
-      FUN_0043a6e0(uVar3,(int)sVar2);
+      FUN_0043a6e0(7,7);
       iVar1 = _DAT_0063726c;
     }
     goto joined_r0x0044c464;
   }
   DAT_0047a788 = 1;
   _DAT_0073ccba = sVar2;
+  E2R_SyncSceneViewId();
   FUN_0044c6bc();
   lVar8 = FUN_00449b4c(extraout_ECX,extraout_EDX);
   if ((int)lVar8 != 0) {
@@ -42134,9 +42652,7 @@ LAB_0044c35b:
     uVar3 = 2;
     do {
       if ((*(ushort *)((undefined1 *)0x0064a178 + iVar4) & (ushort)uVar3) != 0) {
-        FUN_0044d34c(uVar3);
-        uVar3 = extraout_ECX_01;
-        iVar1 = extraout_EDX_02;
+        FUN_0044d34c(iVar1);
       }
       iVar1 = iVar1 + 1;
       iVar4 = iVar4 + 2;
@@ -42146,9 +42662,7 @@ LAB_0044c35b:
     uVar3 = 2;
     do {
       if ((*(ushort *)((undefined1 *)0x0064a178 + iVar6) & (ushort)uVar3) != 0) {
-        FUN_0044d4b4(uVar3);
-        uVar3 = extraout_ECX_02;
-        iVar4 = extraout_EDX_03;
+        FUN_0044d4b4(iVar4);
       }
       iVar4 = iVar4 + 1;
       iVar6 = iVar6 + 2;
@@ -42550,50 +43064,50 @@ void FUN_0044c71c(void)
   _DAT_0067c114 = 0x302;
   _DAT_0067c100 = 0x606;
   local_24 = uVar1;
-  FUN_0045fd2c(0xd02,s_Vil_Zombi_00474b6c);
-  FUN_0045fd2c(extraout_ECX,s_Vil_SmGal_00474b78);
-  FUN_0045fd2c(extraout_ECX_00,s_Vil_Galag_00474b84);
-  FUN_0045fd2c(extraout_ECX_01,s_Vil_Cyclo_00474b90);
-  FUN_0045fd2c(extraout_ECX_02,s_Vil_Wolf_00474b9c);
-  FUN_0045fd2c(extraout_ECX_03,s_Vil_Red_D_00474ba8);
-  FUN_0045fd2c(extraout_ECX_04,s_Sml_Galag_00474bb4);
-  FUN_0045fd2c(extraout_ECX_05,s_Mushroom_00474bc0);
-  FUN_0045fd2c(extraout_ECX_06,s_Mummy_00474bcc);
-  FUN_0045fd2c(extraout_ECX_07,s_Galagon_00474bd8);
-  FUN_0045fd2c(extraout_ECX_08,s_Amazon_00474be4);
-  FUN_0045fd2c(extraout_ECX_09,s_Fish_00474bf0);
-  FUN_0045fd2c(extraout_ECX_10,s_Fairy_Blu_00474bfc);
-  FUN_0045fd2c(extraout_ECX_11,s_Fairy_Grn_00474c08);
-  FUN_0045fd2c(extraout_ECX_12,s_Red_Devil_00474c14);
-  FUN_0045fd2c(extraout_ECX_13,s_Good_Nite_00474c20);
-  FUN_0045fd2c(extraout_ECX_14,s_Bad_Nite_00474c2c);
-  FUN_0045fd2c(extraout_ECX_15,s_Skeleton_00474c38);
-  FUN_0045fd2c(extraout_ECX_16,s_Hunchback_00474c44);
-  FUN_0045fd2c(extraout_ECX_17,s_Werewolf_00474c50);
-  FUN_0045fd2c(extraout_ECX_18,s_Bat_Stone_00474c5c);
-  FUN_0045fd2c(extraout_ECX_19,s_Demon_00474c68);
-  FUN_0045fd2c(extraout_ECX_20,s_Eel_Eye_00474c74);
-  FUN_0045fd2c(extraout_ECX_21,s_Ken_Dorc_00474c80);
-  FUN_0045fd2c(extraout_ECX_22,s_Statue_00474c8c);
-  FUN_0045fd2c(extraout_ECX_23,s_Red_Dwarf_00474c98);
-  FUN_0045fd2c(extraout_ECX_24,s_Sprite_00474ca4);
-  FUN_0045fd2c(extraout_ECX_25,s_Monk_00474cb0);
-  FUN_0045fd2c(extraout_ECX_26,s_Sml_Grn_S_00474cbc);
-  FUN_0045fd2c(extraout_ECX_27,s_Sml_Blk_S_00474cc8);
-  FUN_0045fd2c(extraout_ECX_28,s_Grn_Spidr_00474cd4);
-  FUN_0045fd2c(extraout_ECX_29,s_Zombie_00474ce0);
-  FUN_0045fd2c(extraout_ECX_30,s_Cyclops_00474cec);
-  FUN_0045fd2c(extraout_ECX_31,s_Stone_Trl_00474cf8);
-  FUN_0045fd2c(extraout_ECX_32,s_Orc_00474d04);
-  FUN_0045fd2c(extraout_ECX_33,s_Barbarian_00474d10);
-  FUN_0045fd2c(extraout_ECX_34,s_Blk_Spidr_00474d1c);
-  FUN_0045fd2c(extraout_ECX_35,s_Blob_00474d28);
-  FUN_0045fd2c(extraout_ECX_36,s_Slime_00474d34);
-  FUN_0045fd2c(extraout_ECX_37,s_Beholder_00474d40);
-  FUN_0045fd2c(extraout_ECX_38,s_Ghost_00474d4c);
-  FUN_0045fd2c(extraout_ECX_39,s_Goblin_00474d58);
+  E2R_CopyCStringBounded((char *)0x0067c328,s_Vil_Zombi_00474b6c,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c334,s_Vil_SmGal_00474b78,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c340,s_Vil_Galag_00474b84,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c34c,s_Vil_Cyclo_00474b90,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c358,s_Vil_Wolf_00474b9c,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c364,s_Vil_Red_D_00474ba8,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c370,s_Sml_Galag_00474bb4,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c37c,s_Mushroom_00474bc0,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c388,s_Mummy_00474bcc,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c394,s_Galagon_00474bd8,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c3a0,s_Amazon_00474be4,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c3ac,s_Fish_00474bf0,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c3b8,s_Fairy_Blu_00474bfc,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c3c4,s_Fairy_Grn_00474c08,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c3d0,s_Red_Devil_00474c14,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c3dc,s_Good_Nite_00474c20,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c3e8,s_Bad_Nite_00474c2c,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c3f4,s_Skeleton_00474c38,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c400,s_Hunchback_00474c44,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c40c,s_Werewolf_00474c50,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c418,s_Bat_Stone_00474c5c,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c424,s_Demon_00474c68,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c430,s_Eel_Eye_00474c74,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c43c,s_Ken_Dorc_00474c80,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c448,s_Statue_00474c8c,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c454,s_Red_Dwarf_00474c98,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c460,s_Sprite_00474ca4,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c46c,s_Monk_00474cb0,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c478,s_Sml_Grn_S_00474cbc,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c484,s_Sml_Blk_S_00474cc8,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c490,s_Grn_Spidr_00474cd4,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c49c,s_Zombie_00474ce0,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c4a8,s_Cyclops_00474cec,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c4b4,s_Stone_Trl_00474cf8,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c4c0,s_Orc_00474d04,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c4cc,s_Barbarian_00474d10,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c4d8,s_Blk_Spidr_00474d1c,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c4e4,s_Blob_00474d28,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c4f0,s_Slime_00474d34,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c4fc,s_Beholder_00474d40,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c508,s_Ghost_00474d4c,0xc);
+  E2R_CopyCStringBounded((char *)0x0067c514,s_Goblin_00474d58,0xc);
   iVar3 = 0xc;
-  FUN_0045fd2c(extraout_ECX_40,s__nothing__00474d64);
+  E2R_CopyCStringBounded((char *)0x0067c520,s__nothing__00474d64,0xc);
   iVar4 = 0;
   DAT_0073cc4d = 0;
   DAT_0073cc4c = 0;
@@ -42607,14 +43121,15 @@ void FUN_0044c71c(void)
     iVar4 = iVar4 + 1;
     iVar3 = iVar3 + 0xc;
   } while (iVar4 < 60000);
-  *(undefined2 *)0x0067c728 = 0;
-  *(undefined2 *)0x0067c72a = 0xfe70;
-  *(undefined2 *)0x0067c72c = 0x800;
-  *(undefined2 *)0x0067c72e = 0;
-  *(undefined2 *)0x0067c730 = 0x8000;
-  *(undefined2 *)0x0067c732 = 0;
+  _DAT_0067c728 = 0;
+  _DAT_0067c72a = 0xfe70;
+  _DAT_0067c72c = 0x800;
+  _DAT_0067c72e = 0;
+  _DAT_0067c730 = 0x8000;
+  _DAT_0067c732 = 0;
   _DAT_0073ccba = 0;
-  *(undefined2 *)0x0067c734 = 0x400;
+  E2R_SyncSceneViewId();
+  _DAT_0067c734 = 0x400;
   _DAT_0073ccb8 = 1;
   return;
 }
@@ -42687,27 +43202,45 @@ undefined4 __fastcall FUN_0044d2b4(undefined4 param_1)
 void __fastcall FUN_0044d34c(undefined4 param_1)
 
 {
-  int iVar1;
-  short in_AX;
-  short sVar2;
-  short *psVar3;
-  undefined8 uVar4;
+  int actor;
+  int actor_id;
+  int cell;
+  int link;
+  short visible;
+  undefined8 result;
 
-  iVar1 = *(int *)((undefined1 *)0x00630b60 + in_AX * 4);
-  if ((((iVar1 != 0) && (*(int *)(iVar1 + 0xf2) == 0)) && (iVar1 != DAT_0047a470)) &&
-     ((*(int *)(iVar1 + 0xa6) == 0 || ((*(byte *)(*(int *)(iVar1 + 0xa6) + 0xc) & 2) == 0)))) {
-    uVar4 = FUN_004488a4(param_1,iVar1);
-    psVar3 = (short *)((ulonglong)uVar4 >> 0x20);
-    if ((int)uVar4 < 0) {
-      sVar2 = 0;
-    }
-    else {
-      sVar2 = (*(ushort *)((undefined1 *)0x0068cd6a + (int)uVar4 * 0xc) >> 8 & 0x40) << 8;
-    }
-    if (((sVar2 == 0) &&
-        (*(byte *)(psVar3 + 1) = *(byte *)(psVar3 + 1) & 0xf7,
-        (((undefined1 *)0x0064a178)[*psVar3 * 2] & 8) == 0)) && (psVar3[0x41] != 5)) {
-      FUN_0044d3e8();
+  actor_id = (int)(short)(uintptr_t)param_1;
+  if (actor_id < 0 || 5000 <= actor_id) {
+    return;
+  }
+  actor = *(int *)((undefined1 *)0x00630b60 + actor_id * 4);
+  if (actor == 0 || (uintptr_t)actor < 0x10000u ||
+      IsBadReadPtr((void *)(uintptr_t)actor,0x188)) {
+    return;
+  }
+  if (*(int *)(actor + 0xf2) != 0 || actor == DAT_0047a470) {
+    return;
+  }
+  link = *(int *)(actor + 0xa6);
+  if (link != 0 && ((uintptr_t)link < 0x10000u || IsBadReadPtr((void *)(uintptr_t)link,0x10) ||
+                    ((*(byte *)(link + 0xc) & 2) != 0))) {
+    return;
+  }
+  result = FUN_004488a4((undefined4)(uintptr_t)(actor + 0x84),actor);
+  if ((int)result < 0) {
+    visible = 0;
+  }
+  else {
+    cell = (int)result;
+    visible = (*(ushort *)((undefined1 *)0x0068cd6a + cell * 0xc) >> 8 & 0x40) << 8;
+  }
+  if (visible == 0) {
+    *(byte *)(actor + 2) = *(byte *)(actor + 2) & 0xf7;
+    actor_id = (int)*(short *)(actor + 0);
+    if (0 <= actor_id && actor_id < 5000 &&
+        (((undefined1 *)0x0064a178)[actor_id * 2] & 8) == 0 &&
+        *(short *)(actor + 0x82) != 5) {
+      FUN_0044d3e8((undefined4)(uintptr_t)actor);
     }
   }
   return;
@@ -42717,37 +43250,56 @@ void __fastcall FUN_0044d34c(undefined4 param_1)
 
 /* 0044d3e8 */
 
-void FUN_0044d3e8(void)
+void __fastcall FUN_0044d3e8(undefined4 param_1)
 
 {
-  short *in_EAX;
-  undefined4 extraout_ECX;
-  int extraout_ECX_00;
-  undefined2 uVar1;
-  int extraout_EDX;
-  int iVar2;
+  int actor;
+  int actor_id;
+  int child;
+  int link;
+  int rep;
+  undefined2 rep_id;
 
-  FUN_00422aa0((int)*in_EAX,in_EAX + 0x42);
-  FUN_00422aa0(extraout_ECX,in_EAX + 0x48);
-  iVar2 = extraout_ECX_00 * 2;
-  *(short *)(iVar2 + 0x671fc0) = in_EAX[0x91];
-  *(short *)(iVar2 + 0x647a68) = in_EAX[0x76];
-  *(char *)(extraout_ECX_00 + 0x64c950) = (char)in_EAX[0xc2];
-  if (*(undefined2 **)(in_EAX + 0x79) == (undefined2 *)0x0) {
-    uVar1 = 0xffff;
-    *(undefined2 *)(iVar2 + 0x6648e8) = 0xffff;
+  actor = (int)(uintptr_t)param_1;
+  if (actor == 0 || (uintptr_t)actor < 0x10000u ||
+      IsBadReadPtr((void *)(uintptr_t)actor,0x188)) {
+    return;
+  }
+  actor_id = (int)*(short *)actor;
+  if (actor_id < 0 || 5000 <= actor_id) {
+    return;
+  }
+  FUN_00422aa0((undefined4)(uintptr_t)(actor_id * 6 + 0x669708),(undefined2 *)(actor + 0x84));
+  FUN_00422aa0((undefined4)(uintptr_t)(actor_id * 6 + 0x658980),(undefined2 *)(actor + 0x90));
+  *(short *)(actor_id * 2 + 0x671fc0) = *(short *)(actor + 0x122);
+  *(short *)(actor_id * 2 + 0x647a68) = *(short *)(actor + 0xec);
+  *(char *)(actor_id + 0x64c950) = *(char *)(actor + 0x184);
+  rep = *(int *)(actor + 0xf2);
+  if (rep == 0 || (uintptr_t)rep < 0x10000u || IsBadReadPtr((void *)(uintptr_t)rep,0x26)) {
+    rep_id = 0xffff;
+    *(undefined2 *)(actor_id * 2 + 0x6648e8) = 0xffff;
   }
   else {
-    *(undefined2 *)(iVar2 + 0x6648e8) = **(undefined2 **)(in_EAX + 0x79);
-    uVar1 = **(undefined2 **)(*(int *)(in_EAX + 0x79) + 0x22);
+    *(undefined2 *)(actor_id * 2 + 0x6648e8) = *(undefined2 *)rep;
+    if (*(int *)(rep + 0x22) == 0 || IsBadReadPtr((void *)(uintptr_t)*(int *)(rep + 0x22),2)) {
+      rep_id = 0xffff;
+    }
+    else {
+      rep_id = *(undefined2 *)(uintptr_t)*(int *)(rep + 0x22);
+    }
   }
-  *(undefined2 *)(iVar2 + 0x65feb0) = uVar1;
-  *(byte *)(in_EAX + 1) = *(byte *)(in_EAX + 1) & 0xf7;
+  *(undefined2 *)(actor_id * 2 + 0x65feb0) = rep_id;
+  *(byte *)(actor + 2) = *(byte *)(actor + 2) & 0xf7;
+  E2R_actor_calc_context = actor;
   FUN_00426ca4();
-  for (iVar2 = *(int *)(in_EAX + 0xf); iVar2 != 0; iVar2 = *(int *)(iVar2 + 0x4c)) {
-    if (*(int *)(iVar2 + 0x13a) != 0) {
-      FUN_0044d3e8();
-      iVar2 = extraout_EDX;
+  E2R_actor_calc_context = 0;
+  for (link = *(int *)(actor + 0x1e); link != 0; link = *(int *)(link + 0x4c)) {
+    if ((uintptr_t)link < 0x10000u || IsBadReadPtr((void *)(uintptr_t)link,0x140)) {
+      break;
+    }
+    child = *(int *)(link + 0x13a);
+    if (child != 0) {
+      FUN_0044d3e8((undefined4)(uintptr_t)child);
     }
   }
   return;
@@ -42760,73 +43312,60 @@ void FUN_0044d3e8(void)
 void __fastcall FUN_0044d4b4(undefined4 param_1)
 
 {
-  short in_AX;
-  short sVar1;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 extraout_ECX_02;
-  undefined4 uVar2;
-  int extraout_EDX;
-  int extraout_EDX_00;
-  int iVar3;
-  int extraout_EDX_01;
-  int extraout_EDX_02;
-  undefined8 uVar4;
+  int actor;
+  int actor_id;
+  int cell;
+  int child;
+  int link;
+  int link_flags;
+  short visible;
+  undefined8 result;
 
-  iVar3 = *(int *)((undefined1 *)0x00630b60 + in_AX * 4);
-  if ((iVar3 == 0) || ((*(int *)(in_AX * 2 + 0x666ff6) >> 0x10 & 0xc000U) == 0xc000)) {
-    uVar4 = FUN_004488a4(param_1,(int)in_AX);
-    if ((int)uVar4 < 0) {
-      sVar1 = 0;
+  actor_id = (int)(short)(uintptr_t)param_1;
+  if (actor_id < 0 || 5000 <= actor_id) {
+    return;
+  }
+  actor = *(int *)((undefined1 *)0x00630b60 + actor_id * 4);
+  if (actor == 0 || (uintptr_t)actor < 0x10000u ||
+      IsBadReadPtr((void *)(uintptr_t)actor,0x188)) {
+    if ((*(int *)(actor_id * 2 + 0x666ff6) >> 0x10 & 0xc000U) == 0xc000) {
+      result = FUN_004488a4(param_1,(undefined4)actor_id);
+      visible = (int)result < 0 ? 0 :
+        ((*(ushort *)((undefined1 *)0x0068cd6a + (int)result * 0xc) >> 8 & 0x40) << 8);
+      if (visible != 0 && *(short *)(actor_id * 2 + 0x65feb0) < 0) {
+        FUN_0044d634();
+      }
     }
-    else {
-      sVar1 = (*(ushort *)((undefined1 *)0x0068cd6a + (int)uVar4 * 0xc) >> 8 & 0x40) << 8;
-    }
-    if ((sVar1 != 0) && (*(short *)(in_AX * 2 + 0x65feb0) < 0)) {
-      FUN_0044d634();
+    return;
+  }
+  if (*(int *)(actor + 0xf2) != 0) {
+    return;
+  }
+  link = *(int *)(actor + 0xa6);
+  link_flags = 0;
+  if (link != 0 && 0x10000u <= (uintptr_t)link &&
+      (uintptr_t)link < 0x70000000u && !IsBadReadPtr((void *)(uintptr_t)link,0x10)) {
+    link_flags = *(byte *)(link + 0xc) & 2;
+  }
+  if (actor != DAT_0047a470 && link_flags == 0) {
+    result = FUN_004488a4((undefined4)(uintptr_t)(actor + 0x84),(undefined4)actor);
+    visible = (int)result < 0 ? 0 :
+      ((*(ushort *)((undefined1 *)0x0068cd6a + (int)result * 0xc) >> 8 & 0x40) << 8);
+    if (visible == 0) {
+      return;
     }
   }
-  else if (*(int *)(iVar3 + 0xf2) == 0) {
-    if ((iVar3 == DAT_0047a470) ||
-       ((*(int *)(iVar3 + 0xa6) != 0 && ((*(byte *)(*(int *)(iVar3 + 0xa6) + 0xc) & 2) != 0)))) {
-      *(byte *)(iVar3 + 2) = *(byte *)(iVar3 + 2) | 8;
-      FUN_00426c3c();
-      uVar2 = extraout_ECX;
-      for (iVar3 = *(int *)(extraout_EDX + 0x1e); iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x4c)) {
-        if (*(int *)(iVar3 + 0x13a) != 0) {
-          FUN_0044d608(uVar2,iVar3);
-          uVar2 = extraout_ECX_00;
-          iVar3 = extraout_EDX_00;
-        }
-      }
+  *(byte *)(actor + 2) = *(byte *)(actor + 2) | 8;
+  E2R_actor_calc_context = actor;
+  FUN_00426c3c();
+  E2R_actor_calc_context = 0;
+  for (link = *(int *)(actor + 0x1e); link != 0; link = *(int *)(link + 0x4c)) {
+    if ((uintptr_t)link < 0x10000u || IsBadReadPtr((void *)(uintptr_t)link,0x140)) {
+      break;
     }
-    else {
-      uVar4 = FUN_004488a4(param_1,iVar3);
-      iVar3 = (int)((ulonglong)uVar4 >> 0x20);
-      if ((int)uVar4 < 0) {
-        sVar1 = 0;
-      }
-      else {
-        sVar1 = (*(ushort *)((undefined1 *)0x0068cd6a + (int)uVar4 * 0xc) >> 8 & 0x40) << 8;
-      }
-      if (sVar1 != 0) {
-        *(byte *)(iVar3 + 2) = *(byte *)(iVar3 + 2) | 8;
-        FUN_00426c3c();
-        iVar3 = *(int *)(extraout_EDX_01 + 0x1e);
-        uVar2 = extraout_ECX_01;
-        if (iVar3 != 0) {
-          do {
-            if (*(int *)(iVar3 + 0x13a) != 0) {
-              FUN_0044d608(uVar2,iVar3);
-              uVar2 = extraout_ECX_02;
-              iVar3 = extraout_EDX_02;
-            }
-            iVar3 = *(int *)(iVar3 + 0x4c);
-          } while (iVar3 != 0);
-          return;
-        }
-      }
+    child = *(int *)(link + 0x13a);
+    if (child != 0) {
+      FUN_0044d608(0,(undefined4)(uintptr_t)link);
     }
   }
   return;
@@ -42839,20 +43378,31 @@ void __fastcall FUN_0044d4b4(undefined4 param_1)
 void __fastcall FUN_0044d608(undefined4 param_1,undefined4 param_2)
 
 {
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 uVar1;
-  int extraout_EDX;
-  int extraout_EDX_00;
-  int iVar2;
+  int actor;
+  int child;
+  int link;
 
+  (void)param_1;
+  link = (int)(uintptr_t)param_2;
+  actor = link;
+  if (0x10000u <= (uintptr_t)link && (uintptr_t)link < 0x70000000u &&
+      !IsBadReadPtr((void *)(uintptr_t)link,0x140) && *(int *)(link + 0x13a) != 0) {
+    actor = *(int *)(link + 0x13a);
+  }
+  if (actor == 0 || (uintptr_t)actor < 0x10000u ||
+      IsBadReadPtr((void *)(uintptr_t)actor,0x188)) {
+    return;
+  }
+  E2R_actor_calc_context = actor;
   FUN_00426c3c();
-  uVar1 = extraout_ECX;
-  for (iVar2 = *(int *)(extraout_EDX + 0x1e); iVar2 != 0; iVar2 = *(int *)(iVar2 + 0x4c)) {
-    if (*(int *)(iVar2 + 0x13a) != 0) {
-      FUN_0044d608(uVar1,iVar2);
-      uVar1 = extraout_ECX_00;
-      iVar2 = extraout_EDX_00;
+  E2R_actor_calc_context = 0;
+  for (link = *(int *)(actor + 0x1e); link != 0; link = *(int *)(link + 0x4c)) {
+    if ((uintptr_t)link < 0x10000u || IsBadReadPtr((void *)(uintptr_t)link,0x140)) {
+      break;
+    }
+    child = *(int *)(link + 0x13a);
+    if (child != 0) {
+      FUN_0044d608(0,(undefined4)(uintptr_t)link);
     }
   }
   return;
@@ -44396,7 +44946,7 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
   local_34 = 0xffffffff;
   if (*(int *)(in_EAX + 6) != 0) {
     puVar18 = (ushort *)(*(int *)(in_EAX + 6) * 2);
-    local_2c = (int *)(_DAT_006366a0 + (int)puVar18);
+    local_2c = (int *)((byte *)(uintptr_t)_DAT_006366a0 + (uintptr_t)puVar18);
     sVar9 = (short)*local_2c;
     puVar13 = param_1;
     puVar3 = DAT_0047a470;
@@ -44406,6 +44956,24 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
       uVar14 = (undefined2)((uint)puVar13 >> 0x10);
       uVar21 = (undefined2)((uint)local_2c >> 0x10);
       uVar25 = CONCAT44(puVar18,_DAT_00ac4a54);
+      E2R_action_opcode_count++;
+      E2R_action_last_opcode = (ushort)sVar9;
+      E2R_action_last_cursor = (uintptr_t)local_2c;
+      if (E2R_RuntimeDiagEnabled() &&
+          (E2R_action_opcode_count < 16 ||
+           (E2R_action_opcode_count & 0x1ffu) == 0)) {
+        fprintf(stderr,"action opcode: ordinal=%lu cursor=0x%lx pool=0x%lx op=%04x next=%04x scene=0x%lx mode=%lu dispatch=%lu\n",
+                (unsigned long)E2R_action_opcode_count,
+                (unsigned long)(uintptr_t)local_2c,
+                (unsigned long)((byte *)(uintptr_t)local_2c - (byte *)(uintptr_t)_DAT_006366a0),
+                (unsigned int)(ushort)sVar9,
+                (unsigned int)*(ushort *)((int)local_2c + 2),
+                (unsigned long)_DAT_0073cc3c,(unsigned long)DAT_0047a76c,
+                (unsigned long)E2R_start_code_probe_dispatches);
+      }
+      if ((ushort)sVar9 == 0x75) {
+        E2R_action_hit_75_count++;
+      }
       switch((int)(uintptr_t)((short)*local_2c)) {
       case 3:
         local_2c = (int *)((int)local_2c + 2);
@@ -44461,7 +45029,7 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
             uVar19 = extraout_EDX_05;
             if (iVar12 != 0) {
               FUN_00452140(extraout_ECX_06);
-              FUN_004523f8();
+              FUN_004523f8((undefined4)(uintptr_t)_DAT_0073cc3c);
               puVar13 = extraout_ECX_07;
               uVar19 = extraout_EDX_06;
             }
@@ -44483,7 +45051,7 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
             puVar18 = (ushort *)((short)uVar7 * 2);
             if (((puVar18[0x33861c] & 2) != 0) && ((puVar18[0x33861c] & 4) == 0)) goto LAB_0044f7a9;
           }
-          FUN_0045233c(puVar13,puVar18);
+          FUN_0045233c(puVar13,uVar7);
           if (*(int *)((short)uVar7 * 4 + 0x62e450) == 0) {
             FUN_00441e38(extraout_ECX_10,0);
             uVar24 = FUN_0043cbb4(extraout_ECX_13);
@@ -44496,7 +45064,7 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
             puVar18 = extraout_EDX_07;
             if (iVar12 != 0) {
               FUN_00452140(extraout_ECX_11);
-              FUN_004523f8();
+              FUN_004523f8((undefined4)(uintptr_t)_DAT_0073cc3c);
               puVar13 = extraout_ECX_12;
               puVar18 = extraout_EDX_08;
             }
@@ -45008,7 +45576,8 @@ LAB_0044f7a9:
         goto switchD_0044f573_caseD_6;
       case 0x48:
         if ((*(ushort *)((int)local_2c + 2) & 0xfff) < 0x9c4) {
-          uVar24 = FUN_0043a6e0(puVar13,puVar18);
+          uVar19 = (uint)(short)(*(ushort *)((int)local_2c + 2) & 0xfff);
+          uVar24 = FUN_0043a6e0(puVar13,uVar19);
           puVar18 = (ushort *)((ulonglong)uVar24 >> 0x20);
           puVar13 = extraout_ECX_15;
         }
@@ -45055,7 +45624,7 @@ LAB_0044f7a9:
       case 0x4d:
         local_12 = CONCAT22(*(ushort *)((int)local_2c + 2),(undefined2)local_12) & 0xfffffff;
         if ((*(ushort *)((int)local_2c + 2) & 0xfff) < 0x9c4) {
-          uVar24 = FUN_0045233c(puVar13,puVar18);
+          uVar24 = FUN_0045233c(puVar13,(int)((uint)local_12 >> 0x10));
           puVar3 = *(ushort **)(((int)local_12 >> 0x10) * 4 + 0x62e450);
           puVar13 = extraout_ECX_18;
           puVar18 = (ushort *)((ulonglong)uVar24 >> 0x20);
@@ -45067,7 +45636,6 @@ LAB_0044f7a9:
               if (*(int *)((undefined1 *)0x00630b60 + *psVar16 * 4) != 0) {
                 FUN_00420dcc();
                 puVar13 = extraout_ECX_19;
-                psVar16 = extraout_EDX_11;
               }
             }
             for (psVar16 = *(short **)(puVar3 + 2); psVar16 != (short *)0x0;
@@ -46104,7 +46672,37 @@ void FUN_00451f5c(void)
     }
     else {
       FUN_0045f296(in_EAX,*(int *)(iVar1 + 0x653840));
+      if (E2R_RuntimeDiagEnabled()) {
+        E2R_fan_phase_diag_count = 0;
+        E2R_fan_actor_diag_count = 0;
+        E2R_fan_dispatch_diag_count = 0;
+        E2R_archive_parse_summary_count = 0;
+      }
       parse_result = E2R_ParseArchiveFanResource();
+      {
+        short *loaded_actor = *(short **)((undefined1 *)0x00630b60 + actor_id * 4);
+        if (parse_result != 0 && loaded_actor != (short *)0x0 &&
+            loaded_actor[0x42] == 0 && loaded_actor[0x43] == 0 && loaded_actor[0x44] == 0 &&
+            (loaded_actor[0x4e] != 0 || loaded_actor[0x4f] != 0 || loaded_actor[0x50] != 0)) {
+          FUN_0044146c();
+        }
+        if (E2R_RuntimeDiagEnabled() && E2R_actor_load_diag_count < 48) {
+          E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;
+          fprintf(stderr,
+                  "actor load archive: id=%d offset=%d result=%lu table=0x%lx live=%d,%d,%d stand=%d,%d,%d old=%d,%d,%d\n",
+                  actor_id,*(int *)(iVar1 + 0x653840),
+                  (unsigned long)(uint)parse_result,(unsigned long)loaded_actor,
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x42] : -9999,
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x43] : -9999,
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x44] : -9999,
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x4e] : -9999,
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x4f] : -9999,
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x50] : -9999,
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x7e] : -9999,
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x7f] : -9999,
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x80] : -9999);
+        }
+      }
       uVar4 = (undefined4)actor_id;
       uVar5 = 0;
     }
@@ -46120,8 +46718,10 @@ void FUN_00451f5c(void)
       E2R_actor_calc_context = 0;
       in_EAX = extraout_ECX_06;
       if ((((undefined1 *)0x0064a178)[*psVar2 * 2] & 2) != 0) {
-        FUN_00422aa0(extraout_ECX_06,(undefined2 *)(*psVar2 * 6 + 0x669708));
-        FUN_00422aa0(extraout_ECX_07,(undefined2 *)(*psVar2 * 6 + 0x658980));
+        FUN_00422aa0((undefined4)(uintptr_t)(psVar2 + 0x42),
+                    (undefined2 *)(*psVar2 * 6 + 0x669708));
+        FUN_00422aa0((undefined4)(uintptr_t)(psVar2 + 0x48),
+                    (undefined2 *)(*psVar2 * 6 + 0x658980));
         psVar2[0x76] = *(short *)(*psVar2 * 2 + 0x647a68);
         psVar2[0xc2] = (short)*(char *)(*psVar2 + 0x64c950);
         in_EAX = extraout_ECX_08;
@@ -46234,8 +46834,10 @@ void __fastcall FUN_00452140(undefined4 param_1)
             FUN_00420dcc();
             param_1 = extraout_ECX_06;
             if ((((undefined1 *)0x0064a178)[*psVar4 * 2] & 2) != 0) {
-              FUN_00422aa0(extraout_ECX_06,(undefined2 *)(*psVar4 * 6 + 0x669708));
-              FUN_00422aa0(extraout_ECX_07,(undefined2 *)(*psVar4 * 6 + 0x658980));
+              FUN_00422aa0((undefined4)(uintptr_t)(psVar4 + 0x42),
+                          (undefined2 *)(*psVar4 * 6 + 0x669708));
+              FUN_00422aa0((undefined4)(uintptr_t)(psVar4 + 0x48),
+                          (undefined2 *)(*psVar4 * 6 + 0x658980));
               if (*(int *)(*psVar4 * 2 + 0x671fbe) >> 0x10 != -2) {
                 psVar4[0x91] = *(short *)(*psVar4 * 2 + 0x671fc0);
               }
@@ -46279,7 +46881,6 @@ undefined8 __fastcall FUN_0045233c(undefined4 param_1,undefined4 param_2)
 
 {
   int iVar1;
-  short in_AX;
   int iVar2;
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
@@ -46288,27 +46889,46 @@ undefined8 __fastcall FUN_0045233c(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX_03;
   undefined4 extraout_ECX_04;
   undefined8 uVar3;
+  E2R_SceneGridSnapshot grid_snapshot;
+  short *saved_current;
 
-  iVar2 = (int)in_AX;
+  iVar2 = (int)(short)param_2;
   iVar1 = iVar2 * 4;
+  memset(&grid_snapshot,0,sizeof(grid_snapshot));
+  saved_current = DAT_0047a470;
   if (*(int *)(iVar1 + 0x62e450) == 0) {
     DAT_0047a788 = 1;
     if (DAT_0047ab10 == 0) {
-      uVar3 = FUN_00441e38(DAT_0047a470,iVar1);
+      uVar3 = FUN_00441e38((short)iVar2,iVar1);
       FUN_0045f22f(extraout_ECX,(char *)uVar3);
       iVar2 = FUN_00451bc4();
-      DAT_0047a470 = E2R_TraceCurrentActorWrite("5233c.direct",(uintptr_t)extraout_ECX_00);
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("5233c.direct",(uintptr_t)saved_current);
     }
     else {
       if (*(int *)(iVar1 + 0x650fa0) < 0) {
-        FUN_00441e38(DAT_0047a470,iVar1);
+        FUN_00441e38((short)iVar2,iVar1);
         uVar3 = FUN_0043cbb4(extraout_ECX_01);
-        DAT_0047a470 = E2R_TraceCurrentActorWrite("5233c.missing",(uintptr_t)extraout_ECX_02);
+        DAT_0047a470 = E2R_TraceCurrentActorWrite("5233c.missing",(uintptr_t)saved_current);
         return CONCAT44(param_2,(int)uVar3);
       }
+      if (E2R_RuntimeDiagEnabled() && E2R_scene_load_diag_count < 128) {
+        E2R_scene_load_diag_count = E2R_scene_load_diag_count + 1;
+        fprintf(stderr,"scene load enter: id=%d offset=%d action_op=%lu cursor=0x%lx\n",
+                iVar2,*(int *)(iVar1 + 0x650fa0),
+                (unsigned long)E2R_action_last_opcode,
+                (unsigned long)E2R_action_last_cursor);
+      }
+      grid_snapshot = E2R_CaptureSceneGridSnapshot();
       FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x650fa0));
       iVar2 = E2R_ParseArchiveFanResource();
-      DAT_0047a470 = E2R_TraceArchiveCurrentActorWrite("5233c.archive",(uintptr_t)extraout_ECX_04);
+      E2R_RestoreSceneGridSnapshot(&grid_snapshot);
+      if (E2R_RuntimeDiagEnabled() && E2R_scene_load_diag_count < 128) {
+        E2R_scene_load_diag_count = E2R_scene_load_diag_count + 1;
+        fprintf(stderr,"scene load exit: id=%d result=%d action_count=%lu\n",
+                (int)(short)param_2,iVar2,
+                (unsigned long)E2R_action_opcode_count);
+      }
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("5233c.archive",(uintptr_t)saved_current);
     }
   }
   return CONCAT44(param_2,iVar2);
@@ -46330,7 +46950,7 @@ undefined4 FUN_004523f0(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-undefined4 FUN_004523f8(void)
+undefined4 FUN_004523f8(undefined4 param_1)
 
 {
   byte *pbVar1;
@@ -46343,7 +46963,8 @@ undefined4 FUN_004523f8(void)
   short extraout_DX_00;
   short sVar5;
 
-  if (in_EAX != (short *)0x0) {
+  in_EAX = (short *)(uintptr_t)param_1;
+  if (in_EAX != (short *)0x0 && !IsBadReadPtr(in_EAX,0x20)) {
     pbVar1 = (byte *)(*in_EAX * 2 + 0x670c38);
     *pbVar1 = *pbVar1 | 2;
     pbVar1 = (byte *)(*in_EAX * 2 + 0x670c38);
@@ -46430,10 +47051,12 @@ undefined8 __fastcall FUN_004525f0(undefined4 param_1,undefined4 param_2)
   undefined4 extraout_ECX_04;
   undefined8 uVar3;
   undefined1 local_58 [60];
+  short *saved_current;
   undefined1 local_1c;
 
   iVar2 = (int)in_AX;
   iVar1 = iVar2 * 4;
+  saved_current = DAT_0047a470;
   if (*(int *)(iVar1 + 0x62b700) == 0) {
     DAT_0047a788 = 1;
     if (DAT_0047ab10 == 0) {
@@ -46442,18 +47065,18 @@ undefined8 __fastcall FUN_004525f0(undefined4 param_1,undefined4 param_2)
       local_1c = 0;
       FUN_0045f0a1((int)local_58,(byte *)s__stextures__s_fan_00475650);
       iVar2 = FUN_0044535c();
-      DAT_0047a470 = E2R_TraceCurrentActorWrite("525f0.direct",(uintptr_t)extraout_ECX_00);
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("525f0.direct",(uintptr_t)saved_current);
     }
     else {
       if (*(int *)(iVar1 + 0x658660) < 0) {
         FUN_00442564(DAT_0047a470,iVar1);
         uVar3 = FUN_0043cbb4(extraout_ECX_01);
-        DAT_0047a470 = E2R_TraceCurrentActorWrite("525f0.missing",(uintptr_t)extraout_ECX_02);
+        DAT_0047a470 = E2R_TraceCurrentActorWrite("525f0.missing",(uintptr_t)saved_current);
         return CONCAT44(param_2,(int)uVar3);
       }
       FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x658660));
       iVar2 = E2R_ParseArchiveFanResource();
-      DAT_0047a470 = E2R_TraceArchiveCurrentActorWrite("525f0.archive",(uintptr_t)extraout_ECX_04);
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("525f0.archive",(uintptr_t)saved_current);
     }
   }
   return CONCAT44(param_2,iVar2);
@@ -46922,46 +47545,35 @@ void __fastcall FUN_00452b70(undefined4 param_1,undefined4 param_2)
 void __fastcall FUN_00452c70(undefined4 param_1,undefined4 param_2)
 
 {
-  short *psVar1;
-  short *psVar2;
-  short *in_EAX;
-  int extraout_EDX;
-  int iVar3;
-  undefined1 local_48 [52];
+  short *action;
+  short *cursor;
+  short *previous;
 
-  FUN_00441b24(param_1,param_2);
-  FUN_0045f0a1((int)local_48,(byte *)s_Removing_action___s__004759f0);
-  if (*in_EAX < 0) {
-    FUN_00414e68();
+  (void)param_2;
+  action = (short *)(uintptr_t)param_1;
+  if ((uintptr_t)action < 0x10000u || IsBadReadPtr(action,0x16)) {
+    return;
   }
-  iVar3 = _DAT_0063726c;
-  if (in_EAX != *(short **)((undefined1 *)0x0062ba20 + *in_EAX * 4)) {
-    FUN_00414e68();
-    iVar3 = _DAT_0063726c;
+  if (*action >= 0) {
+    *(undefined4 *)((undefined1 *)0x0062ba20 + *action * 4) = 0;
   }
-  for (; iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x4c)) {
-    if (in_EAX == *(short **)(iVar3 + 0xa6)) {
-      FUN_00414e68();
-      iVar3 = extraout_EDX;
-    }
-  }
-  if (_DAT_00636588 == *(int *)(in_EAX + 9)) {
-    FUN_00414e68();
-  }
-  if (in_EAX == _DAT_00637270) {
-    _DAT_00637270 = *(short **)(_DAT_00637270 + 4);
+  if (action == _DAT_00637270) {
+    _DAT_00637270 = *(short **)(action + 4);
   }
   else {
-    psVar1 = *(short **)(_DAT_00637270 + 4);
-    psVar2 = _DAT_00637270;
-    while (in_EAX != psVar1) {
-      psVar2 = *(short **)(psVar2 + 4);
-      psVar1 = *(short **)(psVar2 + 4);
+    previous = _DAT_00637270;
+    while (previous != (short *)0x0 && !IsBadReadPtr(previous,0x16)) {
+      cursor = *(short **)(previous + 4);
+      if (cursor == action) {
+        *(undefined4 *)(previous + 4) = *(undefined4 *)(action + 4);
+        break;
+      }
+      previous = cursor;
     }
-    *(undefined4 *)(psVar2 + 4) = *(undefined4 *)(in_EAX + 4);
   }
-  *(undefined4 *)((undefined1 *)0x0062ba20 + *in_EAX * 4) = 0;
-  FUN_0043aa14();
+  *(undefined4 *)(action + 2) = 0;
+  *(undefined4 *)(action + 4) = 0;
+  action[6] = (short)0x8000;
   return;
 }
 
@@ -47446,43 +48058,20 @@ void FUN_00453330(void)
 undefined8 __fastcall FUN_00453338(undefined4 param_1,undefined4 param_2)
 
 {
-  ushort uVar1;
-  int iVar2;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined1 *puVar3;
-  uint extraout_EDX;
-  undefined1 *puVar4;
-  longlong lVar5;
+  int offset;
+  undefined1 *slot;
 
+  (void)param_1;
   do {
-    puVar3 = (undefined1 *)0x0;
-    param_1 = CONCAT22((short)((uint)param_1 >> 0x10),_DAT_00ac2648);
-    iVar2 = 0;
-    uVar1 = _DAT_00ac2648;
-    while ((uVar1 & 0x8000) == 0) {
-      if (0x225f < iVar2 + 0x16) goto LAB_0045337e;
-      uVar1 = *(ushort *)(&DAT_00ac265e + iVar2);
-      iVar2 = iVar2 + 0x16;
+    for (offset = 0; offset < 0x2260; offset = offset + 0x16) {
+      if ((*(ushort *)((undefined1 *)0x00ac2648 + offset) & 0x8000) != 0) {
+        slot = (undefined1 *)(0x00ac263c + offset);
+        memset(slot,0,0x16);
+        return CONCAT44(param_2,(undefined4)(uintptr_t)slot);
+      }
     }
-    puVar3 = (undefined1 *)(iVar2 + 0xac263c);
-    puVar4 = puVar3;
-    for (iVar2 = 0x16; iVar2 != 0; iVar2 = iVar2 + -1) {
-      *puVar4 = 0;
-      puVar4 = puVar4 + 1;
-    }
-    param_1 = 0;
-LAB_0045337e:
-    lVar5 = ZEXT48(puVar3) << 0x20;
-    if ((puVar3 == (undefined1 *)0x0) &&
-       (lVar5 = FUN_00452fe8(param_1,0), param_1 = extraout_ECX, (int)lVar5 == 0)) {
+    if ((int)FUN_00452fe8(0,0) == 0) {
       FUN_00414e68();
-      lVar5 = (ulonglong)extraout_EDX << 0x20;
-      param_1 = extraout_ECX_00;
-    }
-    iVar2 = (int)((ulonglong)lVar5 >> 0x20);
-    if (iVar2 != 0) {
-      return CONCAT44(param_2,iVar2);
     }
   } while( true );
 }
@@ -47713,9 +48302,12 @@ LAB_004535d0:
     lVar5 = ZEXT48(puVar3) << 0x20;
     if ((puVar3 == (undefined1 *)0x0) &&
        (lVar5 = FUN_00452ebc(param_1,0), param_1 = extraout_ECX, (int)lVar5 == 0)) {
-      FUN_00414e68();
-      lVar5 = (ulonglong)extraout_EDX << 0x20;
-      param_1 = extraout_ECX_00;
+      puVar3 = (undefined1 *)FUN_0045f1ff(1,0xa8);
+      if (puVar3 == (undefined1 *)0x0) {
+        return CONCAT44(param_2,0);
+      }
+      memset(puVar3,0,0xa8);
+      lVar5 = ZEXT48(puVar3) << 0x20;
     }
     iVar2 = (int)((ulonglong)lVar5 >> 0x20);
     if (iVar2 != 0) {
@@ -47977,9 +48569,12 @@ LAB_0045381e:
     lVar5 = ZEXT48(puVar3) << 0x20;
     if ((puVar3 == (undefined1 *)0x0) &&
        (lVar5 = FUN_004531bc(param_1,0), param_1 = extraout_ECX, (int)lVar5 == 0)) {
-      FUN_00414e68();
-      lVar5 = (ulonglong)extraout_EDX << 0x20;
-      param_1 = extraout_ECX_00;
+      puVar3 = (undefined1 *)FUN_0045f1ff(1,0x3c);
+      if (puVar3 == (undefined1 *)0x0) {
+        return CONCAT44(param_2,0);
+      }
+      memset(puVar3,0,0x3c);
+      lVar5 = ZEXT48(puVar3) << 0x20;
     }
     iVar2 = (int)((ulonglong)lVar5 >> 0x20);
     if (iVar2 != 0) {
@@ -48027,9 +48622,12 @@ LAB_00453892:
     lVar5 = ZEXT48(puVar3) << 0x20;
     if ((puVar3 == (undefined1 *)0x0) &&
        (lVar5 = FUN_00453210(param_1,0), param_1 = extraout_ECX, (int)lVar5 == 0)) {
-      FUN_00414e68();
-      lVar5 = (ulonglong)extraout_EDX << 0x20;
-      param_1 = extraout_ECX_00;
+      puVar3 = (undefined1 *)FUN_0045f1ff(1,0x14);
+      if (puVar3 == (undefined1 *)0x0) {
+        return CONCAT44(param_2,0);
+      }
+      memset(puVar3,0,0x14);
+      lVar5 = ZEXT48(puVar3) << 0x20;
     }
     iVar2 = (int)((ulonglong)lVar5 >> 0x20);
     if (iVar2 != 0) {
@@ -49611,6 +50209,7 @@ void __fastcall FUN_00455fe8(undefined4 param_1)
       param_1 = extraout_ECX;
     }
     _DAT_0073ccba = 0;
+  E2R_SyncSceneViewId();
     FUN_0044add8(param_1,0);
     FUN_0045fd2c(extraout_ECX_00,_DAT_006365f8);
     FUN_0045fd4b(extraout_ECX_01,s_graphics__00475f74);
@@ -49627,13 +50226,13 @@ void __fastcall FUN_00455fe8(undefined4 param_1)
       } while (iVar3 < 0x300);
       FUN_0045e76f(extraout_ECX_05,_DAT_0063615c);
       uVar5 = FUN_0045e8e6(extraout_ECX_06,extraout_EDX_00);
-      FUN_0041af88(extraout_ECX_07,(int)((ulonglong)uVar5 >> 0x20));
+      FUN_0041af88(0x621030,(int)((ulonglong)uVar5 >> 0x20));
       FUN_0041760c(DAT_0047a279 >> 0x18,0,0,0,_DAT_006401ec,_DAT_006401d4);
       FUN_0044e5b0();
       FUN_004559bc();
       FUN_00456f94();
       FUN_004561c8(extraout_ECX_08,extraout_EDX_01);
-      FUN_0041af88(extraout_ECX_09,extraout_EDX_02);
+      FUN_0041af88(0x621030,extraout_EDX_02);
       uVar5 = CONCAT44(extraout_EDX_03,extraout_ECX_10);
     }
     do {
@@ -49642,7 +50241,7 @@ void __fastcall FUN_00455fe8(undefined4 param_1)
       uVar5 = CONCAT44(uVar4,extraout_ECX_11);
     } while (DAT_00636844 == '\0');
     DAT_00636844 = '\0';
-    FUN_0041af88(extraout_ECX_11,uVar4);
+    FUN_0041af88(0xab9fac,uVar4);
     if (iVar1 == 0) {
       FUN_0043acec();
       FUN_0044e5b0();
@@ -50763,7 +51362,7 @@ void FUN_00457994(void)
       *(char *)(iVar1 + 0xab9fac) = (char)(iVar2 / 100);
       iVar1 = iVar3;
     } while (iVar3 < 0x300);
-    FUN_0041af88(100 - in_EAX,iVar2 % 100);
+    FUN_0041af88(0xab9fac,iVar2 % 100);
     DAT_0047ab3c = in_EAX;
   }
   return;
@@ -50805,7 +51404,7 @@ void FUN_00457a34(void)
       *(byte *)(iVar2 + 0xab9fac) = (char)(iVar3 / 100) + bVar1;
       iVar2 = iVar4;
     } while (iVar4 < 0x300);
-    FUN_0041af88((uint)bVar1,iVar3 % 100);
+    FUN_0041af88(0xab9fac,iVar3 % 100);
     DAT_0047ab3c = in_EAX;
   }
   return;
@@ -57019,17 +57618,20 @@ undefined8 __fastcall FUN_0046038c(undefined4 param_1,undefined4 param_2)
 
 {
   undefined4 uVar1;
-  int iVar2;
+  uint i;
 
-  if (_DAT_00ac51f8 < DAT_0047d610) {
-LAB_004603a2:
-    uVar1 = 0;
+  (void)param_1;
+  if (_DAT_00ac51f8 < 0x100) {
+    return (ulonglong)param_2 << 0x20;
   }
-  else {
-    for (iVar2 = 0; iVar2 < (int)(_DAT_00ac51f8 * 4); iVar2 = iVar2 + 4) {
-      if (*(int *)(_DAT_00ac51fc + iVar2) == 0) goto LAB_004603a2;
+  uVar1 = 1;
+  if (_DAT_00ac51fc != 0) {
+    for (i = 0; i < _DAT_00ac51f8; i = i + 1) {
+      if (*(HANDLE *)(_DAT_00ac51fc + i * 4) == (HANDLE)0x0) {
+        uVar1 = 0;
+        break;
+      }
     }
-    uVar1 = 1;
   }
   return CONCAT44(param_2,uVar1);
 }
@@ -57044,14 +57646,22 @@ undefined8 __fastcall FUN_004603d1(undefined4 param_1,undefined4 param_2)
 
 {
   uint uVar1;
+  uint old_capacity;
+  uint new_capacity;
+  uintptr_t new_table;
   HANDLE hFile;
 
   hFile = (HANDLE)(uintptr_t)param_1;
   if (_DAT_00ac51fc == 0) {
-    _DAT_00ac51fc = (uintptr_t)LocalAlloc(0x40,DAT_0047d610 * 4);
-    _DAT_00ac51f8 = DAT_0047d610;
+    old_capacity = DAT_0047d610 == 0 ? 0x14 : (uint)DAT_0047d610;
+    if (0x100 < old_capacity) {
+      old_capacity = 0x100;
+    }
+    _DAT_00ac51fc = (uintptr_t)LocalAlloc(0x40,old_capacity * 4);
+    _DAT_00ac51f8 = old_capacity;
   }
   if (_DAT_00ac51fc == 0) {
+    CloseHandle(hFile);
     return CONCAT44(param_2,0xffffffff);
   }
   for (uVar1 = 0; uVar1 < _DAT_00ac51f8; uVar1 = uVar1 + 1) {
@@ -57060,6 +57670,29 @@ undefined8 __fastcall FUN_004603d1(undefined4 param_1,undefined4 param_2)
       return CONCAT44(param_2,uVar1);
     }
   }
+  if (_DAT_00ac51f8 < 0x100) {
+    old_capacity = (uint)_DAT_00ac51f8;
+    new_capacity = old_capacity * 2;
+    if (new_capacity <= old_capacity) {
+      new_capacity = old_capacity + 1;
+    }
+    if (0x100 < new_capacity) {
+      new_capacity = 0x100;
+    }
+    new_table = (uintptr_t)LocalAlloc(0x40,new_capacity * 4);
+    if (new_table != 0) {
+      memcpy((void *)new_table,(void *)_DAT_00ac51fc,old_capacity * 4);
+      LocalFree((void *)_DAT_00ac51fc);
+      _DAT_00ac51fc = new_table;
+      _DAT_00ac51f8 = new_capacity;
+      if (E2R_RuntimeDiagEnabled()) {
+        fprintf(stderr,"file table grow: old=%u new=%u\n",old_capacity,new_capacity);
+      }
+      *(HANDLE *)(_DAT_00ac51fc + old_capacity * 4) = hFile;
+      return CONCAT44(param_2,old_capacity);
+    }
+  }
+  CloseHandle(hFile);
   return CONCAT44(param_2,0xffffffff);
 }
 

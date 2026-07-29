@@ -230,9 +230,11 @@ int E2R_HostPushSyntheticKeyDown(E2R_HostWindow *window, UINT vk)
 }
 
 int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
-                            unsigned width, unsigned height, unsigned pitch)
+                            unsigned width, unsigned height, unsigned pitch,
+                            const uint32_t *palette_rgb)
 {
     (void)window; (void)pixels; (void)width; (void)height; (void)pitch;
+    (void)palette_rgb;
     return 0;
 }
 #else
@@ -261,9 +263,11 @@ int E2R_HostPushSyntheticKeyDown(E2R_HostWindow *window, UINT vk)
     return 0;
 }
 int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
-                            unsigned width, unsigned height, unsigned pitch)
+                            unsigned width, unsigned height, unsigned pitch,
+                            const uint32_t *palette_rgb)
 {
     (void)window; (void)pixels; (void)width; (void)height; (void)pitch;
+    (void)palette_rgb;
     return 0;
 }
 #endif

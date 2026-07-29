@@ -298,6 +298,7 @@ BOOL VirtualProtect(LPVOID address, size_t size, DWORD new_protect, DWORD *old_p
 void *SetUnhandledExceptionFilter(void *filter);
 BOOL IsWindow(HWND hwnd);
 int E2R_TryPresentCurrentFrame(HWND hwnd);
+void E2R_PumpHost(void);
 BOOL PeekMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter, UINT remove);
 BOOL GetMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter);
 BOOL TranslateMessage(const MSG *msg);
