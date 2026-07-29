@@ -2,6 +2,22 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-29 - `mar:StartGame` Activates Horse Scene
+
+Area: Playable SDL runtime startup parity, script scene opcodes, active scene ownership
+
+Symptom: after the startup crash chain was cleared, `mar:StartGame` reached the frame loop but the rebuilt runtime still did not enter E2WIN95's horseback/credits intro. `_DAT_0073cc3c` and `DAT_0047a470` stayed `0x0`, surface dumps still showed the logo surface, and the historical gameplay-control regression no longer reached its scene-pointer gate unless the old `E2R_FORCE_SCENE_785` diagnostic fallback was enabled.
+
+Evidence: original `E2WIN95.EXE` disassembly around opcode `0x07` (`0044f6cc` through `0044f6f3`) and opcode `0x0c` (`0044f770` through `0044f78f`) shows the interpreter calls `FUN_0045233c`, reads the loaded scene record from `0x62e450`, then passes that record in `EAX` to both `FUN_00452140` and `FUN_004523f8`. A bounded dummy-SDL run with `E2R_SCRIPT_DIAG=1` now prints `op07-enter` for token `0x061c`, name `horse`, offset `607214`, followed by `op07-after-load` with slot `0xac2594`, then `op07-after-activate` with flags `0x02`. A follow-up `E2R_RUNTIME_DIAG=1` dump shows `current=0x0 actors=0x0 links=0x0` throughout the frame loop and actor `0` entering load with `table=0x0`.
+
+Change: repaired generated opcode `0x07` and `0x0c` scene activation so `FUN_004523f8` receives the loaded scene record instead of `_DAT_0073cc3c`. Added gated `E2R_SCRIPT_DIAG=1` scene-opcode traces that resolve the scene token name, offset-table entry, slot pointer, active flags, current scene, current actor, bytecode cursor, opcode count, and action dispatch count. Mirrored the repair and diagnostics in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, `git diff --check`, `cmake --build --preset linux-clang32-sdl-debug`, and `cmake --build --preset linux-clang32-debug` pass. `cmake -S . -B build/linux-clang32-asan ...` recreated the missing ASan build directory and `cmake --build build/linux-clang32-asan` passes through the regression wrapper. The full `scripts/run-e2-runtime-regressions.sh` currently fails the debug gameplay-control gate because `_DAT_0073cc3c` remains `0x0`; that is the same scene-current frontier now exposed without the old forced scene-785 fallback.
+
+Next Frontier: recover why actor `0` has no actor table entry during normal `mar:StartGame`, then inspect `FUN_00452140`/`FUN_004523f8` child-list passes for hidden actor context loss. Do not force `_DAT_0073cc3c` from `PlayScene "horse"` without additional original evidence; the original activation helper does not appear to set that global directly.
+
+Regression Risk: passing the explicit scene record to `FUN_004523f8` matches original register flow and is lower risk than the prior current-scene-global call. The risk is in the newly exposed behavior: old quickstart probes depended on a diagnostic scene-785 fallback that is now environment-gated, so regression expectations need to be interpreted against the active startup-parity frontier.
+
 ## 2026-07-29 - Startup Preloads Reach Frame Loop
 
 Area: Playable SDL runtime startup parity, flat-FANT scene preloads, scene removal, `mar:StartGame`

@@ -3973,7 +3973,7 @@ source = source.replace(
 // diagnostics used by older crash hunts.
 source = source.replace(
   "static uint E2R_action_invoke_diag_count;\nstatic const char *E2R_current_actor_last_site;",
-  "static uint E2R_action_invoke_diag_count;\nstatic int E2R_startup_diag_enabled;\nstatic int E2R_scene_load_request_id = -1;\nstatic short *E2R_scene_remove_context;\nstatic int E2R_cleanup_context;\nstatic uint E2R_startup_action_diag_count;\nstatic uint E2R_startup_preload_diag_count;\nstatic uint E2R_scene_record_install_diag_count;\nstatic uint E2R_scene_grid_restore_diag_count;\nstatic const char *E2R_current_actor_last_site;"
+  "static uint E2R_action_invoke_diag_count;\nstatic int E2R_startup_diag_enabled;\nstatic int E2R_scene_load_request_id = -1;\nstatic short *E2R_scene_remove_context;\nstatic int E2R_cleanup_context;\nstatic uint E2R_startup_action_diag_count;\nstatic uint E2R_startup_preload_diag_count;\nstatic uint E2R_scene_record_install_diag_count;\nstatic uint E2R_scene_grid_restore_diag_count;\nstatic uint E2R_script_scene_diag_count;\nstatic const char *E2R_current_actor_last_site;"
 );
 source = source.replace(
   "  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n  char *runtime_diag = getenv(\"E2R_RUNTIME_DIAG\");\n\n  if (runtime_diag != (char *)0x0 && runtime_diag[0] != '\\0' && runtime_diag[0] != '0') {\n    E2R_runtime_diag_enabled = 1;\n  }",
@@ -4002,6 +4002,39 @@ source = source.replace(
 source = source.replace(
   "          (unsigned int)flags,(unsigned long)E2R_action_opcode_count,\n          (unsigned long)E2R_start_code_probe_dispatches);\n}\n\nstatic short *E2R_FindActionCodeBySuffix",
   `          (unsigned int)flags,(unsigned long)E2R_action_opcode_count,
+          (unsigned long)E2R_start_code_probe_dispatches);
+}
+
+static void E2R_TraceScriptSceneOpcode(const char *stage,uint opcode,uint token,uintptr_t cursor)
+{
+  char *name;
+  int offset = -1;
+  uintptr_t slot = 0;
+  byte flags = 0;
+
+  if (!E2R_ScriptDiagEnabled() || E2R_script_scene_diag_count >= 64) {
+    return;
+  }
+  token = token & 0xfff;
+  if (token < 0x9c4) {
+    name = E2R_PackedNameByIndex(_DAT_006366bc,20000,0x9c4,(short)token);
+    offset = *(int *)(token * 4 + 0x650fa0);
+    slot = *(int *)(token * 4 + 0x62e450);
+    flags = *(byte *)(token * 2 + 0x670c38);
+  }
+  else {
+    name = (char *)0x0;
+  }
+  E2R_script_scene_diag_count = E2R_script_scene_diag_count + 1;
+  fprintf(stderr,
+          "script scene: %s op=%04x token=%04x name=%s slot=0x%lx offset=%d "
+          "flags=0x%02x current_scene=0x%lx current_actor=0x%lx cursor=0x%lx "
+          "opcodes=%lu dispatch=%lu\\n",
+          stage,(unsigned int)opcode,(unsigned int)token,
+          name != (char *)0x0 ? name : "(null)",(unsigned long)slot,offset,
+          (unsigned int)flags,(unsigned long)_DAT_0073cc3c,
+          (unsigned long)DAT_0047a470,(unsigned long)cursor,
+          (unsigned long)E2R_action_opcode_count,
           (unsigned long)E2R_start_code_probe_dispatches);
 }
 
@@ -4341,8 +4374,28 @@ source = source.replace(
   "              FUN_00452140((undefined4)(uintptr_t)*(int *)((short)((ulonglong)uVar24 >> 0x20) * 4 + 0x62e450));"
 );
 source = source.replace(
+  "        uVar19 = CONCAT22(uVar20,*(short *)((int)local_2c + 2)) & 0xffff0fff;\n        if (((ushort)uVar19 < 0x9c4)",
+  "        uVar19 = CONCAT22(uVar20,*(short *)((int)local_2c + 2)) & 0xffff0fff;\n        E2R_TraceScriptSceneOpcode(\"op07-enter\",0x7,uVar19,(uintptr_t)local_2c);\n        if (((ushort)uVar19 < 0x9c4)"
+);
+source = source.replace(
+  "          uVar24 = FUN_0045233c(puVar13,uVar19);\n          if (*(int *)((short)((ulonglong)uVar24 >> 0x20) * 4 + 0x62e450) == 0) {",
+  "          uVar24 = FUN_0045233c(puVar13,uVar19);\n          E2R_TraceScriptSceneOpcode(\"op07-after-load\",0x7,(uint)((ulonglong)uVar24 >> 0x20),\n                                     (uintptr_t)local_2c);\n          if (*(int *)((short)((ulonglong)uVar24 >> 0x20) * 4 + 0x62e450) == 0) {"
+);
+source = source.replace(
+  "              FUN_00452140((undefined4)(uintptr_t)*(int *)((short)((ulonglong)uVar24 >> 0x20) * 4 + 0x62e450));\n              FUN_004523f8((undefined4)(uintptr_t)_DAT_0073cc3c);",
+  "              FUN_00452140((undefined4)(uintptr_t)*(int *)((short)((ulonglong)uVar24 >> 0x20) * 4 + 0x62e450));\n              FUN_004523f8((undefined4)(uintptr_t)*(int *)((short)((ulonglong)uVar24 >> 0x20) * 4 + 0x62e450));\n              E2R_TraceScriptSceneOpcode(\"op07-after-activate\",0x7,\n                                         (uint)((ulonglong)uVar24 >> 0x20),\n                                         (uintptr_t)local_2c);"
+);
+source = source.replace(
   "              FUN_00452140(extraout_ECX_11);\n              FUN_004523f8((undefined4)(uintptr_t)_DAT_0073cc3c);",
-  "              FUN_00452140((undefined4)(uintptr_t)*(int *)((short)uVar7 * 4 + 0x62e450));\n              FUN_004523f8((undefined4)(uintptr_t)_DAT_0073cc3c);"
+  "              FUN_00452140((undefined4)(uintptr_t)*(int *)((short)uVar7 * 4 + 0x62e450));\n              FUN_004523f8((undefined4)(uintptr_t)*(int *)((short)uVar7 * 4 + 0x62e450));"
+);
+source = source.replace(
+  "        uVar7 = *(ushort *)((int)local_2c + 2) & 0xfff;\n        if (uVar7 < 0x9c4) {",
+  "        uVar7 = *(ushort *)((int)local_2c + 2) & 0xfff;\n        E2R_TraceScriptSceneOpcode(\"op0c-enter\",0xc,uVar7,(uintptr_t)local_2c);\n        if (uVar7 < 0x9c4) {"
+);
+source = source.replace(
+  "              FUN_00452140((undefined4)(uintptr_t)*(int *)((short)uVar7 * 4 + 0x62e450));\n              FUN_004523f8((undefined4)(uintptr_t)*(int *)((short)uVar7 * 4 + 0x62e450));\n              puVar13 = extraout_ECX_12;",
+  "              FUN_00452140((undefined4)(uintptr_t)*(int *)((short)uVar7 * 4 + 0x62e450));\n              FUN_004523f8((undefined4)(uintptr_t)*(int *)((short)uVar7 * 4 + 0x62e450));\n              E2R_TraceScriptSceneOpcode(\"op0c-after-activate\",0xc,uVar7,\n                                         (uintptr_t)local_2c);\n              puVar13 = extraout_ECX_12;"
 );
 source = source.replace(
   "        FUN_00452140(extraout_ECX_11);\n        uVar9 = extraout_ECX_12;",

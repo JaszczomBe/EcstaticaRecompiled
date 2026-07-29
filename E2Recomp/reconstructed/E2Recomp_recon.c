@@ -51,6 +51,7 @@ static uint E2R_startup_action_diag_count;
 static uint E2R_startup_preload_diag_count;
 static uint E2R_scene_record_install_diag_count;
 static uint E2R_scene_grid_restore_diag_count;
+static uint E2R_script_scene_diag_count;
 static const char *E2R_current_actor_last_site;
 static uintptr_t E2R_current_actor_last_value;
 static int E2R_actor_calc_context;
@@ -2129,6 +2130,39 @@ static void E2R_TraceScenePreload(const char *stage,uint token,uintptr_t scene,u
           stage,(unsigned int)token,name != (char *)0x0 ? name : "(null)",
           (unsigned long)scene,(unsigned long)cursor,(unsigned long)count,
           (unsigned int)flags,(unsigned long)E2R_action_opcode_count,
+          (unsigned long)E2R_start_code_probe_dispatches);
+}
+
+static void E2R_TraceScriptSceneOpcode(const char *stage,uint opcode,uint token,uintptr_t cursor)
+{
+  char *name;
+  int offset = -1;
+  uintptr_t slot = 0;
+  byte flags = 0;
+
+  if (!E2R_ScriptDiagEnabled() || E2R_script_scene_diag_count >= 64) {
+    return;
+  }
+  token = token & 0xfff;
+  if (token < 0x9c4) {
+    name = E2R_PackedNameByIndex(_DAT_006366bc,20000,0x9c4,(short)token);
+    offset = *(int *)(token * 4 + 0x650fa0);
+    slot = *(int *)(token * 4 + 0x62e450);
+    flags = *(byte *)(token * 2 + 0x670c38);
+  }
+  else {
+    name = (char *)0x0;
+  }
+  E2R_script_scene_diag_count = E2R_script_scene_diag_count + 1;
+  fprintf(stderr,
+          "script scene: %s op=%04x token=%04x name=%s slot=0x%lx offset=%d "
+          "flags=0x%02x current_scene=0x%lx current_actor=0x%lx cursor=0x%lx "
+          "opcodes=%lu dispatch=%lu\n",
+          stage,(unsigned int)opcode,(unsigned int)token,
+          name != (char *)0x0 ? name : "(null)",(unsigned long)slot,offset,
+          (unsigned int)flags,(unsigned long)_DAT_0073cc3c,
+          (unsigned long)DAT_0047a470,(unsigned long)cursor,
+          (unsigned long)E2R_action_opcode_count,
           (unsigned long)E2R_start_code_probe_dispatches);
 }
 
@@ -45347,9 +45381,12 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
         goto switchD_0044f573_caseD_6;
       case 7:
         uVar19 = CONCAT22(uVar20,*(short *)((int)local_2c + 2)) & 0xffff0fff;
+        E2R_TraceScriptSceneOpcode("op07-enter",0x7,uVar19,(uintptr_t)local_2c);
         if (((ushort)uVar19 < 0x9c4) && ((*(byte *)((short)(ushort)uVar19 * 2 + 0x670c38) & 2) == 0)
            ) {
           uVar24 = FUN_0045233c(puVar13,uVar19);
+          E2R_TraceScriptSceneOpcode("op07-after-load",0x7,(uint)((ulonglong)uVar24 >> 0x20),
+                                     (uintptr_t)local_2c);
           if (*(int *)((short)((ulonglong)uVar24 >> 0x20) * 4 + 0x62e450) == 0) {
             FUN_00441e38(extraout_ECX_05,(int)((ulonglong)uVar24 >> 0x20));
             uVar24 = FUN_0043cbb4(extraout_ECX_08);
@@ -45362,7 +45399,10 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
             uVar19 = extraout_EDX_05;
             if (iVar12 != 0) {
               FUN_00452140((undefined4)(uintptr_t)*(int *)((short)((ulonglong)uVar24 >> 0x20) * 4 + 0x62e450));
-              FUN_004523f8((undefined4)(uintptr_t)_DAT_0073cc3c);
+              FUN_004523f8((undefined4)(uintptr_t)*(int *)((short)((ulonglong)uVar24 >> 0x20) * 4 + 0x62e450));
+              E2R_TraceScriptSceneOpcode("op07-after-activate",0x7,
+                                         (uint)((ulonglong)uVar24 >> 0x20),
+                                         (uintptr_t)local_2c);
               puVar13 = extraout_ECX_07;
               uVar19 = extraout_EDX_06;
             }
@@ -45373,6 +45413,7 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
         break;
       case 0xc:
         uVar7 = *(ushort *)((int)local_2c + 2) & 0xfff;
+        E2R_TraceScriptSceneOpcode("op0c-enter",0xc,uVar7,(uintptr_t)local_2c);
         if (uVar7 < 0x9c4) {
           iVar12 = *(int *)((short)uVar7 * 4 + 0x62e450);
           uVar8 = 0;
@@ -45397,7 +45438,9 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
             puVar18 = extraout_EDX_07;
             if (iVar12 != 0) {
               FUN_00452140((undefined4)(uintptr_t)*(int *)((short)uVar7 * 4 + 0x62e450));
-              FUN_004523f8((undefined4)(uintptr_t)_DAT_0073cc3c);
+              FUN_004523f8((undefined4)(uintptr_t)*(int *)((short)uVar7 * 4 + 0x62e450));
+              E2R_TraceScriptSceneOpcode("op0c-after-activate",0xc,uVar7,
+                                         (uintptr_t)local_2c);
               puVar13 = extraout_ECX_12;
               puVar18 = extraout_EDX_08;
             }
