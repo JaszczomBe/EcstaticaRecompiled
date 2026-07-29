@@ -37,17 +37,17 @@ Activated after palette recovery. The palette side is now verified (`palette=1`,
 
 This task remains active, but front-buffer closeout is temporarily gated by startup-sequence parity. The E2WIN95 reference path is Psygnosis logo, Andrew Spencer Studios logo, Ecstatica II loading/logo, then the engine intro beginning with the horseback/credits scene. The rebuilt SDL route now shows a correctly colored Ecstatica II logo, but still skips the first two logos, flashes the loading screen too briefly, and enters a wrong/stalled scene path.
 
-Latest implementation work moved the blocker from a vague 60-second startup stall to a named scene-removal crash. Narrow `E2R_STARTUP_DIAG=1` logs prove `ken:StartUp` dispatches at guard `822`; the long window was opcode-`0x4d` preload work. `FUN_00447d94` now detects the flat `FANT` layout in `/home/rgrabowski/Games/Ecstatica2/Files/ECSTATIC`, scans `0x19` scene records, and populates `0x650fa0` with `1205` scene offsets instead of interpreting the file as an offset-indexed archive. Startup preloads now install matching requested scene records and child-list walks execute. Follow-up hidden-register repairs made `FUN_00452738` name removals by scene id and let `FUN_0043aa98` receive an explicit scene-remove context. The current bounded/gdb frontier is a segfault in `FUN_0043aa98` at `E2Recomp_recon.c:30109` while loading scene id `1424`, after the last successful `rist10` scene record install and before `mar:StartGame`.
+Latest implementation work moved the blocker past the scene-removal crash and through `mar:StartGame`. Narrow `E2R_STARTUP_DIAG=1` logs prove `ken:StartUp` dispatches at guard `822`; the long window was opcode-`0x4d` preload work. `FUN_00447d94` now detects the flat `FANT` layout in `/home/rgrabowski/Games/Ecstatica2/Files/ECSTATIC`, scans `0x19` scene records, and populates `0x650fa0` with `1205` scene offsets instead of interpreting the file as an offset-indexed archive. Startup preloads install matching requested scene records and child-list walks execute. Follow-up hidden-register repairs stabilized scene removal/list cleanup, scene activation, and actor/name lookup. Bounded gdb evidence now reaches `mar:StartGame` stages through `before-return`, then survives until a forced interrupt in the frame loop (`FUN_00426df8 -> FUN_0042a70c -> FUN_0041cf5c -> FUN_004620bb`). The current frontier is not a crash: `mar:StartGame` still logs `_DAT_0073cc3c=0x0`, so the next proof must explain why the expected horseback/credits scene is not installed as the current scene.
 
 ## Next Implementation Slice
 
-Stabilize `FUN_0043aa98` scene-removal/list unlinking after the flat-FANT preload repair, then continue startup execution until the bounded SDL route reaches `mar:StartGame` and resolves `PlayScene "horse"` to a real scene id.
+Prove scene-current ownership after `mar:StartGame` now that startup preloads and scene removal no longer crash, then compare the first post-startup presentation against the E2WIN95 horseback/credits intro.
 
-1. Inspect and repair `FUN_0043aa98` list cursor preservation/validity during removals invoked from `FUN_00452738`/`FUN_00452ebc`.
+1. Trace the `mar:StartGame` `PlayScene "horse"` path and confirm the operand remains a real scene token (`0007,461c` was previously observed, with low bits below `0x9c4`).
 2. Keep flat-FANT archive recovery scoped to the scene-offset table unless a later load proves another resource table is needed.
-3. Re-run bounded `E2R_STARTUP_DIAG=1 E2R_SCRIPT_DIAG=1` dummy-SDL/gdb probes until execution passes opcode/action count `64` and reaches either `mar:StartGame` or a later named frontier.
-4. Verify the `PlayScene "horse"` token remap after the `_DAT_006366bc` capacity repair; the bad signature was `0007,4fff`, and a repaired scene token should be `0007,4xxx` with low bits below `0x9c4`.
-5. Once `PlayScene "horse"` executes, run a real-display/F5 visual smoke test against the E2WIN95 logo and horseback-intro sequence before returning to page/front-buffer proof.
+3. Determine why `_DAT_0073cc3c` remains `0x0` through `mar:StartGame` `before-return`, or prove the current scene is installed through another recovered pointer.
+4. Run a real-display/F5 visual smoke test against the E2WIN95 logo and horseback-intro sequence before returning to page/front-buffer proof.
+5. If the route stays in the frame loop with no current scene, record the next named non-crash frontier with stack sample and last scene/action evidence.
 
 ## Acceptance Criteria
 
@@ -66,7 +66,7 @@ Stabilize `FUN_0043aa98` scene-removal/list unlinking after the flat-FANT preloa
 
 1. Planning state: discussed
 2. Implementation state: in_progress
-3. Notes: Active frontier is startup-sequence parity before final front-buffer/page ownership proof; flat-FANT scene preloads now resolve correctly, and the runtime must clear the `FUN_0043aa98` scene-removal crash before reaching the scripted `mar:StartGame`/`PlayScene "horse"` path.
+3. Notes: Active frontier is startup-sequence parity before final front-buffer/page ownership proof; flat-FANT scene preloads and `mar:StartGame` now execute without crashing, but scene-current installation remains unresolved because `_DAT_0073cc3c` stays `0x0` through `before-return`.
 
 ## Change Log
 
@@ -83,3 +83,4 @@ Stabilize `FUN_0043aa98` scene-removal/list unlinking after the flat-FANT preloa
 3. Outlined the next slice: instrument startup action/preload progress until `mar:StartGame` and `PlayScene "horse"` resolution are proven.
 4. Documented the flat-FANT `Files/ECSTATIC` scene-offset repair: startup preloads now install requested scene records and child-list walks execute.
 5. Moved the task frontier to the `FUN_0043aa98` scene-removal/list unlink crash while loading scene id `1424`, before `mar:StartGame`.
+6. Cleared the scene-removal, scene-activation, and actor-name lookup crash chain: bounded SDL/gdb now reaches `mar:StartGame` `before-return` and interrupts later in the frame loop. The next frontier is explaining scene-current ownership and the missing horseback/credits intro.

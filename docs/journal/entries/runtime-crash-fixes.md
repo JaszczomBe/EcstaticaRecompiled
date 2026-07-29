@@ -2,6 +2,22 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-29 - Startup Preloads Reach Frame Loop
+
+Area: Playable SDL runtime startup parity, flat-FANT scene preloads, scene removal, `mar:StartGame`
+
+Symptom: after flat-FANT scene offsets were recovered, startup progressed through matching opcode-`0x4d` scene preloads but crashed before `mar:StartGame` during scene removal/list cleanup. The crash first landed in `FUN_0043aa98`; after scene-list normalization, the next frontier was a bad hidden scene pointer in `FUN_00452140`, then a bad hidden actor-name index in `FUN_00441890`.
+
+Evidence: bounded `E2R_STARTUP_DIAG=1` SDL/gdb probes showed matching scene installs through `rist10` (`scene id 1664`, opcode/action count `64`), then all four startup actions (`ken:StartUp`, `dav:StartUp`, `nea:StartUp`, `gre:StartUp`) completed. After repairing scene activation/name lookup, `mar:StartGame` reached `before-list-action`, `after-list-action`, `before-script-name`, `after-script-name`, `before-script-150`, `after-script-150`, `before-5fc70`, `after-5fc70`, and `before-return`. A timeout-interrupted gdb sample then landed in the frame path `FUN_00426df8 -> FUN_0042a70c -> FUN_0041cf5c -> FUN_004620bb`, not in a crash.
+
+Change: normalized active scene-list heads/next links, bounded scene cleanup child/item walks, and threaded explicit cleanup context into decompiler-lost tiny flag helpers. Recovered explicit scene records for `FUN_00452140` call sites and made `FUN_00452140` validate installed scene records before walking child lists. Replaced `FUN_00441890` with a bounded actor/name-table lookup that derives the index from explicit arguments instead of hidden `AX`. Mirrored all generated repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, `git diff --check`, `cmake --build --preset linux-clang32-debug`, and `cmake --build --preset linux-clang32-sdl-debug` pass. The escalated dummy-SDL gdb probe no longer crashes before or inside `mar:StartGame`; it survives until the forced interrupt in the frame loop.
+
+Next Frontier: `mar:StartGame` still logs `_DAT_0073cc3c=0x0` through `before-return`, so the next slice should prove where `PlayScene "horse"` resolves, why no current scene pointer is installed yet, and whether the first visible post-startup scene matches E2WIN95's horseback/credits intro before returning to front-buffer ownership proof.
+
+Regression Risk: the new list/name guards are scoped to generated hidden-register/list-shape loss, but `FUN_00441890` is shared name lookup code. If later callers need a different calling convention, recover their original argument setup rather than broadening the fallback silently.
+
 ## 2026-07-27 - Control-Ready Surface Copies Stop Crashing Debug
 
 Area: Step 10 control-ready parity, `FUN_0041868c`, `FUN_00417b20`, generated hidden-register copy helpers
