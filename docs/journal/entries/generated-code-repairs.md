@@ -13,6 +13,15 @@ Record transformations in `E2Recomp/tools/GenerateRecon.js` that preserve manual
 
 ## Recent Entries
 
+### 2026-07-30 - Front-Buffer Proof Stabilizers
+
+1. Recovered `FUN_00417b20` software-surface copy source and destination indices from the explicit local page values instead of stale hidden registers.
+2. Added generated `no_sanitize("address")` annotations to sparse original-global allocator helpers whose fixed-address accesses are valid for the reconstructed address space but look like global overflows to ASan.
+3. Converted cleanup marker rewrites for `FUN_004533a4`, `FUN_0045357c`, and `FUN_0045374c` to regex anchors so the regenerated code consistently uses `E2R_cleanup_context` and validates the write span.
+4. Restored the full `FUN_00449b4c` local path buffer and replaced fragile `FUN_0044add8` palette-path/file-read calls with explicit bounded string handling and descriptor-stable reads.
+5. Recovered actor animation context in `FUN_0042d048` and `FUN_0042b004` from `E2R_actor_calc_context` when generated hidden registers are missing.
+6. Published `FUN_0044add8`'s refreshed `0x0061c730` scene palette through `FUN_0041af88` so regenerated raw-view loads update the active SDL palette.
+
 ### 2026-07-15 - CDPATH And Native Stream Slow-Path Repairs
 
 1. Recovered the post-config `CDPath` open in `FUN_0041007c` by replacing the lost-register `FUN_0045eb05(extraout_ECX_07, extraout_EDX_02)` call.

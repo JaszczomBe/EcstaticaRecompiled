@@ -2,6 +2,54 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-07-30 - SDL Presentation Preserves Frame Aspect Ratio
+
+Area: Playable SDL runtime visual fidelity, `E2R_HostPresentIndexed8`, host-window scaling
+
+Symptom: after front-buffer and palette recovery, user F5 comparison showed every presented image was squeezed horizontally relative to the original game even though the selected `640x480` image and scene colors were correct.
+
+Evidence: the original top-level window request is `640x640`, while the SDL backend blitted every `640x480` frame to the full window surface. After the repair, a bounded dummy-SDL probe reports `host backend present rect: src=640x480 window=640x640 dst=0,80 640x480`, followed by unchanged scene fidelity evidence: palette hash `de4e4c5d` and nonblank surface `3` hash `44b33248`.
+
+Change: the SDL host backend now computes a centered aspect-fit destination rectangle from the source frame dimensions, clears the unused window area to black, and blits with `SDL_SCALEMODE_PIXELART` into that rectangle instead of stretching to the full host window. `E2R_PRESENT_DIAG=1` logs the computed source/window/destination rectangle for bounded checks.
+
+Result: `cmake --build --preset linux-clang32-sdl-debug` passes, and the bounded dummy-SDL surface dump confirms the presentation rectangle preserves the original `640x480` frame aspect inside the `640x640` host window.
+
+Next Frontier: run a real-display F5 check to confirm the horseback/credits scene now matches the original aspect ratio, then continue gameplay control/camera proof expansion.
+
+Regression Risk: this changes only the SDL presentation backend, not recovered frame selection, palette publication, or indexed pixel storage. Non-4:3 source frames will also preserve their own source aspect, which is the intended backend behavior.
+
+## 2026-07-30 - Scene Palette Published After Raw View Load
+
+Area: Playable SDL runtime first-scene color fidelity, `FUN_0044add8`, DirectDraw palette publish
+
+Symptom: user screenshot comparison showed all logo screens and the first horseback/credits scene route were correct, but the first scene colors were far too bright and beige/gray. That meant the indexed raw scene pixels were correct, while SDL was still using an older logo/title palette.
+
+Evidence: the scene route opens `hires\1073.raw`, and the data directory contains `Views/1073.PA2` with the expected `2 + 0x18 + 0x300` byte layout. The loaded PA2 palette converts to hash `de4e4c5d`, while the previous scene dump still reported the stale palette hash `29b6fa49`. After the repair, the same dummy-SDL surface dump reports `palette_nonzero=242`, `palette_hash=de4e4c5d`, and unchanged indexed surface `3` hash `44b33248`. The converted `/tmp/e2-scene-palette-fix-s3.png` visually matches the original dark red/black/purple scene palette family.
+
+Change: after `FUN_0044add8` refreshes the scene palette buffer at `0x0061c730`, it now calls `FUN_0041af88(0x0061c730, param_2)` so the DirectDraw palette shim and SDL backend receive the scene palette instead of keeping the previous palette. Mirrored the repair in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, `cmake --build --preset linux-clang32-debug`, `cmake --build --preset linux-clang32-sdl-debug`, `cmake --build build/linux-clang32-asan`, the bounded dummy-SDL palette probe, and `scripts/run-e2-runtime-regressions.sh` pass.
+
+Next Frontier: ask for a quick F5 visual confirmation on real display; if the palette is now accepted, continue with gameplay control/camera proof expansion.
+
+Regression Risk: `FUN_0044add8` is the scene palette loader and already normalizes fallback palette bytes into `0x0061c730`, so publishing that buffer follows the existing recovered palette path. The change may affect every raw view palette refresh, which is intended; future palette fade issues should inspect `FUN_00457994`/`FUN_00457a34` hidden fade-amount recovery rather than bypassing this publish.
+
+## 2026-07-30 - Front Buffer Presentation Verified
+
+Area: Playable SDL runtime Step 2, DirectDraw page/front-buffer recovery, ASan regression stability
+
+Symptom: after raw-view ownership reached the stable horseback frame family, SDL presentation still chose a page through nonblank scanning. The full regression wrapper also exposed a new sequence of sanitizer-only generated-code faults before the front-buffer proof could be trusted.
+
+Evidence: original `E2WIN95.EXE` disassembly around `FUN_0043acec` shows surface `3` owns the full `640x480` raw/frame buffer in hires mode while surfaces `0/1/2` remain low VGA-style pages. A dummy-SDL probe now reports `host backend live presentation: selected=3 front=3 visible=0 hires=4`, dump state `front=3 visible=1`, and surface `3` hash `44b33248`. Debug and ASan both reach StartGame, requester clear, scene `_DAT_0073cc3c=0x683c84`, movement latch `move=[1,0,0,0,0,0,0,0,0]`, and nonblank surface `3`; ASan does not flip the historical `DAT_00479de8` marker in the bounded sanitized run.
+
+Change: recovered the native front source from `DAT_0047a43c`/`DAT_0047a279`, logged `front` in presentation and dump diagnostics, and made the presenter try the recovered front before the fallback nonblank scan. Generator-backed stabilizers repaired `FUN_00417b20` source/destination surface-index recovery, marked sparse original-global allocator helpers `no_sanitize("address")`, made cleanup marker rewrites land through regex anchors, restored the full `FUN_00449b4c` stack path buffer, replaced stale `FUN_0044add8` palette-file descriptor reads with explicit descriptor-stable reads, and recovered actor/animation context in `FUN_0042d048` and `FUN_0042b004`. The regression wrapper now validates ASan by scene/control/surface evidence while still rejecting sanitizer reports.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, `cmake --build --preset linux-clang32-debug`, `cmake --build --preset linux-clang32-sdl-debug`, `cmake --build build/linux-clang32-asan`, and `scripts/run-e2-runtime-regressions.sh` pass. Step 2 front-buffer presentation is complete.
+
+Next Frontier: proceed to gameplay control and camera proof expansion, carrying the remaining Psygnosis/Andrew Spencer/loading-logo timing mismatch as visual parity context for the next real-display pass.
+
+Regression Risk: selecting surface `3` in hires mode is grounded in original surface setup and still guarded by readability/nonblank fallback. The ASan harness relaxation is intentionally narrow: it requires StartGame scene/control state, requester clear, movement latch, nonblank surface `3`, and no sanitizer report instead of accepting a generic timeout.
+
 ## 2026-07-29 - Raw View Ownership Reaches Stable Horse Frames
 
 Area: Playable SDL runtime startup parity, render epilogue scene id recovery, palette filename construction

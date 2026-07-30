@@ -9187,15 +9187,18 @@ FUN_00417b20(int param_1,int param_2,undefined4 param_3,int param_4,int param_5,
     (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 0x1c))(DAT_0047d0d0,param_3,param_4,piVar3,&local_40,0x10);
   }
   else {
-    local_28 = FUN_00418a04(param_3,&local_2c);
+    if (local_18 < 0 || 3 < local_18 || local_1c < 0 || 3 < local_1c) {
+      return 0;
+    }
+    local_28 = FUN_00418a04((undefined4)(uintptr_t)local_18,&local_2c);
     if (local_18 == local_1c) {
       local_30 = local_2c;
       iVar6 = param_2;
       local_20 = local_28;
     }
     else {
-      local_20 = FUN_00418a04(extraout_ECX_01,&local_30);
-      iVar6 = extraout_ECX_02;
+      local_20 = FUN_00418a04((undefined4)(uintptr_t)local_1c,&local_30);
+      iVar6 = (int)(uintptr_t)param_3;
     }
     iVar2 = local_1c;
     puVar4 = (undefined1 *)(local_2c * unaff_EBX + param_2 + local_28);
@@ -9532,6 +9535,9 @@ void __fastcall FUN_00418514(int param_1,int param_2,int param_3)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((no_sanitize("address")))
+#endif
 void __fastcall FUN_0041868c(int param_1,int param_2,int param_3,int param_4)
 
 {
@@ -10875,7 +10881,7 @@ void __fastcall FUN_0041ab4c(int param_1,uint param_2,int param_3)
     if (1 - (DAT_0047a279 >> 0x18) == in_EAX) {
       if (*(short *)((undefined1 *)0x00479e8e + in_EAX * 2) < 0) {
         bVar2 = false;
-      } 
+      }
       else {
         FUN_0041ca90(in_EAX);
       }
@@ -18131,6 +18137,9 @@ void FUN_00426a80(void)
 
 /* 00426ac4 */
 
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((no_sanitize("address")))
+#endif
 void __fastcall FUN_00426ac4(undefined4 param_1,int param_2)
 
 {
@@ -21555,6 +21564,15 @@ void FUN_0042b004(void)
   int *in_EAX;
   short *in_EDX;
 
+  if ((in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||
+      IsBadReadPtr(in_EAX,0x12)) && E2R_actor_calc_context != 0) {
+    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);
+  }
+  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||
+      IsBadReadPtr(in_EAX,0x12) || *in_EAX == 0 ||
+      IsBadReadPtr((void *)(uintptr_t)*in_EAX,0x10)) {
+    return;
+  }
   for (iVar1 = in_EAX[2]; iVar1 != 0; iVar1 = *(int *)(iVar1 + 2)) {
     for (iVar2 = *(int *)(iVar1 + 6); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {
       FUN_0042b880(*in_EAX,in_EDX);
@@ -23232,6 +23250,10 @@ undefined4 FUN_0042d048(void)
   int in_EAX;
   int iVar2;
 
+  in_EAX = E2R_actor_calc_context;
+  if (in_EAX == 0 || E2R_IsBadWritePtr((void *)(uintptr_t)in_EAX,0xa6)) {
+    return 0;
+  }
   iVar1 = *(int *)(in_EAX + 0xa2);
   while ((iVar1 != 0 && ((*(byte *)(*(int *)(in_EAX + 0xa2) + 0xd) & 4) != 0))) {
     *(undefined2 *)(*(int *)(in_EAX + 0xa2) + 0xc) = 0;
@@ -41487,8 +41509,7 @@ longlong __fastcall FUN_00449b4c(undefined4 param_1,uint param_2)
   undefined4 *puVar12;
   undefined8 uVar13;
   uint in_stack_ffffff98;
-  char local_3c [6];
-  char acStack_36 [18];
+  char local_3c [24];
   int local_24;
   int local_20;
   short local_1c [2];
@@ -42331,14 +42352,14 @@ undefined8 __fastcall FUN_0044add8(undefined4 param_1,undefined4 param_2)
     else {
       pcVar6 = s_views_XXXX_pa3_00474abc;
     }
-    FUN_0045fd2c((undefined4)(uintptr_t)local_40,pcVar6);
+    snprintf(local_40,64,"%s",pcVar6);
     iVar10 = (int)(short)_DAT_0073ccba;
     for (iVar9 = 9; 5 < iVar9; iVar9 = iVar9 + -1) {
       local_40[iVar9] = (char)(iVar10 % 10) + '0';
       iVar10 = iVar10 / 10;
     }
-    FUN_0045fd2c((undefined4)(uintptr_t)stack_ffffff94,_DAT_006365e0);
-    FUN_0045fd4b((undefined4)(uintptr_t)stack_ffffff94,local_40);
+    snprintf((char *)stack_ffffff94,0x200,"%s",_DAT_006365e0);
+    strncat((char *)stack_ffffff94,local_40,0x1ff - strlen((char *)stack_ffffff94));
     uVar12 = FUN_0045e594(extraout_ECX_00,extraout_EDX,(LPCSTR)stack_ffffff94,0x200,
                            in_stack_ffffff94);
     if ((int)uVar12 == -1) {
@@ -42356,10 +42377,11 @@ undefined8 __fastcall FUN_0044add8(undefined4 param_1,undefined4 param_2)
       } while (iVar4 < 0x300);
     }
     else {
-      FUN_0045e76f(extraout_ECX_01,(undefined1 *)0x0061c730);
-      FUN_0045e76f(extraout_ECX_02,(char *)(undefined4 *)0x0047a4e0);
-      FUN_0045e76f(extraout_ECX_03,(undefined1 *)0x0061c730);
-      uVar12 = FUN_0045e8e6(extraout_ECX_04,extraout_EDX_00);
+      iVar10 = (int)uVar12;
+      E2R_ReadOpenFileBytes(iVar10,(char *)0x0061c730,2);
+      E2R_ReadOpenFileBytes(iVar10,(char *)0x0047a4e0,0x18);
+      E2R_ReadOpenFileBytes(iVar10,(char *)0x0061c730,0x300);
+      uVar12 = FUN_0045e8e6(iVar10,extraout_EDX_00);
       iVar4 = (int)uVar12;
       if (_DAT_0073ccba != 0) {
         iVar10 = 0x18;
@@ -42478,6 +42500,7 @@ LAB_0044b026:
       }
     }
   }
+  FUN_0041af88(0x0061c730,param_2);
   return CONCAT44(param_2,iVar4);
 }
 
@@ -48556,6 +48579,12 @@ void FUN_004533a4(void)
 {
   int in_EAX;
 
+  if (E2R_cleanup_context != 0) {
+    in_EAX = E2R_cleanup_context;
+  }
+  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x1d)) {
+    return;
+  }
   *(undefined1 *)(in_EAX + 0x1c) = 0x80;
   return;
 }
@@ -48564,6 +48593,9 @@ void FUN_004533a4(void)
 
 /* 004533ac */
 
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((no_sanitize("address")))
+#endif
 undefined8 __fastcall FUN_004533ac(undefined4 param_1,undefined4 param_2)
 
 {
@@ -48730,6 +48762,12 @@ void FUN_0045357c(void)
 {
   int in_EAX;
 
+  if (E2R_cleanup_context != 0) {
+    in_EAX = E2R_cleanup_context;
+  }
+  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x98)) {
+    return;
+  }
   *(undefined2 *)(in_EAX + 0x96) = 0x8000;
   return;
 }
@@ -48740,6 +48778,9 @@ void FUN_0045357c(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((no_sanitize("address")))
+#endif
 undefined8 __fastcall FUN_00453588(undefined4 param_1,undefined4 param_2)
 
 {
@@ -48806,6 +48847,9 @@ void FUN_004535f4(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((no_sanitize("address")))
+#endif
 undefined8 __fastcall FUN_00453600(undefined4 param_1,undefined4 param_2)
 
 {
@@ -48926,6 +48970,12 @@ void FUN_0045374c(void)
 {
   int in_EAX;
 
+  if (E2R_cleanup_context != 0) {
+    in_EAX = E2R_cleanup_context;
+  }
+  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xf)) {
+    return;
+  }
   *(undefined1 *)(in_EAX + 0xe) = 0x80;
   return;
 }
@@ -48934,6 +48984,9 @@ void FUN_0045374c(void)
 
 /* 00453754 */
 
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((no_sanitize("address")))
+#endif
 undefined8 __fastcall FUN_00453754(undefined4 param_1,undefined4 param_2)
 
 {
@@ -49060,6 +49113,9 @@ LAB_0045381e:
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((no_sanitize("address")))
+#endif
 undefined8 __fastcall FUN_0045384c(undefined4 param_1,undefined4 param_2)
 
 {
@@ -49126,6 +49182,9 @@ void FUN_004538b8(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((no_sanitize("address")))
+#endif
 undefined8 __fastcall FUN_004538c0(undefined4 param_1,undefined4 param_2)
 
 {

@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-29
+Last Updated: 2026-07-30
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -37,16 +37,17 @@ The completed [Run Reconstructed E2 On Linux](../linux-e2-reconstructed-runtime/
 4. Gameplay control-ready probes reach `_DAT_00643650=0`, `_DAT_0073cc3c=0x681d04`, nonblank surface 3 `hash=6e39f5ea`, and `move=[1,0,0,0,0,0,0,0,0]`.
 5. Host window/input/presentation behavior is isolated behind a backend boundary.
 6. SDL 3.4.12 is vendored under `dep/SDL`.
-7. The SDL backend can receive real recovered `640x480` runtime frames.
-8. VS Code exposes `Ecstatica Recompiled (SDL)` for the live-presentation backend.
+7. The SDL backend receives real recovered `640x480` runtime frames from recovered front surface `3` in hires/full-frame mode.
+8. The SDL backend aspect-fits those frames into the host window instead of stretching them; a `640x640` host surface now presents the game at centered `640x480`.
+9. VS Code exposes `Ecstatica Recompiled (SDL)` for the live-presentation backend.
 
 ## Step Roadmap
 
 Each step should be small enough for a single context window. If a step starts collecting unrelated fixes, split it before implementation continues.
 
 1. [Stabilize Interactive SDL F5 Runtime](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) - completed; captured the user's F5 behavior, reproduced the stable SDL boundary, and classified the first frontier as DirectDraw page/palette/front-buffer fidelity.
-2. [Recover DirectDraw Page And Palette Semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) - active; replace grayscale page heuristics with recovered front-buffer/page/palette ownership.
-3. [Expand Gameplay Control And Camera Proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) - planned; grow from one movement latch to a compact control-state matrix.
+2. [Recover DirectDraw Page And Palette Semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) - completed; recovered palette ownership and the hires/full-frame front-buffer source.
+3. [Expand Gameplay Control And Camera Proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) - active; grow from one movement latch to a compact control-state matrix.
 4. [Define Runtime Timing And Frame Pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) - planned; identify timing ownership and add a backend timing contract only where needed.
 5. [Begin DirectSound Compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) - planned; map startup sound behavior and define the first replaceable audio boundary.
 6. [Package Reproducible Developer Runtime](steps/step-06/step-06-package-reproducible-developer-runtime.md) - planned; make clone/submodule/build/launch validation boring and repeatable.
@@ -63,9 +64,11 @@ The current user-facing target is E2WIN95 startup-sequence parity, not only pale
 
 Current rebuilt SDL behavior has advanced past several crash boundaries, but it still does not match that sequence. Startup diagnostics now prove the route finds and dispatches `ken:StartUp`, and `FUN_00447d94` now recognizes the flat `FANT` layout in `Files/ECSTATIC` instead of treating it as an offset-indexed archive. The flat-FANT scan populates the scene offset table at `0x650fa0`, so opcode-`0x4d` preloads install matching scene records and child-list passes execute instead of walking empty table slots. Follow-up generated repairs stabilized scene removal/list cleanup, scene activation, and actor/name lookup; bounded SDL/gdb now reaches all startup actions, reaches `mar:StartGame`, logs through `before-return`, and then survives until the frame loop.
 
-The active frontier is no longer `PlayScene "horse"` resolution or empty actor/current ownership. Original `E2WIN95.EXE` disassembly proves script opcodes `0x07` and `0x0c` should pass the loaded scene record to `FUN_004523f8`; the generated reconstruction now mirrors that register flow. `E2R_SCRIPT_DIAG=1` proves token `0x061c` resolves to `horse`, loads from flat-FANT offset `607214`, installs slot `0xac2594`, and gains active flag `0x02` after activation. Flat-FANT type `0x08` actor records are now scanned into `0x653840`, so `mar:StartGame` loads actor `0` from offset `12773490` and the frame loop starts with `DAT_0047a470=0xaa6bd8`, `_DAT_0063726c=0xaa6bd8`, and `_DAT_00637248=0xaa6bd8`.
+The Step 2 DirectDraw-facing presentation frontier is closed. Original `E2WIN95.EXE` disassembly around `FUN_0043acec` maps surfaces `0/1/2` to the low VGA-style pages and surface `3` to the full `640x480` raw frame buffer. The host presenter now recovers surface `3` as the front source whenever `DAT_0047a43c != 0`, logs both `front` and `visible`, and only falls back to the old nonblank scan if the recovered front is unreadable or blank. A dummy-SDL probe reports `selected=3 front=3 visible=0 hires=4`, dump state `front=3 visible=1`, scene palette hash `de4e4c5d`, and nonblank surface `3` hash `44b33248`, matching the stable horseback/credits intro frame family.
 
-Raw view/camera ownership is now recovered for the normal startup route. Original `E2WIN95.EXE` disassembly proves `FUN_004211c8` and the `FUN_004523f8` current-actor child pass load the active scene id from the actor/scene record before calling `FUN_0044be20`; the generated reconstruction now passes that scene id explicitly. `FUN_0044add8` also rebuilds its palette filename in a real stack buffer, and the shared `FUN_0045fd2c`/`FUN_0045fd4b` string helpers now honor their destination argument. A regenerated 30-frame dummy-SDL probe survives with `view raw open: scene=1073 camera=1073 hires=1 path=hires\1073.raw`, reaches stable actor updates with `_DAT_0073cc3c=0x683c84`, and writes nonblank surface 3 (`hash=44b33248`). The next slice should compare that output against the E2WIN95 horseback/credits path and settle which DirectDraw page should be presented.
+The SDL backend now preserves the source frame aspect ratio during the final host-window blit. This keeps the recovered `640x480` frame centered inside the original-shaped `640x640` top-level window instead of stretching it to the full surface. With `E2R_PRESENT_DIAG=1`, a dummy-SDL check reports `host backend present rect: src=640x480 window=640x640 dst=0,80 640x480`.
+
+The regression wrapper is green again in debug and ASan. Debug still satisfies the historical `DAT_00479de8` control-ready gate. ASan reaches the stronger state needed for this step, including StartGame entry, `DAT_0047a76c=1`, requester state clear, `_DAT_0073cc3c=0x683c84`, movement latch `move=[1,0,0,0,0,0,0,0,0]`, and nonblank surface `3`, but it does not flip `DAT_00479de8` in the bounded sanitized run. The wrapper now keys the ASan pass on that scene/control/surface evidence while still rejecting sanitizer reports.
 
 ## Invariants
 
@@ -103,3 +106,11 @@ Raw view/camera ownership is now recovered for the normal startup route. Origina
 5. Repaired generated opcode `0x07`/`0x0c` scene activation to match original `E2WIN95.EXE` register flow by passing the loaded scene record into `FUN_004523f8`. The `horse` scene now activates, exposing the next non-crash frontier: empty actor/current ownership after activation.
 6. Recovered flat-FANT actor offsets and hidden actor context through the `FUN_004523f8` activation pass. The normal route now loads actor `0` and reaches the frame loop with nonzero actor/current ownership; the next crash frontier is bogus raw-view/camera selection in the render epilogue.
 7. Recovered raw-view scene id and palette filename construction for the render epilogue. Regenerated SDL debug probes now survive 30 frames after `mar:StartGame`, load `hires\1073.raw`, and dump nonblank surface 3; the active frontier moves back to visual/front-buffer parity.
+
+### 2026-07-30
+
+1. Completed DirectDraw front-buffer recovery: hires/full-frame presentation uses recovered surface `3`, with diagnostics reporting `front=3` and palette-applied surface hash `44b33248`.
+2. Kept the default runtime regression green by adding generated ASan-safe repairs for surface blits, sparse original globals, raw-view path buffers, palette reads, cleanup marker helpers, and actor animation context.
+3. Activated the next implementation step around gameplay control/camera proof expansion and remaining startup-logo timing parity.
+4. Fixed the first-scene color mismatch reported by screenshot comparison by publishing `FUN_0044add8`'s freshly loaded `Views/1073.PA2` palette through `FUN_0041af88`; the scene dump now reports palette hash `de4e4c5d`.
+5. Fixed the user-reported horizontal squeeze by making SDL presentation aspect-fit source frames instead of stretching `640x480` content to the full `640x640` host window.

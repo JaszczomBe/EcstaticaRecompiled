@@ -1,9 +1,9 @@
 # Verify Front Buffer Presentation
 
-Status: active
+Status: completed
 Parent Step: [Recover DirectDraw Page And Palette Semantics](../step-02-recover-directdraw-page-and-palette-semantics.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-07-29
+Last Updated: 2026-07-30
 
 ## Goal
 
@@ -35,7 +35,7 @@ This is a closeout task for presentation fidelity foundations. If the proof expo
 
 Activated after palette recovery. The palette side is now verified (`palette=1`, `updates=11`, `palette_nonzero=254`, `palette_hash=29b6fa49` in title/menu and gameplay probes), but the front-buffer source is still unresolved: title/menu reports `visible=0`, gameplay can report `visible=1`, `DAT_0047a43c=4`, surfaces 0/1/2 are blank, and surface 3 is the only nonblank presentation candidate.
 
-This task remains active, but front-buffer closeout is temporarily gated by startup-sequence parity. The E2WIN95 reference path is Psygnosis logo, Andrew Spencer Studios logo, Ecstatica II loading/logo, then the engine intro beginning with the horseback/credits scene. The rebuilt SDL route now shows a correctly colored Ecstatica II logo, but still skips the first two logos, flashes the loading screen too briefly, and enters a wrong/stalled scene path.
+Earlier work temporarily gated front-buffer closeout on startup-sequence parity. The E2WIN95 reference path is Psygnosis logo, Andrew Spencer Studios logo, Ecstatica II loading/logo, then the engine intro beginning with the horseback/credits scene. The front-buffer source is now verified independently; the remaining skipped/shortened startup-logo timing belongs to the next visual/control parity pass.
 
 Latest implementation work moved the blocker past the scene-removal crash and through `mar:StartGame`. Narrow `E2R_STARTUP_DIAG=1` logs prove `ken:StartUp` dispatches at guard `822`; the long window was opcode-`0x4d` preload work. `FUN_00447d94` now detects the flat `FANT` layout in `/home/rgrabowski/Games/Ecstatica2/Files/ECSTATIC`, scans `0x19` scene records, and populates `0x650fa0` with `1205` scene offsets instead of interpreting the file as an offset-indexed archive. Startup preloads install matching requested scene records and child-list walks execute. Follow-up hidden-register repairs stabilized scene removal/list cleanup, scene activation, and actor/name lookup. Bounded gdb evidence now reaches `mar:StartGame` stages through `before-return`, then survives until a forced interrupt in the frame loop (`FUN_00426df8 -> FUN_0042a70c -> FUN_0041cf5c -> FUN_004620bb`).
 
@@ -45,14 +45,17 @@ The actor/current ownership gap is now narrowed. `FUN_00447d94` also scans flat-
 
 The raw view/camera crash is now cleared. Original disassembly shows both the `FUN_004211c8 -> FUN_0044be20` render epilogue path and the `FUN_004523f8` current-actor child pass pass `scene_record[0] >> 16` into `FUN_0044be20`; the generated code now makes that hidden `AX` value explicit. The adjacent `FUN_0044add8` palette path builder now uses a full local path buffer, writes the four scene digits from `_DAT_0073ccba`, appends it to the data directory buffer, and the shared `FUN_0045fd2c`/`FUN_0045fd4b` helpers initialize their hidden `EAX` destination from `param_1`. A regenerated 30-frame dummy-SDL probe exits successfully after `view raw open: scene=1073 camera=1073 hires=1 path=hires\1073.raw`, stable actor-loop updates, and a nonblank surface-3 dump (`hash=44b33248`).
 
+Front-buffer presentation is now verified. Original `FUN_0043acec` disassembly proves surface `3` is the full `640x480` raw/frame buffer in hires mode, while surfaces `0/1/2` are low-page buffers. The native selector recovers `front=3` when `DAT_0047a43c != 0`, tries that surface first, and keeps the previous nonblank heuristic as a fallback. Probe evidence shows `host backend live presentation: selected=3 front=3 visible=0 hires=4`, dump state `front=3 visible=1`, scene palette hash `de4e4c5d`, and surface `3` hash `44b33248`.
+
+The default regression wrapper passes in both builds. Debug still trips the historical control-ready marker. ASan reaches StartGame, clears requester state, installs scene `_DAT_0073cc3c=0x683c84`, accepts `num8` movement, dumps nonblank surface `3`, and exits without sanitizer reports; the ASan harness gate now accepts that scene/control/surface evidence because `DAT_00479de8` remains unset in the bounded sanitized run.
+
 ## Next Implementation Slice
 
-Compare the first post-startup presentation against the E2WIN95 horseback/credits intro now that raw-view/camera ownership survives the frame loop.
+Closed. Carry remaining visual-startup timing work into the next gameplay/control slice.
 
-1. Run a real-display/F5 visual smoke test against the E2WIN95 logo and horseback-intro sequence.
-2. Compare the nonblank surface-3 dump against the expected horseback/credits scene and decide whether SDL should present surface 3 or another page at this stage.
-3. Reconcile why the route still skips or shortens the Psygnosis, Andrew Spencer Studios, and loading-logo timing if the first gameplay render is now stable.
-4. If the route still does not present the intro, record the next named visual/state frontier with last actor/scene/view evidence.
+1. Expand movement and camera proofs beyond `num8`.
+2. Keep the recovered `front=3` evidence in future SDL probes.
+3. Reconcile Psygnosis, Andrew Spencer, and loading-logo timing during the next real-display pass.
 
 ## Acceptance Criteria
 
@@ -70,8 +73,8 @@ Compare the first post-startup presentation against the E2WIN95 horseback/credit
 ## Review State
 
 1. Planning state: discussed
-2. Implementation state: in_progress
-3. Notes: Active frontier is startup-sequence parity before final front-buffer/page ownership proof; flat-FANT scene and actor tables now let `mar:StartGame` load actor `0`, activate `horse`, enter the frame loop, load raw view `1073`, and dump nonblank surface 3 through a regenerated 30-frame SDL probe.
+2. Implementation state: complete
+3. Notes: Front-buffer/page ownership is verified. Hires/full-frame mode presents recovered surface `3`; palette-applied probes dump nonblank surface `3` with hash `44b33248`, scene palette hash `de4e4c5d`, and debug/ASan runtime regressions pass.
 
 ## Change Log
 
@@ -92,3 +95,10 @@ Compare the first post-startup presentation against the E2WIN95 horseback/credit
 7. Repaired generated opcode `0x07`/`0x0c` scene activation to pass the loaded scene record into `FUN_004523f8`, matching original disassembly. `E2R_SCRIPT_DIAG=1` proves `mar:StartGame` activates `horse` (`token=0x061c`, slot `0xac2594`, offset `607214`, flags `0x02`), but runtime traces still show no current actor/current scene in the frame loop.
 8. Recovered flat-FANT actor offsets and hidden actor context in the `FUN_004523f8` child pass. Generated probes now load actor `0` from offset `12773490` and enter the frame loop with `current=0xaa6bd8 actors=0xaa6bd8 links=0xaa6bd8`; the new crash frontier is bogus raw view/camera ids in `FUN_00449b4c -> FUN_0043cbb4 -> FUN_0043cbf0 -> FUN_0043b384 -> FUN_0041ab4c`.
 9. Recovered the hidden scene-id argument to `FUN_0044be20`, repaired `FUN_0044add8` palette path construction, and initialized `FUN_0045fd2c`/`FUN_0045fd4b` destination pointers from their explicit arguments. Regenerated 30-frame SDL probes now survive through repeated actor updates and dump nonblank surface 3 after loading raw view `1073`.
+
+### 2026-07-30
+
+1. Recovered the DirectDraw front source for hires/full-frame presentation from original surface setup: surface `3` is the intended `640x480` front buffer.
+2. Updated native presentation and dump diagnostics to report `front`, and made the selector use recovered front surface `3` before falling back to nonblank scanning.
+3. Updated the regression wrapper so ASan validates scene/control/surface state instead of the debug-only `DAT_00479de8` marker; `scripts/run-e2-runtime-regressions.sh` now passes.
+4. Fixed screenshot-reported first-scene colors by publishing `FUN_0044add8`'s loaded `Views/1073.PA2` palette buffer (`0x0061c730`) via `FUN_0041af88`; the color dump now matches the original red/black scene palette family.

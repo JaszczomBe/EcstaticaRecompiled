@@ -605,6 +605,30 @@ source = source.replace(
 source = source.replace("  local_18 = in_EAX;\n  if ((DAT_0047a279 >> 0x18 == param_1)", "  local_18 = param_1;\n  if ((DAT_0047a279 >> 0x18 == param_1)");
 source = source.replace("      local_30 = local_2c;\n      iVar6 = extraout_ECX_01;\n      local_20 = local_28;", "      local_30 = local_2c;\n      iVar6 = param_2;\n      local_20 = local_28;");
 source = source.replace(
+  "    local_28 = FUN_00418a04(param_3,&local_2c);\n    if (local_18 == local_1c) {",
+  "    if (local_18 < 0 || 3 < local_18 || local_1c < 0 || 3 < local_1c) {\n      return 0;\n    }\n    local_28 = FUN_00418a04((undefined4)(uintptr_t)local_18,&local_2c);\n    if (local_18 == local_1c) {"
+);
+source = source.replace(
+  "      local_20 = FUN_00418a04(extraout_ECX_01,&local_30);\n      iVar6 = extraout_ECX_02;",
+  "      local_20 = FUN_00418a04((undefined4)(uintptr_t)local_1c,&local_30);\n      iVar6 = (int)(uintptr_t)param_3;"
+);
+const sparseGlobalAllocatorFunctions = [
+  "void __fastcall FUN_0041868c(int param_1,int param_2,int param_3,int param_4)",
+  "void __fastcall FUN_00426ac4(undefined4 param_1,int param_2)",
+  "undefined8 __fastcall FUN_004533ac(undefined4 param_1,undefined4 param_2)",
+  "undefined8 __fastcall FUN_00453588(undefined4 param_1,undefined4 param_2)",
+  "undefined8 __fastcall FUN_00453600(undefined4 param_1,undefined4 param_2)",
+  "undefined8 __fastcall FUN_00453754(undefined4 param_1,undefined4 param_2)",
+  "undefined8 __fastcall FUN_0045384c(undefined4 param_1,undefined4 param_2)",
+  "undefined8 __fastcall FUN_004538c0(undefined4 param_1,undefined4 param_2)"
+];
+for (const signature of sparseGlobalAllocatorFunctions) {
+  source = source.replace(
+    `${signature}\n\n{`,
+    `#if defined(__clang__) || defined(__GNUC__)\n__attribute__((no_sanitize("address")))\n#endif\n${signature}\n\n{`
+  );
+}
+source = source.replace(
   "    puVar4 = (undefined1 *)(local_2c * unaff_EBX + param_2 + local_28);\n    local_14 = local_2c - param_5;\n    local_10 = local_30 - param_5;\n    puVar7 = (undefined1 *)(local_30 * param_4 + iVar6 + local_20);\n    iVar9 = 0;",
   "    puVar4 = (undefined1 *)(local_2c * unaff_EBX + param_2 + local_28);\n    local_14 = local_2c - param_5;\n    local_10 = local_30 - param_5;\n    puVar7 = (undefined1 *)(local_30 * param_4 + iVar6 + local_20);\n    if (local_28 == 0 || local_20 == 0 || local_2c <= 0 || local_30 <= 0 ||\n        param_2 < 0 || iVar6 < 0 || unaff_EBX < 0 || param_4 < 0 ||\n        param_5 <= 0 || param_6 <= 0 || local_2c - param_2 < param_5 ||\n        local_2c - unaff_EBX < param_6 || local_30 - iVar6 < param_5 ||\n        local_30 - param_4 < param_6) {\n      return 0;\n    }\n    read_span = (size_t)(param_6 - 1) * (size_t)local_2c + (size_t)param_5;\n    write_span = (size_t)(param_6 - 1) * (size_t)local_30 + (size_t)param_5;\n    if (IsBadReadPtr(puVar4,read_span) || E2R_IsBadWritePtr(puVar7,write_span)) {\n      return 0;\n    }\n    iVar9 = 0;"
 );
@@ -2852,6 +2876,22 @@ source = source.replace(
   "    FUN_0045fd2c((undefined4)(uintptr_t)local_40,pcVar6);\n    iVar10 = (int)(short)_DAT_0073ccba;\n    for (iVar9 = 9; 5 < iVar9; iVar9 = iVar9 + -1) {\n      local_40[iVar9] = (char)(iVar10 % 10) + '0';\n      iVar10 = iVar10 / 10;\n    }\n    FUN_0045fd2c((undefined4)(uintptr_t)stack_ffffff94,_DAT_006365e0);\n    FUN_0045fd4b((undefined4)(uintptr_t)stack_ffffff94,local_40);\n    uVar12 = FUN_0045e594(extraout_ECX_00,extraout_EDX,(LPCSTR)stack_ffffff94,0x200,\n                           in_stack_ffffff94);"
 );
 source = source.replace(
+  "    FUN_0045fd2c((undefined4)(uintptr_t)local_40,pcVar6);",
+  "    snprintf(local_40,64,\"%s\",pcVar6);"
+);
+source = source.replace(
+  "    FUN_0045fd2c((undefined4)(uintptr_t)stack_ffffff94,_DAT_006365e0);\n    FUN_0045fd4b((undefined4)(uintptr_t)stack_ffffff94,local_40);",
+  "    snprintf((char *)stack_ffffff94,0x200,\"%s\",_DAT_006365e0);\n    strncat((char *)stack_ffffff94,local_40,0x1ff - strlen((char *)stack_ffffff94));"
+);
+source = source.replace(
+  "    else {\n      FUN_0045e76f(extraout_ECX_01,(undefined1 *)0x0061c730);\n      FUN_0045e76f(extraout_ECX_02,(char *)(undefined4 *)0x0047a4e0);\n      FUN_0045e76f(extraout_ECX_03,(undefined1 *)0x0061c730);\n      uVar12 = FUN_0045e8e6(extraout_ECX_04,extraout_EDX_00);\n      iVar4 = (int)uVar12;",
+  "    else {\n      iVar10 = (int)uVar12;\n      E2R_ReadOpenFileBytes(iVar10,(char *)0x0061c730,2);\n      E2R_ReadOpenFileBytes(iVar10,(char *)0x0047a4e0,0x18);\n      E2R_ReadOpenFileBytes(iVar10,(char *)0x0061c730,0x300);\n      uVar12 = FUN_0045e8e6(iVar10,extraout_EDX_00);\n      iVar4 = (int)uVar12;"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_0044add8\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n\s*)return CONCAT44\(param_2,iVar4\);/,
+  "$1FUN_0041af88(0x0061c730,param_2);\n  return CONCAT44(param_2,iVar4);"
+);
+source = source.replace(
   /(char \* __fastcall FUN_0045fd2c\(undefined4 param_1,char \*param_2\)[\s\S]*?\r?\n  char \*pcVar2;\r?\n\s*)pcVar2 = in_EAX;/,
   "$1in_EAX = (char *)(uintptr_t)param_1;\n  pcVar2 = in_EAX;"
 );
@@ -2996,6 +3036,10 @@ source = source.replace(
   "$1in_EAX = E2R_actor_calc_context;\n  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x136)) {\n    return;\n  }\n  for"
 );
 source = source.replace(
+  /(undefined4 FUN_0042d048\(void\)[\s\S]*?\r?\n  int in_EAX;\r?\n  int iVar2;\r?\n\s*)iVar1 = \*\(int \*\)\(in_EAX \+ 0xa2\);/,
+  "$1in_EAX = E2R_actor_calc_context;\n  if (in_EAX == 0 || E2R_IsBadWritePtr((void *)(uintptr_t)in_EAX,0xa6)) {\n    return 0;\n  }\n  iVar1 = *(int *)(in_EAX + 0xa2);"
+);
+source = source.replace(
   /(void FUN_00426ca4\(void\)[\s\S]*?\r?\n  short \*extraout_ECX_01;\r?\n\s*)bVar4 =/,
   "$1in_EAX = (short *)(uintptr_t)E2R_actor_calc_context;\n  if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,0x136)) {\n    return;\n  }\n  bVar4 ="
 );
@@ -3054,6 +3098,10 @@ source = source.replace(
 source = source.replace(
   /void __fastcall FUN_0042ad60\(undefined4 param_1,int param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0042ae80 \*\//,
   "void __fastcall FUN_0042ad60(undefined4 param_1,int param_2)\n\n{\n  int *in_EAX;\n  int extraout_ECX;\n  int extraout_ECX_00;\n  int *extraout_ECX_01;\n  int *extraout_ECX_02;\n  int *extraout_ECX_03;\n  int unaff_EBX;\n  uint uVar1;\n\n  if (param_2 != 0 && 0x10000u <= (uintptr_t)param_2 &&\n      !IsBadReadPtr((void *)(uintptr_t)param_2,0xb8)) {\n    in_EAX = (int *)(uintptr_t)(param_2 + 0xa6);\n  }\n  else if (E2R_actor_calc_context != 0) {\n    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);\n  }\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12)) {\n    return;\n  }\n  if (*in_EAX != 0) {\n    if ((uintptr_t)*in_EAX < 0x10000u ||\n        IsBadReadPtr((void *)(uintptr_t)*in_EAX,0x12)) {\n      return;\n    }\n    if ((*(byte *)(*in_EAX + 0xc) & 2) == 0) {\n      uVar1 = (uint)*(ushort *)((int)in_EAX + 6) +\n              (unaff_EBX << 0x10) / (int)(uint)*(ushort *)(in_EAX + 1);\n      do {\n        if (uVar1 < 0x10000) {\nLAB_0042ae53:\n          if ((*(byte *)((int)in_EAX + 0xd) & 4) == 0) {\n            FUN_0042b338(in_EAX,(ushort)uVar1);\n          }\n          *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) & 0xfb;\n          return;\n        }\n        if (*(ushort *)(in_EAX + 4) < 2) {\n          if (*(ushort *)(in_EAX + 4) != 0) {\n            FUN_0042b004();\n            *(undefined2 *)((int)extraout_ECX_02 + 6) = 0xffff;\n            *(byte *)((int)extraout_ECX_02 + 0xd) = *(byte *)((int)extraout_ECX_02 + 0xd) | 4;\n            in_EAX = extraout_ECX_02;\n            goto LAB_0042ae53;\n          }\n          FUN_0042b004();\n          in_EAX = extraout_ECX_03;\n        }\n        else {\n          FUN_0042b004();\n          *(short *)(extraout_ECX_01 + 4) = (short)extraout_ECX_01[4] + -1;\n          in_EAX = extraout_ECX_01;\n        }\n        uVar1 = uVar1 - 0x10000;\n      } while( true );\n    }\n    uVar1 = unaff_EBX + (uint)*(ushort *)((int)in_EAX + 6);\n    if (*(ushort *)(in_EAX + 1) < uVar1) {\n      FUN_0042b004();\n      *(undefined2 *)(extraout_ECX + 6) = *(undefined2 *)(extraout_ECX + 4);\n      *(byte *)(extraout_ECX + 0xd) = *(byte *)(extraout_ECX + 0xd) | 4;\n    }\n    else {\n      FUN_0042b338(in_EAX,(ushort)uVar1);\n      if ((in_EAX[2] != 0) && 0x10000u <= (uintptr_t)in_EAX[2] &&\n          !IsBadReadPtr((void *)(uintptr_t)in_EAX[2],0xa) &&\n          (*(int *)(in_EAX[2] + 6) == 0)) goto joined_r0x0042ae76;\n    }\n    *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) & 0xfb;\n    return;\n  }\njoined_r0x0042ae76:\n  if (DAT_0047a3b4 == 0) {\n    *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) | 4;\n  }\n  return;\n}\n\n\n\n/* 0042ae80 */"
+);
+source = source.replace(
+  /(void FUN_0042b004\(void\)[\s\S]*?\r?\n  int \*in_EAX;\r?\n  short \*in_EDX;\r?\n\s*)for \(iVar1 = in_EAX\[2\];/,
+  "$1if ((in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12)) && E2R_actor_calc_context != 0) {\n    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);\n  }\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12) || *in_EAX == 0 ||\n      IsBadReadPtr((void *)(uintptr_t)*in_EAX,0x10)) {\n    return;\n  }\n  for (iVar1 = in_EAX[2];"
 );
 source = source.replace(
   "  if ((*(byte *)(in_EAX + 0x146) & 1) == 0) {",
@@ -3286,6 +3334,10 @@ source = source.replace(
 source = source.replace(
   "  FUN_0045fd2c(uVar6,_DAT_006365f4);",
   "  E2R_FormatOneString((char *)0x00479e24,(char *)_DAT_006365f4,(char *)0x00479e24);"
+);
+source = source.replace(
+  "  char local_3c [6];\n  char acStack_36 [18];",
+  "  char local_3c [24];"
 );
 source = source.replace(
   "    FUN_0045fd2c(iVar4,pcVar8);",
@@ -4416,16 +4468,16 @@ source = source.replace(
   "undefined4 FUN_00453264(void)\n\n{\n  if (E2R_cleanup_context != 0 &&\n      !IsBadReadPtr((void *)(uintptr_t)E2R_cleanup_context,4)) {\n    *(undefined2 *)(E2R_cleanup_context + 2) = 0x8000;\n    return 0;\n  }\n  if (E2R_fan_parse_record != (short *)0x0 &&"
 );
 source = source.replace(
-  "void FUN_004533a4(void)\n\n{\n  int in_EAX;\n\n  *(undefined1 *)(in_EAX + 0x1c) = 0x80;",
-  "void FUN_004533a4(void)\n\n{\n  int in_EAX;\n\n  if (E2R_cleanup_context != 0) {\n    in_EAX = E2R_cleanup_context;\n  }\n  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x1d)) {\n    return;\n  }\n  *(undefined1 *)(in_EAX + 0x1c) = 0x80;"
+  /void FUN_004533a4\(void\)\s*\r?\n\s*\{\s*\r?\n\s*int in_EAX;\s*\r?\n\s*\*\(undefined1 \*\)\(in_EAX \+ 0x1c\) = 0x80;\s*\r?\n\s*return;\s*\r?\n\s*\}/,
+  "void FUN_004533a4(void)\n\n{\n  int in_EAX;\n\n  if (E2R_cleanup_context != 0) {\n    in_EAX = E2R_cleanup_context;\n  }\n  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x1d)) {\n    return;\n  }\n  *(undefined1 *)(in_EAX + 0x1c) = 0x80;\n  return;\n}"
 );
 source = source.replace(
-  "void FUN_0045357c(void)\n\n{\n  int in_EAX;\n\n  *(undefined2 *)(in_EAX + 0x96) = 0x8000;",
-  "void FUN_0045357c(void)\n\n{\n  int in_EAX;\n\n  if (E2R_cleanup_context != 0) {\n    in_EAX = E2R_cleanup_context;\n  }\n  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x98)) {\n    return;\n  }\n  *(undefined2 *)(in_EAX + 0x96) = 0x8000;"
+  /void FUN_0045357c\(void\)\s*\r?\n\s*\{\s*\r?\n\s*int in_EAX;\s*\r?\n\s*\*\(undefined2 \*\)\(in_EAX \+ 0x96\) = 0x8000;\s*\r?\n\s*return;\s*\r?\n\s*\}/,
+  "void FUN_0045357c(void)\n\n{\n  int in_EAX;\n\n  if (E2R_cleanup_context != 0) {\n    in_EAX = E2R_cleanup_context;\n  }\n  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0x98)) {\n    return;\n  }\n  *(undefined2 *)(in_EAX + 0x96) = 0x8000;\n  return;\n}"
 );
 source = source.replace(
-  "void FUN_0045374c(void)\n\n{\n  int in_EAX;\n\n  *(undefined1 *)(in_EAX + 0xe) = 0x80;",
-  "void FUN_0045374c(void)\n\n{\n  int in_EAX;\n\n  if (E2R_cleanup_context != 0) {\n    in_EAX = E2R_cleanup_context;\n  }\n  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xf)) {\n    return;\n  }\n  *(undefined1 *)(in_EAX + 0xe) = 0x80;"
+  /void FUN_0045374c\(void\)\s*\r?\n\s*\{\s*\r?\n\s*int in_EAX;\s*\r?\n\s*\*\(undefined1 \*\)\(in_EAX \+ 0xe\) = 0x80;\s*\r?\n\s*return;\s*\r?\n\s*\}/,
+  "void FUN_0045374c(void)\n\n{\n  int in_EAX;\n\n  if (E2R_cleanup_context != 0) {\n    in_EAX = E2R_cleanup_context;\n  }\n  if (in_EAX == 0 || IsBadReadPtr((void *)(uintptr_t)in_EAX,0xf)) {\n    return;\n  }\n  *(undefined1 *)(in_EAX + 0xe) = 0x80;\n  return;\n}"
 );
 source = source.replace(
   "      *(int *)(node + 0x08) = (int)(uintptr_t)_DAT_0063725c;",

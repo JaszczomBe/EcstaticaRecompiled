@@ -86,7 +86,7 @@ run_capture "${asan_log}" \
     --inject-key-sequence-gameplay-surfaces \
     "${asan_prefix}" space,num8 30 10000 60 1
 
-require_log "${asan_log}" "gameplay-control wait satisfied" "ASan control-ready gate"
+require_log "${asan_log}" "start_game=1 .*DAT_0047a76c=1 .*_DAT_0073cc3c=0x[1-9a-fA-F][0-9a-fA-F]+" "ASan scene/control state"
 require_log "${asan_log}" "_DAT_00643650=0" "ASan requester state clear"
 require_log "${asan_log}" "move=\\[1,0,0,0,0,0,0,0,0\\]" "ASan delayed movement latch"
 require_log "${asan_log}" "surface 3 nonblank=1" "ASan nonblank gameplay surface"

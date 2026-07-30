@@ -148,14 +148,33 @@ static unsigned e2r_palette_nonzero_count(void)
     return count;
 }
 
+static unsigned e2r_recovered_front_surface(void)
+{
+    unsigned visible = (unsigned)(DAT_0047a279 >> 24) & 3u;
+
+    if (DAT_0047a43c != 0) {
+        return 3u;
+    }
+    return visible;
+}
+
 static int e2r_select_framebuffer(uintptr_t *framebuffer_out, unsigned *surface_out, size_t bytes)
 {
+    unsigned front = e2r_recovered_front_surface();
     unsigned visible = (unsigned)(DAT_0047a279 >> 24) & 3u;
     unsigned visible_pair = visible ^ 1u;
     unsigned low_visible = visible & 1u;
     unsigned low_pair = low_visible ^ 1u;
     unsigned candidates[4];
     unsigned attempt;
+    uintptr_t front_framebuffer = e2r_surface_framebuffer(front);
+
+    if (front_framebuffer != 0 && !IsBadReadPtr((const void *)front_framebuffer, bytes) &&
+        e2r_frame_has_pixels(front_framebuffer, bytes)) {
+        *framebuffer_out = front_framebuffer;
+        *surface_out = front;
+        return 1;
+    }
 
     if (DAT_0047a43c != 0) {
         candidates[0] = low_visible + 2u;
@@ -191,9 +210,10 @@ static void e2r_trace_present_surfaces(unsigned selected_surface, size_t bytes)
     unsigned surface;
 
     fprintf(stderr,
-            "host backend live presentation: selected=%u visible=%u hires=%lu "
+            "host backend live presentation: selected=%u front=%u visible=%u hires=%lu "
             "width=%lu height=%lu palette=%lu updates=%lu\n",
-            selected_surface, (unsigned)(DAT_0047a279 >> 24) & 3u,
+            selected_surface, e2r_recovered_front_surface(),
+            (unsigned)(DAT_0047a279 >> 24) & 3u,
             (unsigned long)DAT_0047a43c,
             (unsigned long)_DAT_006401ec, (unsigned long)_DAT_006401d4,
             (unsigned long)E2R_active_palette_valid,
@@ -385,10 +405,11 @@ static int e2r_write_surface_set(const char *prefix)
     }
 
     fprintf(stderr,
-            "surface dump state: width=%u height=%u visible=%u "
+            "surface dump state: width=%u height=%u front=%u visible=%u "
             "fb=[0x%lx,0x%lx,0x%lx,0x%lx] bad=[%d,%d,%d,%d] "
             "palette=%lu updates=%lu palette_nonzero=%u palette_hash=%08x\n",
-            width, height, (unsigned)(DAT_0047a279 >> 24) & 3u,
+            width, height, e2r_recovered_front_surface(),
+            (unsigned)(DAT_0047a279 >> 24) & 3u,
             (unsigned long)_DAT_00636150, (unsigned long)_DAT_00636154,
             (unsigned long)_DAT_00636158, (unsigned long)_DAT_0063615c,
             bytes == 0 ? 1 : IsBadReadPtr((const void *)_DAT_00636150, bytes),

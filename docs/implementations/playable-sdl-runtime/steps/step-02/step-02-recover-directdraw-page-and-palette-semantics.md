@@ -1,8 +1,8 @@
 # Recover DirectDraw Page And Palette Semantics
 
-Status: active
+Status: completed
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-07-29
+Last Updated: 2026-07-30
 
 ## Goal
 
@@ -31,15 +31,15 @@ Split this step if page ownership and palette recovery turn into separate Ghidra
 
 ## Temporary Sacrifices
 
-1. Sacrifice: Keep heuristic surface 3 presentation until front-buffer ownership is proven.
-2. Why accepted now: The current hashes are useful for stability and nonblank-frame proof.
-3. Removal trigger: Front-buffer/page ownership is recovered enough to present without scanning for a nonblank candidate.
+1. Sacrifice removed: surface 3 is no longer only a heuristic in hires/full-frame mode.
+2. Result: the presenter first uses the recovered front source and keeps the nonblank scan as a fallback guard.
+3. Evidence: `front=3`, scene palette hash `de4e4c5d`, and surface 3 hash `44b33248` in dummy-SDL probes.
 
 ## Tasks
 
 1. [Map Surface And Page Ownership](tasks/task-01-map-surface-and-page-ownership.md) - completed.
 2. [Recover Palette Update Path](tasks/task-02-recover-palette-update-path.md) - completed.
-3. [Verify Front Buffer Presentation](tasks/task-03-verify-front-buffer-presentation.md) - active.
+3. [Verify Front Buffer Presentation](tasks/task-03-verify-front-buffer-presentation.md) - completed.
 
 ## Acceptance Criteria
 
@@ -75,25 +75,23 @@ Activated after Step 1 proved SDL F5 launch stability: the window presents real 
 
 2026-07-29 flat-FANT startup-preload result: narrow `E2R_STARTUP_DIAG=1` logs proved startup does find and dispatch `ken:StartUp` at guard `822`, so the previous 60-second no-progress window was inside long opcode-`0x4d` preload work rather than before `FUN_0043a39c`. The root cause was `FUN_00447d94` treating `/home/rgrabowski/Games/Ecstatica2/Files/ECSTATIC` as if it had an offset-index preamble; the file actually starts with flat `FANT` resources. `FUN_00447d94` now detects that layout, clears archive offset tables to `-1`, scans `0x19` scene records, and builds `0x650fa0` scene offsets by record id while leaving the old indexed path intact for non-flat archives. Probe logs now report `archive 47d94 flat FANT: scenes=1205 bytes=33075606`, and opcode-`0x4d` preloads install matching scene records such as `requested=2086/scepboms record=2086/scepboms`, `requested=2095/hbowl record=2095/hbowl`, and `requested=1560/necchest record=1560/necchest`; child-list walks now run instead of seeing zeroed slots. Follow-up generated repairs stabilized active scene-list normalization, scene cleanup context, scene activation, and actor/name lookup. Bounded gdb now reaches every startup action, reaches `mar:StartGame`, logs through `before-return`, and then survives until a forced interrupt in the frame path (`FUN_00426df8 -> FUN_0042a70c -> FUN_0041cf5c -> FUN_004620bb`). The current frontier is no longer a crash before `mar:StartGame`; it is that `mar:StartGame` still reports `_DAT_0073cc3c=0x0`, so the expected horseback/credits intro scene is not yet proven current.
 
+2026-07-30 front-buffer completion result: original `FUN_0043acec` disassembly shows hires/full-frame mode maps surface `3` to the full `640x480` raw buffer while surfaces `0/1/2` remain low VGA-style pages. The native presenter now derives the recovered front source from `DAT_0047a43c` and `DAT_0047a279`, logs `front`, and presents surface `3` before falling back to the older nonblank scan. Bounded dummy-SDL evidence reports `host backend live presentation: selected=3 front=3 visible=0 hires=4`, dump state `front=3 visible=1`, and nonblank surface `3` hash `44b33248`. A follow-up screenshot comparison showed the frame was still using the previous logo/title palette; `FUN_0044add8` now publishes its loaded `Views/1073.PA2` bytes through `FUN_0041af88`, and the same dump reports scene palette hash `de4e4c5d`. The default regression wrapper passes in debug and ASan; ASan is validated by scene/control/surface evidence because it reaches StartGame, clears requester state, accepts movement, and renders surface `3` without flipping the historical `DAT_00479de8` marker in the bounded sanitized run.
+
 ## Next Implementation Step
 
-Prove scene-current ownership after `mar:StartGame`, then compare the first post-startup visible route against E2WIN95's horseback/credits intro.
+Proceed to [Expand Gameplay Control And Camera Proofs](../step-03/step-03-expand-gameplay-control-and-camera-proofs.md), carrying forward the remaining startup-logo timing mismatch as visual parity context.
 
 Scope for the next slice:
 
-1. Trace the `mar:StartGame` `PlayScene "horse"` execution and confirm the repaired scene token path is still below `0x9c4`.
-2. Keep the flat-FANT archive scan scoped to the scene-offset table; add other resource tables only when a real load proves they are needed.
-3. Explain why `_DAT_0073cc3c` remains `0x0` through `mar:StartGame` `before-return`, or identify the recovered pointer that owns the active scene instead.
-4. Compare the next visible scene against E2WIN95's horseback/credits intro before returning to page/front-buffer proof.
-5. If no current scene is installed, preserve the frame-loop sample and name the next non-crash frontier with stack and action evidence.
+1. Expand from the single `num8` movement latch to a compact movement/camera-control matrix.
+2. Preserve the recovered `front=3` presentation proof in SDL probes while testing control behavior.
+3. Revisit Psygnosis/Andrew Spencer/loading-logo timing with real-display evidence when the interactive route is exercised.
 
 Acceptance for the next slice:
 
-1. Matching opcode-`0x4d` scene preloads remain intact and `mar:StartGame` still returns without crashing.
-2. The `PlayScene "horse"` operand is resolved or the remaining remap failure is named with table index and lookup evidence.
-3. The current scene pointer after `mar:StartGame` is installed, or the missing install path is named with stack and last successful action evidence.
-4. F5/real-display startup no longer triggers the system "not responding" watchdog during the preload pass.
-5. Any generated C repair is mirrored in `E2Recomp/tools/GenerateRecon.js` and regenerated.
+1. Debug and ASan runtime regressions keep passing without sanitizer reports.
+2. SDL probes continue to dump nonblank recovered front surface `3`.
+3. Any generated C repair is mirrored in `E2Recomp/tools/GenerateRecon.js` and regenerated.
 
 ## Change Log
 
@@ -115,3 +113,8 @@ Acceptance for the next slice:
 4. Added narrow startup/action/preload diagnostics and proved `ken:StartUp` dispatches; the stall was inside opcode-`0x4d` preload work rather than before startup action execution.
 5. Recovered flat-FANT scene-offset population for `Files/ECSTATIC`, verified matching requested/installed scene records through startup preloads, repaired scene-remove hidden context, and moved the active frontier to `FUN_0043aa98` list unlinking while loading scene id `1424`.
 6. Stabilized scene removal/list cleanup, scene activation, and actor/name lookup enough for bounded SDL/gdb to reach `mar:StartGame` `before-return` and later interrupt in the frame loop; the remaining startup-parity frontier is scene-current ownership and the missing horseback/credits intro.
+
+### 2026-07-30
+
+1. Completed front-buffer presentation verification: recovered hires/full-frame front surface `3`, added native `front` diagnostics, and kept nonblank scanning as a fallback rather than the primary selection rule.
+2. Verified debug/ASan runtime regressions and dummy-SDL surface dumps with scene palette hash `de4e4c5d` and nonblank surface-3 hash `44b33248`.

@@ -3,6 +3,7 @@
 #ifndef _WIN32
 #include <SDL3/SDL.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 struct E2R_HostWindow {
@@ -14,6 +15,54 @@ struct E2R_HostWindow {
 
 static E2R_HostWindow e2r_sdl_backend;
 static int e2r_sdl_initialized;
+
+static int e2r_sdl_present_diag_enabled(void)
+{
+    static int initialized;
+    static int enabled;
+
+    if (!initialized) {
+        const char *diag = getenv("E2R_PRESENT_DIAG");
+        enabled = diag != NULL && diag[0] != '\0' && diag[0] != '0';
+        initialized = 1;
+    }
+    return enabled;
+}
+
+static SDL_Rect e2r_sdl_aspect_fit_rect(int dst_width, int dst_height,
+                                        unsigned src_width, unsigned src_height)
+{
+    SDL_Rect rect;
+
+    rect.x = 0;
+    rect.y = 0;
+    rect.w = dst_width > 0 ? dst_width : 0;
+    rect.h = dst_height > 0 ? dst_height : 0;
+    if (dst_width <= 0 || dst_height <= 0 || src_width == 0 || src_height == 0) {
+        return rect;
+    }
+
+    if ((int64_t)dst_width * (int64_t)src_height >
+        (int64_t)dst_height * (int64_t)src_width) {
+        rect.h = dst_height;
+        rect.w = (int)((int64_t)dst_height * (int64_t)src_width /
+                       (int64_t)src_height);
+        if (rect.w < 1) {
+            rect.w = 1;
+        }
+        rect.x = (dst_width - rect.w) / 2;
+    }
+    else {
+        rect.w = dst_width;
+        rect.h = (int)((int64_t)dst_width * (int64_t)src_height /
+                       (int64_t)src_width);
+        if (rect.h < 1) {
+            rect.h = 1;
+        }
+        rect.y = (dst_height - rect.h) / 2;
+    }
+    return rect;
+}
 
 static UINT e2r_virtual_key_from_sdl(SDL_Keycode key)
 {
@@ -191,6 +240,7 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
                             unsigned width, unsigned height, unsigned pitch,
                             const uint32_t *palette_rgb)
 {
+    static unsigned rect_diag_count;
     SDL_Surface *window_surface;
     SDL_Rect dst_rect;
     Uint32 colors[256];
@@ -247,10 +297,20 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
         fprintf(stderr, "warning: SDL window surface unavailable: %s\n", SDL_GetError());
         return 0;
     }
-    dst_rect.x = 0;
-    dst_rect.y = 0;
-    dst_rect.w = window_surface->w;
-    dst_rect.h = window_surface->h;
+    dst_rect = e2r_sdl_aspect_fit_rect(window_surface->w, window_surface->h,
+                                       width, height);
+    if (!SDL_FillSurfaceRect(window_surface, NULL,
+                             SDL_MapSurfaceRGBA(window_surface, 0, 0, 0, 255))) {
+        fprintf(stderr, "warning: SDL presentation clear failed: %s\n", SDL_GetError());
+        return 0;
+    }
+    if (e2r_sdl_present_diag_enabled() && rect_diag_count < 8u) {
+        fprintf(stderr,
+                "host backend present rect: src=%ux%u window=%dx%d dst=%d,%d %dx%d\n",
+                width, height, window_surface->w, window_surface->h,
+                dst_rect.x, dst_rect.y, dst_rect.w, dst_rect.h);
+        rect_diag_count++;
+    }
     if (!SDL_BlitSurfaceScaled(window->present_surface, NULL, window_surface,
                                &dst_rect, SDL_SCALEMODE_PIXELART)) {
         fprintf(stderr, "warning: SDL presentation blit failed: %s\n", SDL_GetError());
