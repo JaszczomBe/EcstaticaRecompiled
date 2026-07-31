@@ -9,6 +9,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
         "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2"
       }
     },
@@ -20,8 +21,26 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_CXX_FLAGS": "-m32 -isystem /usr/include/x86_64-linux-gnu/c++/14 -nostdlib++",
+        "CMAKE_CXX_STANDARD_LIBRARIES": "/usr/lib/i386-linux-gnu/libstdc++.so.6",
         "CMAKE_EXE_LINKER_FLAGS": "-m32",
+        "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2"
+      }
+    },
+    {
+      "name": "linux-clang32-asan",
+      "displayName": "Linux Clang 32-bit ASan",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-clang32-asan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_C_FLAGS": "-m32 -fsanitize=address -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-m32 -fsanitize=address",
+        "E2R_ENABLE_LOGGER": "OFF",
+        "E2R_ENABLE_RUNTIME_OPTIONS": "OFF",
         "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2"
       }
     },
@@ -33,6 +52,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
         "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2",
         "E2R_HOST_BACKEND": "sdl"
       }
@@ -45,7 +65,10 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_CXX_FLAGS": "-m32 -isystem /usr/include/x86_64-linux-gnu/c++/14 -nostdlib++",
+        "CMAKE_CXX_STANDARD_LIBRARIES": "/usr/lib/i386-linux-gnu/libstdc++.so.6",
         "CMAKE_EXE_LINKER_FLAGS": "-m32",
         "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2",
         "E2R_HOST_BACKEND": "sdl"
@@ -60,6 +83,10 @@
     {
       "name": "linux-clang32-debug",
       "configurePreset": "linux-clang32-debug"
+    },
+    {
+      "name": "linux-clang32-asan",
+      "configurePreset": "linux-clang32-asan"
     },
     {
       "name": "linux-clang-sdl-debug",

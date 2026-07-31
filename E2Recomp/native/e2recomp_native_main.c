@@ -1,4 +1,8 @@
 #include "E2Recomp_recon.h"
+#if E2R_ENABLE_RUNTIME_OPTIONS
+#include "EcstaticaLogBridge.h"
+#include "EcstaticaRuntimeBridge.h"
+#endif
 #include "e2recomp_host_backend.h"
 
 #include <errno.h>
@@ -1149,11 +1153,45 @@ static int e2r_run_host_backend_present_probe(void)
 
 int main(int argc, char **argv)
 {
+#if E2R_ENABLE_RUNTIME_OPTIONS
+    E2R_RuntimeOptions runtime_options;
+    if (!E2R_RuntimeResolveOptions(argc, argv, E2RECOMP_DATA_DIR, "./data", &runtime_options)) {
+        fprintf(stderr, "failed to resolve runtime options: %s\n", runtime_options.error);
+        E2R_RuntimePrintOptionHelp();
+        return 1;
+    }
+
+    if (runtime_options.command_index > 1) {
+        argc = argc - runtime_options.command_index + 1;
+        argv = argv + runtime_options.command_index - 1;
+    }
+
+    printf("Ecstatica II data: %s\n", runtime_options.game_data_dir);
+    printf("Ecstatica runtime data: %s\n", runtime_options.data_dir);
+    const int e2r_logger_enabled = runtime_options.data_dir_explicit || runtime_options.log_requested;
+    if (e2r_logger_enabled) {
+        E2R_LogBootstrap(runtime_options.log_level, runtime_options.log_disabled_modules, runtime_options.data_dir);
+        atexit(E2R_LogShutdown);
+        E2R_LOG_INFOF(E2R_LOG_MODULE_RUNTIME, E2R_LOG_TAG_STARTUP,
+                      "runtime bootstrap: game_data_dir=%s data_dir=%s",
+                      runtime_options.game_data_dir, runtime_options.data_dir);
+    }
+
+    if (!SetCurrentDirectoryA(runtime_options.game_data_dir)) {
+        fprintf(stderr, "failed to enter Ecstatica II data directory\n");
+        if (e2r_logger_enabled) {
+            E2R_LOG_ERROR(E2R_LOG_MODULE_RUNTIME, E2R_LOG_TAG_STARTUP,
+                          "failed to enter Ecstatica II data directory");
+        }
+        return 1;
+    }
+#else
     printf("Ecstatica II data: %s\n", E2RECOMP_DATA_DIR);
     if (!SetCurrentDirectoryA(E2RECOMP_DATA_DIR)) {
         fprintf(stderr, "failed to enter Ecstatica II data directory\n");
         return 1;
     }
+#endif
     E2R_MapLegacyAddressSpace();
     E2R_InitData();
 
@@ -1331,6 +1369,9 @@ int main(int argc, char **argv)
     }
 
     puts("Linux scaffold initialized. Pass --run-recon to enter the reconstructed game startup thunk.");
+#if E2R_ENABLE_RUNTIME_OPTIONS
+    E2R_RuntimePrintOptionHelp();
+#endif
     puts("Pass --host-backend-key-probe to verify backend key events reach WM_KEYDOWN.");
     puts("Pass --host-backend-present-probe to verify backend indexed-8 presentation.");
     puts("Pass --dump-frame <path.pgm> [seconds] to write a bounded framebuffer inspection dump.");

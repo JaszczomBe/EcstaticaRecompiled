@@ -1,10 +1,24 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(EcstaticaRecompiled LANGUAGES C)
+set(E2R_ENABLE_LOGGER ON CACHE BOOL
+    "Enable the adapted C++ Ecstatica logger. Disable for layout-sensitive sanitizer probes.")
+set(E2R_ENABLE_RUNTIME_OPTIONS ON CACHE BOOL
+    "Enable Ecstatica runtime command-line options and writable data directory wiring.")
+
+if(E2R_ENABLE_LOGGER)
+    project(EcstaticaRecompiled LANGUAGES C CXX)
+else()
+    project(EcstaticaRecompiled LANGUAGES C)
+endif()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
+if(E2R_ENABLE_LOGGER)
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+endif()
 
 set(ECSTATICA2_DATA_DIR "/home/rgrabowski/Games/Ecstatica2" CACHE PATH
     "Path to the full Ecstatica II CD data directory")
@@ -67,6 +81,22 @@ else()
 endif()
 
 message(STATUS "E2R host backend: ${E2R_HOST_BACKEND}")
+message(STATUS "E2R runtime options: ${E2R_ENABLE_RUNTIME_OPTIONS}")
+message(STATUS "E2R logger: ${E2R_ENABLE_LOGGER}")
+
+if(E2R_ENABLE_LOGGER AND NOT E2R_ENABLE_RUNTIME_OPTIONS)
+    message(FATAL_ERROR "E2R_ENABLE_LOGGER requires E2R_ENABLE_RUNTIME_OPTIONS")
+endif()
+
+if(E2R_ENABLE_RUNTIME_OPTIONS)
+    add_subdirectory(src/runtime)
+    if(E2R_ENABLE_LOGGER)
+        add_subdirectory(src/log)
+    else()
+        add_library(e2r_log_stub STATIC src/log/src/LogStub.c)
+        target_include_directories(e2r_log_stub PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/log/include")
+    endif()
+endif()
 
 add_custom_target(ghidra-export
     COMMAND "${CMAKE_COMMAND}" -E env
@@ -115,12 +145,29 @@ target_include_directories(e2recomp PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/E2Recomp/platform"
 )
 
+if(E2R_ENABLE_LOGGER)
+    set_target_properties(e2recomp PROPERTIES LINKER_LANGUAGE CXX)
+endif()
+
 target_compile_definitions(e2recomp PRIVATE
     E2RECOMP_DATA_DIR="${ECSTATICA2_DATA_LINK}"
 )
 
+if(E2R_ENABLE_RUNTIME_OPTIONS)
+    target_compile_definitions(e2recomp PRIVATE E2R_ENABLE_RUNTIME_OPTIONS=1)
+endif()
+
 if(UNIX AND NOT APPLE)
     target_link_libraries(e2recomp PRIVATE dl m pthread)
+endif()
+
+if(E2R_ENABLE_RUNTIME_OPTIONS)
+    if(E2R_ENABLE_LOGGER)
+        target_link_libraries(e2recomp PRIVATE e2r_log)
+    else()
+        target_link_libraries(e2recomp PRIVATE e2r_log_stub)
+    endif()
+    target_link_libraries(e2recomp PRIVATE e2r_runtime)
 endif()
 
 if(E2R_HOST_BACKEND STREQUAL "sdl")

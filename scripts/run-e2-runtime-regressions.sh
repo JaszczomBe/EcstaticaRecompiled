@@ -65,7 +65,7 @@ node --check E2Recomp/tools/GenerateRecon.js
 
 if [[ "${skip_build}" != "1" ]]; then
     cmake --build --preset linux-clang32-debug
-    cmake --build build/linux-clang32-asan
+    cmake --build --preset linux-clang32-asan
 fi
 
 run_capture "${debug_log}" \
