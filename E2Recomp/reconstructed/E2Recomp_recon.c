@@ -43,6 +43,7 @@ static uint E2R_frame_stage_diag_count;
 static uint E2R_actor_loop_diag_count;
 static uint E2R_actor_update_diag_count;
 static uint E2R_action_invoke_diag_count;
+static uint E2R_scene_child_diag_count;
 static int E2R_startup_diag_enabled;
 static int E2R_scene_load_request_id = -1;
 static short *E2R_scene_remove_context;
@@ -139,6 +140,62 @@ static int E2R_NormalizeSceneRecordPointer(int scene)
     return 0;
   }
   return scene;
+}
+
+static void E2R_TraceSceneChildren(const char *stage,short *scene)
+{
+  char *scene_child_diag;
+  short *child;
+  uintptr_t actor;
+  uintptr_t actor_next;
+  uintptr_t actor_dep;
+  uintptr_t actor_scene;
+  uint guard;
+  short scene_id;
+
+  scene_child_diag = getenv("E2R_SCENE_CHILD_DIAG");
+  if ((!E2R_RuntimeDiagEnabled() &&
+       (scene_child_diag == (char *)0x0 || scene_child_diag[0] == '\0' ||
+        scene_child_diag[0] == '0')) || scene == (short *)0x0 ||
+      IsBadReadPtr(scene,0xa8) || E2R_scene_child_diag_count >= 128) {
+    return;
+  }
+  scene_id = *scene;
+  if (_DAT_0073cc3c != 0 && (uintptr_t)scene != (uintptr_t)_DAT_0073cc3c && scene_id != 1564) {
+    return;
+  }
+  E2R_scene_child_diag_count = E2R_scene_child_diag_count + 1;
+  fprintf(stderr,
+          "scene children: %s scene=%d ptr=0x%lx child_head=0x%lx active_next=0x%lx current=0x%lx actor_head=0x%lx\n",
+          stage,(int)scene_id,(unsigned long)(uintptr_t)scene,
+          (unsigned long)*(int *)(scene + 2),(unsigned long)*(int *)(scene + 0x4e),
+          (unsigned long)_DAT_0073cc3c,(unsigned long)_DAT_0063726c);
+  guard = 0;
+  for (child = *(short **)(scene + 2);
+       child != (short *)0x0 && guard < 32 && !IsBadReadPtr(child,0x1c) &&
+       E2R_scene_child_diag_count < 128; child = *(short **)(child + 0xc)) {
+    actor = 0;
+    actor_next = 0;
+    actor_dep = 0;
+    actor_scene = 0;
+    if (0 <= *child && *child < 5000) {
+      actor = *(uint *)((undefined1 *)0x00630b60 + *child * 4);
+      if (actor != 0 && !IsBadReadPtr((void *)actor,0x136)) {
+        actor_next = *(uint *)(actor + 0x4c);
+        actor_dep = *(uint *)(actor + 0xa6);
+        actor_scene = *(uint *)(actor + 0x132);
+      }
+    }
+    E2R_scene_child_diag_count = E2R_scene_child_diag_count + 1;
+    fprintf(stderr,
+            "scene child: %s #%lu child=0x%lx actor_id=%d flags=0x%02x actions=0x%lx next=0x%lx table=0x%lx actor_next=0x%lx dep=0x%lx p132=0x%lx\n",
+            stage,(unsigned long)guard,(unsigned long)(uintptr_t)child,
+            (int)*child,(unsigned int)*(byte *)(child + 7),
+            (unsigned long)*(int *)(child + 3),(unsigned long)*(int *)(child + 0xc),
+            (unsigned long)actor,(unsigned long)actor_next,
+            (unsigned long)actor_dep,(unsigned long)actor_scene);
+    guard = guard + 1;
+  }
 }
 
 typedef struct E2R_SceneGridSnapshot {
@@ -47275,6 +47332,7 @@ void __fastcall FUN_00452140(undefined4 param_1)
     in_EAX = E2R_NormalizeSceneRecordPointer(_DAT_0073cc3c);
   }
   if (in_EAX != 0) {
+    E2R_TraceSceneChildren("52140.enter",(short *)(uintptr_t)in_EAX);
     guard = 0;
     for (psVar3 = *(short **)(in_EAX + 4);
         psVar3 != (short *)0x0 && guard < 0x4000 &&
@@ -47309,7 +47367,9 @@ void __fastcall FUN_00452140(undefined4 param_1)
             param_1 = extraout_ECX_10;
           }
           else {
+            E2R_actor_calc_context = (int)(uintptr_t)psVar4;
             FUN_00420dcc();
+            E2R_actor_calc_context = 0;
             param_1 = extraout_ECX_06;
             if ((((undefined1 *)0x0064a178)[*psVar4 * 2] & 2) != 0) {
               FUN_00422aa0((undefined4)(uintptr_t)(psVar4 + 0x42),
@@ -47329,23 +47389,27 @@ void __fastcall FUN_00452140(undefined4 param_1)
           }
         }
         if (*(int *)((undefined1 *)0x00630b60 + *psVar3 * 4) != 0) {
+          psVar4 = *(short **)((undefined1 *)0x00630b60 + *psVar3 * 4);
+          E2R_actor_calc_context = (int)(uintptr_t)psVar4;
           FUN_00426c3c();
+          E2R_actor_calc_context = 0;
           bVar2 = ((undefined1 *)0x0064a178)[*psVar3 * 2];
           param_1 = CONCAT22((short)((uint)extraout_ECX_11 >> 0x10),
                              CONCAT11(bVar2,(char)extraout_ECX_11));
           if ((bVar2 & 2) == 0) {
             ((undefined1 *)0x0064a178)[*psVar3 * 2] = bVar2 | 2;
-            extraout_EDX_01[0x77] = 100;
-            extraout_EDX_01[0x76] = extraout_EDX_01[0x77];
-            if ((-1 < (short)extraout_EDX_01[0x9d]) &&
-               (*(int *)((*(int *)(extraout_EDX_01 + 0x9c) >> 0x10) * 4 + 0x6297c0) != 0)) {
-              FUN_0044f508(extraout_EDX_01,extraout_EDX_01,(ushort *)0x0);
+            psVar4[0x77] = 100;
+            psVar4[0x76] = psVar4[0x77];
+            if ((-1 < psVar4[0x9d]) &&
+               (*(int *)((*(int *)(psVar4 + 0x9c) >> 0x10) * 4 + 0x6297c0) != 0)) {
+              FUN_0044f508(psVar4,psVar4,(ushort *)0x0);
               param_1 = extraout_ECX_12;
             }
           }
         }
       }
     }
+    E2R_TraceSceneChildren("52140.exit",(short *)(uintptr_t)in_EAX);
   }
   DAT_0047a470 = E2R_TraceCurrentActorWrite("52140.exit",(uintptr_t)uVar5);
   return;
@@ -47446,6 +47510,7 @@ undefined4 FUN_004523f8(undefined4 param_1)
 
   in_EAX = (short *)(uintptr_t)param_1;
   if (in_EAX != (short *)0x0 && !IsBadReadPtr(in_EAX,0x20)) {
+    E2R_TraceSceneChildren("523f8.enter",in_EAX);
     pbVar1 = (byte *)(*in_EAX * 2 + 0x670c38);
     *pbVar1 = *pbVar1 | 2;
     pbVar1 = (byte *)(*in_EAX * 2 + 0x670c38);
@@ -47510,6 +47575,7 @@ undefined4 FUN_004523f8(undefined4 param_1)
         E2R_actor_calc_context = 0;
       }
     }
+    E2R_TraceSceneChildren("523f8.exit",in_EAX);
   }
   return;
 }

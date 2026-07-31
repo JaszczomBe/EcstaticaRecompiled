@@ -203,7 +203,7 @@ void E2R_HostShowWindow(E2R_HostWindow *window)
 }
 
 void E2R_HostPollEvents(E2R_HostWindow *window,
-                        E2R_HostKeyDownCallback keydown_callback,
+                        E2R_HostMessageCallback message_callback,
                         void *user)
 {
     if (window != &e2r_x11_window || !window->display || !window->window ||
@@ -214,10 +214,10 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
     while (e2r_x11.XPending(window->display) > 0) {
         E2R_XEvent event;
         e2r_x11.XNextEvent(window->display, &event);
-        if (event.type == E2R_X11_KEY_PRESS && keydown_callback != NULL) {
+        if (event.type == E2R_X11_KEY_PRESS && message_callback != NULL) {
             UINT vk = e2r_virtual_key_from_keysym(e2r_x11.XLookupKeysym(&event.xkey, 0));
             if (vk != 0) {
-                keydown_callback(vk, user);
+                message_callback(WM_KEYDOWN, vk, 0, user);
             }
         }
     }
@@ -252,10 +252,10 @@ E2R_HostWindow *E2R_HostCreateWindow(const char *title, int x, int y,
 void E2R_HostDestroyWindow(E2R_HostWindow *window) { (void)window; }
 void E2R_HostShowWindow(E2R_HostWindow *window) { (void)window; }
 void E2R_HostPollEvents(E2R_HostWindow *window,
-                        E2R_HostKeyDownCallback keydown_callback,
+                        E2R_HostMessageCallback message_callback,
                         void *user)
 {
-    (void)window; (void)keydown_callback; (void)user;
+    (void)window; (void)message_callback; (void)user;
 }
 int E2R_HostPushSyntheticKeyDown(E2R_HostWindow *window, UINT vk)
 {

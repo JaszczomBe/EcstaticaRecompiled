@@ -257,6 +257,10 @@ int E2R_TryPresentCurrentFrame(HWND hwnd)
         width == 0 || height == 0 || width > 4096u || height > 4096u) {
         return 0;
     }
+    E2R_PumpHostEvents();
+    if (hwnd->ptr == NULL) {
+        return 0;
+    }
     now_ms = e2r_monotonic_milliseconds();
     if (last_present_ms != 0 && now_ms != 0 && now_ms - last_present_ms < 33u) {
         return 0;
@@ -1007,6 +1011,7 @@ static int e2r_run_host_backend_key_probe(void)
     HWND hwnd;
     MSG msg;
     unsigned poll;
+    uintptr_t keydowns_before;
 
     hwnd = E2R_CreateWindowExA(0, "E2RProbe", "Ecstatica II backend key probe",
                                0, 0, 0, 64, 64, NULL, NULL, NULL, NULL);
@@ -1014,6 +1019,7 @@ static int e2r_run_host_backend_key_probe(void)
         fprintf(stderr, "host backend key probe failed: window unavailable\n");
         return 1;
     }
+    keydowns_before = E2R_input_probe_keydown_count;
     if (!E2R_HostPushSyntheticKeyDown((E2R_HostWindow *)hwnd->ptr, VK_SPACE)) {
         fprintf(stderr, "host backend key probe failed: synthetic key unsupported\n");
         return 2;
@@ -1026,6 +1032,11 @@ static int e2r_run_host_backend_key_probe(void)
                 fprintf(stderr, "host backend key probe passed\n");
                 return 0;
             }
+        }
+        if (E2R_input_probe_keydown_count != keydowns_before &&
+            E2R_input_probe_last_key == VK_SPACE) {
+            fprintf(stderr, "host backend key probe passed via direct dispatch\n");
+            return 0;
         }
         Sleep(1);
     }

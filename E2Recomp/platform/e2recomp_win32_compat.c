@@ -116,10 +116,81 @@ static BOOL e2r_push_message(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     return queued;
 }
 
-static void e2r_queue_host_keydown(UINT vk, void *user)
+static int e2r_input_diag_enabled(void)
 {
+    static int initialized;
+    static int enabled;
+
+    if (!initialized) {
+        const char *diag = getenv("E2R_INPUT_DIAG");
+#ifndef NDEBUG
+        enabled = diag == NULL || diag[0] == '\0' || diag[0] != '0';
+#else
+        enabled = diag != NULL && diag[0] != '\0' && diag[0] != '0';
+#endif
+        initialized = 1;
+    }
+    return enabled;
+}
+
+static int e2r_should_log_host_message(UINT msg)
+{
+    switch (msg) {
+    case WM_CLOSE:
+    case WM_DESTROY:
+    case WM_SIZE:
+    case WM_KEYDOWN:
+    case WM_KEYUP:
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP:
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONUP:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static void e2r_queue_host_message(UINT msg, WPARAM wparam, LPARAM lparam, void *user)
+{
+    static unsigned message_diag_count;
+
     (void)user;
-    e2r_push_message(&e2r_window, WM_KEYDOWN, vk, 0);
+    if (e2r_input_diag_enabled() && e2r_should_log_host_message(msg) &&
+        message_diag_count < 256u) {
+        fprintf(stderr,
+                "host message dispatch: msg=0x%x wparam=0x%lx lparam=0x%lx direct=%d wndproc=%p\n",
+                (unsigned)msg, (unsigned long)wparam, (unsigned long)lparam,
+                e2r_window_proc != NULL, (void *)e2r_window_proc);
+        message_diag_count++;
+    }
+    if (e2r_window_proc != NULL && msg != WM_QUIT) {
+        e2r_window_proc(&e2r_window, msg, wparam, lparam);
+        return;
+    }
+    if (msg == WM_CLOSE) {
+        DefWindowProcA(&e2r_window, msg, wparam, lparam);
+        return;
+    }
+    e2r_push_message(&e2r_window, msg, wparam, lparam);
+}
+
+static void e2r_poll_host_events(const char *site)
+{
+    static unsigned poll_diag_count;
+
+    if (e2r_window.ptr == NULL) {
+        return;
+    }
+    if (e2r_input_diag_enabled() && poll_diag_count < 1u) {
+        fprintf(stderr, "host pump: site=%s hwnd_ptr=%p wndproc=%p\n",
+                site, e2r_window.ptr, (void *)e2r_window_proc);
+        poll_diag_count++;
+    }
+    E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr,
+                       e2r_queue_host_message, NULL);
 }
 
 void E2R_MapLegacyAddressSpace(void)
@@ -622,12 +693,21 @@ BOOL E2R_IsBadWritePtr(const void *ptr, UINT_PTR size)
     return e2r_is_bad_memory_range(ptr, size, 'w');
 }
 
-BOOL IsWindow(HWND hwnd) { return hwnd != NULL; }
+BOOL IsWindow(HWND hwnd)
+{
+    if (hwnd == &e2r_window) {
+        return hwnd->ptr != NULL;
+    }
+    return hwnd != NULL;
+}
 BOOL DestroyWindow(HWND hwnd)
 {
     if (hwnd == &e2r_window && hwnd->ptr != NULL) {
         E2R_HostDestroyWindow((E2R_HostWindow *)hwnd->ptr);
         hwnd->ptr = NULL;
+        if (e2r_window_proc != NULL) {
+            e2r_window_proc(hwnd, WM_DESTROY, 0, 0);
+        }
     }
     (void)hwnd;
     return TRUE;
@@ -642,6 +722,9 @@ BOOL ShowWindow(HWND hwnd, int cmd_show)
 }
 BOOL UpdateWindow(HWND hwnd)
 {
+    if (hwnd == &e2r_window && e2r_window.ptr != NULL) {
+        E2R_PumpHostEvents();
+    }
     E2R_TryPresentCurrentFrame(hwnd);
     (void)hwnd;
     return TRUE;
@@ -652,10 +735,13 @@ BOOL GetCursorPos(POINT *point) { if (point) point->x = point->y = 0; return TRU
 void E2R_PumpHost(void)
 {
     if (e2r_window.ptr != NULL) {
-        E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr,
-                           e2r_queue_host_keydown, NULL);
+        E2R_PumpHostEvents();
         E2R_TryPresentCurrentFrame(&e2r_window);
     }
+}
+void E2R_PumpHostEvents(void)
+{
+    e2r_poll_host_events("E2R_PumpHostEvents");
 }
 BOOL PeekMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter, UINT remove)
 {
@@ -695,8 +781,7 @@ void Sleep(DWORD milliseconds)
             presented = 1;
         }
         else if (e2r_window.ptr != NULL) {
-            E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr,
-                               e2r_queue_host_keydown, NULL);
+            E2R_PumpHostEvents();
         }
         usleep((slice == 0u ? 1u : slice) * 1000u);
         if (remaining <= slice) {
@@ -723,7 +808,11 @@ LRESULT SendMessageA(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 }
 LRESULT DefWindowProcA(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-    (void)hwnd; (void)msg; (void)wparam; (void)lparam;
+    if (msg == WM_CLOSE) {
+        DestroyWindow(hwnd);
+        return 0;
+    }
+    (void)hwnd; (void)wparam; (void)lparam;
     return 0;
 }
 HWND CreateWindowExA(DWORD ex_style, LPCSTR class_name, LPCSTR window_name,

@@ -3818,6 +3818,14 @@ source = source.replace(
   "  psVar2 = *(short **)((undefined1 *)0x00630b60 + actor_id * 4);\n  if (psVar2 != (short *)0x0) {\n    if (*(int *)(*psVar2 * 2 + 0x671fbe) >> 0x10 != -2) {\n      psVar2[0x91] = *(short *)(*psVar2 * 2 + 0x671fc0);\n    }\n    E2R_actor_calc_context = (int)(uintptr_t)psVar2;\n    FUN_00426c3c();\n    E2R_actor_calc_context = 0;\n    if ((((undefined1 *)0x0064a178)[*psVar2 * 2] & 2) == 0) {\n      ((undefined1 *)0x0064a178)[*psVar2 * 2] = ((undefined1 *)0x0064a178)[*psVar2 * 2] | 2;\n      psVar2[0x77] = 100;\n      psVar2[0x76] = psVar2[0x77];\n      if ((-1 < psVar2[0x9d]) &&\n         (*(int *)((*(int *)(psVar2 + 0x9c) >> 0x10) * 4 + 0x6297c0) != 0)) {\n        FUN_0044f508(psVar2,psVar2,(ushort *)0x0);\n      }\n    }\n  }"
 );
 source = source.replace(
+  "          else {\n            FUN_00420dcc();\n            param_1 = extraout_ECX_06;",
+  "          else {\n            E2R_actor_calc_context = (int)(uintptr_t)psVar4;\n            FUN_00420dcc();\n            E2R_actor_calc_context = 0;\n            param_1 = extraout_ECX_06;"
+);
+source = source.replace(
+  "        if (*(int *)((undefined1 *)0x00630b60 + *psVar3 * 4) != 0) {\n          FUN_00426c3c();\n          bVar2 = ((undefined1 *)0x0064a178)[*psVar3 * 2];\n          param_1 = CONCAT22((short)((uint)extraout_ECX_11 >> 0x10),\n                             CONCAT11(bVar2,(char)extraout_ECX_11));\n          if ((bVar2 & 2) == 0) {\n            ((undefined1 *)0x0064a178)[*psVar3 * 2] = bVar2 | 2;\n            extraout_EDX_01[0x77] = 100;\n            extraout_EDX_01[0x76] = extraout_EDX_01[0x77];\n            if ((-1 < (short)extraout_EDX_01[0x9d]) &&\n               (*(int *)((*(int *)(extraout_EDX_01 + 0x9c) >> 0x10) * 4 + 0x6297c0) != 0)) {\n              FUN_0044f508(extraout_EDX_01,extraout_EDX_01,(ushort *)0x0);\n              param_1 = extraout_ECX_12;\n            }\n          }\n        }",
+  "        if (*(int *)((undefined1 *)0x00630b60 + *psVar3 * 4) != 0) {\n          psVar4 = *(short **)((undefined1 *)0x00630b60 + *psVar3 * 4);\n          E2R_actor_calc_context = (int)(uintptr_t)psVar4;\n          FUN_00426c3c();\n          E2R_actor_calc_context = 0;\n          bVar2 = ((undefined1 *)0x0064a178)[*psVar3 * 2];\n          param_1 = CONCAT22((short)((uint)extraout_ECX_11 >> 0x10),\n                             CONCAT11(bVar2,(char)extraout_ECX_11));\n          if ((bVar2 & 2) == 0) {\n            ((undefined1 *)0x0064a178)[*psVar3 * 2] = bVar2 | 2;\n            psVar4[0x77] = 100;\n            psVar4[0x76] = psVar4[0x77];\n            if ((-1 < psVar4[0x9d]) &&\n               (*(int *)((*(int *)(psVar4 + 0x9c) >> 0x10) * 4 + 0x6297c0) != 0)) {\n              FUN_0044f508(psVar4,psVar4,(ushort *)0x0);\n              param_1 = extraout_ECX_12;\n            }\n          }\n        }"
+);
+source = source.replace(
   "  if (in_EAX != 0) {\n    *(ushort *)(in_EAX + 2) = *(ushort *)(in_EAX + 2) & 0xf3f6;",
   "  in_EAX = E2R_actor_calc_context;\n  if (in_EAX != 0 && !IsBadReadPtr((void *)(uintptr_t)in_EAX,0x148)) {\n    *(ushort *)(in_EAX + 2) = *(ushort *)(in_EAX + 2) & 0xf3f6;"
 );
@@ -4099,7 +4107,7 @@ source = source.replace(
 // diagnostics used by older crash hunts.
 source = source.replace(
   "static uint E2R_action_invoke_diag_count;\nstatic const char *E2R_current_actor_last_site;",
-  "static uint E2R_action_invoke_diag_count;\nstatic int E2R_startup_diag_enabled;\nstatic int E2R_scene_load_request_id = -1;\nstatic short *E2R_scene_remove_context;\nstatic int E2R_cleanup_context;\nstatic uint E2R_startup_action_diag_count;\nstatic uint E2R_startup_preload_diag_count;\nstatic uint E2R_scene_record_install_diag_count;\nstatic uint E2R_scene_grid_restore_diag_count;\nstatic uint E2R_script_scene_diag_count;\nstatic const char *E2R_current_actor_last_site;"
+  "static uint E2R_action_invoke_diag_count;\nstatic uint E2R_scene_child_diag_count;\nstatic int E2R_startup_diag_enabled;\nstatic int E2R_scene_load_request_id = -1;\nstatic short *E2R_scene_remove_context;\nstatic int E2R_cleanup_context;\nstatic uint E2R_startup_action_diag_count;\nstatic uint E2R_startup_preload_diag_count;\nstatic uint E2R_scene_record_install_diag_count;\nstatic uint E2R_scene_grid_restore_diag_count;\nstatic uint E2R_script_scene_diag_count;\nstatic const char *E2R_current_actor_last_site;"
 );
 source = source.replace(
   "  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n  char *runtime_diag = getenv(\"E2R_RUNTIME_DIAG\");\n\n  if (runtime_diag != (char *)0x0 && runtime_diag[0] != '\\0' && runtime_diag[0] != '0') {\n    E2R_runtime_diag_enabled = 1;\n  }",
@@ -4112,6 +4120,10 @@ source = source.replace(
 source = source.replace(
   "static int E2R_SceneListNext(int scene)\n{\n  int next;\n\n  scene = E2R_NormalizeSceneListNode(scene);\n  if (scene == 0) {\n    return 0;\n  }\n  next = *(int *)(scene + 8);\n  if (next == scene) {\n    return 0;\n  }\n  return E2R_NormalizeSceneListNode(next);\n}\n\ntypedef struct E2R_SceneGridSnapshot",
   "static int E2R_SceneListNext(int scene)\n{\n  int next;\n\n  scene = E2R_NormalizeSceneListNode(scene);\n  if (scene == 0) {\n    return 0;\n  }\n  next = *(int *)(scene + 8);\n  if (next == scene) {\n    return 0;\n  }\n  return E2R_NormalizeSceneListNode(next);\n}\n\nstatic int E2R_NormalizeSceneRecordPointer(int scene)\n{\n  short scene_id;\n\n  if ((uint)scene < 0x10000u || 0x70000000u <= (uint)scene ||\n      IsBadReadPtr((void *)(uintptr_t)scene,0xa8)) {\n    return 0;\n  }\n  scene_id = *(short *)(uintptr_t)scene;\n  if (scene_id < 0 || 0x9c4 <= scene_id) {\n    return 0;\n  }\n  if (*(int *)(scene_id * 4 + 0x62e450) != scene) {\n    return 0;\n  }\n  return scene;\n}\n\ntypedef struct E2R_SceneGridSnapshot"
+);
+source = source.replace(
+  "static int E2R_NormalizeSceneRecordPointer(int scene)\n{\n  short scene_id;\n\n  if ((uint)scene < 0x10000u || 0x70000000u <= (uint)scene ||\n      IsBadReadPtr((void *)(uintptr_t)scene,0xa8)) {\n    return 0;\n  }\n  scene_id = *(short *)(uintptr_t)scene;\n  if (scene_id < 0 || 0x9c4 <= scene_id) {\n    return 0;\n  }\n  if (*(int *)(scene_id * 4 + 0x62e450) != scene) {\n    return 0;\n  }\n  return scene;\n}\n\ntypedef struct E2R_SceneGridSnapshot",
+  "static int E2R_NormalizeSceneRecordPointer(int scene)\n{\n  short scene_id;\n\n  if ((uint)scene < 0x10000u || 0x70000000u <= (uint)scene ||\n      IsBadReadPtr((void *)(uintptr_t)scene,0xa8)) {\n    return 0;\n  }\n  scene_id = *(short *)(uintptr_t)scene;\n  if (scene_id < 0 || 0x9c4 <= scene_id) {\n    return 0;\n  }\n  if (*(int *)(scene_id * 4 + 0x62e450) != scene) {\n    return 0;\n  }\n  return scene;\n}\n\nstatic void E2R_TraceSceneChildren(const char *stage,short *scene)\n{\n  char *scene_child_diag;\n  short *child;\n  uintptr_t actor;\n  uintptr_t actor_next;\n  uintptr_t actor_dep;\n  uintptr_t actor_scene;\n  uint guard;\n  short scene_id;\n\n  scene_child_diag = getenv(\"E2R_SCENE_CHILD_DIAG\");\n  if ((!E2R_RuntimeDiagEnabled() &&\n       (scene_child_diag == (char *)0x0 || scene_child_diag[0] == '\\0' ||\n        scene_child_diag[0] == '0')) || scene == (short *)0x0 ||\n      IsBadReadPtr(scene,0xa8) || E2R_scene_child_diag_count >= 128) {\n    return;\n  }\n  scene_id = *scene;\n  if (_DAT_0073cc3c != 0 && (uintptr_t)scene != (uintptr_t)_DAT_0073cc3c && scene_id != 1564) {\n    return;\n  }\n  E2R_scene_child_diag_count = E2R_scene_child_diag_count + 1;\n  fprintf(stderr,\n          \"scene children: %s scene=%d ptr=0x%lx child_head=0x%lx active_next=0x%lx current=0x%lx actor_head=0x%lx\\n\",\n          stage,(int)scene_id,(unsigned long)(uintptr_t)scene,\n          (unsigned long)*(int *)(scene + 2),(unsigned long)*(int *)(scene + 0x4e),\n          (unsigned long)_DAT_0073cc3c,(unsigned long)_DAT_0063726c);\n  guard = 0;\n  for (child = *(short **)(scene + 2);\n       child != (short *)0x0 && guard < 32 && !IsBadReadPtr(child,0x1c) &&\n       E2R_scene_child_diag_count < 128; child = *(short **)(child + 0xc)) {\n    actor = 0;\n    actor_next = 0;\n    actor_dep = 0;\n    actor_scene = 0;\n    if (0 <= *child && *child < 5000) {\n      actor = *(uint *)((undefined1 *)0x00630b60 + *child * 4);\n      if (actor != 0 && !IsBadReadPtr((void *)actor,0x136)) {\n        actor_next = *(uint *)(actor + 0x4c);\n        actor_dep = *(uint *)(actor + 0xa6);\n        actor_scene = *(uint *)(actor + 0x132);\n      }\n    }\n    E2R_scene_child_diag_count = E2R_scene_child_diag_count + 1;\n    fprintf(stderr,\n            \"scene child: %s #%lu child=0x%lx actor_id=%d flags=0x%02x actions=0x%lx next=0x%lx table=0x%lx actor_next=0x%lx dep=0x%lx p132=0x%lx\\n\",\n            stage,(unsigned long)guard,(unsigned long)(uintptr_t)child,\n            (int)*child,(unsigned int)*(byte *)(child + 7),\n            (unsigned long)*(int *)(child + 3),(unsigned long)*(int *)(child + 0xc),\n            (unsigned long)actor,(unsigned long)actor_next,\n            (unsigned long)actor_dep,(unsigned long)actor_scene);\n    guard = guard + 1;\n  }\n}\n\ntypedef struct E2R_SceneGridSnapshot"
 );
 source = source.replace(
   "  if (E2R_RuntimeDiagEnabled()) {\n    fprintf(stderr,\"scene grid restore: opcode=0x%lx count=%d bytes=%u\\n\",",
@@ -4533,7 +4545,11 @@ source = source.replace(
 );
 source = source.replace(
   "  uVar5 = DAT_0047a470;\n  if (in_EAX != 0) {\n    for (psVar3 = *(short **)(in_EAX + 4); psVar3 != (short *)0x0;\n        psVar3 = *(short **)(psVar3 + 0xc)) {\n      if ((*(byte *)(psVar3 + 7) & 0x20) == 0) {",
-  "  uVar5 = DAT_0047a470;\n  in_EAX = E2R_NormalizeSceneRecordPointer(in_EAX);\n  if (in_EAX == 0) {\n    in_EAX = E2R_NormalizeSceneRecordPointer((int)(uintptr_t)param_1);\n  }\n  if (in_EAX == 0) {\n    in_EAX = E2R_NormalizeSceneRecordPointer(_DAT_0073cc3c);\n  }\n  if (in_EAX != 0) {\n    guard = 0;\n    for (psVar3 = *(short **)(in_EAX + 4);\n        psVar3 != (short *)0x0 && guard < 0x4000 &&\n        !IsBadReadPtr(psVar3,0x1c); psVar3 = *(short **)(psVar3 + 0xc)) {\n      guard = guard + 1;\n      if ((*(byte *)(psVar3 + 7) & 0x20) == 0) {"
+  "  uVar5 = DAT_0047a470;\n  in_EAX = E2R_NormalizeSceneRecordPointer(in_EAX);\n  if (in_EAX == 0) {\n    in_EAX = E2R_NormalizeSceneRecordPointer((int)(uintptr_t)param_1);\n  }\n  if (in_EAX == 0) {\n    in_EAX = E2R_NormalizeSceneRecordPointer(_DAT_0073cc3c);\n  }\n  if (in_EAX != 0) {\n    E2R_TraceSceneChildren(\"52140.enter\",(short *)(uintptr_t)in_EAX);\n    guard = 0;\n    for (psVar3 = *(short **)(in_EAX + 4);\n        psVar3 != (short *)0x0 && guard < 0x4000 &&\n        !IsBadReadPtr(psVar3,0x1c); psVar3 = *(short **)(psVar3 + 0xc)) {\n      guard = guard + 1;\n      if ((*(byte *)(psVar3 + 7) & 0x20) == 0) {"
+);
+source = source.replace(
+  "      }\n    }\n  }\n  DAT_0047a470 = E2R_TraceCurrentActorWrite(\"52140.exit\",(uintptr_t)uVar5);",
+  "      }\n    }\n    E2R_TraceSceneChildren(\"52140.exit\",(short *)(uintptr_t)in_EAX);\n  }\n  DAT_0047a470 = E2R_TraceCurrentActorWrite(\"52140.exit\",(uintptr_t)uVar5);"
 );
 source = source.replace(
   "  ushort *extraout_EDX_01;\n  undefined8 uVar8;\n\n  uVar5 = DAT_0047a470;\n  in_EAX = E2R_NormalizeSceneRecordPointer(in_EAX);",
@@ -4546,6 +4562,14 @@ source = source.replace(
 source = source.replace(
   "        FUN_0042ad60(extraout_ECX,(int)psVar4);\n      }\n    }\n  }\n  return;",
   "        FUN_0042ad60(extraout_ECX,(int)psVar4);\n        E2R_actor_calc_context = 0;\n      }\n    }\n  }\n  return;"
+);
+source = source.replace(
+  "  in_EAX = (short *)(uintptr_t)param_1;\n  if (in_EAX != (short *)0x0 && !IsBadReadPtr(in_EAX,0x20)) {\n    pbVar1 = (byte *)(*in_EAX * 2 + 0x670c38);",
+  "  in_EAX = (short *)(uintptr_t)param_1;\n  if (in_EAX != (short *)0x0 && !IsBadReadPtr(in_EAX,0x20)) {\n    E2R_TraceSceneChildren(\"523f8.enter\",in_EAX);\n    pbVar1 = (byte *)(*in_EAX * 2 + 0x670c38);"
+);
+source = source.replace(
+  "        FUN_0042ad60(extraout_ECX,(int)psVar4);\n        E2R_actor_calc_context = 0;\n      }\n    }\n  }\n  return;",
+  "        FUN_0042ad60(extraout_ECX,(int)psVar4);\n        E2R_actor_calc_context = 0;\n      }\n    }\n    E2R_TraceSceneChildren(\"523f8.exit\",in_EAX);\n  }\n  return;"
 );
 source = source.replace(
   /(\/\* 00452140 \*\/[\s\S]*?  ushort \*extraout_EDX_01;\r?\n)(  undefined8 uVar8;\r?\n\r?\n  uVar5 = DAT_0047a470;\r?\n  in_EAX = E2R_NormalizeSceneRecordPointer\(in_EAX\);)/,

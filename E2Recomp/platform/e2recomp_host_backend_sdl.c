@@ -29,6 +29,25 @@ static int e2r_sdl_present_diag_enabled(void)
     return enabled;
 }
 
+static int e2r_sdl_input_diag_enabled(void)
+{
+    static int initialized;
+    static int enabled;
+
+    if (!initialized) {
+        const char *diag = getenv("E2R_INPUT_DIAG");
+#ifndef NDEBUG
+        enabled = diag == NULL || diag[0] == '\0' || diag[0] != '0';
+#else
+        enabled = diag != NULL && diag[0] != '\0' && diag[0] != '0';
+#endif
+        fprintf(stderr, "host input diag: enabled=%d env=%s\n",
+                enabled, diag != NULL ? diag : "<unset>");
+        initialized = 1;
+    }
+    return enabled;
+}
+
 static SDL_Rect e2r_sdl_aspect_fit_rect(int dst_width, int dst_height,
                                         unsigned src_width, unsigned src_height)
 {
@@ -62,6 +81,168 @@ static SDL_Rect e2r_sdl_aspect_fit_rect(int dst_width, int dst_height,
         rect.y = (dst_height - rect.h) / 2;
     }
     return rect;
+}
+
+static LPARAM e2r_pack_point(float x, float y)
+{
+    int xi = (int)x;
+    int yi = (int)y;
+    return (LPARAM)(((unsigned int)xi & 0xffffu) |
+                    (((unsigned int)yi & 0xffffu) << 16));
+}
+
+static const char *e2r_sdl_event_name(Uint32 type)
+{
+    switch (type) {
+    case SDL_EVENT_QUIT: return "quit";
+    case SDL_EVENT_WINDOW_SHOWN: return "window shown";
+    case SDL_EVENT_WINDOW_HIDDEN: return "window hidden";
+    case SDL_EVENT_WINDOW_EXPOSED: return "window exposed";
+    case SDL_EVENT_WINDOW_MOVED: return "window moved";
+    case SDL_EVENT_WINDOW_RESIZED: return "window resized";
+    case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED: return "window pixel size changed";
+    case SDL_EVENT_WINDOW_MINIMIZED: return "window minimized";
+    case SDL_EVENT_WINDOW_MAXIMIZED: return "window maximized";
+    case SDL_EVENT_WINDOW_RESTORED: return "window restored";
+    case SDL_EVENT_WINDOW_MOUSE_ENTER: return "window mouse enter";
+    case SDL_EVENT_WINDOW_MOUSE_LEAVE: return "window mouse leave";
+    case SDL_EVENT_WINDOW_FOCUS_GAINED: return "window focus gained";
+    case SDL_EVENT_WINDOW_FOCUS_LOST: return "window focus lost";
+    case SDL_EVENT_WINDOW_CLOSE_REQUESTED: return "window close requested";
+    case SDL_EVENT_KEY_DOWN: return "key down";
+    case SDL_EVENT_KEY_UP: return "key up";
+    case SDL_EVENT_TEXT_INPUT: return "text input";
+    case SDL_EVENT_MOUSE_MOTION: return "mouse motion";
+    case SDL_EVENT_MOUSE_BUTTON_DOWN: return "mouse button down";
+    case SDL_EVENT_MOUSE_BUTTON_UP: return "mouse button up";
+    case SDL_EVENT_MOUSE_WHEEL: return "mouse wheel";
+    default: return "other";
+    }
+}
+
+static int e2r_sdl_should_log_event(Uint32 type)
+{
+    switch (type) {
+    case SDL_EVENT_QUIT:
+    case SDL_EVENT_KEY_DOWN:
+    case SDL_EVENT_KEY_UP:
+    case SDL_EVENT_TEXT_INPUT:
+    case SDL_EVENT_MOUSE_BUTTON_DOWN:
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+    case SDL_EVENT_WINDOW_RESIZED:
+    case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+    case SDL_EVENT_WINDOW_MINIMIZED:
+    case SDL_EVENT_WINDOW_MAXIMIZED:
+    case SDL_EVENT_WINDOW_RESTORED:
+    case SDL_EVENT_WINDOW_FOCUS_GAINED:
+    case SDL_EVENT_WINDOW_FOCUS_LOST:
+    case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static int e2r_sdl_should_log_window_message(Uint32 type)
+{
+    switch (type) {
+    case SDL_EVENT_WINDOW_RESIZED:
+    case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+    case SDL_EVENT_WINDOW_MINIMIZED:
+    case SDL_EVENT_WINDOW_MAXIMIZED:
+    case SDL_EVENT_WINDOW_RESTORED:
+    case SDL_EVENT_WINDOW_FOCUS_GAINED:
+    case SDL_EVENT_WINDOW_FOCUS_LOST:
+    case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static const char *e2r_sdl_scancode_name(SDL_Scancode scancode)
+{
+    switch (scancode) {
+    case SDL_SCANCODE_ESCAPE: return "Escape";
+    case SDL_SCANCODE_RETURN: return "Return";
+    case SDL_SCANCODE_SPACE: return "Space";
+    case SDL_SCANCODE_LEFT: return "Left";
+    case SDL_SCANCODE_RIGHT: return "Right";
+    case SDL_SCANCODE_UP: return "Up";
+    case SDL_SCANCODE_DOWN: return "Down";
+    case SDL_SCANCODE_F1: return "F1";
+    case SDL_SCANCODE_F2: return "F2";
+    case SDL_SCANCODE_F3: return "F3";
+    case SDL_SCANCODE_F4: return "F4";
+    case SDL_SCANCODE_F5: return "F5";
+    case SDL_SCANCODE_F6: return "F6";
+    case SDL_SCANCODE_F7: return "F7";
+    case SDL_SCANCODE_F8: return "F8";
+    case SDL_SCANCODE_F9: return "F9";
+    case SDL_SCANCODE_F10: return "F10";
+    case SDL_SCANCODE_F11: return "F11";
+    case SDL_SCANCODE_F12: return "F12";
+    default:
+        if (scancode >= SDL_SCANCODE_A && scancode <= SDL_SCANCODE_Z) {
+            static char names[26][2];
+            int index = (int)scancode - (int)SDL_SCANCODE_A;
+            names[index][0] = (char)('A' + index);
+            names[index][1] = '\0';
+            return names[index];
+        }
+        return "Other";
+    }
+}
+
+static void e2r_sdl_log_keyboard_snapshot(E2R_HostWindow *window)
+{
+    static uint64_t last_mask;
+    static unsigned snapshot_diag_count;
+    static const SDL_Scancode watched[] = {
+        SDL_SCANCODE_ESCAPE, SDL_SCANCODE_RETURN, SDL_SCANCODE_SPACE,
+        SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT, SDL_SCANCODE_UP, SDL_SCANCODE_DOWN,
+        SDL_SCANCODE_A, SDL_SCANCODE_C, SDL_SCANCODE_D, SDL_SCANCODE_M,
+        SDL_SCANCODE_P, SDL_SCANCODE_Q, SDL_SCANCODE_W, SDL_SCANCODE_X,
+        SDL_SCANCODE_Z, SDL_SCANCODE_F1, SDL_SCANCODE_F2, SDL_SCANCODE_F3,
+        SDL_SCANCODE_F4, SDL_SCANCODE_F5, SDL_SCANCODE_F6, SDL_SCANCODE_F7,
+        SDL_SCANCODE_F8, SDL_SCANCODE_F9, SDL_SCANCODE_F10, SDL_SCANCODE_F11,
+        SDL_SCANCODE_F12
+    };
+    int key_count = 0;
+    const bool *keys = SDL_GetKeyboardState(&key_count);
+    uint64_t mask = 0;
+    size_t i;
+
+    if (keys == NULL) {
+        return;
+    }
+    for (i = 0; i < sizeof(watched) / sizeof(watched[0]); i++) {
+        int scancode = (int)watched[i];
+        if (scancode < key_count && keys[scancode]) {
+            mask |= (uint64_t)1u << i;
+        }
+    }
+    if (mask == last_mask || snapshot_diag_count >= 256u) {
+        return;
+    }
+    fprintf(stderr, "host keyboard state: focus=%d keys=",
+            SDL_GetKeyboardFocus() == window->window);
+    if (mask == 0) {
+        fprintf(stderr, "<none>");
+    }
+    else {
+        int first = 1;
+        for (i = 0; i < sizeof(watched) / sizeof(watched[0]); i++) {
+            if ((mask & ((uint64_t)1u << i)) != 0) {
+                fprintf(stderr, "%s%s", first ? "" : ",",
+                        e2r_sdl_scancode_name(watched[i]));
+                first = 0;
+            }
+        }
+    }
+    fprintf(stderr, "\n");
+    last_mask = mask;
+    snapshot_diag_count++;
 }
 
 static UINT e2r_virtual_key_from_sdl(SDL_Keycode key)
@@ -133,7 +314,7 @@ E2R_HostWindow *E2R_HostCreateWindow(const char *title, int x, int y,
     if (e2r_sdl_backend.window == NULL) {
         e2r_sdl_backend.window =
             SDL_CreateWindow(title ? title : "Ecstatica II",
-                             (int)width, (int)height, 0);
+                             (int)width, (int)height, SDL_WINDOW_RESIZABLE);
     }
     if (e2r_sdl_backend.window == NULL) {
         fprintf(stderr, "warning: SDL window creation failed: %s\n", SDL_GetError());
@@ -142,6 +323,8 @@ E2R_HostWindow *E2R_HostCreateWindow(const char *title, int x, int y,
     if (x >= 0 && y >= 0) {
         SDL_SetWindowPosition(e2r_sdl_backend.window, x, y);
     }
+    SDL_SetWindowFocusable(e2r_sdl_backend.window, true);
+    SDL_RaiseWindow(e2r_sdl_backend.window);
     return &e2r_sdl_backend;
 }
 
@@ -166,25 +349,175 @@ void E2R_HostShowWindow(E2R_HostWindow *window)
         return;
     }
     SDL_ShowWindow(window->window);
+    SDL_RaiseWindow(window->window);
 }
 
 void E2R_HostPollEvents(E2R_HostWindow *window,
-                        E2R_HostKeyDownCallback keydown_callback,
+                        E2R_HostMessageCallback message_callback,
                         void *user)
 {
+    static unsigned input_diag_count;
+    static unsigned key_diag_count;
+    static unsigned mouse_diag_count;
+    static unsigned input_poll_diag_count;
+    static unsigned input_thread_diag_count;
+    static unsigned window_diag_count;
     SDL_Event event;
+    SDL_WindowID window_id;
+    int is_main_thread;
 
     if (window != &e2r_sdl_backend || window->window == NULL) {
         return;
     }
-    if (!SDL_IsMainThread()) {
-        return;
+    is_main_thread = SDL_IsMainThread();
+    window_id = SDL_GetWindowID(window->window);
+    if (e2r_sdl_input_diag_enabled() && input_poll_diag_count < 1u) {
+        SDL_Window *keyboard_focus = SDL_GetKeyboardFocus();
+        SDL_Window *mouse_focus = SDL_GetMouseFocus();
+        SDL_WindowFlags flags = SDL_GetWindowFlags(window->window);
+        fprintf(stderr,
+                "host input poll: window_id=%u main=%d flags=0x%llx key_focus=%d mouse_focus=%d\n",
+                (unsigned)window_id, is_main_thread,
+                (unsigned long long)flags, keyboard_focus == window->window,
+                mouse_focus == window->window);
+        input_poll_diag_count++;
+    }
+    if (e2r_sdl_input_diag_enabled()) {
+        e2r_sdl_log_keyboard_snapshot(window);
+    }
+    if (!is_main_thread && e2r_sdl_input_diag_enabled() &&
+        input_thread_diag_count < 8u) {
+        fprintf(stderr, "host input poll: SDL reports non-main thread\n");
+        input_thread_diag_count++;
     }
     while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_EVENT_KEY_DOWN && keydown_callback != NULL) {
+        if (e2r_sdl_input_diag_enabled() && e2r_sdl_should_log_event(event.type) &&
+            input_diag_count < 256u) {
+            fprintf(stderr, "host input event: type=0x%x name=\"%s\"",
+                    (unsigned)event.type, e2r_sdl_event_name(event.type));
+            if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
+                fprintf(stderr, " key=0x%x scancode=0x%x down=%u repeat=%u window=%u",
+                        (unsigned)event.key.key, (unsigned)event.key.scancode,
+                        (unsigned)event.key.down, (unsigned)event.key.repeat,
+                        (unsigned)event.key.windowID);
+            }
+            else if (event.type == SDL_EVENT_MOUSE_MOTION) {
+                fprintf(stderr, " x=%.1f y=%.1f xrel=%.1f yrel=%.1f state=0x%x window=%u",
+                        event.motion.x, event.motion.y, event.motion.xrel,
+                        event.motion.yrel, (unsigned)event.motion.state,
+                        (unsigned)event.motion.windowID);
+            }
+            else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                     event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+                fprintf(stderr, " button=%u down=%u clicks=%u x=%.1f y=%.1f window=%u",
+                        (unsigned)event.button.button, (unsigned)event.button.down,
+                        (unsigned)event.button.clicks, event.button.x, event.button.y,
+                        (unsigned)event.button.windowID);
+            }
+            else if (event.type >= SDL_EVENT_WINDOW_FIRST &&
+                     event.type <= SDL_EVENT_WINDOW_LAST) {
+                fprintf(stderr, " window=%u data1=%d data2=%d",
+                        (unsigned)event.window.windowID,
+                        (int)event.window.data1, (int)event.window.data2);
+            }
+            fprintf(stderr, " main=%d\n", is_main_thread);
+            input_diag_count++;
+        }
+        if (event.type == SDL_EVENT_QUIT && message_callback != NULL) {
+            message_callback(WM_CLOSE, 0, 0, user);
+        }
+        else if (event.type == SDL_EVENT_KEY_DOWN && message_callback != NULL) {
             UINT vk = e2r_virtual_key_from_sdl(event.key.key);
+            if (e2r_sdl_input_diag_enabled() && key_diag_count < 512u) {
+                fprintf(stderr, "host input keydown: sdl=0x%x vk=0x%x window=%u\n",
+                        (unsigned)event.key.key, (unsigned)vk,
+                        (unsigned)event.key.windowID);
+                key_diag_count++;
+            }
             if (vk != 0) {
-                keydown_callback(vk, user);
+                message_callback(WM_KEYDOWN, vk, 0, user);
+            }
+        }
+        else if (event.type == SDL_EVENT_KEY_UP && message_callback != NULL) {
+            UINT vk = e2r_virtual_key_from_sdl(event.key.key);
+            if (e2r_sdl_input_diag_enabled() && key_diag_count < 512u) {
+                fprintf(stderr, "host input keyup: sdl=0x%x vk=0x%x window=%u\n",
+                        (unsigned)event.key.key, (unsigned)vk);
+                key_diag_count++;
+            }
+            if (vk != 0) {
+                message_callback(WM_KEYUP, vk, 0, user);
+            }
+        }
+        else if (event.type == SDL_EVENT_TEXT_INPUT) {
+            if (e2r_sdl_input_diag_enabled() && key_diag_count < 512u) {
+                fprintf(stderr, "host input text: window=%u text=\"%s\"\n",
+                        (unsigned)event.text.windowID,
+                        event.text.text != NULL ? event.text.text : "");
+                key_diag_count++;
+            }
+        }
+        else if (event.type == SDL_EVENT_MOUSE_MOTION && message_callback != NULL &&
+                 event.motion.windowID == window_id) {
+            message_callback(WM_MOUSEMOVE, (WPARAM)event.motion.state,
+                             e2r_pack_point(event.motion.x, event.motion.y), user);
+        }
+        else if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                  event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
+                 message_callback != NULL && event.button.windowID == window_id) {
+            UINT msg = 0;
+            if (event.button.button == 1) {
+                msg = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ?
+                    WM_LBUTTONDOWN : WM_LBUTTONUP;
+            }
+            else if (event.button.button == 2) {
+                msg = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ?
+                    WM_MBUTTONDOWN : WM_MBUTTONUP;
+            }
+            else if (event.button.button == 3) {
+                msg = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ?
+                    WM_RBUTTONDOWN : WM_RBUTTONUP;
+            }
+            if (msg != 0) {
+                if (e2r_sdl_input_diag_enabled() && mouse_diag_count < 128u) {
+                    fprintf(stderr,
+                            "host input mousebutton: msg=0x%x button=%u down=%u x=%.1f y=%.1f\n",
+                            (unsigned)msg, (unsigned)event.button.button,
+                            (unsigned)event.button.down, event.button.x, event.button.y);
+                    mouse_diag_count++;
+                }
+                message_callback(msg, 0, e2r_pack_point(event.button.x, event.button.y),
+                                 user);
+            }
+        }
+        else if (event.type >= SDL_EVENT_WINDOW_FIRST &&
+                 event.type <= SDL_EVENT_WINDOW_LAST &&
+                 message_callback != NULL && event.window.windowID == window_id) {
+            if (e2r_sdl_input_diag_enabled() &&
+                e2r_sdl_should_log_window_message(event.type) &&
+                window_diag_count < 128u) {
+                fprintf(stderr, "host input windowmsg: type=0x%x name=\"%s\" data=%d,%d\n",
+                        (unsigned)event.type, e2r_sdl_event_name(event.type),
+                        (int)event.window.data1, (int)event.window.data2);
+                window_diag_count++;
+            }
+            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+                message_callback(WM_CLOSE, 0, 0, user);
+            }
+            else if (event.type == SDL_EVENT_WINDOW_RESIZED ||
+                     event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) {
+                message_callback(WM_SIZE, 0,
+                                 (LPARAM)(((unsigned int)event.window.data1 & 0xffffu) |
+                                          (((unsigned int)event.window.data2 & 0xffffu)
+                                           << 16)),
+                                 user);
+            }
+            else if (event.type == SDL_EVENT_WINDOW_MOVED) {
+                message_callback(WM_MOVE, 0,
+                                 (LPARAM)(((unsigned int)event.window.data1 & 0xffffu) |
+                                          (((unsigned int)event.window.data2 & 0xffffu)
+                                           << 16)),
+                                 user);
             }
         }
     }
@@ -337,10 +670,10 @@ E2R_HostWindow *E2R_HostCreateWindow(const char *title, int x, int y,
 void E2R_HostDestroyWindow(E2R_HostWindow *window) { (void)window; }
 void E2R_HostShowWindow(E2R_HostWindow *window) { (void)window; }
 void E2R_HostPollEvents(E2R_HostWindow *window,
-                        E2R_HostKeyDownCallback keydown_callback,
+                        E2R_HostMessageCallback message_callback,
                         void *user)
 {
-    (void)window; (void)keydown_callback; (void)user;
+    (void)window; (void)message_callback; (void)user;
 }
 int E2R_HostPushSyntheticKeyDown(E2R_HostWindow *window, UINT vk)
 {

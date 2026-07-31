@@ -267,9 +267,19 @@ typedef INT_PTR (WINAPI *FARPROC)();
 #define E_FAIL ((HRESULT)0x80004005u)
 #define WM_QUIT 0x0012
 #define WM_DESTROY 0x0002
+#define WM_MOVE 0x0003
+#define WM_SIZE 0x0005
+#define WM_CLOSE 0x0010
 #define WM_KEYDOWN 0x0100
 #define WM_KEYUP 0x0101
 #define WM_CHAR 0x0102
+#define WM_MOUSEMOVE 0x0200
+#define WM_LBUTTONDOWN 0x0201
+#define WM_LBUTTONUP 0x0202
+#define WM_RBUTTONDOWN 0x0204
+#define WM_RBUTTONUP 0x0205
+#define WM_MBUTTONDOWN 0x0207
+#define WM_MBUTTONUP 0x0208
 #define PM_REMOVE 0x0001
 #define VK_RETURN 0x0d
 #define VK_ESCAPE 0x1b
@@ -298,6 +308,7 @@ BOOL VirtualProtect(LPVOID address, size_t size, DWORD new_protect, DWORD *old_p
 void *SetUnhandledExceptionFilter(void *filter);
 BOOL IsWindow(HWND hwnd);
 int E2R_TryPresentCurrentFrame(HWND hwnd);
+void E2R_PumpHostEvents(void);
 void E2R_PumpHost(void);
 BOOL PeekMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter, UINT remove);
 BOOL GetMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter);
