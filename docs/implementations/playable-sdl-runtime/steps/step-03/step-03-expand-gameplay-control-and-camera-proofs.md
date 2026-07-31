@@ -1,8 +1,8 @@
 # Expand Gameplay Control And Camera Proofs
 
-Status: planned
+Status: active
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-07-28
+Last Updated: 2026-07-31
 
 ## Goal
 
@@ -12,11 +12,14 @@ Grow the current single movement-latch proof into a compact gameplay-control mat
 
 The reconstructed runtime proves that `num8` can latch movement after Start Game. A playable runtime needs confidence that multiple controls survive the Win32 queue, legacy key state, and gameplay-state transitions.
 
+The immediate blocker is earlier than the planned broad matrix: during the horseback/credits intro, SDL input reaches the reconstructed window procedure and key globals, but `Esc` and `Space` do not produce the expected visible behavior. This step remains the owner because the fault is now inside reconstructed control/state consumption rather than the SDL host event bridge.
+
 ## Scope
 
 1. Map current gameplay input globals and key queues.
 2. Add bounded probes for several control paths.
 3. Record camera/control state that changes in response to input.
+4. First classify the intro `Esc`/`Space` response path before expanding the matrix.
 
 ## Out Of Scope
 
@@ -36,28 +39,46 @@ Keep this to a small input matrix. Split when a single key uncovers a new parser
 
 ## Tasks
 
-1. [Map Gameplay Input State](tasks/task-01-map-gameplay-input-state.md) - planned.
+1. [Map Gameplay Input State](tasks/task-01-map-gameplay-input-state.md) - active; intro `Esc`/`Space` state mapping is the current blocker.
 2. [Add Control Probe Matrix](tasks/task-02-add-control-probe-matrix.md) - planned.
 3. [Verify Camera And Action Frontiers](tasks/task-03-verify-camera-and-action-frontiers.md) - planned.
 
+## Current Findings
+
+1. Host input delivery is not the current blocker. SDL window controls, keydown/keyup events, and Win32-style `WM_KEYDOWN`/`WM_KEYUP` dispatch reach the reconstructed window procedure.
+2. `Space` reaches game state during the horseback/credits intro (`DAT_00636850=1`, `_DAT_00479e7a=1`) but does not skip the intro action. The intro actor action continues to natural completion.
+3. Natural completion currently enters `FUN_0042a70c`'s dependency-action completion path, then dispatches an action table through `FUN_0044f2fc`/`FUN_0044f508`. The observed script opcode is `0x07`, and the runtime activates scene `7`.
+4. Scene `7` then tries to load child actor `3853`; archive scans did not find actor `3853` as a standalone type-`0x08` flat-FANT actor record in `Files/ECSTATIC`. Treat this as a wrong transition or wrong dispatch context until original evidence says otherwise.
+5. `Esc` reaches `FUN_00415d40`'s menu/requester branch, changes requester state, and presents a menu with broken contents. This is likely a requester drawing/content presentation problem, not an input event problem.
+6. A hand proof attempt in reconstructed C explored lost callback/action context around `FUN_0042b004`, `FUN_0042b338`, and `FUN_0042b880`. It may still be relevant for later action callbacks, but it did not explain the current first-intro `Space` failure because the observed intro path reaches completion without callback attachment evidence.
+
 ## Acceptance Criteria
 
-1. Multiple movement/action keys reach gameplay state.
-2. Probes record the relevant state deltas.
-3. New crashes are classified as separate runtime frontiers.
+1. `Esc` during the horseback/credits intro either opens the expected menu contents or has a documented, source-backed requester content/presentation frontier.
+2. `Space` during the horseback/credits intro either skips to the expected next sequence/gameplay state or has a documented, source-backed action-dispatch frontier.
+3. After the intro-specific blocker is resolved or split, multiple movement/action keys reach gameplay state.
+4. Probes record the relevant state deltas.
+5. New crashes are classified as separate runtime frontiers.
 
 ## Verification
 
-1. Gameplay key-sequence probes.
-2. Default runtime regression script.
-3. SDL F5 smoke check when controls affect presentation.
+1. Intro `Esc`/`Space` key-sequence probes.
+2. Gameplay key-sequence probes.
+3. Default runtime regression script.
+4. SDL F5 smoke check when controls affect presentation.
 
 ## Notes
 
-Start from the known `move=[1,0,0,0,0,0,0,0,0]` proof and extend cautiously.
+Do not continue broad control-matrix work until the intro `Esc`/`Space` behavior is classified. Start the next investigation from the proven input-state latches and from the wrong natural-completion dispatch to scene `7`.
 
 ## Change Log
 
 ### 2026-07-28
 
 1. Created step.
+
+### 2026-07-31
+
+1. Activated the step around the user-reported intro control blocker.
+2. Reclassified the failure from SDL input delivery to reconstructed game-state consumption and presentation: `Space` latches but does not skip; `Esc` reaches requester state and shows broken menu contents.
+3. Recorded the current wrong-transition evidence: horseback intro actor `0` completes action `0x937800`, dispatches opcode `0x07`, activates scene `7`, and then fails to load missing child actor `3853`.

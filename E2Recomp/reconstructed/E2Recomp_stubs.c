@@ -1,5 +1,7 @@
 #include "E2Recomp_recon.h"
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #undef CreateWindowExA
 #undef DialogBoxParamA
@@ -54,6 +56,60 @@ uintptr_t E2R_action_last_opcode;
 uintptr_t E2R_action_last_cursor;
 uintptr_t E2R_action_hit_75_count;
 static uintptr_t E2R_requester_probe_pending_keys[16];
+
+static int E2R_game_input_log_initialized;
+static int E2R_game_input_log_enabled;
+static unsigned E2R_game_input_log_count;
+
+static int E2R_GameInputLogEnabled(void) {
+    if (!E2R_game_input_log_initialized) {
+        const char *value = getenv("E2R_GAME_STATE_LOG");
+#ifndef NDEBUG
+        E2R_game_input_log_enabled =
+            value == NULL || value[0] == '\0' || value[0] != '0';
+#else
+        E2R_game_input_log_enabled =
+            value != NULL && value[0] != '\0' && value[0] != '0';
+#endif
+        E2R_game_input_log_initialized = 1;
+    }
+    return E2R_game_input_log_enabled;
+}
+
+static const char *E2R_KeyName(WPARAM key) {
+    switch ((unsigned)key) {
+    case VK_ESCAPE: return "Escape";
+    case VK_SPACE: return "Space";
+    case VK_RETURN: return "Return";
+    default: return "Other";
+    }
+}
+
+static void E2R_LogGameInputFlag(const char *site, WPARAM key) {
+    if (!E2R_GameInputLogEnabled() || E2R_game_input_log_count >= 256) {
+        return;
+    }
+    E2R_game_input_log_count++;
+    fprintf(stderr,
+            "game input: %s key=%s vk=0x%lx esc=%u space=%u mode=%lu requester=%lu scene=0x%lx\n",
+            site, E2R_KeyName(key), (unsigned long)key,
+            (unsigned)(byte)DAT_00636844, (unsigned)(byte)DAT_00636850,
+            (unsigned long)DAT_00479de8, (unsigned long)_DAT_00643650,
+            (unsigned long)_DAT_0073cc3c);
+}
+
+static void E2R_LogGameInputEvent(const char *site, UINT msg, WPARAM key, LPARAM lParam) {
+    if (!E2R_GameInputLogEnabled() || E2R_game_input_log_count >= 256) {
+        return;
+    }
+    E2R_game_input_log_count++;
+    fprintf(stderr,
+            "game input: %s msg=0x%x key=%s vk=0x%lx lparam=0x%lx esc=%u space=%u mode=%lu requester=%lu scene=0x%lx\n",
+            site, (unsigned)msg, E2R_KeyName(key), (unsigned long)key, (unsigned long)lParam,
+            (unsigned)(byte)DAT_00636844, (unsigned)(byte)DAT_00636850,
+            (unsigned long)DAT_00479de8, (unsigned long)_DAT_00643650,
+            (unsigned long)_DAT_0073cc3c);
+}
 
 static unsigned char *E2R_legacy_queue(unsigned address) {
     return (unsigned char *)(uintptr_t)address;
@@ -259,9 +315,11 @@ void E2R_WinMainThunk(void) {
 
 LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == WM_KEYDOWN) {
+        E2R_LogGameInputEvent("wndproc.keydown.enter", msg, wParam, lParam);
         E2R_input_probe_keydown_count++;
         E2R_input_probe_last_key = wParam;
         E2R_feed_legacy_keydown(wParam, lParam);
+        E2R_LogGameInputEvent("wndproc.keydown.after_legacy", msg, wParam, lParam);
         switch (wParam) {
         case 0x11:
             if (DAT_00479dfc == 0) {
@@ -270,9 +328,11 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             return 0;
         case VK_ESCAPE:
             DAT_00636844 = 1;
+            E2R_LogGameInputFlag("wndproc.set_escape", wParam);
             return 0;
         case VK_SPACE:
             DAT_00636850 = 1;
+            E2R_LogGameInputFlag("wndproc.set_space", wParam);
             return 0;
         case 0x41:
             DAT_00636845 = 1;

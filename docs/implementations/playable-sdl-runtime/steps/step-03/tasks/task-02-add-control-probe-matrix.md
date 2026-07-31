@@ -3,7 +3,7 @@
 Status: planned
 Parent Step: [Expand Gameplay Control And Camera Proofs](../step-03-expand-gameplay-control-and-camera-proofs.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-07-28
+Last Updated: 2026-07-31
 
 ## Goal
 
@@ -32,6 +32,8 @@ Add a compact bounded probe matrix for gameplay controls.
 
 Avoid turning exploratory unknowns into hard regression failures. First record, then harden.
 
+Do not expand the matrix before the intro `Esc`/`Space` blocker is classified. Current evidence already proves the host event path, so additional probes should target only action-dispatch/requester-presentation state until `Esc` visibly opens the menu and `Space` skips or the failure is split into a narrower runtime repair.
+
 ## Acceptance Criteria
 
 1. At least three gameplay controls have bounded evidence.
@@ -47,10 +49,14 @@ Avoid turning exploratory unknowns into hard regression failures. First record, 
 
 1. Planning state: discussed
 2. Implementation state: not_started
-3. Notes: Activated after input-state mapping.
+3. Notes: Blocked behind intro `Esc`/`Space` classification.
 
 ## Change Log
 
 ### 2026-07-28
 
 1. Created task.
+
+### 2026-07-31
+
+1. Marked the task as blocked behind the intro control-state frontier to avoid broad probe work before the current blocker is understood.

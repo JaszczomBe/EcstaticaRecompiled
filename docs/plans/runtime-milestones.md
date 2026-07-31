@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-28
+Last Updated: 2026-07-31
 
 ## Goal
 
@@ -37,7 +37,7 @@ Next recommended playable-runtime milestones:
 
 15. Stabilize the interactive SDL F5 route by capturing the user's current behavior, reproducing it as a bounded command, and classifying the first frontier.
 16. Recover DirectDraw page and palette semantics so SDL presents the intended front buffer with recovered color state.
-17. Expand gameplay control and camera proofs beyond the current single movement-latch evidence.
+17. Expand gameplay control and camera proofs beyond the current single movement-latch evidence; current active blocker is intro `Esc`/`Space` state consumption after host input delivery was proven.
 18. Define runtime timing and frame pacing ownership without leaking host-library calls into reconstructed game logic.
 19. Begin DirectSound compatibility by mapping startup sound behavior and adding the first backend-owned audio contract.
 20. Package the developer runtime workflow so submodules, presets, data paths, probes, and F5 checks are reproducible from a fresh checkout.
@@ -85,3 +85,7 @@ The next implementation is [Playable SDL Runtime](../implementations/playable-sd
 1. Marked the reconstruction milestone chain complete through first gameplay, live SDL frame presentation, and SDL F5 launch wiring.
 2. Added the playable-runtime horizon: interactive SDL stability, DirectDraw page/palette fidelity, control/camera probes, timing, audio, and reproducible developer workflow.
 3. Linked the new Playable SDL Runtime implementation as the owner of post-reconstruction work.
+
+### 2026-07-31
+
+1. Updated milestone 17 to reflect the active frontier: SDL input delivery is proven, while intro `Esc`/`Space` game-state consumption and requester presentation remain unresolved.

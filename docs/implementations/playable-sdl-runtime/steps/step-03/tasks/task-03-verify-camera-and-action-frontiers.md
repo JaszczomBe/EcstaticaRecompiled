@@ -3,7 +3,7 @@
 Status: planned
 Parent Step: [Expand Gameplay Control And Camera Proofs](../step-03-expand-gameplay-control-and-camera-proofs.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-07-28
+Last Updated: 2026-07-31
 
 ## Goal
 
@@ -31,6 +31,8 @@ Classify what camera/action behavior is reachable after the control matrix lands
 
 This closeout should keep the next action crisp: either continue control fidelity or split to a specific runtime crash repair.
 
+Current pre-closeout frontier: `Space` during the intro latches in game state but natural-completes into scene `7` and missing actor `3853`; `Esc` enters requester/menu state and presents a menu with broken contents. Do not close this step until those two paths are either repaired or deliberately split into source-backed follow-up steps.
+
 ## Acceptance Criteria
 
 1. Accepted controls are listed.
@@ -46,10 +48,14 @@ This closeout should keep the next action crisp: either continue control fidelit
 
 1. Planning state: discussed
 2. Implementation state: not_started
-3. Notes: Final task for Step 3.
+3. Notes: Final task for Step 3; not ready until intro `Esc`/`Space` behavior is classified.
 
 ## Change Log
 
 ### 2026-07-28
 
 1. Created task.
+
+### 2026-07-31
+
+1. Added the current intro action/requester frontier as the required pre-closeout evidence.

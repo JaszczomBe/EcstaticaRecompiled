@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-30
+Last Updated: 2026-07-31
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -47,7 +47,7 @@ Each step should be small enough for a single context window. If a step starts c
 
 1. [Stabilize Interactive SDL F5 Runtime](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) - completed; captured the user's F5 behavior, reproduced the stable SDL boundary, and classified the first frontier as DirectDraw page/palette/front-buffer fidelity.
 2. [Recover DirectDraw Page And Palette Semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) - completed; recovered palette ownership and the hires/full-frame front-buffer source.
-3. [Expand Gameplay Control And Camera Proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) - active; grow from one movement latch to a compact control-state matrix.
+3. [Expand Gameplay Control And Camera Proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) - active; first close the intro `Esc`/`Space` response frontier, then grow from one movement latch to a compact control-state matrix.
 4. [Define Runtime Timing And Frame Pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) - planned; identify timing ownership and add a backend timing contract only where needed.
 5. [Begin DirectSound Compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) - planned; map startup sound behavior and define the first replaceable audio boundary.
 6. [Package Reproducible Developer Runtime](steps/step-06/step-06-package-reproducible-developer-runtime.md) - planned; make clone/submodule/build/launch validation boring and repeatable.
@@ -67,6 +67,8 @@ Current rebuilt SDL behavior has advanced past several crash boundaries, but it 
 The Step 2 DirectDraw-facing presentation frontier is closed. Original `E2WIN95.EXE` disassembly around `FUN_0043acec` maps surfaces `0/1/2` to the low VGA-style pages and surface `3` to the full `640x480` raw frame buffer. The host presenter now recovers surface `3` as the front source whenever `DAT_0047a43c != 0`, logs both `front` and `visible`, and only falls back to the old nonblank scan if the recovered front is unreadable or blank. A dummy-SDL probe reports `selected=3 front=3 visible=0 hires=4`, dump state `front=3 visible=1`, scene palette hash `de4e4c5d`, and nonblank surface `3` hash `44b33248`, matching the stable horseback/credits intro frame family.
 
 The SDL backend now preserves the source frame aspect ratio during the final host-window blit. This keeps the recovered `640x480` frame centered inside the original-shaped `640x640` top-level window instead of stretching it to the full surface. With `E2R_PRESENT_DIAG=1`, a dummy-SDL check reports `host backend present rect: src=640x480 window=640x640 dst=0,80 640x480`.
+
+The current active blocker is no longer SDL event delivery. Window events, keydown/keyup events, and Win32-style message dispatch reach the reconstructed window procedure. During the horseback/credits intro, `Space` reaches the game input state (`DAT_00636850=1`, `_DAT_00479e7a=1`) but does not skip the intro action; the action instead completes naturally, then dispatches script opcode `0x07` into scene `7`, whose child actor `3853` is not present as a standalone flat-FANT actor record in `Files/ECSTATIC`. `Esc` reaches the menu/requester branch in `FUN_00415d40` and presents a menu, but the menu contents are broken. Treat the next work as recovered game-state/action-dispatch and requester-content/presentation parity, not host input plumbing.
 
 The regression wrapper is green again in debug and ASan. Debug still satisfies the historical `DAT_00479de8` control-ready gate. ASan reaches the stronger state needed for this step, including StartGame entry, `DAT_0047a76c=1`, requester state clear, `_DAT_0073cc3c=0x683c84`, movement latch `move=[1,0,0,0,0,0,0,0,0]`, and nonblank surface `3`, but it does not flip `DAT_00479de8` in the bounded sanitized run. The wrapper now keys the ASan pass on that scene/control/surface evidence while still rejecting sanitizer reports.
 
@@ -114,3 +116,10 @@ The regression wrapper is green again in debug and ASan. Debug still satisfies t
 3. Activated the next implementation step around gameplay control/camera proof expansion and remaining startup-logo timing parity.
 4. Fixed the first-scene color mismatch reported by screenshot comparison by publishing `FUN_0044add8`'s freshly loaded `Views/1073.PA2` palette through `FUN_0041af88`; the scene dump now reports palette hash `de4e4c5d`.
 5. Fixed the user-reported horizontal squeeze by making SDL presentation aspect-fit source frames instead of stretching `640x480` content to the full `640x640` host window.
+
+### 2026-07-31
+
+1. Reclassified the active input problem: SDL/window event delivery is proven, but intro `Esc`/`Space` game behavior is still wrong.
+2. Recorded that `Space` latches in game state during the horseback/credits intro yet is not consumed as a skip; natural completion dispatches opcode `0x07` to scene `7`, which then tries to load missing actor `3853`.
+3. Recorded that `Esc` enters the reconstructed menu/requester state path and shows a menu with broken contents, making requester drawing/content presentation the likely next proof area.
+4. Paused broader runtime edits and generator work until the action-dispatch/requester-presentation cause is isolated with smaller evidence.

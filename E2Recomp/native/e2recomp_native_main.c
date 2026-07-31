@@ -78,6 +78,43 @@ extern uintptr_t E2R_action_last_opcode;
 extern uintptr_t E2R_action_last_cursor;
 extern uintptr_t E2R_action_hit_75_count;
 extern uint32_t E2R_active_palette[256];
+
+static void e2r_read_current_action_state(
+    uintptr_t *actor_out,
+    uintptr_t *slot_out,
+    uintptr_t *action_out,
+    unsigned *duration_out,
+    unsigned *progress_out,
+    unsigned *slot_flags_out,
+    unsigned *actor_flags_out)
+{
+    uintptr_t actor = DAT_0047a470;
+    uintptr_t slot = 0;
+    uintptr_t action = 0;
+    unsigned duration = 0;
+    unsigned progress = 0;
+    unsigned slot_flags = 0;
+    unsigned actor_flags = 0;
+
+    if (actor != 0 && !IsBadReadPtr((const void *)actor, 0xb8)) {
+        slot = actor + 0xa6;
+        actor_flags = *(const unsigned char *)(actor + 3);
+        if (!IsBadReadPtr((const void *)slot, 0x12)) {
+            action = *(const uint32_t *)slot;
+            duration = *(const uint16_t *)(slot + 4);
+            progress = *(const uint16_t *)(slot + 6);
+            slot_flags = *(const uint16_t *)(slot + 0xc);
+        }
+    }
+
+    *actor_out = actor;
+    *slot_out = slot;
+    *action_out = action;
+    *duration_out = duration;
+    *progress_out = progress;
+    *slot_flags_out = slot_flags;
+    *actor_flags_out = actor_flags;
+}
 extern uintptr_t E2R_active_palette_valid;
 extern uintptr_t E2R_active_palette_update_count;
 
@@ -153,7 +190,7 @@ static unsigned e2r_recovered_front_surface(void)
     unsigned visible = (unsigned)(DAT_0047a279 >> 24) & 3u;
 
     if (DAT_0047a43c != 0) {
-        return 3u;
+        return (visible & 1u) + 2u;
     }
     return visible;
 }
@@ -755,9 +792,22 @@ static void *e2r_frame_dump_thread(void *arg)
     if (request->dump_all_surfaces) {
         int wrote = e2r_write_surface_set(request->path);
         if (wrote > 0) {
+            uintptr_t action_actor;
+            uintptr_t action_slot;
+            uintptr_t action;
+            unsigned action_duration;
+            unsigned action_progress;
+            unsigned action_slot_flags;
+            unsigned action_actor_flags;
+
+            e2r_read_current_action_state(&action_actor, &action_slot, &action,
+                                          &action_duration, &action_progress,
+                                          &action_slot_flags, &action_actor_flags);
             fprintf(stderr, "wrote %d surface dump(s) with prefix: %s\n", wrote, request->path);
             fprintf(stderr,
-                    "input state: DAT_00636844=%lu DAT_00636853=%lu _DAT_00643650=%lu "
+                    "input state: DAT_00636844=%lu DAT_00636850=%lu DAT_00636853=%lu "
+                    "_DAT_00479e78=%lu _DAT_00479e7a=%lu DAT_00479dfc=%lu "
+                    "DAT_00479e00=%lu _DAT_00643650=%lu "
                     "DAT_00479de8=%lu DAT_0047a76c=%lu DAT_0047a43c=%lu "
                     "DAT_0047a730=%lu DAT_00479de4=%lu DAT_0047a788=%lu "
                     "_DAT_00636690=%lu _DAT_0073cc3c=0x%lx "
@@ -771,8 +821,13 @@ static void *e2r_frame_dump_thread(void *arg)
                     "startup_scan=%lu startup_match=%lu action_scan=%lu action_match=%lu "
                     "dispatch=%lu node=0x%lx name=%lu code=0x%lx "
                     "opcodes=%lu last_opcode=0x%lx last_cursor=0x%lx hit75=%lu] "
+                    "action=[actor=0x%lx slot=0x%lx ptr=0x%lx duration=%u progress=%u "
+                    "slot_flags=0x%x actor_flags=0x%x] "
                     "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu]\n",
-                    (unsigned long)DAT_00636844, (unsigned long)DAT_00636853,
+                    (unsigned long)DAT_00636844, (unsigned long)DAT_00636850,
+                    (unsigned long)DAT_00636853,
+                    (unsigned long)_DAT_00479e78, (unsigned long)_DAT_00479e7a,
+                    (unsigned long)DAT_00479dfc, (unsigned long)DAT_00479e00,
                     (unsigned long)_DAT_00643650, (unsigned long)DAT_00479de8,
                     (unsigned long)DAT_0047a76c, (unsigned long)DAT_0047a43c,
                     (unsigned long)DAT_0047a730, (unsigned long)DAT_00479de4,
@@ -822,6 +877,13 @@ static void *e2r_frame_dump_thread(void *arg)
                     (unsigned long)E2R_action_last_opcode,
                     (unsigned long)E2R_action_last_cursor,
                     (unsigned long)E2R_action_hit_75_count,
+                    (unsigned long)action_actor,
+                    (unsigned long)action_slot,
+                    (unsigned long)action,
+                    action_duration,
+                    action_progress,
+                    action_slot_flags,
+                    action_actor_flags,
                     (unsigned long)DAT_00636859,
                     (unsigned long)DAT_00636858, (unsigned long)DAT_0063685b,
                     (unsigned long)DAT_00636854, (unsigned long)DAT_00636856,
@@ -1008,11 +1070,16 @@ int E2R_TryPresentCurrentFrame(HWND hwnd)
 
 static int e2r_run_host_backend_key_probe(void)
 {
+    WNDCLASSA wnd_class;
     HWND hwnd;
     MSG msg;
     unsigned poll;
     uintptr_t keydowns_before;
 
+    memset(&wnd_class, 0, sizeof(wnd_class));
+    wnd_class.lpfnWndProc = E2R_WndProc;
+    wnd_class.lpszClassName = "E2RProbe";
+    RegisterClassA(&wnd_class);
     hwnd = E2R_CreateWindowExA(0, "E2RProbe", "Ecstatica II backend key probe",
                                0, 0, 0, 64, 64, NULL, NULL, NULL, NULL);
     if (hwnd == NULL || hwnd->ptr == NULL) {

@@ -36,10 +36,31 @@ static WNDPROC e2r_window_proc;
 
 #define E2R_MESSAGE_QUEUE_CAPACITY 32
 #define E2R_HOST_ALLOC_MAGIC 0xe2a110c0u
+#define E2R_REGISTERED_CLASS_CAPACITY 16
 
 static MSG e2r_message_queue[E2R_MESSAGE_QUEUE_CAPACITY];
 static unsigned e2r_message_head;
 static unsigned e2r_message_tail;
+
+static DWORD e2r_monotonic_milliseconds(void)
+{
+#ifndef _WIN32
+    struct timespec ts;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+        return (DWORD)((uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u);
+    }
+#endif
+    return (DWORD)(time(NULL) * 1000u);
+}
+
+typedef struct E2R_REGISTERED_CLASS {
+    LPCSTR name;
+    WNDPROC proc;
+} E2R_REGISTERED_CLASS;
+
+static E2R_REGISTERED_CLASS e2r_registered_classes[E2R_REGISTERED_CLASS_CAPACITY];
+static unsigned e2r_registered_class_count;
 
 typedef struct E2R_HOST_ALLOC_HEADER {
     size_t mapping_size;
@@ -114,6 +135,46 @@ static BOOL e2r_push_message(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     }
     e2r_message_unlock();
     return queued;
+}
+
+static BOOL e2r_class_name_matches(LPCSTR a, LPCSTR b)
+{
+    if (a == b) {
+        return TRUE;
+    }
+    if (a == NULL || b == NULL) {
+        return FALSE;
+    }
+    return strcmp(a, b) == 0;
+}
+
+static WNDPROC e2r_find_registered_class_proc(LPCSTR class_name)
+{
+    unsigned i;
+
+    for (i = 0; i < e2r_registered_class_count; i++) {
+        if (e2r_class_name_matches(e2r_registered_classes[i].name, class_name)) {
+            return e2r_registered_classes[i].proc;
+        }
+    }
+    return NULL;
+}
+
+static void e2r_register_class_proc(LPCSTR class_name, WNDPROC proc)
+{
+    unsigned i;
+
+    for (i = 0; i < e2r_registered_class_count; i++) {
+        if (e2r_class_name_matches(e2r_registered_classes[i].name, class_name)) {
+            e2r_registered_classes[i].proc = proc;
+            return;
+        }
+    }
+    if (e2r_registered_class_count < E2R_REGISTERED_CLASS_CAPACITY) {
+        e2r_registered_classes[e2r_registered_class_count].name = class_name;
+        e2r_registered_classes[e2r_registered_class_count].proc = proc;
+        e2r_registered_class_count++;
+    }
 }
 
 static int e2r_input_diag_enabled(void)
@@ -495,7 +556,7 @@ DWORD GetLastError(void) { return e2r_last_error; }
 DWORD GetFileType(HANDLE file) { (void)file; return 1; }
 DWORD GetCurrentProcessId(void) { return (DWORD)getpid(); }
 DWORD GetCurrentThreadId(void) { return 1; }
-DWORD GetTickCount(void) { return (DWORD)(time(NULL) * 1000u); }
+DWORD GetTickCount(void) { return e2r_monotonic_milliseconds(); }
 DWORD timeGetTime(void) { return GetTickCount(); }
 
 LPVOID VirtualAlloc(LPVOID address, size_t size, DWORD allocation_type, DWORD protect)
@@ -819,9 +880,10 @@ HWND CreateWindowExA(DWORD ex_style, LPCSTR class_name, LPCSTR window_name,
                      DWORD style, int x, int y, int width, int height,
                      HWND parent, HMENU menu, HINSTANCE instance, LPVOID param)
 {
-    (void)ex_style; (void)class_name; (void)style; (void)menu; (void)instance; (void)param;
+    (void)ex_style; (void)style; (void)menu; (void)instance; (void)param;
     if (!parent) {
         E2R_HostWindow *host_window;
+        WNDPROC class_proc;
         unsigned int w = width > 0 ? (unsigned int)width : 640u;
         unsigned int h = height > 0 ? (unsigned int)height : 480u;
 
@@ -829,6 +891,17 @@ HWND CreateWindowExA(DWORD ex_style, LPCSTR class_name, LPCSTR window_name,
                                            x, y, w, h);
         if (host_window != NULL) {
             e2r_window.ptr = host_window;
+            class_proc = e2r_find_registered_class_proc(class_name);
+            if (class_proc != NULL) {
+                e2r_window_proc = class_proc;
+                if (e2r_input_diag_enabled()) {
+                    fprintf(stderr,
+                            "host window proc bind: class=%s wndproc=%p title=%s\n",
+                            class_name != NULL ? class_name : "<null>",
+                            (void *)e2r_window_proc,
+                            window_name != NULL ? window_name : "<null>");
+                }
+            }
         }
     }
     return &e2r_window;
@@ -852,7 +925,17 @@ HCURSOR LoadCursorA(HINSTANCE instance, LPCSTR cursor_name) { (void)instance; (v
 HGDIOBJ GetStockObject(int object) { (void)object; return (HGDIOBJ)&e2r_handle; }
 ATOM RegisterClassA(const WNDCLASSA *wnd_class)
 {
-    e2r_window_proc = wnd_class != NULL ? wnd_class->lpfnWndProc : NULL;
+    if (wnd_class != NULL) {
+        e2r_register_class_proc(wnd_class->lpszClassName, wnd_class->lpfnWndProc);
+        if (e2r_window_proc == NULL) {
+            e2r_window_proc = wnd_class->lpfnWndProc;
+        }
+        if (e2r_input_diag_enabled()) {
+            fprintf(stderr, "host class register: class=%s wndproc=%p active=%p\n",
+                    wnd_class->lpszClassName != NULL ? wnd_class->lpszClassName : "<null>",
+                    (void *)wnd_class->lpfnWndProc, (void *)e2r_window_proc);
+        }
+    }
     return 1;
 }
 BOOL UnregisterClassA(LPCSTR class_name, HINSTANCE instance) { (void)class_name; (void)instance; return TRUE; }
