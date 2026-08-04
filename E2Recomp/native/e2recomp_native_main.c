@@ -13,6 +13,8 @@
 #endif
 
 #if UINTPTR_MAX <= UINT32_MAX
+#define E2R_MAX_MOUSE_CLICKS 8
+
 typedef struct E2R_FrameDumpRequest {
     const char *path;
     unsigned delay_seconds;
@@ -23,8 +25,10 @@ typedef struct E2R_FrameDumpRequest {
     unsigned inject_interval_ms;
     unsigned gameplay_key_split;
     unsigned post_action_delay_seconds;
-    unsigned mouse_click_x;
-    unsigned mouse_click_y;
+    unsigned mouse_click_x[E2R_MAX_MOUSE_CLICKS];
+    unsigned mouse_click_y[E2R_MAX_MOUSE_CLICKS];
+    unsigned mouse_click_count;
+    unsigned mouse_click_interval_ms;
     int inject_mouse_click;
     int wait_for_requester_ready;
     int wait_for_gameplay_frame;
@@ -741,18 +745,19 @@ static LPARAM e2r_pack_mouse_point(unsigned x, unsigned y)
     return (LPARAM)((x & 0xffffu) | ((y & 0xffffu) << 16));
 }
 
-static void e2r_inject_mouse_click(E2R_FrameDumpRequest *request,
-                                   unsigned *remaining_delay)
+static void e2r_inject_mouse_click(E2R_FrameDumpRequest *request, unsigned click_index)
 {
-    LPARAM point = e2r_pack_mouse_point(request->mouse_click_x, request->mouse_click_y);
+    unsigned mouse_x = request->mouse_click_x[click_index];
+    unsigned mouse_y = request->mouse_click_y[click_index];
+    LPARAM point = e2r_pack_mouse_point(mouse_x, mouse_y);
     uintptr_t action_count_before = E2R_requester_probe_action_count;
     unsigned waited_ms;
 
     PostMessageA((HWND)_DAT_00ac4dac, WM_MOUSEMOVE, 0, point);
     PostMessageA((HWND)_DAT_00ac4dac, WM_LBUTTONDOWN, 0, point);
     PostMessageA((HWND)_DAT_00ac4dac, WM_LBUTTONUP, 0, point);
-    fprintf(stderr, "posted mouse click through Win32 queue at %u,%u\n",
-            request->mouse_click_x, request->mouse_click_y);
+    fprintf(stderr, "posted mouse click %u/%u through Win32 queue at %u,%u\n",
+            click_index + 1, request->mouse_click_count, mouse_x, mouse_y);
 
     waited_ms = 0;
     while (waited_ms < 2000 &&
@@ -769,6 +774,19 @@ static void e2r_inject_mouse_click(E2R_FrameDumpRequest *request,
             (unsigned long)E2R_requester_probe_selected_item,
             (unsigned long)_DAT_00643650,
             (unsigned long)E2R_requester_probe_last_id);
+}
+
+static void e2r_inject_mouse_click_sequence(E2R_FrameDumpRequest *request,
+                                            unsigned *remaining_delay)
+{
+    unsigned i;
+
+    for (i = 0; i < request->mouse_click_count; i++) {
+        e2r_inject_mouse_click(request, i);
+        if (i + 1 < request->mouse_click_count) {
+            usleep(request->mouse_click_interval_ms * 1000u);
+        }
+    }
     *remaining_delay = request->post_action_delay_seconds;
 }
 
@@ -824,7 +842,7 @@ static void *e2r_frame_dump_thread(void *arg)
     }
     if (request->inject_mouse_click) {
         e2r_wait_for_requester_dialog(request->inject_delay_seconds);
-        e2r_inject_mouse_click(request, &remaining_delay);
+        e2r_inject_mouse_click_sequence(request, &remaining_delay);
     }
     if (request->wait_for_gameplay_frame && remaining_delay != 0) {
         e2r_wait_for_gameplay_frame(remaining_delay, 0);
@@ -866,6 +884,8 @@ static void *e2r_frame_dump_thread(void *arg)
                     "opcodes=%lu last_opcode=0x%lx last_cursor=0x%lx hit75=%lu] "
                     "action=[actor=0x%lx slot=0x%lx ptr=0x%lx duration=%u progress=%u "
                     "slot_flags=0x%x actor_flags=0x%x] "
+                    "settings=[music=%lu sfx=%lu difficulty=%lu resolution=%lu "
+                    "requested_resolution=%lu install=%lu] "
                     "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu]\n",
                     (unsigned long)DAT_00636844, (unsigned long)DAT_00636850,
                     (unsigned long)DAT_00636853,
@@ -927,6 +947,12 @@ static void *e2r_frame_dump_thread(void *arg)
                     action_progress,
                     action_slot_flags,
                     action_actor_flags,
+                    (unsigned long)DAT_0047a49c,
+                    (unsigned long)DAT_0047a4a0,
+                    (unsigned long)DAT_0047a4a4,
+                    (unsigned long)DAT_0047a43c,
+                    (unsigned long)DAT_0047a440,
+                    (unsigned long)DAT_00479dbc,
                     (unsigned long)DAT_00636859,
                     (unsigned long)DAT_00636858, (unsigned long)DAT_0063685b,
                     (unsigned long)DAT_00636854, (unsigned long)DAT_00636856,
@@ -982,8 +1008,10 @@ static int e2r_start_frame_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.inject_interval_ms = 250;
     e2r_frame_dump_request.gameplay_key_split = e2r_frame_dump_request.inject_key_count;
     e2r_frame_dump_request.post_action_delay_seconds = 0;
-    e2r_frame_dump_request.mouse_click_x = 0;
-    e2r_frame_dump_request.mouse_click_y = 0;
+    e2r_frame_dump_request.mouse_click_x[0] = 0;
+    e2r_frame_dump_request.mouse_click_y[0] = 0;
+    e2r_frame_dump_request.mouse_click_count = 0;
+    e2r_frame_dump_request.mouse_click_interval_ms = 250;
     e2r_frame_dump_request.inject_mouse_click = 0;
     e2r_frame_dump_request.wait_for_requester_ready = 0;
     e2r_frame_dump_request.wait_for_gameplay_frame = 0;
@@ -1125,8 +1153,10 @@ static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.gameplay_key_split =
         gameplay_key_split <= key_count ? gameplay_key_split : key_count;
     e2r_frame_dump_request.post_action_delay_seconds = post_action_delay_seconds;
-    e2r_frame_dump_request.mouse_click_x = 0;
-    e2r_frame_dump_request.mouse_click_y = 0;
+    e2r_frame_dump_request.mouse_click_x[0] = 0;
+    e2r_frame_dump_request.mouse_click_y[0] = 0;
+    e2r_frame_dump_request.mouse_click_count = 0;
+    e2r_frame_dump_request.mouse_click_interval_ms = 250;
     e2r_frame_dump_request.inject_mouse_click = 0;
     e2r_frame_dump_request.wait_for_requester_ready = wait_for_requester_ready;
     e2r_frame_dump_request.wait_for_gameplay_frame = wait_for_gameplay_frame;
@@ -1142,6 +1172,32 @@ static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
     return 1;
 }
 
+static unsigned e2r_parse_mouse_click_sequence(const char *value, unsigned *xs,
+                                               unsigned *ys, unsigned max_clicks)
+{
+    char buffer[256];
+    char *token;
+    unsigned count = 0;
+
+    snprintf(buffer, sizeof(buffer), "%s", value);
+    token = strtok(buffer, ";");
+    while (token != NULL && count < max_clicks) {
+        char *separator = strchr(token, ',');
+        if (separator == NULL) {
+            separator = strchr(token, ':');
+        }
+        if (separator == NULL) {
+            return 0;
+        }
+        *separator = '\0';
+        xs[count] = (unsigned)strtoul(token, NULL, 10);
+        ys[count] = (unsigned)strtoul(separator + 1, NULL, 10);
+        count++;
+        token = strtok(NULL, ";");
+    }
+    return count;
+}
+
 static int e2r_start_intro_menu_click_dump(const char *path, unsigned delay_seconds,
                                            unsigned inject_delay_seconds,
                                            unsigned mouse_x, unsigned mouse_y,
@@ -1153,8 +1209,50 @@ static int e2r_start_intro_menu_click_dump(const char *path, unsigned delay_seco
                                      250, 1, 0, post_click_delay_seconds, 0, 1)) {
         return 0;
     }
-    e2r_frame_dump_request.mouse_click_x = mouse_x;
-    e2r_frame_dump_request.mouse_click_y = mouse_y;
+    e2r_frame_dump_request.mouse_click_x[0] = mouse_x;
+    e2r_frame_dump_request.mouse_click_y[0] = mouse_y;
+    e2r_frame_dump_request.mouse_click_count = 1;
+    e2r_frame_dump_request.mouse_click_interval_ms = 250;
+    e2r_frame_dump_request.inject_mouse_click = 1;
+    return 1;
+}
+
+static int e2r_start_intro_menu_click_sequence_dump(const char *path,
+                                                    unsigned delay_seconds,
+                                                    unsigned inject_delay_seconds,
+                                                    const unsigned *mouse_x,
+                                                    const unsigned *mouse_y,
+                                                    unsigned mouse_count,
+                                                    unsigned click_interval_ms,
+                                                    unsigned target_requester_id,
+                                                    unsigned post_click_delay_seconds)
+{
+    unsigned key = VK_ESCAPE;
+    unsigned i;
+
+    if (mouse_count == 0 || mouse_count > E2R_MAX_MOUSE_CLICKS) {
+        return 0;
+    }
+    if (!e2r_start_key_sequence_dump(path, delay_seconds, inject_delay_seconds, &key, 1,
+                                     250, 1, 0, post_click_delay_seconds, 0, 1)) {
+        return 0;
+    }
+    for (i = 0; i < mouse_count; i++) {
+        e2r_frame_dump_request.mouse_click_x[i] = mouse_x[i];
+        e2r_frame_dump_request.mouse_click_y[i] = mouse_y[i];
+    }
+    if (target_requester_id != 0) {
+        for (i = 1; i < mouse_count; i++) {
+            E2R_RequesterProbeQueueMouseClick(target_requester_id, mouse_x[i], mouse_y[i]);
+        }
+        E2R_RequesterProbeQueueTargetKey(target_requester_id, VK_ESCAPE);
+        e2r_frame_dump_request.mouse_click_count = 1;
+    }
+    else {
+        e2r_frame_dump_request.mouse_click_count = mouse_count;
+    }
+    e2r_frame_dump_request.mouse_click_interval_ms =
+        click_interval_ms == 0 ? 250 : click_interval_ms;
     e2r_frame_dump_request.inject_mouse_click = 1;
     return 1;
 }
@@ -1450,6 +1548,42 @@ int main(int argc, char **argv)
 #endif
     }
 
+    if (argc > 3 && strcmp(argv[1], "--inject-intro-menu-click-sequence-surfaces") == 0) {
+#if UINTPTR_MAX > UINT32_MAX
+        fprintf(stderr,
+                "--inject-intro-menu-click-sequence-surfaces needs a 32-bit build. Use the linux-clang32-debug CMake preset.\n");
+        return 2;
+#else
+        unsigned mouse_x[E2R_MAX_MOUSE_CLICKS];
+        unsigned mouse_y[E2R_MAX_MOUSE_CLICKS];
+        unsigned mouse_count =
+            e2r_parse_mouse_click_sequence(argv[3], mouse_x, mouse_y, E2R_MAX_MOUSE_CLICKS);
+        unsigned inject_delay_seconds = argc > 4 ? (unsigned)strtoul(argv[4], NULL, 10) : 6;
+        unsigned post_click_delay_seconds = argc > 5 ? (unsigned)strtoul(argv[5], NULL, 10) : 4;
+        unsigned click_interval_ms = argc > 6 ? (unsigned)strtoul(argv[6], NULL, 10) : 250;
+        unsigned target_requester_id = argc > 7 ? (unsigned)strtoul(argv[7], NULL, 0) : 0;
+        unsigned total_seconds = inject_delay_seconds + post_click_delay_seconds +
+                                 ((mouse_count + 1u) * ((click_interval_ms + 999u) / 1000u)) + 8;
+        if (mouse_count == 0) {
+            fprintf(stderr,
+                    "unknown mouse click sequence for --inject-intro-menu-click-sequence-surfaces: %s\n",
+                    argv[3]);
+            return 3;
+        }
+        if (!e2r_start_intro_menu_click_sequence_dump(argv[2], total_seconds,
+                                                      inject_delay_seconds,
+                                                      mouse_x, mouse_y,
+                                                      mouse_count, click_interval_ms,
+                                                      target_requester_id,
+                                                      post_click_delay_seconds)) {
+            return 3;
+        }
+        fflush(stdout);
+        E2R_WinMainThunk();
+        return 0;
+#endif
+    }
+
     puts("Linux scaffold initialized. Pass --run-recon to enter the reconstructed game startup thunk.");
     puts("Pass --host-backend-key-probe to verify backend key events reach WM_KEYDOWN.");
     puts("Pass --host-backend-present-probe to verify backend indexed-8 presentation.");
@@ -1461,5 +1595,6 @@ int main(int argc, char **argv)
     puts("Pass --inject-key-sequence-gameplay-surfaces <prefix> <key[,key...]> [inject_seconds] [interval_ms] [gameplay_timeout_seconds] [gameplay_key_split] to wait for gameplay before injecting later keys.");
     puts("Pass --inject-key-sequence-ready-surfaces <prefix> <key[,key...]> [ready_timeout_seconds] [interval_ms] [dump_seconds] to inject when requester-ready state appears.");
     puts("Pass --inject-intro-menu-click-surfaces <prefix> <x> <y> [esc_seconds] [post_click_seconds] to open the intro menu and click a game-coordinate point.");
+    puts("Pass --inject-intro-menu-click-sequence-surfaces <prefix> <x,y[;x,y...]> [esc_seconds] [post_click_seconds] [click_interval_ms] [target_requester_id] to open the intro menu, click game-coordinate points, and queue Esc for the target requester.");
     return 0;
 }

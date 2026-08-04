@@ -1189,6 +1189,28 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
   if (action == (uintptr_t)&DAT_0043d4c0) {
     return 1;
   }
+  if (action == (uintptr_t)&LAB_0043d728) {
+    DAT_0047a49c = DAT_0047a49c == 0;
+    FUN_0043d934();
+    return 1;
+  }
+  if (action == (uintptr_t)&LAB_0043d7a0) {
+    DAT_0047a4a0 = DAT_0047a4a0 == 0;
+    FUN_0043d9a0();
+    return 1;
+  }
+  if (action == (uintptr_t)&LAB_0043d7f0) {
+    DAT_0047a4a4 = (DAT_0047a4a4 + 1) % 3;
+    FUN_0043da04();
+    return 1;
+  }
+  if (action == (uintptr_t)&LAB_0043d6e4) {
+    if (DAT_0047d0c4 != 0) {
+      DAT_0047a43c = DAT_0047a43c == 0;
+      FUN_0043da80();
+    }
+    return 1;
+  }
   if (action == (uintptr_t)&LAB_0043d83c) {
     if (DAT_0047d0c4 == 0) {
       return 1;
@@ -1227,7 +1249,7 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
       _DAT_00643650 = E2R_TraceRequesterState("action.cancel_start",5);
       return 1;
     }
-    if (requester_id == 0x2a) {
+    if (requester_id == 0x29 || requester_id == 0x2a) {
       _DAT_0064353c = 0;
       return 1;
     }
@@ -2066,6 +2088,24 @@ static void E2R_InitRequesterYesNoPromptItems(void)
     E2R_InitRequesterItem(0x00643c84,0x32,-0x3c,0xc,0xc,(uintptr_t)_DAT_0060ae7c,
                           (uintptr_t)&LAB_0043c4e8,0x2000,0x00643dc4);
   }
+}
+
+static void E2R_InitRequesterSettingsItems(void)
+{
+  uintptr_t ok_text;
+
+  ok_text = DAT_00479e00 == 0 ? (uintptr_t)(char *)0x00473298 : (uintptr_t)_DAT_0060ae70;
+  E2R_InitRequesterItem(0x00643998,0xde,0x13,0x1e,10,(uintptr_t)_DAT_006439a0,
+                        (uintptr_t)&LAB_0043d728,0,0x006439f8);
+  E2R_InitRequesterItem(0x006439f8,0xde,0x13,0x2d,10,(uintptr_t)_DAT_00643a00,
+                        (uintptr_t)&LAB_0043d7a0,0,0x00643958);
+  E2R_InitRequesterItem(0x00643958,0xde,0x13,0x3c,10,(uintptr_t)_DAT_00643960,
+                        (uintptr_t)&LAB_0043d7f0,0,0x006436e0);
+  E2R_InitRequesterItem(0x006436e0,0xde,0x13,0x4b,10,(uintptr_t)_DAT_006436e8,
+                        (uintptr_t)&LAB_0043d6e4,0,0x00643de4);
+  E2R_InitRequesterItem(0x00643de4,0x38,10,0x5f,0xc,ok_text,
+                        (uintptr_t)&LAB_0043d83c,0x2000,0);
+  E2R_InitRequesterRecord(0x0047a668,-1,-1,0xf0,0x78,(uintptr_t)DAT_0047a670,0x00643998);
 }
 
 static short E2R_InternPackedName(char *input,char *table,uint capacity,short max_names)
@@ -8758,13 +8798,17 @@ LAB_00416112:
         }
       } while (_DAT_0064353c < iVar2);
       break;
-    case 6:
-      _DAT_00643660 = 1;
-      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));
-    }
-    E2R_GameStateLog("15d40.switch done state=%lu dialog=%lu space=%u",
-                     (unsigned long)_DAT_00643650,(unsigned long)DAT_0047a76c,
-                     (unsigned int)(byte)DAT_00636850);
+	    case 6:
+	      _DAT_00643660 = 1;
+	      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));
+	    }
+	    if (_DAT_00643650 == 2 || _DAT_00643650 == 3 ||
+	        _DAT_00643650 == 4 || _DAT_00643650 == 5) {
+	      _DAT_00643650 = E2R_TraceRequesterState("15d40.menu_complete",0);
+	    }
+	    E2R_GameStateLog("15d40.switch done state=%lu dialog=%lu space=%u",
+	                     (unsigned long)_DAT_00643650,(unsigned long)DAT_0047a76c,
+	                     (unsigned int)(byte)DAT_00636850);
     E2R_GameStateLog("15d40.clear input begin esc=%u space=%u",
                      (unsigned int)(byte)DAT_00636844,
                      (unsigned int)(byte)DAT_00636850);
@@ -31236,6 +31280,46 @@ undefined2 * FUN_0043aeac(void)
 }
 
 
+int E2R_RequesterHandleMouseClick(uintptr_t x, uintptr_t y)
+{
+  short *record;
+  short *item;
+  uintptr_t action;
+  ushort requester_id;
+  uint guard;
+
+  requester_id = E2R_WORD_AT(DAT_0047a45e,2);
+  if (_DAT_00643650 == 0 ||
+      (requester_id != 0x29 && requester_id != 0x2a && requester_id != 0x31)) {
+    return 0;
+  }
+  record = (short *)FUN_0043aeac();
+  if (record == (short *)0x0 || (uintptr_t)record >= 0x70000000u ||
+      IsBadReadPtr(record,0x20)) {
+    return 0;
+  }
+  item = *(short **)(record + 6);
+  for (guard = 0; item != (short *)0x0 && guard < 0x40; guard = guard + 1) {
+    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {
+      return 0;
+    }
+    if ((short)x >= item[0xb] && (short)x < item[0xc] &&
+        (short)y >= item[0xd] && (short)y < item[0xe]) {
+      action = *(uintptr_t *)(item + 6);
+      if (action == 0) {
+        return 0;
+      }
+      _DAT_00643430 = item;
+      E2R_requester_probe_action_count++;
+      E2R_requester_probe_last_action = action;
+      return E2R_InvokeRequesterAction(action);
+    }
+    item = *(short **)(item + 9);
+  }
+  return 0;
+}
+
+
 
 /* 0043af98 */
 
@@ -31446,6 +31530,7 @@ undefined8 __fastcall FUN_0043b384(undefined4 param_1,undefined4 param_2)
   }
   _DAT_0064342c = 0;
   _DAT_006443d0 = (ushort)(in_EAX == (short *)(undefined1 *)0x0047a684);
+  E2R_RequesterProbeFeedPendingMouse(E2R_WORD_AT(DAT_0047a45e,2));
   iVar2 = 0;
   uVar11 = uVar11 & 0xffffffff;
   do {
@@ -31713,6 +31798,7 @@ undefined4 __fastcall FUN_0043b9bc(undefined4 param_1,short *param_2)
   param_2[0xd] = sVar6 + param_2[1];
   param_2[0xe] = param_2[0xd] + param_2[3];
   param_2[0xc] = param_2[0xb] + param_2[2];
+  E2R_RequesterProbeLogItemLayout(E2R_WORD_AT(DAT_0047a45e,2),(uintptr_t)param_2);
   iVar3 = DAT_0047a279 >> 0x18;
   if ((*(byte *)((int)param_2 + 0x11) & 0x80) == 0) {
     *(undefined2 *)((undefined1 *)0x006366dc + iVar3 * 2) = 0xf;
@@ -33027,12 +33113,13 @@ LAB_0043d13e:
       }
       FUN_0043d8ec();
       FUN_0043d934();
-      FUN_0043d9a0();
-      FUN_0043da04();
-      FUN_0043da80();
-      uVar13 = FUN_0043b384(extraout_ECX_04,extraout_EDX_00);
-      return CONCAT44(param_2,(int)uVar13);
-    }
+        FUN_0043d9a0();
+        FUN_0043da04();
+        FUN_0043da80();
+        E2R_InitRequesterSettingsItems();
+        uVar13 = FUN_0043b384(extraout_ECX_04,extraout_EDX_00);
+        return CONCAT44(param_2,(int)uVar13);
+      }
     if (E2R_WORD_AT(DAT_0047a45e,2) < 0x33) {
       uVar13 = FUN_0043b384(param_1,in_EAX);
       uVar5 = (undefined4)uVar13;

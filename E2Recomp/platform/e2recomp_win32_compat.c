@@ -888,7 +888,8 @@ void Sleep(DWORD milliseconds)
 }
 void PostQuitMessage(int exit_code)
 {
-    e2r_push_message(NULL, WM_QUIT, (WPARAM)exit_code, 0);
+    fflush(NULL);
+    exit(exit_code);
 }
 BOOL PostMessageA(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {

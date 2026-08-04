@@ -2,6 +2,60 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-08-04 - Host Window Close Exits Before Reconstructed Quit Cleanup
+
+Area: Playable SDL runtime Step 3 Task 03, SDL window lifetime and requester close path
+
+Symptom: closing the SDL window with the title-bar `X` while a requester/menu was active segfaulted in `FUN_0043cac0` at `E2Recomp_recon.c:32594`. The stack went through `FUN_0041ba7c -> FUN_00414e68 -> FUN_0043cac0`, meaning the recovered modal message pump saw `WM_QUIT` and entered a cleanup/message helper with a stale hidden `in_EAX` string pointer.
+
+Evidence: `FUN_0041ba7c` calls `GetMessageA`; when it receives `WM_QUIT`, it calls `FUN_00414e68()`. That cleanup path then tries to strlen the stale `in_EAX` value inside `FUN_0043cac0`. This is host-window lifetime, not menu action semantics.
+
+Change: `PostQuitMessage` in the Win32 compatibility layer now flushes and exits the Linux process directly instead of queueing `WM_QUIT` back into the reconstructed modal cleanup path. The requester mouse bridge was also narrowed to submenu requester bodies (`0x29`, `0x2a`, `0x31`) so parent menu entries continue using the recovered modal path, while Settings rows and Load/Save cancel-class controls can use direct item-bound hit testing.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-sdl-debug`, and `git diff --check` pass. Bounded Settings and Load first-entry probes still end at requester ids `0x31` and `0x29` respectively with one action, and the targeted Settings Music proof still records `actions 0->2`, selected item `0x643998`, and `settings.music=1`. The title-bar close fix needs manual SDL-window confirmation because the dummy SDL probe does not exercise an interactive window manager close.
+
+Next Frontier: recover Load slot selection and Load OK/Cancel behavior with item-chain evidence; then return to visual/menu fidelity. The current hosted text fallback is intentionally not original font fidelity.
+
+Regression Risk: `PostQuitMessage` now terminates immediately in the host shim. That is correct for a user closing the Linux SDL window, but if later work needs original in-game quit cleanup, it should recover the stale-register path in `FUN_00414e68`/`FUN_0043cac0` before reintroducing queued `WM_QUIT`.
+
+## 2026-08-04 - Menu Decision State Clears After Cancel And Submenus
+
+Area: Playable SDL runtime Step 3 Task 03, intro requester/menu lifecycle
+
+Symptom: after entering Load or Settings and leaving those submenus, or after using Cancel to leave the main menu, the menu began blinking rapidly. The menu action itself worked, but the recovered transient requester decision state stayed live after the modal path returned.
+
+Evidence: `FUN_00415d40` sets `_DAT_00643650=5` before opening the parent menu. Recovered action dispatch then uses `_DAT_00643650=2` for Settings, `4` for Load, and `5` for Cancel/no selection. The parent switch consumes `2`, `3`, and `4` by opening the submenu, but it never cleared those values afterward, and `5` has no switch case at all. Bounded probes showed final input state keeping `_DAT_00643650=2` or `4` before the fix. A later live-video repro showed another lifecycle fault: `WM_KEYDOWN Escape` both set `DAT_00636844` and fed `0x1b` into the legacy requester key queue, so the menu-opening Esc could be consumed by nested requesters, and Esc pressed inside a requester could leave the global menu-open flag armed.
+
+Change: after the parent menu switch finishes handling Settings, Save, Load, or Cancel/no selection, `FUN_00415d40` now clears `_DAT_00643650` through `E2R_TraceRequesterState("15d40.menu_complete",0)`. The reconstructed WndProc now routes Escape by context: when no requester is active it only sets `DAT_00636844` to open the intro menu, and when a requester is active it feeds the legacy key queue while keeping `DAT_00636844` clear. The probe harness also gained target-requester key queueing so submenu Esc proofs can wait for requester ids `0x31` and `0x29`. The generated-header and menu-complete repairs are mirrored in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-sdl-debug`, and `git diff --check` pass. The bounded Settings and Load first-entry probes now log `15d40.menu_complete old=2/4 new=0` and final `_DAT_00643650=0`. The targeted Settings and Load submenu-Esc probes end with `fed_key=0x1b`, `DAT_00636844=0`, `_DAT_00643650=0`, and final requester ids `0x31`/`0x29`.
+
+Next Frontier: manually confirm that real SDL Settings/Load/Cancel no longer blink after close, then recover Load slot/OK behavior. The remaining visual problems are font/menu fidelity and requester surface restoration, not this lifecycle state.
+
+Regression Risk: this intentionally clears only transient menu decision states `2`, `3`, `4`, and `5` after they have been consumed. Start-game decisions `0` and `1` are left to the existing StartGame case behavior.
+
+## 2026-08-04 - Settings Submenu Music Row Clicks
+
+Area: Playable SDL runtime Step 3 Task 03, intro Settings submenu controls
+
+Symptom: the mouse-only intro menu could enter Settings, but row clicks inside the Settings submenu did not dispatch. The visible rows matched the original screenshot, while the reconstructed requester record for id `0x31` did not expose a usable item chain for mouse hit testing.
+
+Evidence: the Settings requester opened with state `2`, but the requester item pass stayed on the stale first-entry path and no Settings row action changed state. Static initialization for `0x0047a668` only supplied the Settings requester record shell, while the recovered updater functions wrote row text to item storage at `0x00643998`, `0x006439f8`, `0x00643958`, and `0x006436e0`. After explicit item initialization, the Music row bounds include the screenshot click point `320,203`, and the selected item is `0x643998`.
+
+Change: added the Settings requester item/record initialization for requester id `0x31`, recovered row action dispatch for Music, Sound effects, Difficulty level, and Resolution, and added a narrow submenu mouse bridge that walks cached requester item bounds for requester bodies while leaving the parent menu on the recovered modal path. The native probe harness now supports `--inject-intro-menu-click-sequence-surfaces` so one bounded run can open the intro menu, enter Settings, and apply a submenu click. Durable reconstructed repairs are mirrored in `E2Recomp/tools/GenerateRecon.js`; broad regeneration remains deferred because the current generator still produces unrelated historical drift.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-sdl-debug`, and `git diff --check` pass. The targeted Settings proof exits cleanly:
+
+```text
+env SDL_VIDEODRIVER=dummy E2R_STARTUP_LOGO_DELAY_MS=0 E2R_INPUT_DIAG=0 build/linux-clang32-sdl-debug/e2recomp --inject-intro-menu-click-sequence-surfaces /tmp/e2-settings-music-final '320,225;320,203' 6 1 250 0x31
+mouse click probe wait finished ... actions 0->2 ... selected=0x643998 state=2 requester=0x31
+input state ... settings=[music=1 sfx=1 difficulty=1 resolution=4 requested_resolution=1 install=6]
+```
+
+Next Frontier: apply the same bounded submenu method to Settings OK/apply and the remaining rows, then Load slot selection/OK/Cancel. The normal delayed sequence probe still depends on when queued Win32 messages are pumped after a modal requester returns, so use the target-requester sequence mode for deterministic submenu proofs until that event-lifetime behavior is recovered.
+
+Regression Risk: the direct mouse bridge is guarded to submenu requester ids `0x29`, `0x2a`, and `0x31`; extending it to additional requesters should be backed by original item-chain/layout evidence. Row mapping beyond Music is inferred from recovered updater/action order and still deserves one-click proofs.
+
 ## 2026-08-04 - Intro Menu Mouse Route Reaches Load And Settings
 
 Area: Playable SDL runtime Step 3 Task 03, intro requester/menu controls, SDL mouse-to-Win32 bridge

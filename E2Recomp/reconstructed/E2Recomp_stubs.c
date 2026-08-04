@@ -57,6 +57,25 @@ uintptr_t E2R_action_last_opcode;
 uintptr_t E2R_action_last_cursor;
 uintptr_t E2R_action_hit_75_count;
 static uintptr_t E2R_requester_probe_pending_keys[16];
+static uintptr_t E2R_requester_probe_pending_key_requester[16];
+static uintptr_t E2R_requester_probe_pending_mouse_requester[8];
+static uintptr_t E2R_requester_probe_pending_mouse_x[8];
+static uintptr_t E2R_requester_probe_pending_mouse_y[8];
+static uintptr_t E2R_requester_probe_pending_mouse_count;
+static uintptr_t E2R_requester_probe_pending_mouse_read;
+
+static int E2R_RequesterProbeLogEnabled(void) {
+    static int initialized;
+    static int enabled;
+    const char *value;
+
+    if (!initialized) {
+        value = getenv("E2R_REQUESTER_PROBE_LOG");
+        enabled = value != NULL && value[0] != '\0' && value[0] != '0';
+        initialized = 1;
+    }
+    return enabled;
+}
 
 static int E2R_game_input_log_initialized;
 static int E2R_game_input_log_enabled;
@@ -228,19 +247,33 @@ static void E2R_feed_legacy_keydown(WPARAM key, LPARAM lParam) {
 }
 
 void E2R_RequesterProbeQueueKey(uintptr_t key) {
+    E2R_RequesterProbeQueueTargetKey(0, key);
+}
+
+void E2R_RequesterProbeQueueTargetKey(uintptr_t requester_id, uintptr_t key) {
     if (E2R_requester_probe_pending_key_count - E2R_requester_probe_pending_key_read >= 16) {
         return;
     }
+    E2R_requester_probe_pending_key_requester
+        [E2R_requester_probe_pending_key_count & 15u] = requester_id;
     E2R_requester_probe_pending_keys[E2R_requester_probe_pending_key_count & 15u] = key;
     E2R_requester_probe_pending_key_count++;
 }
 
 void E2R_RequesterProbeFeedPendingKey(void) {
+    uintptr_t requester_id;
+    uintptr_t target_id;
     uintptr_t key;
     uintptr_t char_key;
     uintptr_t scan;
 
     if (E2R_requester_probe_pending_key_read == E2R_requester_probe_pending_key_count) {
+        return;
+    }
+    target_id = E2R_requester_probe_pending_key_requester
+        [E2R_requester_probe_pending_key_read & 15u];
+    requester_id = E2R_WORD_AT(DAT_0047a45e, 2);
+    if (target_id != 0 && target_id != requester_id) {
         return;
     }
     key = E2R_requester_probe_pending_keys[E2R_requester_probe_pending_key_read & 15u];
@@ -252,6 +285,84 @@ void E2R_RequesterProbeFeedPendingKey(void) {
     E2R_requester_probe_last_fed_char = char_key;
     E2R_requester_probe_last_fed_scan = scan;
     E2R_feed_legacy_keydown((WPARAM)key, 0);
+}
+
+void E2R_RequesterProbeQueueMouseClick(uintptr_t requester_id, uintptr_t x, uintptr_t y) {
+    if (E2R_requester_probe_pending_mouse_count - E2R_requester_probe_pending_mouse_read >= 8) {
+        return;
+    }
+    E2R_requester_probe_pending_mouse_requester
+        [E2R_requester_probe_pending_mouse_count & 7u] = requester_id;
+    E2R_requester_probe_pending_mouse_x[E2R_requester_probe_pending_mouse_count & 7u] = x;
+    E2R_requester_probe_pending_mouse_y[E2R_requester_probe_pending_mouse_count & 7u] = y;
+    E2R_requester_probe_pending_mouse_count++;
+    if (E2R_RequesterProbeLogEnabled()) {
+        fprintf(stderr, "queued requester mouse click target=0x%lx at %lu,%lu pending=%lu/%lu\n",
+                (unsigned long)requester_id, (unsigned long)x, (unsigned long)y,
+                (unsigned long)E2R_requester_probe_pending_mouse_read,
+                (unsigned long)E2R_requester_probe_pending_mouse_count);
+    }
+}
+
+void E2R_RequesterProbeFeedPendingMouse(uintptr_t requester_id) {
+    uintptr_t index;
+    uintptr_t x;
+    uintptr_t y;
+    LPARAM point;
+
+    if (E2R_requester_probe_pending_mouse_read ==
+        E2R_requester_probe_pending_mouse_count) {
+        return;
+    }
+    index = E2R_requester_probe_pending_mouse_read & 7u;
+    if (E2R_requester_probe_pending_mouse_requester[index] != requester_id) {
+        if (E2R_RequesterProbeLogEnabled()) {
+            fprintf(stderr, "pending requester mouse click waiting target=0x%lx current=0x%lx\n",
+                    (unsigned long)E2R_requester_probe_pending_mouse_requester[index],
+                    (unsigned long)requester_id);
+        }
+        return;
+    }
+    x = E2R_requester_probe_pending_mouse_x[index];
+    y = E2R_requester_probe_pending_mouse_y[index];
+    point = (LPARAM)((x & 0xffffu) | ((y & 0xffffu) << 16));
+    E2R_requester_probe_pending_mouse_read++;
+    SetCursorPos((int)x, (int)y);
+    E2R_RequesterHandleMouseClick(x, y);
+    if (E2R_RequesterProbeLogEnabled()) {
+        fprintf(stderr, "feeding requester mouse click target=0x%lx at %lu,%lu pending=%lu/%lu\n",
+                (unsigned long)requester_id, (unsigned long)x, (unsigned long)y,
+                (unsigned long)E2R_requester_probe_pending_mouse_read,
+                (unsigned long)E2R_requester_probe_pending_mouse_count);
+    }
+    PostMessageA((HWND)_DAT_00ac4dac, WM_MOUSEMOVE, 0, point);
+    PostMessageA((HWND)_DAT_00ac4dac, WM_LBUTTONDOWN, 0, point);
+    PostMessageA((HWND)_DAT_00ac4dac, WM_LBUTTONUP, 0, point);
+}
+
+void E2R_RequesterProbeLogItemLayout(uintptr_t requester_id, uintptr_t item_address) {
+    short *item = (short *)item_address;
+    static uintptr_t logged_items;
+
+    if (requester_id != 0x31 || logged_items >= 16 ||
+        item == NULL || (uintptr_t)item >= 0x70000000u || IsBadReadPtr(item, 0x20)) {
+        return;
+    }
+    if (!E2R_RequesterProbeLogEnabled()) {
+        return;
+    }
+    logged_items++;
+    fprintf(stderr,
+            "requester item layout id=0x%lx item=0x%lx local=[%d,%d %dx%d] "
+            "bounds=[%d,%d..%d,%d] flags=0x%x action=0x%lx next=0x%lx text=0x%lx\n",
+            (unsigned long)requester_id,
+            (unsigned long)item_address,
+            (int)item[0], (int)item[1], (int)item[2], (int)item[3],
+            (int)item[0xb], (int)item[0xd], (int)item[0xc], (int)item[0xe],
+            (unsigned)(unsigned short)item[8],
+            (unsigned long)*(uintptr_t *)(item + 6),
+            (unsigned long)*(uintptr_t *)(item + 9),
+            (unsigned long)*(uintptr_t *)(item + 4));
 }
 
 static void E2R_feed_legacy_keyup(WPARAM key, LPARAM lParam) {
@@ -361,6 +472,12 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         E2R_LogGameInputEvent("wndproc.keydown.enter", msg, wParam, lParam);
         E2R_input_probe_keydown_count++;
         E2R_input_probe_last_key = wParam;
+        if (wParam == VK_ESCAPE &&
+            E2R_WORD_AT(DAT_0047a45e, 2) == 0 && _DAT_00643650 == 0) {
+            DAT_00636844 = 1;
+            E2R_LogGameInputFlag("wndproc.set_escape", wParam);
+            return 0;
+        }
         E2R_feed_legacy_keydown(wParam, lParam);
         E2R_LogGameInputEvent("wndproc.keydown.after_legacy", msg, wParam, lParam);
         switch (wParam) {
@@ -374,7 +491,7 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             DAT_0063684a = 1;
             return 0;
         case VK_ESCAPE:
-            DAT_00636844 = 1;
+            DAT_00636844 = 0;
             E2R_LogGameInputFlag("wndproc.set_escape", wParam);
             return 0;
         case VK_SPACE:
@@ -464,8 +581,13 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         return 0;
     }
     if (msg == WM_LBUTTONDOWN) {
+        int x = (int)(int16_t)(lParam & 0xffffu);
+        int y = (int)(int16_t)((lParam >> 16) & 0xffffu);
         E2R_feed_mouse_position(lParam);
         _DAT_0063683c = 2;
+        if (E2R_RequesterHandleMouseClick((uintptr_t)(uint16_t)x, (uintptr_t)(uint16_t)y)) {
+            _DAT_0063683c = 0;
+        }
         return 0;
     }
     if (msg == WM_LBUTTONUP) {
