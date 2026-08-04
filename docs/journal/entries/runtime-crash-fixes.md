@@ -2,6 +2,136 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-08-04 - Confirmed Quit Uses Host Window Shutdown
+
+Area: Playable SDL runtime Step 3 Task 03, intro main-menu Quit confirmation
+
+Symptom: after the Quit prompt state collision was fixed, confirming Quit worked far enough to reach requester state `6`, but then crashed in `FUN_0043cac0` through `FUN_00414e68`.
+
+Evidence: the manual trace logged `action.confirm_yes old=5 new=6`, `action.quit_confirmed old=6 new=6`, then `FUN_00415d40` case `6` called `FUN_00414e68`. That helper tried to scan/show an exit message through stale decompiler hidden-register state before destroying the window, so the crash was in the message path, not in Quit prompt selection.
+
+Change: the intro menu decision switch now handles state `6` by calling `DestroyWindow(_DAT_00ac4dac)` directly. Other fatal/error call sites still use `FUN_00414e68`. The requester layout logger also includes requester `0x14`, making Quit prompt Yes/No bounds visible in future traces.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, and `cmake --build --preset linux-clang32-sdl-debug` pass. The bounded Quit-Yes probe clicks Quit, then requester `0x14` Yes at item `0x643dc4` bounds `[190,220..290,238]`, logs `action.quit_confirmed`, reaches `FUN_00415d40` state `6`, and exits with code `0` without entering the `FUN_0043cac0` crash path.
+
+Next Frontier: manual real-SDL confirmation that Quit Yes closes the program cleanly and that Quit No/Escape visibly returns to the main menu.
+
+Regression Risk: this is intentionally scoped to the menu Quit decision state. If original fidelity for Quit needs a final message later, recover the `FUN_00414e68` message pointer convention separately instead of reusing it for the normal menu Quit path.
+
+## 2026-08-04 - Quit Prompt No Longer Collides With Settings
+
+Area: Playable SDL runtime Step 3 Task 03, intro main-menu Quit requester state
+
+Symptom: the latest menu diagnostics showed a new state collision after clicking Quit. The main menu opened a yes/no prompt and set requester state `6`, but `FUN_00415d40` still handled state `6` by opening Settings requester `0x31`. After that, later Load/Save clicks appeared to keep showing Settings.
+
+Evidence: the manual trace logged `action.quit_prompt old=5 new=6`, followed by `15d40.open requester end ... state=6`, and later Settings-style actions while the active requester path should have been the Quit confirmation prompt. The earlier Settings/Load/backdrop fixes were otherwise behaving: Settings returned to requester `0x28`, Load returned to requester `0x28`, disabled Save stayed on the main menu, and Start during intro still used the restart route.
+
+Change: restored state `6` in `FUN_00415d40` to the original quit-confirmed path (`FUN_00414e68`) instead of opening requester `0x31`. The Quit action now opens requester `0x14`; confirmed Yes closes the requester and returns state `6`, while canceled/no Quit restores the parent main menu requester `0x28` with state `5` and keeps the parent modal loop alive. WndProc now has an explicit Escape close path for requester `0x14`, and the direct requester click bridge accepts `0x14` for diagnostics/action dispatch.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, and `cmake --build --preset linux-clang32-sdl-debug` pass. The focused Quit probe no longer opens Settings: after clicking Quit it ends at requester `0x28`/state `5` with no requester `0x31` leak. Settings Music still hits requester `0x31` item `0x643998` and flips `settings.music=1`. Load still opens requester `0x29` and lays out the slot/cancel items. A main-menu close probe still finishes with `_DAT_00643650=0`.
+
+Next Frontier: run one real-SDL manual pass to confirm Quit prompt Yes exits and Esc/No visibly returns to the main menu. The current bounded harness does not reliably feed a second Esc through the modal WndProc path once a requester is already open, so a small harness improvement would make future Esc-close proofs cleaner.
+
+Regression Risk: `FUN_00414e68` is the original quit/fatal-exit helper and is now reachable from the intro Quit confirmation again. If confirmed Quit crashes in real SDL, recover the exact call-site message/exit convention instead of rerouting state `6` back to any submenu requester.
+
+## 2026-08-04 - Requester Backdrops Restore Nested Menu Layers
+
+Area: Playable SDL runtime Step 3 Task 03, intro requester surface lifecycle
+
+Symptom: the latest manual real-SDL trace showed the menu state was clearing, but the visible requester pixels did not follow. A second Escape from the intro left the main menu on-screen, Settings/Load stayed visible underneath the main menu after close, and Settings buttons appeared dead because the active state and the stale visual layer no longer matched.
+
+Evidence: the pasted console output logged correct state transitions: main-menu Escape reached `wndproc.close_main_menu`, `15d40.menu_complete old=5 new=0`, and final requester state `0`; Settings OK reached `action.settings_ok old=2 new=0`. The remaining failure was therefore visual/backdrop ownership, not SDL event delivery or requester decision state.
+
+Change: high-res requester entry now saves a small stack of surface-2/surface-3 backdrops before drawing, and requester exit restores the most recent backdrop before returning. Main-menu Settings and Load actions now open requester `0x31`/`0x29` as nested modal requesters and then restore requester `0x28`/state `5`, so Settings/Load close back to the live main menu instead of leaving orphaned pixels. The target-requester mouse probe feed hook was re-anchored in `FUN_0043b384`, and the final hosted label redraw is re-anchored so restored main-menu dumps keep labels such as `QUIT`. Trace labels now name `LAB_0043d470` as Settings and `LAB_0043d490` as Load.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, `cmake --build --preset linux-clang32-sdl-debug`, and `git diff --check` pass. The bounded two-Escape probe restores the intro surface (`/tmp/e2-menu-double-esc-backdrop2-s3.ppm`, hash `44b33248`) with `_DAT_00643650=0`. The targeted Settings Music probe dispatches item `0x643998` and ends with `settings.music=1`. The Settings OK probe logs `action.settings_ok old=2 new=0`, then `action.settings_return old=0 new=5`, and the visual dump restores the main menu with all labels present (`/tmp/e2-settings-ok-backdrop3-s3.ppm`, hash `6e4e9abb`). Start during intro still routes through `action.restart_intro` and no longer crashes.
+
+Next Frontier: manual real-SDL confirmation that one Escape hides the active main menu, Settings/Load close back to the visible main menu, and Settings row/OK clicks work interactively. Load/Save remains visually rough: title/slot overlap and slot canvas/OK behavior still need recovery.
+
+Regression Risk: the backdrop stack copies full high-res pages for requester nesting. It is intentionally limited to the hosted high-res path and should be revisited if original DirectDraw requester page-save semantics are recovered more exactly.
+
+## 2026-08-04 - Active Menu Close Must Exit The Modal Loop
+
+Area: Playable SDL runtime Step 3 Task 03, intro requester close lifecycle
+
+Symptom: after submenus became visible, manual real-SDL still needed extra input to get out of menus. A bounded two-Esc probe showed why: WndProc could clear the visible requester state, but `FUN_0043b384` kept waiting because its internal modal-loop side flag was unchanged. When the direct main-menu close was first forced to return, `FUN_00415d40` then misread `_DAT_00643650=0` as Start Game and crashed through `FUN_0043a39c`.
+
+Evidence: `--inject-key-sequence-surfaces /tmp/e2-menu-double-esc-current esc,esc 8 1500 14` logged `wndproc.escape_main_menu old=5 new=0`, returned from `FUN_0043b384`, then gdb stopped in `FUN_0043a39c` at the stale actor flag write from `FUN_00415d40` case `0`. The modal loop exits when `_DAT_006443d0` differs from the last mouse/key loop state, so clearing only `_DAT_00643650` was not enough.
+
+Change: WndProc Escape for the active main requester now marks the requester dirty, flips `_DAT_006443d0=1`, clears the requester id word, and returns menu decision state `5` so the parent switch treats it as cancel/no selection before `15d40.menu_complete` clears it to `0`. Submenu Escape still clears state to `0`, but also flips the modal-loop flag and requests redraw. Generated requester actions that leave the parent modal loop, including intro Start restart, Settings/Load entry, Settings OK, and Load/Save/Settings cancel, now also flip `_DAT_006443d0=1`; Settings row toggles stay in-place.
+
+Result: `cmake --build --preset linux-clang32-sdl-debug` passes. The bounded main-menu probe logs `wndproc.escape_main_menu old=5 new=5`, then `15d40.menu_complete old=5 new=0`, exits with `_DAT_00643650=0`, and does not enter `FUN_0043a39c`. The Settings OK sequence hits item `0x643de4`, logs `action.settings_ok old=2 new=0`, unwinds immediately, and ends with requester state `0`.
+
+Next Frontier: manual real-SDL confirmation that one Escape hides the active main menu and that Settings OK/Cancel no longer need a follow-up click. Continue Load slot/OK visual and behavior recovery.
+
+Regression Risk: main-menu Escape deliberately returns state `5` during the parent switch instead of `0`; that keeps close/no-selection distinct from Start Game. Any future main-menu action that should close the parent modal loop should set `_DAT_006443d0`, while in-submenu row toggles should not.
+
+## 2026-08-04 - Intro Start Restarts Intro Instead Of Starting Gameplay
+
+Area: Playable SDL runtime Step 3 Task 03, intro main-menu Start action
+
+Symptom: clicking Start Game during the intro crashed or entered the wrong StartGame path. Original-game testing showed Start Game from the intro menu should restart the intro instead of starting gameplay.
+
+Evidence: the manual paste still logged `action.start_male old=0 new=0` after clicking Start during intro. Earlier attempts to replay the full startup action directly exposed generated stale-register frame traversal crashes in `FUN_00421684`, `FUN_004211c8`, and `FUN_00421f54`, so the safe intro behavior needed to avoid entering gameplay StartGame from requester state.
+
+Change: Start male/female requester actions from main requester `0x28` while `DAT_0047a76c != 0` now route to a new `action.restart_intro` decision state. `FUN_00415d40` handles that state by clearing requester/input state, preserving intro mode, and resetting the current intro action progress instead of calling `FUN_0043a39c`. The existing stale-current guard in `FUN_0043a39c` remains for non-intro Start paths.
+
+Result: the bounded Start probe logs `action.restart_intro old=5 new=7`, then `action.restart_intro_complete old=7 new=0`, exits with `_DAT_00643650=0`, and no longer crashes.
+
+Next Frontier: visually compare the restarted intro timing against the original game. This currently resets the active intro action progress safely; recovering the exact original restart hook remains future fidelity work if the visual reset is not exact enough.
+
+Regression Risk: this route is gated to requester `0x28` during intro mode. Gameplay Start male/female paths still use the original state `0`/`1` behavior.
+
+## 2026-08-04 - Intro Submenus Need Explicit Requester Records
+
+Area: Playable SDL runtime Step 3 Task 03, intro submenu presentation
+
+Symptom: after the menu lifecycle diagnostics repair, manual real-SDL logs showed clicks changing menu state but no submenu appeared. Escape could close the active submenu state, proving input/state routing had advanced while presentation still showed the parent menu.
+
+Evidence: the pasted trace showed `action.load old=5 new=2` followed by requester id `0x31`, and `action.options old=5 new=4` followed by requester id `0x29`; both later closed through `wndproc.escape_submenu`. Dummy-SDL dumps before the fix still showed the parent requester surface. Inspecting `FUN_0043ce58` found Settings calling `FUN_0043b384(extraout_ECX_04, extraout_EDX_00)` and Load/Save calling `FUN_0043b384(pbVar6, pcVar8)`, so the submenu state was correct but the modal renderer received stale decompiler hidden-register values instead of the submenu requester records.
+
+Change: Settings now calls `E2R_InitRequesterSettingsItems()` and passes requester record `0x0047a668` to `FUN_0043b384`. Load/Save now initializes and passes requester record `0x0047a5a4`; layout diagnostics showed the slot-list children require a larger panel, so the record uses `0xf0 x 0xb4` low-res dimensions instead of the small prompt size. The requester item layout logger now includes ids `0x29`, `0x2a`, and `0x31` with active record bounds.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js` and `cmake --build --preset linux-clang32-sdl-debug` pass. Bounded dummy-SDL probes show Settings visible over the intro background and Load visible/framed. Load remains visually unfinished: its title overlaps the slot rows and a black rectangle appears at the left edge.
+
+Next Frontier: manual real-SDL confirmation that Settings no longer blinks and Load/Save now show a submenu. Continue with Load title/slot/OK behavior and requester surface/font fidelity.
+
+Regression Risk: the explicit records repair decompiler-hidden argument loss around `FUN_0043ce58`. The Load/Save dimensions are inferred from the recovered child item geometry, so they should be revisited if original disassembly/data gives a more exact record initializer.
+
+## 2026-08-04 - Intro Menu Diagnostics Fix Stale Save And Escape
+
+Area: Playable SDL runtime Step 3 Task 03, intro main-menu requester lifecycle
+
+Symptom: after adding focused menu diagnostics, a manual real-SDL run regressed: clicking Save/Load/Settings appeared to show no submenu, and Escape no longer hid the main menu.
+
+Evidence: the pasted console trace showed `Esc` opening requester `0x28` with `_DAT_00643650=5`. The first click landed on Save at game coordinates `305,184`; because Save is unavailable during the intro, it logged `action.save_disabled_intro old=5 new=5`, but the recovered requester loop still returned to `FUN_00415d40`, which then ran `15d40.menu_complete old=5 new=0`. The visible menu afterward was stale pixels with no active requester, so later clicks could not route. A second `Esc` while requester `0x28` was active only fed the legacy key path and left `_DAT_00643650=5`.
+
+Change: extended the direct requester hit tester to include main-menu requester `0x28` only for diagnostic hit logging and disabled-Save consumption. Disabled Save now logs `action.save_disabled_intro old=5 new=5`, returns handled to the host mouse path, clears the mouse latch, and keeps the main menu active. Normal main-menu actions still fall through to the recovered modal loop so Settings/Load can open their subrequesters. Added a WndProc `Escape` close path for active main-menu requester `0x28`, logging `wndproc.escape_main_menu old=5 new=0`. Mirrored the regenerated C repairs in `E2Recomp/tools/GenerateRecon.js`, including the generated header requester-probe prototypes and the hosted text `base2` declaration repair that regeneration exposed.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js` and `cmake --build --preset linux-clang32-sdl-debug` pass. Bounded dummy-SDL probes show disabled Save ends with `_DAT_00643650=5` and no `15d40.menu_complete`; a Save-then-main-menu click sequence falls through to legacy and reaches requester `0x31`; a two-Escape key sequence logs `menu state: site=wndproc.escape_main_menu old=5 new=0` and ends with `_DAT_00643650=0`. A follow-up manual trace showed submenu Esc still waiting for a later mouse click to unwind (`requester=4`/`2` in the input log, then `15d40.menu_complete` only after the next `WM_LBUTTONDOWN`), so WndProc now closes active submenu requesters `0x29`/state `4`, `0x31`/state `2`, and `0x2a`/state `3` directly with `wndproc.escape_submenu old=<state> new=0`.
+
+Next Frontier: rerun manual real-SDL with `E2R_MENU_DIAG=1`; if Load/Settings still blink or smear, the console should now distinguish stale pixels from active requester state. Load slot canvas/rendering remains the open visual/functionality frontier.
+
+Regression Risk: direct handling for requester `0x28` intentionally consumes only disabled Save. Other main-menu actions rely on the recovered modal loop to preserve original submenu transitions.
+
+## 2026-08-04 - Intro Requester Artifacts And Start Click Crash
+
+Area: Playable SDL runtime Step 3 Task 03, intro menu requester drawing/action dispatch
+
+Symptom: a manual real-SDL run showed `Esc` opening the intro menu, but the menu was covered with horizontal/diagonal line artifacts. Start Game crashed in `FUN_0043a39c` at the `DAT_0047a470` actor flag write. Save Game, which should be inert during the intro, caused rapid menu blinking. Load left a malformed blank/grey surface, and Settings blinked while rows/OK did not respond.
+
+Evidence: the Start Game call stack ended at `FUN_0043a39c -> FUN_00415d40 -> FUN_00426df8 -> FUN_0041007c`. The crashing line dereferenced `DAT_0047a470` after the intro transition had already cleared or invalidated the current actor pointer. The requester screenshots matched the decompiled high-res requester fill/border paths using stale hidden-register coordinates: `FUN_0041ab4c` had lost its top coordinate and filled from y=0, while border calls reused `extraout_ECX*` values. A later visual dump showed a lone `S` left outside the dialog; that came from the selected-character repaint path using another stale `extraout_ECX_06` cursor.
+
+Change: guarded the Start Game actor flag write with `E2R_IsReadableCurrentPointer(DAT_0047a470)`. Added hosted high-res rectangle fill/border helpers and routed requester panel/item fills through explicit computed bounds on both high-res pages, copying the richer intro/menu background page before requester drawing. Anchored the selected-character repaint to the computed item text x-coordinate. `FUN_0043b384` now carries the `FUN_0041ba7c` mouse result in an explicit `mouse_state` local instead of stale `extraout_ECX_*` temporaries, which stops the Settings requester from immediately replaying the parent menu decision. Save now takes an `action.save_disabled_intro` path unless a real gameplay scene/current actor is present. Settings OK now explicitly closes requester id `0x31`, and the existing direct settings row bridge still handles Music/SFX/Difficulty/Resolution. Durable transformations were mirrored in `E2Recomp/tools/GenerateRecon.js`; a whole-file regeneration attempt was rejected because it produced unrelated historical drift and reverted the new Start Game guard.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js` and `cmake --build --preset linux-clang32-sdl-debug` pass. Bounded dummy-SDL probes show Start Game no longer crashes (`action.start_male`, state `0`), Save uses `action.save_disabled_intro`, Settings Music dispatches item `0x643998` and flips `settings.music=1`, and Settings OK logs `action.settings_ok old=2 new=0`. The Settings requester dumps matching high-res pages (`hash=798184ec`). Load is improved but not done: it opens requester id `0x29`/state `4` without crashing, but surface hashes differ (`s2=e2288345`, `s3=25b666b7`) and the slot canvas/rendering still needs recovery.
+
+Next Frontier: manual real-SDL confirmation is still needed for the exact screenshots: main menu should no longer have smear/line artifacts, Save should not blink during intro, and Settings rows/OK should respond without toggling back to the main menu. Continue Load slot canvas/OK behavior and requester font/surface fidelity next.
+
+Regression Risk: the hosted rectangle path is a Linux high-res safety repair for bad decompiler-hidden coordinates, not original pixel-perfect menu rendering. Save is behaviorally disabled in intro by action dispatch; the visible row still needs original greyed-out styling.
+
+Follow-up instrumentation: `E2R_MENU_DIAG=1` now emits focused `menu click:` and `menu state:` lines for manual SDL runs. The SDL layer logs raw and mapped click coordinates, the Win32 shim logs button down/up with requester state/id, the requester hit tester logs ignored/miss/bad-item/no-action/hit outcomes plus item bounds/action names, and `E2R_TraceRequesterState` logs every menu decision-state write. Use this instead of screenshot-only back-and-forth for the next Load/Settings manual report.
+
 ## 2026-08-04 - Host Window Close Exits Before Reconstructed Quit Cleanup
 
 Area: Playable SDL runtime Step 3 Task 03, SDL window lifetime and requester close path

@@ -50,6 +50,19 @@ static int e2r_sdl_input_diag_enabled(void)
     return enabled;
 }
 
+static int e2r_sdl_menu_diag_enabled(void)
+{
+    static int initialized;
+    static int enabled;
+
+    if (!initialized) {
+        const char *diag = getenv("E2R_MENU_DIAG");
+        enabled = diag != NULL && diag[0] != '\0' && diag[0] != '0';
+        initialized = 1;
+    }
+    return enabled;
+}
+
 static SDL_Rect e2r_sdl_aspect_fit_rect(int dst_width, int dst_height,
                                         unsigned src_width, unsigned src_height)
 {
@@ -536,6 +549,8 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
                     WM_RBUTTONDOWN : WM_RBUTTONUP;
             }
             if (msg != 0) {
+                LPARAM mapped_point =
+                    e2r_pack_mapped_window_point(window, event.button.x, event.button.y);
                 if (e2r_sdl_input_diag_enabled() && mouse_diag_count < 128u) {
                     fprintf(stderr,
                             "host input mousebutton: msg=0x%x button=%u down=%u x=%.1f y=%.1f\n",
@@ -543,10 +558,19 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
                             (unsigned)event.button.down, event.button.x, event.button.y);
                     mouse_diag_count++;
                 }
-                message_callback(msg, 0,
-                                 e2r_pack_mapped_window_point(window, event.button.x,
-                                                              event.button.y),
-                                 user);
+                if (e2r_sdl_menu_diag_enabled()) {
+                    int mapped_x = (int)(int16_t)(mapped_point & 0xffffu);
+                    int mapped_y = (int)(int16_t)((mapped_point >> 16) & 0xffffu);
+                    fprintf(stderr,
+                            "menu click: phase=sdl msg=0x%x button=%u down=%u "
+                            "raw=%.1f,%.1f mapped=%d,%d present_rect=%d,%d %dx%d\n",
+                            (unsigned)msg, (unsigned)event.button.button,
+                            (unsigned)event.button.down, event.button.x, event.button.y,
+                            mapped_x, mapped_y, window->presentation_rect.x,
+                            window->presentation_rect.y, window->presentation_rect.w,
+                            window->presentation_rect.h);
+                }
+                message_callback(msg, 0, mapped_point, user);
             }
         }
         else if (event.type >= SDL_EVENT_WINDOW_FIRST &&

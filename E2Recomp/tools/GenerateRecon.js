@@ -285,7 +285,7 @@ source = source.replace(
 );
 source = source.replace(
   "    case 6:\n      FUN_00414e68();\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\",",
-  "    case 6:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\","
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\","
 );
 source = source.replace(
   "  if (DAT_00636845 != '\\0') {\n    DAT_00636845 = '\\0';\n  }\n  return;\n}\n\n\n\n/* 0041643c */",
@@ -454,11 +454,35 @@ source = source.replace(
 );
 source = source.replace(
   "        FUN_0043d8ec();\n        FUN_0043d934();\n        FUN_0043d9a0();\n        FUN_0043da04();\n        FUN_0043da80();\n        uVar13 = FUN_0043b384(extraout_ECX_04,extraout_EDX_00);",
-  "        FUN_0043d8ec();\n        FUN_0043d934();\n        FUN_0043d9a0();\n        FUN_0043da04();\n        FUN_0043da80();\n        E2R_InitRequesterSettingsItems();\n        uVar13 = FUN_0043b384(extraout_ECX_04,extraout_EDX_00);"
+  "        FUN_0043d8ec();\n        FUN_0043d934();\n        FUN_0043d9a0();\n        FUN_0043da04();\n        FUN_0043da80();\n        E2R_InitRequesterSettingsItems();\n        uVar13 = FUN_0043b384(0x0047a668,extraout_EDX_00);"
 );
 source = source.replace(
   "\n\n\n/* 0043af98 */",
-  "\n\nint E2R_RequesterHandleMouseClick(uintptr_t x, uintptr_t y)\n{\n  short *record;\n  short *item;\n  uintptr_t action;\n  ushort requester_id;\n  uint guard;\n\n  requester_id = E2R_WORD_AT(DAT_0047a45e,2);\n  if (_DAT_00643650 == 0 ||\n      (requester_id != 0x29 && requester_id != 0x2a && requester_id != 0x31)) {\n    return 0;\n  }\n  record = (short *)FUN_0043aeac();\n  if (record == (short *)0x0 || (uintptr_t)record >= 0x70000000u ||\n      IsBadReadPtr(record,0x20)) {\n    return 0;\n  }\n  item = *(short **)(record + 6);\n  for (guard = 0; item != (short *)0x0 && guard < 0x40; guard = guard + 1) {\n    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {\n      return 0;\n    }\n    if ((short)x >= item[0xb] && (short)x < item[0xc] &&\n        (short)y >= item[0xd] && (short)y < item[0xe]) {\n      action = *(uintptr_t *)(item + 6);\n      if (action == 0) {\n        return 0;\n      }\n      _DAT_00643430 = item;\n      E2R_requester_probe_action_count++;\n      E2R_requester_probe_last_action = action;\n      return E2R_InvokeRequesterAction(action);\n    }\n    item = *(short **)(item + 9);\n  }\n  return 0;\n}\n\n\n/* 0043af98 */"
+  "\n\nint E2R_RequesterHandleMouseClick(uintptr_t x, uintptr_t y)\n{\n  short *record;\n  short *item;\n  uintptr_t action;\n  ushort requester_id;\n  uint guard;\n\n  requester_id = E2R_WORD_AT(DAT_0047a45e,2);\n  if (_DAT_00643650 == 0 ||\n      (requester_id != 0x28 && requester_id != 0x29 &&\n       requester_id != 0x2a && requester_id != 0x31)) {\n    return 0;\n  }\n  record = (short *)FUN_0043aeac();\n  if (record == (short *)0x0 || (uintptr_t)record >= 0x70000000u ||\n      IsBadReadPtr(record,0x20)) {\n    return 0;\n  }\n  item = *(short **)(record + 6);\n  for (guard = 0; item != (short *)0x0 && guard < 0x40; guard = guard + 1) {\n    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {\n      return 0;\n    }\n    if ((short)x >= item[0xb] && (short)x < item[0xc] &&\n        (short)y >= item[0xd] && (short)y < item[0xe]) {\n      action = *(uintptr_t *)(item + 6);\n      if (action == 0) {\n        return 0;\n      }\n      _DAT_00643430 = item;\n      E2R_requester_probe_action_count++;\n      E2R_requester_probe_last_action = action;\n      return E2R_InvokeRequesterAction(action);\n    }\n    item = *(short **)(item + 9);\n  }\n  return 0;\n}\n\n\n/* 0043af98 */"
+);
+source = source.replace(
+  "  if (_DAT_00643650 == 0 ||\n      (requester_id != 0x28 && requester_id != 0x29 &&\n       requester_id != 0x2a && requester_id != 0x31)) {\n    return 0;\n  }",
+  "  if (_DAT_00643650 == 0 ||\n      (requester_id != 0x14 && requester_id != 0x28 &&\n       requester_id != 0x29 && requester_id != 0x2a && requester_id != 0x31)) {\n    if (E2R_MenuDiagEnabled()) {\n      fprintf(stderr,\n              \"menu click: phase=requester-direct outcome=ignored x=%ld y=%ld \"\n              \"state=%lu requester=0x%x selected=0x%lx\\n\",\n              (long)x,(long)y,(unsigned long)_DAT_00643650,\n              (unsigned int)requester_id,(unsigned long)_DAT_00643430);\n    }\n    return 0;\n  }"
+);
+source = source.replace(
+  "  if (record == (short *)0x0 || (uintptr_t)record >= 0x70000000u ||\n      IsBadReadPtr(record,0x20)) {\n    return 0;\n  }",
+  "  if (record == (short *)0x0 || (uintptr_t)record >= 0x70000000u ||\n      IsBadReadPtr(record,0x20)) {\n    if (E2R_MenuDiagEnabled()) {\n      fprintf(stderr,\n              \"menu click: phase=requester-direct outcome=bad-record x=%ld y=%ld \"\n              \"state=%lu requester=0x%x record=0x%lx\\n\",\n              (long)x,(long)y,(unsigned long)_DAT_00643650,\n              (unsigned int)requester_id,(unsigned long)record);\n    }\n    return 0;\n  }"
+);
+source = source.replace(
+  "    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {\n      return 0;\n    }",
+  "    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {\n      if (E2R_MenuDiagEnabled()) {\n        fprintf(stderr,\n                \"menu click: phase=requester-direct outcome=bad-item x=%ld y=%ld \"\n                \"state=%lu requester=0x%x record=0x%lx item=0x%lx guard=%lu\\n\",\n                (long)x,(long)y,(unsigned long)_DAT_00643650,\n                (unsigned int)requester_id,(unsigned long)record,\n                (unsigned long)item,(unsigned long)guard);\n      }\n      return 0;\n    }"
+);
+source = source.replace(
+  "      if (action == 0) {\n        return 0;\n      }\n      _DAT_00643430 = item;",
+  "      if (action == 0) {\n        if (E2R_MenuDiagEnabled()) {\n          fprintf(stderr,\n                  \"menu click: phase=requester-direct outcome=no-action x=%ld y=%ld \"\n                  \"state=%lu requester=0x%x item=0x%lx bounds=[%d,%d..%d,%d]\\n\",\n                  (long)x,(long)y,(unsigned long)_DAT_00643650,\n                  (unsigned int)requester_id,(unsigned long)item,\n                  (int)item[0xb],(int)item[0xd],(int)item[0xc],(int)item[0xe]);\n        }\n        return 0;\n      }\n      if (E2R_MenuDiagEnabled()) {\n        fprintf(stderr,\n                \"menu click: phase=requester-direct outcome=hit x=%ld y=%ld \"\n                \"state=%lu requester=0x%x item=0x%lx bounds=[%d,%d..%d,%d] \"\n                \"action=0x%lx action_name=%s\\n\",\n                (long)x,(long)y,(unsigned long)_DAT_00643650,\n                (unsigned int)requester_id,(unsigned long)item,\n                (int)item[0xb],(int)item[0xd],(int)item[0xc],(int)item[0xe],\n                (unsigned long)action,E2R_RequesterActionName(action));\n      }\n      _DAT_00643430 = item;"
+);
+source = source.replace(
+  "      _DAT_00643430 = item;\n      E2R_requester_probe_action_count++;\n      E2R_requester_probe_last_action = action;\n      return E2R_InvokeRequesterAction(action);",
+  "      _DAT_00643430 = item;\n      E2R_requester_probe_action_count++;\n      E2R_requester_probe_last_action = action;\n      if (requester_id == 0x28) {\n        if (action == (uintptr_t)&LAB_0043d47c &&\n            !(DAT_0047a76c == 0 && _DAT_0073cc3c != 0 &&\n              E2R_IsReadableCurrentPointer(DAT_0047a470))) {\n          E2R_InvokeRequesterAction(action);\n          return 1;\n        }\n        return 0;\n      }\n      return E2R_InvokeRequesterAction(action);"
+);
+source = source.replace(
+  "  return 0;\n}\n\n\n/* 0043af98 */",
+  "  if (E2R_MenuDiagEnabled()) {\n    fprintf(stderr,\n            \"menu click: phase=requester-direct outcome=miss x=%ld y=%ld \"\n            \"state=%lu requester=0x%x record=0x%lx items_checked=%lu selected=0x%lx\\n\",\n            (long)x,(long)y,(unsigned long)_DAT_00643650,\n            (unsigned int)requester_id,(unsigned long)record,(unsigned long)guard,\n            (unsigned long)_DAT_00643430);\n  }\n  return 0;\n}\n\n\n/* 0043af98 */"
 );
 source = source.replace(/(void __fastcall FUN_00460557\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n\s*)\*\(int \*\)\(\(int\)uVar1 \+ 4\) = \(int\)\(\(ulonglong\)uVar1 >> 0x20\);/, "$1if ((int)uVar1 != 0) {\n    *(int *)((int)uVar1 + 4) = (int)((ulonglong)uVar1 >> 0x20);\n  }");
 source = source.replace(/(void __fastcall FUN_0046055c\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n\s*)\*\(int \*\)\(\(int\)uVar1 \+ 4\) = \(int\)\(\(ulonglong\)uVar1 >> 0x20\);/, "$1if ((int)uVar1 != 0) {\n    *(int *)((int)uVar1 + 4) = (int)((ulonglong)uVar1 >> 0x20);\n  }");
@@ -820,12 +844,308 @@ requesterActionState = requesterActionState.replace(
   "    if (requester_id == 0x2a) {",
   "    if (requester_id == 0x29 || requester_id == 0x2a) {"
 );
+requesterActionState = requesterActionState.replace(
+  "  if (action == (uintptr_t)&LAB_0043d47c) {\n    if (DAT_0047a76c == 0) {\n      _DAT_00643650 = 3;\n    }\n    return 1;\n  }",
+  "  if (action == (uintptr_t)&LAB_0043d47c) {\n    if (DAT_0047a76c == 0 && _DAT_0073cc3c != 0 &&\n        E2R_IsReadableCurrentPointer(DAT_0047a470)) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.save\",3);\n    }\n    else {\n      E2R_TraceRequesterState(\"action.save_disabled_intro\",_DAT_00643650);\n      return 0;\n    }\n    return 1;\n  }"
+);
+requesterActionState = requesterActionState.replace(
+  "  if (action == (uintptr_t)&LAB_0043d83c) {\n    if (DAT_0047d0c4 == 0) {",
+  "  if (action == (uintptr_t)&LAB_0043d83c) {\n    if (requester_id == 0x31) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_ok\",0);\n      return 1;\n    }\n    if (DAT_0047d0c4 == 0) {"
+);
+requesterActionState = requesterActionState.replace(
+  "    if (requester_id == 0x29 || requester_id == 0x2a) {\n      _DAT_0064353c = 0;\n      return 1;\n    }\n",
+  "    if (requester_id == 0x29 || requester_id == 0x2a) {\n      _DAT_0064353c = 0;\n      return 1;\n    }\n    if (requester_id == 0x31) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_cancel\",0);\n      return 1;\n    }\n"
+);
 const requesterFocusState = `\nstatic short *E2R_RequesterFirstSelectable(short *item)\n{\n  uint guard = 0;\n  short *first_readable = (short *)0x0;\n\n  while (item != (short *)0x0 && guard < 0x80) {\n    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {\n      return (short *)0x0;\n    }\n    if (first_readable == (short *)0x0) {\n      first_readable = item;\n    }\n    if ((*(byte *)((int)item + 0x11) & 0x10) != 0) {\n      return item;\n    }\n    item = *(short **)(item + 9);\n    guard++;\n  }\n  return first_readable;\n}\n`;
 const menuStringState = `\nstatic int E2R_IsReadableCString(char *text)\n{\n  uint i;\n\n  if ((uintptr_t)text < 0x10000 || IsBadReadPtr(text,1)) {\n    return 0;\n  }\n  for (i = 0; i < 0x1000; i = i + 1) {\n    if (IsBadReadPtr(text + i,1)) {\n      return 0;\n    }\n    if (text[i] == '\\0') {\n      return 1;\n    }\n  }\n  return 0;\n}\n\nstatic int *E2R_ResolveMenuStringList(undefined4 first,undefined4 second,undefined4 *local_single)\n{\n  int *list;\n  char *text;\n\n  list = (int *)(uintptr_t)first;\n  if ((uintptr_t)list >= 0x10000 && !IsBadReadPtr(list,4)) {\n    text = (char *)(uintptr_t)list[0];\n    if (text == (char *)0x0 || E2R_IsReadableCString(text)) {\n      return list;\n    }\n  }\n  text = (char *)(uintptr_t)first;\n  if (E2R_IsReadableCString(text)) {\n    local_single[0] = first;\n    local_single[1] = 0;\n    return (int *)local_single;\n  }\n  text = (char *)(uintptr_t)second;\n  if (E2R_IsReadableCString(text)) {\n    local_single[0] = second;\n    local_single[1] = 0;\n    return (int *)local_single;\n  }\n  return (int *)0x0;\n}\n`;
 let hostedTextState = `\nstatic const byte *E2R_HostedGlyphRows(byte ch)\n{\n  static const byte space[7] = {0,0,0,0,0,0,0};\n  static const byte unknown[7] = {0x0e,0x11,0x01,0x06,0x04,0,0x04};\n\n  switch (ch) {\n  case '0': { static const byte r[7] = {0x0e,0x11,0x13,0x15,0x19,0x11,0x0e}; return r; }\n  case '1': { static const byte r[7] = {0x04,0x0c,0x04,0x04,0x04,0x04,0x0e}; return r; }\n  case '2': { static const byte r[7] = {0x0e,0x11,0x01,0x02,0x04,0x08,0x1f}; return r; }\n  case '3': { static const byte r[7] = {0x1e,0x01,0x01,0x0e,0x01,0x01,0x1e}; return r; }\n  case '4': { static const byte r[7] = {0x02,0x06,0x0a,0x12,0x1f,0x02,0x02}; return r; }\n  case '5': { static const byte r[7] = {0x1f,0x10,0x1e,0x01,0x01,0x11,0x0e}; return r; }\n  case '6': { static const byte r[7] = {0x06,0x08,0x10,0x1e,0x11,0x11,0x0e}; return r; }\n  case '7': { static const byte r[7] = {0x1f,0x01,0x02,0x04,0x08,0x08,0x08}; return r; }\n  case '8': { static const byte r[7] = {0x0e,0x11,0x11,0x0e,0x11,0x11,0x0e}; return r; }\n  case '9': { static const byte r[7] = {0x0e,0x11,0x11,0x0f,0x01,0x02,0x0c}; return r; }\n  case 'A': { static const byte r[7] = {0x0e,0x11,0x11,0x1f,0x11,0x11,0x11}; return r; }\n  case 'B': { static const byte r[7] = {0x1e,0x11,0x11,0x1e,0x11,0x11,0x1e}; return r; }\n  case 'C': { static const byte r[7] = {0x0f,0x10,0x10,0x10,0x10,0x10,0x0f}; return r; }\n  case 'D': { static const byte r[7] = {0x1e,0x11,0x11,0x11,0x11,0x11,0x1e}; return r; }\n  case 'E': { static const byte r[7] = {0x1f,0x10,0x10,0x1e,0x10,0x10,0x1f}; return r; }\n  case 'F': { static const byte r[7] = {0x1f,0x10,0x10,0x1e,0x10,0x10,0x10}; return r; }\n  case 'G': { static const byte r[7] = {0x0f,0x10,0x10,0x13,0x11,0x11,0x0f}; return r; }\n  case 'H': { static const byte r[7] = {0x11,0x11,0x11,0x1f,0x11,0x11,0x11}; return r; }\n  case 'I': { static const byte r[7] = {0x0e,0x04,0x04,0x04,0x04,0x04,0x0e}; return r; }\n  case 'J': { static const byte r[7] = {0x01,0x01,0x01,0x01,0x11,0x11,0x0e}; return r; }\n  case 'K': { static const byte r[7] = {0x11,0x12,0x14,0x18,0x14,0x12,0x11}; return r; }\n  case 'L': { static const byte r[7] = {0x10,0x10,0x10,0x10,0x10,0x10,0x1f}; return r; }\n  case 'M': { static const byte r[7] = {0x11,0x1b,0x15,0x15,0x11,0x11,0x11}; return r; }\n  case 'N': { static const byte r[7] = {0x11,0x19,0x15,0x13,0x11,0x11,0x11}; return r; }\n  case 'O': { static const byte r[7] = {0x0e,0x11,0x11,0x11,0x11,0x11,0x0e}; return r; }\n  case 'P': { static const byte r[7] = {0x1e,0x11,0x11,0x1e,0x10,0x10,0x10}; return r; }\n  case 'Q': { static const byte r[7] = {0x0e,0x11,0x11,0x11,0x15,0x12,0x0d}; return r; }\n  case 'R': { static const byte r[7] = {0x1e,0x11,0x11,0x1e,0x14,0x12,0x11}; return r; }\n  case 'S': { static const byte r[7] = {0x0f,0x10,0x10,0x0e,0x01,0x01,0x1e}; return r; }\n  case 'T': { static const byte r[7] = {0x1f,0x04,0x04,0x04,0x04,0x04,0x04}; return r; }\n  case 'U': { static const byte r[7] = {0x11,0x11,0x11,0x11,0x11,0x11,0x0e}; return r; }\n  case 'V': { static const byte r[7] = {0x11,0x11,0x11,0x11,0x11,0x0a,0x04}; return r; }\n  case 'W': { static const byte r[7] = {0x11,0x11,0x11,0x15,0x15,0x1b,0x11}; return r; }\n  case 'X': { static const byte r[7] = {0x11,0x11,0x0a,0x04,0x0a,0x11,0x11}; return r; }\n  case 'Y': { static const byte r[7] = {0x11,0x11,0x0a,0x04,0x04,0x04,0x04}; return r; }\n  case 'Z': { static const byte r[7] = {0x1f,0x01,0x02,0x04,0x08,0x10,0x1f}; return r; }\n  case '.': { static const byte r[7] = {0,0,0,0,0,0x0c,0x0c}; return r; }\n  case '(': { static const byte r[7] = {0x02,0x04,0x08,0x08,0x08,0x04,0x02}; return r; }\n  case ')': { static const byte r[7] = {0x08,0x04,0x02,0x02,0x02,0x04,0x08}; return r; }\n  case '-': { static const byte r[7] = {0,0,0,0x1f,0,0,0}; return r; }\n  case '_': { static const byte r[7] = {0,0,0,0,0,0,0x1f}; return r; }\n  case ' ': return space;\n  default: return unknown;\n  }\n}\n\nstatic void E2R_DrawHostedText(byte *text)\n{\n  byte ch;\n  const byte *rows;\n  int advance;\n  int base;\n  byte color;\n  uint col;\n  uint i;\n  int pitch;\n  uint row;\n  int scale;\n  int style_surface;\n  int surface;\n  int x;\n  int y;\n  uint yy;\n  uint xx;\n\n  if (text == (byte *)0x0 || IsBadReadPtr(text,1)) {\n    return;\n  }\n  style_surface = DAT_0047a279 >> 0x18;\n  surface = style_surface;\n  if (DAT_0047a43c != 0) {\n    surface = surface + 2;\n  }\n  if (surface < 0 || 3 < surface) {\n    return;\n  }\n  base = FUN_00418a04((undefined4)(uintptr_t)surface,&pitch);\n  if ((uintptr_t)base < 0x10000u || pitch <= 0 || _DAT_006401ec <= 0 ||\n      _DAT_006401d4 <= 0) {\n    return;\n  }\n  x = (short)*(undefined2 *)(0x006366c4 + surface * 2);\n  y = (short)*(undefined2 *)(0x006366d0 + surface * 2);\n  color = ((byte *)0x006366dc)[style_surface * 2];\n  if (color == 0) {\n    color = 0xf;\n  }\n  advance = DAT_0047a408 == 0 ? 12 : DAT_0047a408;\n  scale = DAT_0047a43c == 0 ? 1 : 2;\n  for (i = 0; i < 10000 && !IsBadReadPtr(text + i,1); i = i + 1) {\n    ch = text[i];\n    if (ch == 0) {\n      break;\n    }\n    if ('a' <= ch && ch <= 'z') {\n      ch = ch - ('a' - 'A');\n    }\n    rows = E2R_HostedGlyphRows(ch);\n    for (row = 0; row < 7; row = row + 1) {\n      for (col = 0; col < 5; col = col + 1) {\n        if ((rows[row] & (byte)(1u << (4 - col))) != 0) {\n          for (yy = 0; yy < (uint)scale; yy = yy + 1) {\n            for (xx = 0; xx < (uint)scale; xx = xx + 1) {\n              int px = x + (int)(col * (uint)scale + xx);\n              int py = y + (int)(row * (uint)scale + yy);\n              if (0 <= px && px < _DAT_006401ec && 0 <= py && py < _DAT_006401d4) {\n                *(byte *)(base + py * pitch + px) = color;\n              }\n            }\n          }\n        }\n      }\n    }\n    x = x + advance;\n  }\n  *(undefined2 *)(0x006366c4 + surface * 2) = (undefined2)x;\n}\n`;
 hostedTextState = hostedTextState.replace(
   "if (color == 0) {\\n    color = 0xf;",
   "if (color == 0 || color == 10 || color == 0xf) {\\n    color = 8;"
+);
+hostedTextState = hostedTextState.replace(
+  "\n\nstatic void E2R_DrawHostedText(byte *text)",
+  "\n\nstatic void E2R_FillHostedRect(int left,int top,int right,int bottom)\n{\n  int base;\n  byte color;\n  int pitch;\n  int style_surface;\n  int surface;\n  int x;\n  int y;\n\n  style_surface = DAT_0047a279 >> 0x18;\n  surface = style_surface;\n  if (DAT_0047a43c != 0) {\n    surface = surface + 2;\n  }\n  if (surface < 0 || 3 < surface || right < left || bottom < top) {\n    return;\n  }\n  if (left < 0) left = 0;\n  if (top < 0) top = 0;\n  if (_DAT_006401ec <= right) right = _DAT_006401ec - 1;\n  if (_DAT_006401d4 <= bottom) bottom = _DAT_006401d4 - 1;\n  if (right < left || bottom < top) {\n    return;\n  }\n  base = FUN_00418a04((undefined4)(uintptr_t)surface,&pitch);\n  if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||\n      _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||\n      0x1000 < _DAT_006401ec || 0x1000 < _DAT_006401d4 ||\n      E2R_IsBadWritePtr((void *)(uintptr_t)base,\n                        ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +\n                        (size_t)_DAT_006401ec)) {\n    return;\n  }\n  color = ((byte *)0x006366dc)[style_surface * 2];\n  for (y = top; y <= bottom; y = y + 1) {\n    byte *row = (byte *)(base + y * pitch + left);\n    for (x = left; x <= right; x = x + 1) {\n      *row = color;\n      row = row + 1;\n    }\n  }\n}\n\nstatic void E2R_DrawHostedRectBorder(int left,int top,int right,int bottom)\n{\n  int style_surface;\n\n  if (right < left || bottom < top) {\n    return;\n  }\n  style_surface = DAT_0047a279 >> 0x18;\n  *(undefined2 *)((undefined1 *)0x006366dc + style_surface * 2) = 8;\n  FUN_0041b078(left,top);\n  FUN_0041b34c(right,top);\n  FUN_0041b34c(right,bottom);\n  *(undefined2 *)((undefined1 *)0x006366dc + style_surface * 2) = 0xe;\n  FUN_0041b078(right - 1,bottom);\n  FUN_0041b34c(left,bottom);\n  FUN_0041b34c(left,top);\n}\n\nstatic void E2R_DrawHostedText(byte *text)"
+);
+hostedTextState = hostedTextState.replace(
+  /static void E2R_FillHostedRect\(int left,int top,int right,int bottom\)[\s\S]*?\n\nstatic void E2R_DrawHostedText\(byte \*text\)/,
+  `static void E2R_CopyHostedSurface(int dst,int src)
+{
+  int dst_base;
+  int dst_pitch;
+  int src_base;
+  int src_pitch;
+  int y;
+
+  if (dst == src || dst < 0 || 3 < dst || src < 0 || 3 < src ||
+      _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||
+      0x1000 < _DAT_006401ec || 0x1000 < _DAT_006401d4) {
+    return;
+  }
+  src_base = FUN_00418a04((undefined4)(uintptr_t)src,&src_pitch);
+  dst_base = FUN_00418a04((undefined4)(uintptr_t)dst,&dst_pitch);
+  if ((uintptr_t)src_base < 0x10000u || (uintptr_t)dst_base < 0x10000u ||
+      src_pitch < _DAT_006401ec || dst_pitch < _DAT_006401ec ||
+      IsBadReadPtr((void *)(uintptr_t)src_base,
+                   ((size_t)_DAT_006401d4 - 1u) * (size_t)src_pitch +
+                   (size_t)_DAT_006401ec) ||
+      E2R_IsBadWritePtr((void *)(uintptr_t)dst_base,
+                        ((size_t)_DAT_006401d4 - 1u) * (size_t)dst_pitch +
+                        (size_t)_DAT_006401ec)) {
+    return;
+  }
+  for (y = 0; y < _DAT_006401d4; y = y + 1) {
+    memcpy((void *)(uintptr_t)(dst_base + y * dst_pitch),
+           (void *)(uintptr_t)(src_base + y * src_pitch),
+           (size_t)_DAT_006401ec);
+  }
+}
+
+#define E2R_REQUESTER_BACKDROP_MAX 8
+static byte E2R_requester_backdrop_pixels[E2R_REQUESTER_BACKDROP_MAX][2][640 * 480];
+static int E2R_requester_backdrop_width[E2R_REQUESTER_BACKDROP_MAX];
+static int E2R_requester_backdrop_height[E2R_REQUESTER_BACKDROP_MAX];
+static int E2R_requester_backdrop_depth;
+
+static void E2R_SaveHostedRequesterBackdrop(void)
+{
+  int base;
+  int pitch;
+  int slot;
+  int surface;
+  int y;
+
+  if (DAT_0047a43c == 0 || _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||
+      640 < _DAT_006401ec || 480 < _DAT_006401d4) {
+    return;
+  }
+  if (E2R_requester_backdrop_depth >= E2R_REQUESTER_BACKDROP_MAX) {
+    return;
+  }
+  slot = E2R_requester_backdrop_depth;
+  E2R_requester_backdrop_width[slot] = _DAT_006401ec;
+  E2R_requester_backdrop_height[slot] = _DAT_006401d4;
+  for (surface = 0; surface < 2; surface = surface + 1) {
+    base = FUN_00418a04((undefined4)(uintptr_t)(surface + 2),&pitch);
+    if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||
+        IsBadReadPtr((void *)(uintptr_t)base,
+                     ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +
+                     (size_t)_DAT_006401ec)) {
+      return;
+    }
+    for (y = 0; y < _DAT_006401d4; y = y + 1) {
+      memcpy(E2R_requester_backdrop_pixels[slot][surface] + y * 640,
+             (void *)(uintptr_t)(base + y * pitch),
+             (size_t)_DAT_006401ec);
+    }
+  }
+  E2R_requester_backdrop_depth = E2R_requester_backdrop_depth + 1;
+}
+
+static void E2R_RestoreHostedRequesterBackdrop(void)
+{
+  int base;
+  int height;
+  int pitch;
+  int slot;
+  int surface;
+  int width;
+  int y;
+
+  if (DAT_0047a43c == 0 || E2R_requester_backdrop_depth <= 0) {
+    return;
+  }
+  slot = E2R_requester_backdrop_depth - 1;
+  width = E2R_requester_backdrop_width[slot];
+  height = E2R_requester_backdrop_height[slot];
+  if (width <= 0 || height <= 0 || 640 < width || 480 < height) {
+    E2R_requester_backdrop_depth = slot;
+    return;
+  }
+  for (surface = 0; surface < 2; surface = surface + 1) {
+    base = FUN_00418a04((undefined4)(uintptr_t)(surface + 2),&pitch);
+    if ((uintptr_t)base < 0x10000u || pitch < width ||
+        E2R_IsBadWritePtr((void *)(uintptr_t)base,
+                          ((size_t)height - 1u) * (size_t)pitch +
+                          (size_t)width)) {
+      E2R_requester_backdrop_depth = slot;
+      return;
+    }
+    for (y = 0; y < height; y = y + 1) {
+      memcpy((void *)(uintptr_t)(base + y * pitch),
+             E2R_requester_backdrop_pixels[slot][surface] + y * 640,
+             (size_t)width);
+    }
+  }
+  E2R_requester_backdrop_depth = slot;
+  DAT_0047a788 = 1;
+}
+
+static void E2R_ResetHostedRequesterBackdrop(void)
+{
+  E2R_requester_backdrop_depth = 0;
+}
+
+static int E2R_HostedSurfaceScore(int surface)
+{
+  int base;
+  int pitch;
+  int score;
+  int x;
+  int y;
+
+  if (surface < 0 || 3 < surface || _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||
+      0x1000 < _DAT_006401ec || 0x1000 < _DAT_006401d4) {
+    return -1;
+  }
+  base = FUN_00418a04((undefined4)(uintptr_t)surface,&pitch);
+  if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||
+      IsBadReadPtr((void *)(uintptr_t)base,
+                   ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +
+                   (size_t)_DAT_006401ec)) {
+    return -1;
+  }
+  score = 0;
+  for (y = 0; y < _DAT_006401d4; y = y + 8) {
+    for (x = 0; x < _DAT_006401ec; x = x + 8) {
+      if (*(byte *)(base + y * pitch + x) != 0) {
+        score = score + 1;
+      }
+    }
+  }
+  return score;
+}
+
+static void E2R_FillHostedRect(int left,int top,int right,int bottom)
+{
+  int base;
+  byte color;
+  int count;
+  int i;
+  int pitch;
+  int style_surface;
+  int surface;
+  int targets[2];
+  int x;
+  int y;
+
+  style_surface = DAT_0047a279 >> 0x18;
+  surface = style_surface;
+  if (DAT_0047a43c != 0) {
+    surface = surface + 2;
+  }
+  if (surface < 0 || 3 < surface || right < left || bottom < top) {
+    return;
+  }
+  targets[0] = surface;
+  count = 1;
+  if (DAT_0047a43c != 0) {
+    if (E2R_HostedSurfaceScore(surface == 2 ? 3 : 2) > E2R_HostedSurfaceScore(surface)) {
+      E2R_CopyHostedSurface(surface,surface == 2 ? 3 : 2);
+    }
+    else {
+      E2R_CopyHostedSurface(surface == 2 ? 3 : 2,surface);
+    }
+    targets[0] = 2;
+    targets[1] = 3;
+    count = 2;
+  }
+  if (left < 0) left = 0;
+  if (top < 0) top = 0;
+  if (_DAT_006401ec <= right) right = _DAT_006401ec - 1;
+  if (_DAT_006401d4 <= bottom) bottom = _DAT_006401d4 - 1;
+  if (right < left || bottom < top) {
+    return;
+  }
+  color = ((byte *)0x006366dc)[style_surface * 2];
+  for (i = 0; i < count; i = i + 1) {
+    base = FUN_00418a04((undefined4)(uintptr_t)targets[i],&pitch);
+    if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||
+        _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||
+        0x1000 < _DAT_006401ec || 0x1000 < _DAT_006401d4 ||
+        E2R_IsBadWritePtr((void *)(uintptr_t)base,
+                          ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +
+                          (size_t)_DAT_006401ec)) {
+      continue;
+    }
+    for (y = top; y <= bottom; y = y + 1) {
+      byte *row = (byte *)(base + y * pitch + left);
+      for (x = left; x <= right; x = x + 1) {
+        *row = color;
+        row = row + 1;
+      }
+    }
+  }
+}
+
+static void E2R_DrawHostedRectBorder(int left,int top,int right,int bottom)
+{
+  int base;
+  int count;
+  int i;
+  int pitch;
+  int style_surface;
+  int targets[2];
+  int x;
+  int y;
+
+  if (right < left || bottom < top) {
+    return;
+  }
+  style_surface = DAT_0047a279 >> 0x18;
+  targets[0] = style_surface;
+  count = 1;
+  if (DAT_0047a43c != 0) {
+    targets[0] = 2;
+    targets[1] = 3;
+    count = 2;
+  }
+  for (i = 0; i < count; i = i + 1) {
+    base = FUN_00418a04((undefined4)(uintptr_t)targets[i],&pitch);
+    if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||
+        _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||
+        0x1000 < _DAT_006401ec || 0x1000 < _DAT_006401d4 ||
+        E2R_IsBadWritePtr((void *)(uintptr_t)base,
+                          ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +
+                          (size_t)_DAT_006401ec)) {
+      continue;
+    }
+    if (left < 0) left = 0;
+    if (top < 0) top = 0;
+    if (_DAT_006401ec <= right) right = _DAT_006401ec - 1;
+    if (_DAT_006401d4 <= bottom) bottom = _DAT_006401d4 - 1;
+    for (x = left; x <= right; x = x + 1) {
+      *(byte *)(base + top * pitch + x) = 8;
+      *(byte *)(base + bottom * pitch + x) = 0xe;
+    }
+    for (y = top; y <= bottom; y = y + 1) {
+      *(byte *)(base + y * pitch + right) = 8;
+      *(byte *)(base + y * pitch + left) = 0xe;
+    }
+  }
+}
+
+static void E2R_DrawHostedText(byte *text)`
+);
+hostedTextState = hostedTextState.replace(
+  /(static void E2R_DrawHostedText\(byte \*text\)\n\{\n[\s\S]*?  int base;\n)  byte color;/,
+  "$1  int base2;\n  byte color;"
+);
+hostedTextState = hostedTextState.replace(
+  /(static void E2R_DrawHostedText\(byte \*text\)\n\{\n[\s\S]*?  int pitch;\n)  uint row;/,
+  "$1  int pitch2;\n  uint row;"
+);
+hostedTextState = hostedTextState.replace(
+  /(static void E2R_DrawHostedText\(byte \*text\)\n\{\n[\s\S]*?  int surface;\n)  int x;/,
+  "$1  int surface2;\n  int x;"
+);
+hostedTextState = hostedTextState.replace(
+  "  if ((uintptr_t)base < 0x10000u || pitch <= 0 || _DAT_006401ec <= 0 ||\n      _DAT_006401d4 <= 0) {\n    return;\n  }\n  x = (short)*(undefined2 *)(0x006366c4 + surface * 2);",
+  "  if ((uintptr_t)base < 0x10000u || pitch <= 0 || _DAT_006401ec <= 0 ||\n      _DAT_006401d4 <= 0) {\n    return;\n  }\n  base2 = 0;\n  pitch2 = 0;\n  surface2 = -1;\n  if (DAT_0047a43c != 0) {\n    surface2 = surface == 2 ? 3 : 2;\n    base2 = FUN_00418a04((undefined4)(uintptr_t)surface2,&pitch2);\n    if ((uintptr_t)base2 < 0x10000u || pitch2 <= 0) {\n      base2 = 0;\n    }\n  }\n  x = (short)*(undefined2 *)(0x006366c4 + surface * 2);"
+);
+hostedTextState = hostedTextState.replace(
+  "                *(byte *)(base + py * pitch + px) = color;",
+  "                *(byte *)(base + py * pitch + px) = color;\n                if (base2 != 0) {\n                  *(byte *)(base2 + py * pitch2 + px) = color;\n                }"
 );
 const hostedRequesterLabelState = `\nstatic void E2R_DrawHostedRequesterLabels(short *record)\n{\n  byte *text;\n  byte color;\n  int item_width;\n  int text_width;\n  int x;\n  short *item;\n  uint guard;\n  uint len;\n  int style_surface;\n\n  if (DAT_0047a43c == 0 || record == (short *)0x0 || IsBadReadPtr(record,0x10)) {\n    return;\n  }\n  style_surface = DAT_0047a279 >> 0x18;\n  item = *(short **)(record + 6);\n  for (guard = 0; item != (short *)0x0 && guard < 0x40; guard = guard + 1) {\n    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {\n      break;\n    }\n    text = *(byte **)(item + 4);\n    if ((uintptr_t)text == 0x00473304u) {\n      text = (byte *)\"Quit\";\n    }\n    if (text != (byte *)0x0 && !IsBadReadPtr(text,1) && text[0] != 0) {\n      len = 0;\n      while (len < 0x100 && !IsBadReadPtr(text + len,1) && text[len] != 0) {\n        len = len + 1;\n      }\n      text_width = (DAT_0047a408 == 0 ? 12 : DAT_0047a408) * (int)len;\n      item_width = (int)item[2];\n      if ((*(byte *)((int)item + 0x11) & 0x40) == 0) {\n        x = item[0xb] + (item_width - text_width) / 2;\n      }\n      else {\n        x = item[0xb] + 4;\n      }\n      color = item == _DAT_00643430 ? 0xe : 8;\n      *(undefined2 *)((undefined1 *)0x006366dc + style_surface * 2) = color;\n      FUN_0041b078(x,(short)(item[0xd] + 1));\n      E2R_DrawHostedText(text);\n    }\n    item = *(short **)(item + 9);\n  }\n}\n`;
 const streamLineState = `\nstatic undefined1 *E2R_ReadStreamLine(undefined4 stream_handle,char *buffer,uint count)\n{\n  undefined4 *stream;\n  byte *cursor;\n  uint remaining;\n  uint copied = 0;\n  byte value = 0;\n\n  if (count == 0) {\n    return (undefined1 *)0x0;\n  }\n  buffer[0] = '\\0';\n  stream = (undefined4 *)(uintptr_t)stream_handle;\n  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||\n      IsBadReadPtr(stream,0x1c) || stream[6] != E2R_STREAM_MAGIC) {\n    return (undefined1 *)0x0;\n  }\n  cursor = (byte *)(uintptr_t)stream[0];\n  remaining = (uint)stream[1];\n  while (copied + 1 < count && remaining != 0) {\n    value = *cursor;\n    cursor = cursor + 1;\n    remaining = remaining - 1;\n    buffer[copied] = (char)value;\n    copied = copied + 1;\n    if (value == '\\n') {\n      break;\n    }\n  }\n  stream[0] = (undefined4)(uintptr_t)cursor;\n  stream[1] = remaining;\n  if (copied == 0) {\n    return (undefined1 *)0x0;\n  }\n  buffer[copied] = '\\0';\n  return (undefined1 *)buffer;\n}\n`;
@@ -1597,6 +1917,10 @@ static void E2R_InitRequesterSettingsItems(void)
 }
 `;
 source = source.replace("\n\n/* 00410078 */", `${ctypeTableState}\n${requesterActionState}\n${requesterFocusState}\n${menuStringState}\n${hostedTextState}\n${hostedRequesterLabelState}\n${streamLineState}\n${configHeaderState}\n${cursorMaskState}\n${startupPartNames}\n${glyphTableMirror}\n${hudIconNameState}\n${requesterRecordState}\n\n/* 00410078 */`);
+source = source.replace(
+  "static int E2R_InvokeRequesterAction(uintptr_t action)",
+  "static int E2R_requester_continue_after_action;\n\nstatic int E2R_InvokeRequesterAction(uintptr_t action)"
+);
 source = source.replace("\n\n/* 00410078 */", `${packedNameState}\n${actionCodeState}\n\n/* 00410078 */`);
 source = source.replace(
   "static uint E2R_current_actor_trace_diag_count;\nstatic const char *E2R_current_actor_last_site;",
@@ -1649,6 +1973,14 @@ source = source.replace(
 source = source.replace(
   "  uintptr_t old_value = _DAT_00643650;\n\n  if (E2R_requester_state_diag_count < 64) {",
   "  uintptr_t old_value = _DAT_00643650;\n\n  E2R_GameStateLog(\"requester state write site=%s old=%lu new=%lu mode=%lu dialog=%lu requester=0x%x scene=0x%lx\",\n                   site,(unsigned long)old_value,(unsigned long)value,\n                   (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,\n                   (unsigned int)E2R_WORD_AT(DAT_0047a45e,2),\n                   (unsigned long)_DAT_0073cc3c);\n  if (E2R_requester_state_diag_count < 64) {"
+);
+source = source.replace(
+  "static uintptr_t E2R_TraceRequesterState(const char *site, uintptr_t value)\n{",
+  "static int E2R_MenuDiagEnabled(void)\n{\n  static int initialized;\n  static int enabled;\n  char *value;\n\n  if (initialized == 0) {\n    value = getenv(\"E2R_MENU_DIAG\");\n    enabled = value != (char *)0x0 && value[0] != '\\0' && value[0] != '0';\n    initialized = 1;\n  }\n  return enabled;\n}\n\nstatic const char *E2R_RequesterActionName(uintptr_t action)\n{\n  if (action == (uintptr_t)&LAB_0043c594) return \"confirm_yes\";\n  if (action == (uintptr_t)&LAB_0043d458) return \"start_male\";\n  if (action == (uintptr_t)&LAB_0043d464) return \"start_female\";\n  if (action == (uintptr_t)&LAB_0043d470) return \"settings\";\n  if (action == (uintptr_t)&LAB_0043d47c) return \"save\";\n  if (action == (uintptr_t)&LAB_0043d490) return \"load\";\n  if (action == (uintptr_t)&DAT_0043d49c) return \"quit_prompt\";\n  if (action == (uintptr_t)&DAT_0043d4c0) return \"noop\";\n  if (action == (uintptr_t)&LAB_0043d728) return \"settings_music\";\n  if (action == (uintptr_t)&LAB_0043d7a0) return \"settings_sfx\";\n  if (action == (uintptr_t)&LAB_0043d7f0) return \"settings_difficulty\";\n  if (action == (uintptr_t)&LAB_0043d6e4) return \"settings_resolution\";\n  if (action == (uintptr_t)&LAB_0043d83c) return \"ok\";\n  if (action == (uintptr_t)&LAB_0043c4e8) return \"cancel\";\n  return \"unknown\";\n}\n\nstatic uintptr_t E2R_TraceRequesterState(const char *site, uintptr_t value)\n{"
+);
+source = source.replace(
+  "  uintptr_t old_value = _DAT_00643650;\n\n  E2R_GameStateLog(\"requester state write site=%s old=%lu new=%lu mode=%lu dialog=%lu requester=0x%x scene=0x%lx\",",
+  "  uintptr_t old_value = _DAT_00643650;\n\n  if (E2R_MenuDiagEnabled()) {\n    fprintf(stderr,\n            \"menu state: site=%s old=%lu new=%lu requester=0x%x selected=0x%lx \"\n            \"mode=%lu dialog=%lu menu_request=%lu scene=0x%lx current=0x%lx\\n\",\n            site,(unsigned long)old_value,(unsigned long)value,\n            (unsigned int)E2R_WORD_AT(DAT_0047a45e,2),\n            (unsigned long)_DAT_00643430,\n            (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,\n            (unsigned long)DAT_00479db4,(unsigned long)_DAT_0073cc3c,\n            (unsigned long)DAT_0047a470);\n  }\n  E2R_GameStateLog(\"requester state write site=%s old=%lu new=%lu mode=%lu dialog=%lu requester=0x%x scene=0x%lx\","
 );
 source = source.replace(
   "    word82 = *(short *)(current + 0x82);\n    worde8 = *(short *)(current + 0xe8);\n  }\n  if (E2R_requester_state_diag_count < 64) {",
@@ -1807,6 +2139,74 @@ source = source.replace(/\(int\)&DAT_00479e8a/g, "(int)(undefined1 *)0x00479e8a"
 source = source.replace(/&DAT_00479e8e/g, "(undefined1 *)0x00479e8e");
 source = source.replace(/&DAT_00479e92/g, "(undefined1 *)0x00479e92");
 source = source.replace(/(undefined8 __fastcall FUN_0043b384\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  ulonglong uVar11;\r?\n\s*)DAT_0047a788 = 1;/, "$1in_EAX = (short *)(uintptr_t)param_1;\n  E2R_requester_probe_b384_count++;\n  E2R_requester_probe_b384_last_ptr = (uintptr_t)in_EAX;\n  if (IsBadReadPtr(in_EAX,0x40) || (uintptr_t)in_EAX >= 0x70000000u) {\n    E2R_requester_probe_b384_bad_ptr_count++;\n    in_EAX = (short *)FUN_0043aeac();\n    E2R_requester_probe_b384_last_ptr = (uintptr_t)in_EAX;\n    if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,0x40) || (uintptr_t)in_EAX >= 0x70000000u) {\n      return (ulonglong)param_2 << 32;\n    }\n  }\n  param_1 = (undefined4)(uintptr_t)in_EAX;\n  DAT_0047a788 = 1;");
+source = source.replace(
+  /(undefined8 __fastcall FUN_0043b384\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined4 extraout_EDX_02;\r?\n\s*)short \*psVar8;/,
+  "$1int mouse_state;\n  short *psVar8;"
+);
+source = source.replace(
+  "  if (DAT_0047a470 != (short *)0x0) {\n    ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] = ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] | 2;\n  }",
+  "  if (DAT_0047a470 != (short *)0x0 && E2R_IsReadableCurrentPointer(DAT_0047a470)) {\n    ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] = ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] | 2;\n  }"
+);
+source = source.replace(
+  "  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xf;\n  FUN_0041ab4c((*(int *)(in_EAX + 8) >> 0x10) + -1,*(int *)(in_EAX + 7) >> 0x10,\n               (*(int *)(in_EAX + 10) >> 0x10) + -1);\n  *(undefined2 *)((DAT_0047a279 >> 0x18) * 2 + 0x6366a8) = 1;\n  FUN_0041b078(extraout_ECX_00,(short)((uint)*(undefined4 *)(in_EAX + 7) >> 0x10));\n  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 8;\n  FUN_0041b34c(extraout_ECX_01,*(int *)(in_EAX + 7) >> 0x10);\n  FUN_0041b34c(extraout_ECX_02,*(int *)(in_EAX + 8) >> 0x10);\n  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xe;\n  FUN_0041b078(extraout_ECX_03,(short)((uint)*(undefined4 *)(in_EAX + 8) >> 0x10) + -1);\n  FUN_0041b34c(extraout_ECX_04,(*(int *)(in_EAX + 8) >> 0x10) + -1);\n  FUN_0041b34c(extraout_ECX_05,*(int *)(in_EAX + 7) >> 0x10);",
+  "  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xf;\n  E2R_FillHostedRect(*(int *)(in_EAX + 7) >> 0x10,*(int *)(in_EAX + 9) >> 0x10,\n                     (*(int *)(in_EAX + 8) >> 0x10) + -1,\n                     (*(int *)(in_EAX + 10) >> 0x10) + -1);\n  *(undefined2 *)((DAT_0047a279 >> 0x18) * 2 + 0x6366a8) = 1;\n  E2R_DrawHostedRectBorder(*(int *)(in_EAX + 7) >> 0x10,*(int *)(in_EAX + 9) >> 0x10,\n                           (*(int *)(in_EAX + 8) >> 0x10) + -1,\n                           (*(int *)(in_EAX + 10) >> 0x10) + -1);"
+);
+source = source.replace(
+  "  FUN_0041bcc8(param_1);\n  bVar10 = DAT_0047a4f8 != 0;",
+  "  FUN_0041bcc8(param_1);\n  E2R_SaveHostedRequesterBackdrop();\n  bVar10 = DAT_0047a4f8 != 0;"
+);
+source = source.replace(
+  "  for (psVar8 = *(short **)(in_EAX + 6); psVar8 != (short *)0x0; psVar8 = *(short **)(psVar8 + 9)) {\n    FUN_0043b9bc(uVar4,psVar8);\n    uVar4 = extraout_ECX_08;\n    uVar7 = extraout_EDX_01;\n    uVar5 = extraout_var_01;\n  }\n  uVar11 = CONCAT44(uVar7,CONCAT22(uVar5,E2R_WORD_AT(DAT_0047a45e,2)));",
+  "  for (psVar8 = *(short **)(in_EAX + 6); psVar8 != (short *)0x0; psVar8 = *(short **)(psVar8 + 9)) {\n    FUN_0043b9bc(uVar4,psVar8);\n    uVar4 = extraout_ECX_08;\n    uVar7 = extraout_EDX_01;\n    uVar5 = extraout_var_01;\n  }\n  E2R_DrawHostedRequesterLabels(in_EAX);\n  uVar11 = CONCAT44(uVar7,CONCAT22(uVar5,E2R_WORD_AT(DAT_0047a45e,2)));"
+);
+source = source.replace(
+  "  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xf;\n  FUN_0041ab4c((*(int *)(puVar3 + 8) >> 0x10) + -1,*(int *)(puVar3 + 7) >> 0x10,\n               (*(int *)(puVar3 + 10) >> 0x10) + -1);\n  *(undefined2 *)((DAT_0047a279 >> 0x18) * 2 + 0x6366a8) = 1;\n  FUN_0041b078(extraout_ECX,(short)((uint)*(undefined4 *)(puVar3 + 7) >> 0x10));\n  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 8;\n  FUN_0041b34c(extraout_ECX_00,*(int *)(puVar3 + 7) >> 0x10);\n  FUN_0041b34c(extraout_ECX_01,*(int *)(puVar3 + 8) >> 0x10);\n  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xe;\n  FUN_0041b078(extraout_ECX_02,(short)((uint)*(undefined4 *)(puVar3 + 8) >> 0x10) + -1);\n  FUN_0041b34c(extraout_ECX_03,(*(int *)(puVar3 + 8) >> 0x10) + -1);\n  FUN_0041b34c(extraout_ECX_04,*(int *)(puVar3 + 7) >> 0x10);",
+  "  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xf;\n  E2R_FillHostedRect(*(int *)(puVar3 + 7) >> 0x10,*(int *)(puVar3 + 9) >> 0x10,\n                     (*(int *)(puVar3 + 8) >> 0x10) + -1,\n                     (*(int *)(puVar3 + 10) >> 0x10) + -1);\n  *(undefined2 *)((DAT_0047a279 >> 0x18) * 2 + 0x6366a8) = 1;\n  E2R_DrawHostedRectBorder(*(int *)(puVar3 + 7) >> 0x10,*(int *)(puVar3 + 9) >> 0x10,\n                           (*(int *)(puVar3 + 8) >> 0x10) + -1,\n                           (*(int *)(puVar3 + 10) >> 0x10) + -1);"
+);
+source = source.replace(
+  "    FUN_0041ab4c((*(int *)(param_2 + 0xb) >> 0x10) + -1,*(int *)(param_2 + 10) >> 0x10,\n                 (*(int *)(param_2 + 0xd) >> 0x10) + -1);",
+  "    E2R_FillHostedRect(param_2[0xb],param_2[0xd],param_2[0xc] + -1,param_2[0xe] + -1);"
+);
+source = source.replace(
+  "    FUN_0041b078(extraout_ECX,(short)((uint)*(undefined4 *)(param_2 + 10) >> 0x10) + -1);\n    FUN_0041b34c(extraout_ECX_00,(*(int *)(param_2 + 10) >> 0x10) + -1);\n    uVar4 = extraout_ECX_01;\n    if ((*(byte *)((int)param_2 + 0x11) & 4) == 0) {\n      FUN_0041b34c(extraout_ECX_01,(*(int *)(param_2 + 0xb) >> 0x10) + 1);\n      uVar4 = extraout_ECX_02;\n    }",
+  "    E2R_DrawHostedRectBorder(param_2[0xb],param_2[0xd],param_2[0xc] + -1,param_2[0xe] + -1);\n    uVar4 = extraout_ECX_02;"
+);
+source = source.replace(
+  "    FUN_0041b078(uVar4,(short)((uint)*(undefined4 *)(param_2 + 0xb) >> 0x10));\n    FUN_0041b34c(extraout_ECX_03,*(int *)(param_2 + 0xb) >> 0x10);\n    if ((*(byte *)((int)param_2 + 0x11) & 2) == 0) {\n      FUN_0041b34c(extraout_ECX_04,(*(int *)(param_2 + 10) >> 0x10) + -1);\n    }\n",
+  ""
+);
+source = source.replace(
+  "  int extraout_ECX_06;\n  uint uVar5;",
+  "  int extraout_ECX_06;\n  int text_x;\n  uint uVar5;"
+);
+source = source.replace(
+  "    FUN_0041b078(iVar3,(short)(param_2[0xd] + 1));\n    FUN_00418770(extraout_ECX_05,*(byte **)(param_2 + 4));",
+  "    text_x = iVar3;\n    FUN_0041b078(text_x,(short)(param_2[0xd] + 1));\n    FUN_00418770(extraout_ECX_05,*(byte **)(param_2 + 4));"
+);
+source = source.replace(
+  "      iVar3 = extraout_ECX_06 + (uint)uVar2;",
+  "      iVar3 = text_x + (uint)uVar2;"
+);
+source = source.replace(
+  "        uVar11 = FUN_0041ba7c(iVar2,(int)(uVar11 >> 0x20));\n        if ((uVar11 & 2) != 0) break;\n        if (extraout_ECX_09 == _DAT_0064342c) {\n          uVar11 = FUN_0041cfc0();\n          iVar2 = extraout_ECX_13;\n        }\n        else {\n          uVar11 = FUN_0043bd4c(extraout_ECX_09,_DAT_00643430);\n          iVar2 = extraout_ECX_12;\n        }\n      }\n      iVar2 = extraout_ECX_09;\n      if (extraout_ECX_09 != _DAT_0064342c) {\n        _DAT_0064342c = extraout_ECX_09;\n        uVar11 = FUN_0043b9bc(extraout_ECX_09,_DAT_00643430);\n        iVar2 = extraout_ECX_10;\n      }",
+  "        uVar11 = FUN_0041ba7c(iVar2,(int)(uVar11 >> 0x20));\n        mouse_state = (int)uVar11;\n        if ((uVar11 & 2) != 0) break;\n        if (mouse_state == _DAT_0064342c) {\n          uVar11 = FUN_0041cfc0();\n          iVar2 = mouse_state;\n        }\n        else {\n          uVar11 = FUN_0043bd4c(mouse_state,_DAT_00643430);\n          iVar2 = mouse_state;\n        }\n      }\n      iVar2 = mouse_state;\n      if (mouse_state != _DAT_0064342c) {\n        _DAT_0064342c = mouse_state;\n        uVar11 = FUN_0043b9bc(mouse_state,_DAT_00643430);\n        iVar2 = mouse_state;\n      }"
+);
+source = source.replace(
+  "      iVar3 = FUN_0043b708(iVar2,psVar8);\n      iVar2 = extraout_ECX_11;\n      uVar11 = CONCAT44(extraout_EDX_02,iVar3);",
+  "      iVar3 = FUN_0043b708(iVar2,psVar8);\n      iVar2 = mouse_state;\n      uVar11 = CONCAT44(extraout_EDX_02,iVar3);\n      if (E2R_requester_continue_after_action != 0) {\n        E2R_requester_continue_after_action = 0;\n        _DAT_0064342c = 0;\n        _DAT_006443d0 = 0;\n        iVar2 = 0;\n        uVar11 = 0;\n      }"
+);
+source = source.replace(
+  "          if (in_EAX != (short *)(undefined1 *)0x0047a684) {\n            uVar4 = FUN_0041bcfc(iVar2);\n          }",
+  "          if (in_EAX != (short *)(undefined1 *)0x0047a684) {\n            E2R_RestoreHostedRequesterBackdrop();\n            uVar4 = FUN_0041bcfc(iVar2);\n          }"
+);
+source = source.replace(
+  "  _DAT_0064342c = 0;\n  _DAT_006443d0 = (ushort)(in_EAX == (short *)(undefined1 *)0x0047a684);\n  iVar2 = 0;",
+  "  _DAT_0064342c = 0;\n  _DAT_006443d0 = (ushort)(in_EAX == (short *)(undefined1 *)0x0047a684);\n  E2R_RequesterProbeFeedPendingMouse(E2R_WORD_AT(DAT_0047a45e,2));\n  iVar2 = 0;"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_0043b384\(undefined4 param_1,undefined4 param_2\)[\s\S]*?for \(psVar8 = \*\(short \*\*\)\(in_EAX \+ 6\); psVar8 != \(short \*\)0x0; psVar8 = \*\(short \*\*\)\(psVar8 \+ 9\)\) \{\r?\n    FUN_0043b9bc\(uVar4,psVar8\);\r?\n    uVar4 = extraout_ECX_08;\r?\n    uVar7 = extraout_EDX_01;\r?\n    uVar5 = extraout_var_01;\r?\n  \})\r?\n  uVar11 = CONCAT44/,
+  "$1\n  E2R_DrawHostedRequesterLabels(in_EAX);\n  uVar11 = CONCAT44"
+);
 source = source.replace(/(void __fastcall\s*\r?\nFUN_0043fe24\(short param_1,short param_2,short param_3,undefined4 param_4,undefined4 param_5,\s*\r?\n\s*short param_6,undefined4 param_7\)[\s\S]*?\r?\n  short unaff_BX;\r?\n\s*)if \(DAT_0047a43c == 0\) \{/, "$1if (!E2R_NextMenuRecordTarget(&in_EAX,&unaff_BX)) {\n    return;\n  }\n  if (DAT_0047a43c == 0) {");
 source = source.replace(/(void FUN_0043fea4\(void\)\s*\r?\n\s*\{[\s\S]*?\r?\n  char \*pcVar8;\r?\n\s*)if \(DAT_00479e00 == 0\) \{/, "$1E2R_ResetMenuRecordBuilder();\n  if (DAT_00479e00 == 0) {");
 source = source.replace("  *(undefined1 *)(_DAT_006438c0 + 4) = 0x87;", "  if (_DAT_006438c0 != 0) {\n    *(undefined1 *)(_DAT_006438c0 + 4) = 0x87;\n  }");
@@ -3455,7 +3855,7 @@ source = source.replace(
 );
 source = source.replace(
   "    case 6:\n      FUN_00414e68();\n    }\n    FUN_0041cfc0();",
-  "    case 6:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));\n    }\n    FUN_0041cfc0();"
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n    }\n    FUN_0041cfc0();"
 );
 source = source.replace(
   "    case 2:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(extraout_ECX_06,(int)((ulonglong)uVar4 >> 0x20));",
@@ -3470,8 +3870,8 @@ source = source.replace(
   "    case 4:\n      _DAT_0064353c = -1;\n      iVar2 = 0;\n      uVar1 = 0x29;"
 );
 source = source.replace(
-  "    case 6:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\",",
-  "    case 6:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));\n    }\n    if (_DAT_00643650 == 2 || _DAT_00643650 == 3 ||\n        _DAT_00643650 == 4 || _DAT_00643650 == 5) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"15d40.menu_complete\",0);\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\","
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\",",
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n    }\n    if (_DAT_00643650 == 2 || _DAT_00643650 == 3 ||\n        _DAT_00643650 == 4 || _DAT_00643650 == 5) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"15d40.menu_complete\",0);\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\","
 );
 source = source.replace(
   /(longlong __fastcall FUN_0043c1b8\(undefined4 param_1,uint param_2\)[\s\S]*?\r?\n  uint local_20;\r?\n  uint local_1c;\r?\n\s*)if \(9 < in_EAX\) \{\r?\n    FUN_00414e68\(\);\r?\n  \}/,
@@ -3875,6 +4275,14 @@ source = source.replace(/E2R_READ2\(DAT_0047a45e,2\)/g, "E2R_WORD_AT(DAT_0047a45
 source = source.replace(
   /(undefined8 __fastcall FUN_0043ce58\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  short sStack_1c;\r?\n\s*)E2R_WORD_AT\(DAT_0047a45e,2\) = \(ushort\)in_EAX;/,
   "$1in_EAX = (uint)(uintptr_t)param_1;\n  E2R_requester_probe_ce58_count++;\n  E2R_requester_probe_last_id = in_EAX;\n  E2R_requester_probe_last_mode = (uintptr_t)param_2;\n  E2R_WORD_AT(DAT_0047a45e,2) = (ushort)in_EAX;"
+);
+source = source.replace(
+  "            uVar13 = FUN_0043b384(pbVar6,pcVar8);\n            return CONCAT44(param_2,(int)uVar13);",
+      "            E2R_InitRequesterRecord(0x0047a5a4,-1,-1,0xf0,0xb4,\n                                      (uintptr_t)_DAT_006438a0,_DAT_0047a5b0);\n            uVar13 = FUN_0043b384(0x0047a5a4,pcVar8);\n            return CONCAT44(param_2,(int)uVar13);"
+);
+source = source.replace(
+  "      FUN_0043d8ec();\n      FUN_0043d934();\n      FUN_0043d9a0();\n      FUN_0043da04();\n      FUN_0043da80();\n      uVar13 = FUN_0043b384(extraout_ECX_04,extraout_EDX_00);",
+  "      FUN_0043d8ec();\n      FUN_0043d934();\n      FUN_0043d9a0();\n      FUN_0043da04();\n      FUN_0043da80();\n      E2R_InitRequesterSettingsItems();\n      uVar13 = FUN_0043b384(0x0047a668,extraout_EDX_00);"
 );
 source = source.replace(/E2R_READ1\(DAT_0047a279,3\) = 0;/g, "DAT_0047a279 = DAT_0047a279 & 0x00ffffff;");
 source = source.replace(/E2R_READ1\(DAT_0047a279,3\) = '\\x01' - E2R_READ1\(DAT_0047a279,3\);/g, "DAT_0047a279 = (DAT_0047a279 & 0x00ffffff) | ((1 - (DAT_0047a279 >> 0x18)) << 0x18);");
@@ -4826,6 +5234,82 @@ source = source.replace(
 
 /* 004418fc */`
 );
+source = source.replace(
+  "\n\n\n/* 00410078 */",
+  `\n\nstatic void E2R_RestartIntroSequence(void)
+{
+  uintptr_t slot;
+
+  DAT_00636844 = 0;
+  DAT_00636850 = 0;
+  DAT_00479db4 = 0;
+  DAT_0047a788 = 1;
+  DAT_0047a76c = 1;
+  _DAT_006443d0 = 1;
+  E2R_WORD_AT(DAT_0047a45e,2) = 0;
+  _DAT_00643650 = E2R_TraceRequesterState("action.restart_intro_complete",0);
+  E2R_TraceStartGameStage("restart-intro-begin");
+  if (E2R_IsReadableCurrentPointer(DAT_0047a470)) {
+    slot = (uintptr_t)DAT_0047a470 + 0xa6;
+    if (!IsBadReadPtr((void *)slot,0x12) && *(uintptr_t *)slot != 0) {
+      *(undefined2 *)(slot + 6) = 0;
+    }
+  }
+  E2R_TraceStartGameStage("restart-intro-end");
+}\n\n\n/* 00410078 */`
+);
+source = source.replace(
+  "  if (action == (uintptr_t)&LAB_0043d458) {\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.start_male\",0);\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d464) {\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.start_female\",1);\n    return 1;\n  }",
+  "  if (action == (uintptr_t)&LAB_0043d458) {\n    if (requester_id == 0x28 && DAT_0047a76c != 0) {\n      _DAT_006443d0 = 1;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.restart_intro\",7);\n      return 1;\n    }\n    _DAT_006443d0 = 1;\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.start_male\",0);\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d464) {\n    if (requester_id == 0x28 && DAT_0047a76c != 0) {\n      _DAT_006443d0 = 1;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.restart_intro\",7);\n      return 1;\n    }\n    _DAT_006443d0 = 1;\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.start_female\",1);\n    return 1;\n  }"
+);
+source = source.replace(
+  "    if (requester_id == 0x31) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_ok\",0);\n      return 1;\n    }",
+  "    if (requester_id == 0x31) {\n      _DAT_006443d0 = 1;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_ok\",0);\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      return 1;\n    }"
+);
+source = source.replace(
+  "    if (requester_id == 0x29 || requester_id == 0x2a) {\n      _DAT_0064353c = 0;\n      return 1;\n    }\n    if (requester_id == 0x31) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_cancel\",0);\n      return 1;\n    }",
+  "    if (requester_id == 0x29 || requester_id == 0x2a) {\n      _DAT_0064353c = 0;\n      _DAT_006443d0 = 1;\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      return 1;\n    }\n    if (requester_id == 0x31) {\n      _DAT_006443d0 = 1;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_cancel\",0);\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      return 1;\n    }"
+);
+source = source.replace(
+  "  if (action == (uintptr_t)&LAB_0043d470) {\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.load\",2);\n    return 1;\n  }",
+  "  if (action == (uintptr_t)&LAB_0043d470) {\n    if (requester_id == 0x28) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings\",2);\n      FUN_0043ce58(0x31,5);\n      E2R_WORD_AT(DAT_0047a45e,2) = 0x28;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_return\",5);\n      _DAT_006443d0 = 0;\n      _DAT_0064342c = 0;\n      DAT_00636844 = 0;\n      DAT_0047a788 = 1;\n      E2R_requester_continue_after_action = 1;\n      return 1;\n    }\n    _DAT_006443d0 = 1;\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.settings\",2);\n    return 1;\n  }"
+);
+source = source.replace(
+  "  if (action == (uintptr_t)&LAB_0043d490) {\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.options\",4);\n    return 1;\n  }",
+  "  if (action == (uintptr_t)&LAB_0043d490) {\n    if (requester_id == 0x28) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.load\",4);\n      FUN_0043ce58(0x29,5);\n      E2R_WORD_AT(DAT_0047a45e,2) = 0x28;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.load_return\",5);\n      _DAT_006443d0 = 0;\n      _DAT_0064342c = 0;\n      DAT_00636844 = 0;\n      DAT_0047a788 = 1;\n      E2R_requester_continue_after_action = 1;\n      return 1;\n    }\n    _DAT_006443d0 = 1;\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.load\",4);\n    return 1;\n  }"
+);
+source = source.replace(
+  "  if (action == (uintptr_t)&DAT_0043d49c) {\n    uintptr_t prompt = 0x004729b8;\n    if (DAT_00479e00 != 0 && !IsBadReadPtr((void *)0x0060aef0,4) &&\n        *(uintptr_t *)0x0060aef0 != 0) {\n      prompt = *(uintptr_t *)0x0060aef0;\n    }\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.quit_prompt\",\n                                            ((int)FUN_0043c910((undefined4)prompt,0) != 0) ? 6 : 5);\n    return 1;\n  }",
+  "  if (action == (uintptr_t)&DAT_0043d49c) {\n    uintptr_t prompt = 0x004729b8;\n    int confirmed;\n    if (DAT_00479e00 != 0 && !IsBadReadPtr((void *)0x0060aef0,4) &&\n        *(uintptr_t *)0x0060aef0 != 0) {\n      prompt = *(uintptr_t *)0x0060aef0;\n    }\n    confirmed = (int)FUN_0043c910((undefined4)prompt,0) != 0;\n    if (requester_id == 0x28) {\n      if (confirmed) {\n        _DAT_006443d0 = 1;\n        E2R_WORD_AT(DAT_0047a45e,2) = 0;\n        _DAT_00643650 = E2R_TraceRequesterState(\"action.quit_confirmed\",6);\n        return 1;\n      }\n      E2R_WORD_AT(DAT_0047a45e,2) = 0x28;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.quit_return\",5);\n      _DAT_006443d0 = 0;\n      _DAT_0064342c = 0;\n      DAT_00636844 = 0;\n      DAT_0047a788 = 1;\n      E2R_requester_continue_after_action = 1;\n      return 1;\n    }\n    _DAT_006443d0 = 1;\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.quit_prompt\",confirmed ? 6 : 5);\n    return 1;\n  }"
+);
+source = source.replace(
+  "    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643dc4) {\n      _DAT_006443d2 = (_DAT_006443d2 & 0xffff) | 0x10000;\n      if (_DAT_00643430 == (short *)0x00643dc4) {\n        _DAT_00643650 = E2R_TraceRequesterState(\"action.confirm_yes\",6);\n      }\n      return 1;\n    }",
+  "    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643dc4) {\n      _DAT_006443d2 = (_DAT_006443d2 & 0xffff) | 0x10000;\n      _DAT_006443d0 = 1;\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.confirm_yes\",6);\n      return 1;\n    }"
+);
+source = source.replace(
+  "    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643c84) {\n      _DAT_006443d2 = _DAT_006443d2 & 0xffff;\n      if (_DAT_00643430 == (short *)0x00643c84) {\n        _DAT_00643650 = E2R_TraceRequesterState(\"action.confirm_no\",5);\n      }\n      return 1;\n    }",
+  "    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643c84) {\n      _DAT_006443d2 = _DAT_006443d2 & 0xffff;\n      _DAT_006443d0 = 1;\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.confirm_no\",5);\n      return 1;\n    }"
+);
+source = source.replace(
+  "    if (requester_id == 0x27 || requester_id == 0x28) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.cancel_start\",5);\n      return 1;\n    }",
+  "    if (requester_id == 0x27 || requester_id == 0x28) {\n      _DAT_006443d0 = 1;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.cancel_start\",5);\n      return 1;\n    }"
+);
+source = source.replace(
+  "  if (DAT_0047a470 != (short *)0x0) {\n    ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] = ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] | 2;\n  }",
+  "  if (DAT_0047a470 != (short *)0x0 && E2R_IsReadableCurrentPointer(DAT_0047a470)) {\n    ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] = ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] | 2;\n  }"
+);
+source = source.replace(
+  "  sVar2 = DAT_0047a34a;\n  piVar3 = (int *)(in_EAX + 0x112);",
+  "  if ((uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x118)) {\n    return;\n  }\n  sVar2 = DAT_0047a34a;\n  piVar3 = (int *)(in_EAX + 0x112);"
+);
+source = source.replace(
+  "      FUN_00421684();\n      *(byte *)(extraout_ECX_03 + 3) = *(byte *)(extraout_ECX_03 + 3) & 0xf7;\n      iVar5 = extraout_ECX_03;\n      iVar7 = extraout_EDX_03;",
+  "      FUN_00421684();\n      if (0x10000u <= (uint)iVar5 && (uint)iVar5 < 0x70000000u &&\n          !IsBadReadPtr((void *)(uintptr_t)iVar5,0x50)) {\n        *(byte *)(iVar5 + 3) = *(byte *)(iVar5 + 3) & 0xf7;\n      }\n      iVar7 = extraout_EDX_03;"
+);
+source = source.replace(
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n    }",
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n      break;\n    case 7:\n      E2R_RestartIntroSequence();\n      break;\n    }"
+);
 source = source.replace(/[ \t]+$/gm, "").replace(/\n*$/, "\n");
 fs.writeFileSync(outSrc, source);
 
@@ -4886,6 +5370,10 @@ header += "extern uintptr_t E2R_action_opcode_count;\n";
 header += "extern uintptr_t E2R_action_last_opcode;\n";
 header += "extern uintptr_t E2R_action_last_cursor;\n";
 header += "extern uintptr_t E2R_action_hit_75_count;\n";
+header += "void E2R_RequesterProbeQueueMouseClick(uintptr_t requester_id, uintptr_t x, uintptr_t y);\n";
+header += "void E2R_RequesterProbeFeedPendingMouse(uintptr_t requester_id);\n";
+header += "void E2R_RequesterProbeLogItemLayout(uintptr_t requester_id, uintptr_t item);\n";
+header += "int E2R_RequesterHandleMouseClick(uintptr_t x, uintptr_t y);\n";
 header += "void E2R_RequesterProbeQueueKey(uintptr_t key);\n";
 header += "void E2R_RequesterProbeQueueTargetKey(uintptr_t requester_id, uintptr_t key);\n";
 header += "void E2R_RequesterProbeFeedPendingKey(void);\n";

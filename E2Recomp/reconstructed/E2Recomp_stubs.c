@@ -77,6 +77,19 @@ static int E2R_RequesterProbeLogEnabled(void) {
     return enabled;
 }
 
+static int E2R_MenuDiagEnabled(void) {
+    static int initialized;
+    static int enabled;
+    const char *value;
+
+    if (!initialized) {
+        value = getenv("E2R_MENU_DIAG");
+        enabled = value != NULL && value[0] != '\0' && value[0] != '0';
+        initialized = 1;
+    }
+    return enabled;
+}
+
 static int E2R_game_input_log_initialized;
 static int E2R_game_input_log_enabled;
 static unsigned E2R_game_input_log_count;
@@ -328,7 +341,9 @@ void E2R_RequesterProbeFeedPendingMouse(uintptr_t requester_id) {
     point = (LPARAM)((x & 0xffffu) | ((y & 0xffffu) << 16));
     E2R_requester_probe_pending_mouse_read++;
     SetCursorPos((int)x, (int)y);
-    E2R_RequesterHandleMouseClick(x, y);
+    if (E2R_RequesterHandleMouseClick(x, y)) {
+        return;
+    }
     if (E2R_RequesterProbeLogEnabled()) {
         fprintf(stderr, "feeding requester mouse click target=0x%lx at %lu,%lu pending=%lu/%lu\n",
                 (unsigned long)requester_id, (unsigned long)x, (unsigned long)y,
@@ -342,10 +357,21 @@ void E2R_RequesterProbeFeedPendingMouse(uintptr_t requester_id) {
 
 void E2R_RequesterProbeLogItemLayout(uintptr_t requester_id, uintptr_t item_address) {
     short *item = (short *)item_address;
+    short *record = NULL;
     static uintptr_t logged_items;
 
-    if (requester_id != 0x31 || logged_items >= 16 ||
+    if (requester_id == 0x14) {
+        record = (short *)0x0047a518;
+    } else if (requester_id == 0x29 || requester_id == 0x2a) {
+        record = (short *)0x0047a5a4;
+    } else if (requester_id == 0x31) {
+        record = (short *)0x0047a668;
+    }
+    if (record == NULL || logged_items >= 48 ||
         item == NULL || (uintptr_t)item >= 0x70000000u || IsBadReadPtr(item, 0x20)) {
+        return;
+    }
+    if ((uintptr_t)record >= 0x70000000u || IsBadReadPtr(record, 0x20)) {
         return;
     }
     if (!E2R_RequesterProbeLogEnabled()) {
@@ -353,9 +379,12 @@ void E2R_RequesterProbeLogItemLayout(uintptr_t requester_id, uintptr_t item_addr
     }
     logged_items++;
     fprintf(stderr,
-            "requester item layout id=0x%lx item=0x%lx local=[%d,%d %dx%d] "
+            "requester item layout id=0x%lx record=0x%lx "
+            "record_bounds=[%d,%d..%d,%d] item=0x%lx local=[%d,%d %dx%d] "
             "bounds=[%d,%d..%d,%d] flags=0x%x action=0x%lx next=0x%lx text=0x%lx\n",
             (unsigned long)requester_id,
+            (unsigned long)(uintptr_t)record,
+            (int)record[8], (int)record[10], (int)record[9], (int)record[11],
             (unsigned long)item_address,
             (int)item[0], (int)item[1], (int)item[2], (int)item[3],
             (int)item[0xb], (int)item[0xd], (int)item[0xc], (int)item[0xe],
@@ -478,6 +507,75 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             E2R_LogGameInputFlag("wndproc.set_escape", wParam);
             return 0;
         }
+        if (wParam == VK_ESCAPE && _DAT_00643650 == 5 &&
+            E2R_WORD_AT(DAT_0047a45e, 2) == 0x28) {
+            uintptr_t old_state = _DAT_00643650;
+
+            _DAT_00643650 = 5;
+            E2R_WORD_AT(DAT_0047a45e, 2) = 0;
+            _DAT_006443d0 = 1;
+            DAT_0047a788 = 1;
+            DAT_00636844 = 0;
+            if (E2R_MenuDiagEnabled()) {
+                fprintf(stderr,
+                        "menu state: site=wndproc.escape_main_menu old=%lu new=5 "
+                        "requester=0x%x mode=%lu dialog=%lu menu_request=%lu scene=0x%lx\n",
+                        (unsigned long)old_state,
+                        (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                        (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
+                        (unsigned long)DAT_00479db4, (unsigned long)_DAT_0073cc3c);
+            }
+            E2R_LogGameInputFlag("wndproc.close_main_menu", wParam);
+            return 0;
+        }
+        if (wParam == VK_ESCAPE && E2R_WORD_AT(DAT_0047a45e, 2) == 0x14) {
+            uintptr_t old_state = _DAT_00643650;
+
+            _DAT_006443d2 = _DAT_006443d2 & 0xffff;
+            _DAT_00643650 = 5;
+            E2R_WORD_AT(DAT_0047a45e, 2) = 0;
+            _DAT_006443d0 = 1;
+            DAT_0047a788 = 1;
+            DAT_00636844 = 0;
+            if (E2R_MenuDiagEnabled()) {
+                fprintf(stderr,
+                        "menu state: site=wndproc.escape_prompt old=%lu new=5 "
+                        "requester=0x%x mode=%lu dialog=%lu menu_request=%lu scene=0x%lx\n",
+                        (unsigned long)old_state,
+                        (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                        (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
+                        (unsigned long)DAT_00479db4, (unsigned long)_DAT_0073cc3c);
+            }
+            E2R_LogGameInputFlag("wndproc.close_prompt", wParam);
+            return 0;
+        }
+        if (wParam == VK_ESCAPE &&
+            ((E2R_WORD_AT(DAT_0047a45e, 2) == 0x31 && _DAT_00643650 == 2) ||
+             (E2R_WORD_AT(DAT_0047a45e, 2) == 0x29 && _DAT_00643650 == 4) ||
+             (E2R_WORD_AT(DAT_0047a45e, 2) == 0x2a && _DAT_00643650 == 3))) {
+            uintptr_t old_state = _DAT_00643650;
+
+            if (E2R_WORD_AT(DAT_0047a45e, 2) == 0x29 ||
+                E2R_WORD_AT(DAT_0047a45e, 2) == 0x2a) {
+                _DAT_0064353c = 0;
+            }
+            _DAT_00643650 = 0;
+            E2R_WORD_AT(DAT_0047a45e, 2) = 0;
+            _DAT_006443d0 = 1;
+            DAT_0047a788 = 1;
+            DAT_00636844 = 0;
+            if (E2R_MenuDiagEnabled()) {
+                fprintf(stderr,
+                        "menu state: site=wndproc.escape_submenu old=%lu new=0 "
+                        "requester=0x%x mode=%lu dialog=%lu menu_request=%lu scene=0x%lx\n",
+                        (unsigned long)old_state,
+                        (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                        (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
+                        (unsigned long)DAT_00479db4, (unsigned long)_DAT_0073cc3c);
+            }
+            E2R_LogGameInputFlag("wndproc.close_submenu", wParam);
+            return 0;
+        }
         E2R_feed_legacy_keydown(wParam, lParam);
         E2R_LogGameInputEvent("wndproc.keydown.after_legacy", msg, wParam, lParam);
         switch (wParam) {
@@ -583,15 +681,43 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     if (msg == WM_LBUTTONDOWN) {
         int x = (int)(int16_t)(lParam & 0xffffu);
         int y = (int)(int16_t)((lParam >> 16) & 0xffffu);
+        int handled;
         E2R_feed_mouse_position(lParam);
         _DAT_0063683c = 2;
-        if (E2R_RequesterHandleMouseClick((uintptr_t)(uint16_t)x, (uintptr_t)(uint16_t)y)) {
+        if (E2R_MenuDiagEnabled()) {
+            fprintf(stderr,
+                    "menu click: phase=wndproc msg=WM_LBUTTONDOWN x=%d y=%d "
+                    "state=%lu requester=0x%x dialog=%lu mouse_state=%lu\n",
+                    x, y, (unsigned long)_DAT_00643650,
+                    (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                    (unsigned long)DAT_0047a76c, (unsigned long)_DAT_0063683c);
+        }
+        handled = E2R_RequesterHandleMouseClick((uintptr_t)(uint16_t)x, (uintptr_t)(uint16_t)y);
+        if (E2R_MenuDiagEnabled()) {
+            fprintf(stderr,
+                    "menu click: phase=wndproc-result msg=WM_LBUTTONDOWN x=%d y=%d "
+                    "handled=%d state=%lu requester=0x%x dialog=%lu mouse_state=%lu\n",
+                    x, y, handled, (unsigned long)_DAT_00643650,
+                    (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                    (unsigned long)DAT_0047a76c, (unsigned long)_DAT_0063683c);
+        }
+        if (handled) {
             _DAT_0063683c = 0;
         }
         return 0;
     }
     if (msg == WM_LBUTTONUP) {
+        int x = (int)(int16_t)(lParam & 0xffffu);
+        int y = (int)(int16_t)((lParam >> 16) & 0xffffu);
         E2R_feed_mouse_position(lParam);
+        if (E2R_MenuDiagEnabled()) {
+            fprintf(stderr,
+                    "menu click: phase=wndproc msg=WM_LBUTTONUP x=%d y=%d "
+                    "state=%lu requester=0x%x dialog=%lu mouse_state=%lu\n",
+                    x, y, (unsigned long)_DAT_00643650,
+                    (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                    (unsigned long)DAT_0047a76c, (unsigned long)_DAT_0063683c);
+        }
         return 0;
     }
     if (msg == WM_DESTROY) {
