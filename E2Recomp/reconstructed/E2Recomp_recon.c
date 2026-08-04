@@ -1303,6 +1303,177 @@ static int *E2R_ResolveMenuStringList(undefined4 first,undefined4 second,undefin
   return (int *)0x0;
 }
 
+static const byte *E2R_HostedGlyphRows(byte ch)
+{
+  static const byte space[7] = {0,0,0,0,0,0,0};
+  static const byte unknown[7] = {0x0e,0x11,0x01,0x06,0x04,0,0x04};
+
+  switch (ch) {
+  case '0': { static const byte r[7] = {0x0e,0x11,0x13,0x15,0x19,0x11,0x0e}; return r; }
+  case '1': { static const byte r[7] = {0x04,0x0c,0x04,0x04,0x04,0x04,0x0e}; return r; }
+  case '2': { static const byte r[7] = {0x0e,0x11,0x01,0x02,0x04,0x08,0x1f}; return r; }
+  case '3': { static const byte r[7] = {0x1e,0x01,0x01,0x0e,0x01,0x01,0x1e}; return r; }
+  case '4': { static const byte r[7] = {0x02,0x06,0x0a,0x12,0x1f,0x02,0x02}; return r; }
+  case '5': { static const byte r[7] = {0x1f,0x10,0x1e,0x01,0x01,0x11,0x0e}; return r; }
+  case '6': { static const byte r[7] = {0x06,0x08,0x10,0x1e,0x11,0x11,0x0e}; return r; }
+  case '7': { static const byte r[7] = {0x1f,0x01,0x02,0x04,0x08,0x08,0x08}; return r; }
+  case '8': { static const byte r[7] = {0x0e,0x11,0x11,0x0e,0x11,0x11,0x0e}; return r; }
+  case '9': { static const byte r[7] = {0x0e,0x11,0x11,0x0f,0x01,0x02,0x0c}; return r; }
+  case 'A': { static const byte r[7] = {0x0e,0x11,0x11,0x1f,0x11,0x11,0x11}; return r; }
+  case 'B': { static const byte r[7] = {0x1e,0x11,0x11,0x1e,0x11,0x11,0x1e}; return r; }
+  case 'C': { static const byte r[7] = {0x0f,0x10,0x10,0x10,0x10,0x10,0x0f}; return r; }
+  case 'D': { static const byte r[7] = {0x1e,0x11,0x11,0x11,0x11,0x11,0x1e}; return r; }
+  case 'E': { static const byte r[7] = {0x1f,0x10,0x10,0x1e,0x10,0x10,0x1f}; return r; }
+  case 'F': { static const byte r[7] = {0x1f,0x10,0x10,0x1e,0x10,0x10,0x10}; return r; }
+  case 'G': { static const byte r[7] = {0x0f,0x10,0x10,0x13,0x11,0x11,0x0f}; return r; }
+  case 'H': { static const byte r[7] = {0x11,0x11,0x11,0x1f,0x11,0x11,0x11}; return r; }
+  case 'I': { static const byte r[7] = {0x0e,0x04,0x04,0x04,0x04,0x04,0x0e}; return r; }
+  case 'J': { static const byte r[7] = {0x01,0x01,0x01,0x01,0x11,0x11,0x0e}; return r; }
+  case 'K': { static const byte r[7] = {0x11,0x12,0x14,0x18,0x14,0x12,0x11}; return r; }
+  case 'L': { static const byte r[7] = {0x10,0x10,0x10,0x10,0x10,0x10,0x1f}; return r; }
+  case 'M': { static const byte r[7] = {0x11,0x1b,0x15,0x15,0x11,0x11,0x11}; return r; }
+  case 'N': { static const byte r[7] = {0x11,0x19,0x15,0x13,0x11,0x11,0x11}; return r; }
+  case 'O': { static const byte r[7] = {0x0e,0x11,0x11,0x11,0x11,0x11,0x0e}; return r; }
+  case 'P': { static const byte r[7] = {0x1e,0x11,0x11,0x1e,0x10,0x10,0x10}; return r; }
+  case 'Q': { static const byte r[7] = {0x0e,0x11,0x11,0x11,0x15,0x12,0x0d}; return r; }
+  case 'R': { static const byte r[7] = {0x1e,0x11,0x11,0x1e,0x14,0x12,0x11}; return r; }
+  case 'S': { static const byte r[7] = {0x0f,0x10,0x10,0x0e,0x01,0x01,0x1e}; return r; }
+  case 'T': { static const byte r[7] = {0x1f,0x04,0x04,0x04,0x04,0x04,0x04}; return r; }
+  case 'U': { static const byte r[7] = {0x11,0x11,0x11,0x11,0x11,0x11,0x0e}; return r; }
+  case 'V': { static const byte r[7] = {0x11,0x11,0x11,0x11,0x11,0x0a,0x04}; return r; }
+  case 'W': { static const byte r[7] = {0x11,0x11,0x11,0x15,0x15,0x1b,0x11}; return r; }
+  case 'X': { static const byte r[7] = {0x11,0x11,0x0a,0x04,0x0a,0x11,0x11}; return r; }
+  case 'Y': { static const byte r[7] = {0x11,0x11,0x0a,0x04,0x04,0x04,0x04}; return r; }
+  case 'Z': { static const byte r[7] = {0x1f,0x01,0x02,0x04,0x08,0x10,0x1f}; return r; }
+  case '.': { static const byte r[7] = {0,0,0,0,0,0x0c,0x0c}; return r; }
+  case '(': { static const byte r[7] = {0x02,0x04,0x08,0x08,0x08,0x04,0x02}; return r; }
+  case ')': { static const byte r[7] = {0x08,0x04,0x02,0x02,0x02,0x04,0x08}; return r; }
+  case '-': { static const byte r[7] = {0,0,0,0x1f,0,0,0}; return r; }
+  case '_': { static const byte r[7] = {0,0,0,0,0,0,0x1f}; return r; }
+  case ' ': return space;
+  default: return unknown;
+  }
+}
+
+static void E2R_DrawHostedText(byte *text)
+{
+  byte ch;
+  const byte *rows;
+  int advance;
+  int base;
+  byte color;
+  uint col;
+  uint i;
+  int pitch;
+  uint row;
+  int scale;
+  int style_surface;
+  int surface;
+  int x;
+  int y;
+  uint yy;
+  uint xx;
+
+  if (text == (byte *)0x0 || IsBadReadPtr(text,1)) {
+    return;
+  }
+  style_surface = DAT_0047a279 >> 0x18;
+  surface = style_surface;
+  if (DAT_0047a43c != 0) {
+    surface = surface + 2;
+  }
+  if (surface < 0 || 3 < surface) {
+    return;
+  }
+  base = FUN_00418a04((undefined4)(uintptr_t)surface,&pitch);
+  if ((uintptr_t)base < 0x10000u || pitch <= 0 || _DAT_006401ec <= 0 ||
+      _DAT_006401d4 <= 0) {
+    return;
+  }
+  x = (short)*(undefined2 *)(0x006366c4 + surface * 2);
+  y = (short)*(undefined2 *)(0x006366d0 + surface * 2);
+  color = ((byte *)0x006366dc)[style_surface * 2];
+  if (color == 0 || color == 10 || color == 0xf) {
+    color = 8;
+  }
+  advance = DAT_0047a408 == 0 ? 12 : DAT_0047a408;
+  scale = DAT_0047a43c == 0 ? 1 : 2;
+  for (i = 0; i < 10000 && !IsBadReadPtr(text + i,1); i = i + 1) {
+    ch = text[i];
+    if (ch == 0) {
+      break;
+    }
+    if ('a' <= ch && ch <= 'z') {
+      ch = ch - ('a' - 'A');
+    }
+    rows = E2R_HostedGlyphRows(ch);
+    for (row = 0; row < 7; row = row + 1) {
+      for (col = 0; col < 5; col = col + 1) {
+        if ((rows[row] & (byte)(1u << (4 - col))) != 0) {
+          for (yy = 0; yy < (uint)scale; yy = yy + 1) {
+            for (xx = 0; xx < (uint)scale; xx = xx + 1) {
+              int px = x + (int)(col * (uint)scale + xx);
+              int py = y + (int)(row * (uint)scale + yy);
+              if (0 <= px && px < _DAT_006401ec && 0 <= py && py < _DAT_006401d4) {
+                *(byte *)(base + py * pitch + px) = color;
+              }
+            }
+          }
+        }
+      }
+    }
+    x = x + advance;
+  }
+  *(undefined2 *)(0x006366c4 + surface * 2) = (undefined2)x;
+}
+
+static void E2R_DrawHostedRequesterLabels(short *record)
+{
+  byte *text;
+  byte color;
+  int item_width;
+  int text_width;
+  int x;
+  short *item;
+  uint guard;
+  uint len;
+  int style_surface;
+
+  if (DAT_0047a43c == 0 || record == (short *)0x0 || IsBadReadPtr(record,0x10)) {
+    return;
+  }
+  style_surface = DAT_0047a279 >> 0x18;
+  item = *(short **)(record + 6);
+  for (guard = 0; item != (short *)0x0 && guard < 0x40; guard = guard + 1) {
+    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {
+      break;
+    }
+    text = *(byte **)(item + 4);
+    if ((uintptr_t)text == 0x00473304u) {
+      text = (byte *)"Quit";
+    }
+    if (text != (byte *)0x0 && !IsBadReadPtr(text,1) && text[0] != 0) {
+      len = 0;
+      while (len < 0x100 && !IsBadReadPtr(text + len,1) && text[len] != 0) {
+        len = len + 1;
+      }
+      text_width = (DAT_0047a408 == 0 ? 12 : DAT_0047a408) * (int)len;
+      item_width = (int)item[2];
+      if ((*(byte *)((int)item + 0x11) & 0x40) == 0) {
+        x = item[0xb] + (item_width - text_width) / 2;
+      }
+      else {
+        x = item[0xb] + 4;
+      }
+      color = item == _DAT_00643430 ? 0xe : 8;
+      *(undefined2 *)((undefined1 *)0x006366dc + style_surface * 2) = color;
+      FUN_0041b078(x,(short)(item[0xd] + 1));
+      E2R_DrawHostedText(text);
+    }
+    item = *(short **)(item + 9);
+  }
+}
+
 
 static undefined1 *E2R_ReadStreamLine(undefined4 stream_handle,char *buffer,uint count)
 {
@@ -9973,7 +10144,7 @@ void __fastcall FUN_00418770(undefined4 param_1,byte *param_2)
     }
   }
   else {
-    FUN_00419af4(1,param_2,0,0);
+    E2R_DrawHostedText(param_2);
   }
   return;
 }
@@ -16287,6 +16458,10 @@ void __fastcall FUN_00423858(undefined4 param_1,undefined4 param_2)
       local_40 = in_EAX + 6;
       local_58 = (short *)(in_EAX + 0x80);
       do {
+        if ((uintptr_t)local_54 < 0x10000u || 0x70000000u <= (uintptr_t)local_54 ||
+            IsBadReadPtr((void *)(uintptr_t)local_54,0x2a)) {
+          break;
+        }
         iVar10 = local_54;
         psVar9 = (short *)(local_54 + 0x10);
         FUN_0045de8b();
@@ -16301,7 +16476,12 @@ void __fastcall FUN_00423858(undefined4 param_1,undefined4 param_2)
     iVar10 = *(int *)(local_3c + 0x1e);
   }
   else {
-    iVar10 = *(int *)(*(int *)(local_3c + 0x1e) + 0xca);
+    iVar10 = *(int *)(local_3c + 0x1e);
+    if (iVar10 == 0 || (uintptr_t)iVar10 < 0x10000u || 0x70000000u <= (uintptr_t)iVar10 ||
+        IsBadReadPtr((void *)(uintptr_t)iVar10,0xce)) {
+      return;
+    }
+    iVar10 = *(int *)(iVar10 + 0xca);
   }
   local_38 = (ushort *)(local_3c + 6);
   local_34 = (short *)(local_3c + 0x18);
@@ -16310,6 +16490,10 @@ void __fastcall FUN_00423858(undefined4 param_1,undefined4 param_2)
     return;
   }
   do {
+    if ((uintptr_t)iVar10 < 0x10000u || 0x70000000u <= (uintptr_t)iVar10 ||
+        IsBadReadPtr((void *)(uintptr_t)iVar10,0x136)) {
+      return;
+    }
     local_4c = (short *)(iVar10 + 0x50);
     FUN_0045de8b();
     psVar9 = (short *)(iVar10 + 0x18);
@@ -31254,6 +31438,7 @@ undefined8 __fastcall FUN_0043b384(undefined4 param_1,undefined4 param_2)
     uVar7 = extraout_EDX_01;
     uVar5 = extraout_var_01;
   }
+  E2R_DrawHostedRequesterLabels(in_EAX);
   uVar11 = CONCAT44(uVar7,CONCAT22(uVar5,E2R_WORD_AT(DAT_0047a45e,2)));
   if ((0x28 < E2R_WORD_AT(DAT_0047a45e,2)) &&
      (uVar11 = CONCAT44(uVar7,CONCAT22(uVar5,E2R_WORD_AT(DAT_0047a45e,2))), E2R_WORD_AT(DAT_0047a45e,2) < 0x2b)) {
@@ -31575,7 +31760,7 @@ undefined4 __fastcall FUN_0043b9bc(undefined4 param_1,short *param_2)
     else {
       iVar3 = (ushort)param_2[0xb] + 4;
     }
-    FUN_0041b078(iVar3,(short)iVar3);
+    FUN_0041b078(iVar3,(short)(param_2[0xd] + 1));
     FUN_00418770(extraout_ECX_05,*(byte **)(param_2 + 4));
     if ((_DAT_0064342c != 0) && (param_2 == _DAT_00643430)) {
       iVar3 = DAT_0047a279 >> 0x18;
@@ -31584,7 +31769,7 @@ undefined4 __fastcall FUN_0043b9bc(undefined4 param_1,short *param_2)
       uVar2 = _DAT_00643428 * DAT_0047a408;
       *(undefined2 *)(iVar3 * 2 + 0x6366e8) = 8;
       iVar3 = extraout_ECX_06 + (uint)uVar2;
-      FUN_0041b078(iVar3,(short)iVar3);
+      FUN_0041b078(iVar3,(short)(param_2[0xd] + 1));
       uVar5 = 0xffffffff;
       pcVar9 = (char *)(*(int *)(param_2 + 4) + _DAT_00643428);
       do {

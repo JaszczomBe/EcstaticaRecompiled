@@ -1,9 +1,9 @@
 # Add Control Probe Matrix
 
-Status: planned
+Status: active
 Parent Step: [Expand Gameplay Control And Camera Proofs](../step-03-expand-gameplay-control-and-camera-proofs.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-07-31
+Last Updated: 2026-08-04
 
 ## Goal
 
@@ -32,7 +32,7 @@ Add a compact bounded probe matrix for gameplay controls.
 
 Avoid turning exploratory unknowns into hard regression failures. First record, then harden.
 
-Do not expand the matrix before the intro `Esc`/`Space` blocker is classified. Current evidence already proves the host event path, so additional probes should target only action-dispatch/requester-presentation state until `Esc` visibly opens the menu and `Space` skips or the failure is split into a narrower runtime repair.
+The intro blocker is now split: `Esc` visibly opens readable requester contents, while `Space` latches in game state but does not skip the intro action. Additional probes should avoid broad automation and focus on a small deterministic matrix that preserves this evidence while mapping the first stable gameplay controls.
 
 ## Acceptance Criteria
 
@@ -48,8 +48,8 @@ Do not expand the matrix before the intro `Esc`/`Space` blocker is classified. C
 ## Review State
 
 1. Planning state: discussed
-2. Implementation state: not_started
-3. Notes: Blocked behind intro `Esc`/`Space` classification.
+2. Implementation state: active
+3. Notes: Unblocked by Task 01; start with a compact control matrix and keep the `Space` action-dispatch/completion split documented instead of turning it into a premature failure gate.
 
 ## Change Log
 
@@ -60,3 +60,7 @@ Do not expand the matrix before the intro `Esc`/`Space` blocker is classified. C
 ### 2026-07-31
 
 1. Marked the task as blocked behind the intro control-state frontier to avoid broad probe work before the current blocker is understood.
+
+### 2026-08-04
+
+1. Activated the task after Task 01 restored readable intro `Esc` requester labels and split the remaining `Space` behavior to the action-dispatch/completion frontier.

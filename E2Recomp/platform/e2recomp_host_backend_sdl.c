@@ -390,6 +390,9 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
         fprintf(stderr, "host input poll: SDL reports non-main thread\n");
         input_thread_diag_count++;
     }
+    if (!is_main_thread) {
+        return;
+    }
     while (SDL_PollEvent(&event)) {
         if (e2r_sdl_input_diag_enabled() && e2r_sdl_should_log_event(event.type) &&
             input_diag_count < 256u) {

@@ -2,6 +2,38 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-08-04 - ASan Actor Transform Child Guard
+
+Area: Playable SDL runtime regression wrapper, `FUN_00423858`, actor transform child-chain traversal
+
+Symptom: after the focused SDL requester repair, the full `scripts/run-e2-runtime-regressions.sh` wrapper rebuilt debug successfully, passed the debug gameplay-control probe, then aborted in the ASan gameplay-control probe with a read from `0x80000010` inside `FUN_00423858`.
+
+Evidence: the failing ASan stack was `FUN_00423858 -> FUN_00423858 -> FUN_00421074 -> FUN_004211c8 -> FUN_0042a70c -> FUN_00426df8 -> FUN_0041007c`, with the faulting read at `*psVar9 = *psVar9 + *local_58`. The root actor pointer already passed the existing `FUN_00423858` entry guard; the bad address came from the linked child pointer loaded through `local_54`.
+
+Change: added bounded readability checks for the `local_54` child-chain node, the linked-actor path used when `param_2 != 0`, and the main `iVar10` actor loop in `FUN_00423858`. Mirrored the repairs in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `cmake --build build/linux-clang32-asan` passes, and the full wrapper no longer reports the sanitizer crash. The wrapper is still red because the ASan gameplay-control gate times out with `_DAT_0073cc3c=0x0` after the known scene-`7`/actor-`3853` transition, even though StartGame entry, `DAT_00479de8=1`, `DAT_0047a76c=1`, requester clear, movement latch, and nonblank surface `3` are present.
+
+Next Frontier: recover ASan scene/current ownership after the intro completion path or revise the wrapper only when there is source-backed evidence for the new expected sanitized state.
+
+Regression Risk: the guard prevents generated residue from walking an unreadable actor child link, but it is still a defensive repair. Future fidelity work should recover original child/link ownership instead of broadening this guard.
+
+## 2026-08-04 - Intro Requester Labels Restored
+
+Area: Playable SDL runtime Step 3, intro `Esc` requester presentation, hosted SDL probes
+
+Symptom: `Esc` reached `FUN_00415d40` and the requester path during the horseback/credits intro, but the visible menu contents were unreadable even though the requester geometry and item pass count were live.
+
+Evidence: a bounded dummy-SDL `Esc` probe reports `requester=[ce58=1 id=0x28 mode=5 b384=1 bad=1 ptr=0x47a588 b9bc=6 ...]`; final surface output `/tmp/e2-step03-escape-labels-final-s2.ppm` is nonblank with hash `8f4ff5bf` and visibly shows `START GAME`, `SAVE GAME...`, `LOAD GAME...`, `SETTINGS...`, `QUIT`, and `CANCEL`. Earlier focused traces showed item labels entering the text helper with `y=x` coordinates such as `260`, `248`, and `254`, so they were drawn outside their rectangles and later item fills overwrote preceding labels. Raw indexed inspection also showed palette index `15` was panel gray in this requester and index `8` was the visible white text color. Separately, injected Win32 probes could dispatch through SDL polling from a non-main thread and abort with SDL's main-thread assertion before the requester evidence could be collected.
+
+Change: the SDL backend now returns early from host event polling when it is reached on a non-main thread, avoiding the SDL assertion while preserving queued Win32 key dispatch. The high-res text path now has a hosted ASCII fallback renderer, requester item text y-coordinates use the item rectangle y value, and the requester redraws visible labels after all item rectangles are painted. The durable generated-file edits are mirrored in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-sdl-debug`, the bounded `Esc` surface probe, and the bounded `Space` script diagnostic probe pass. `Esc` now opens readable requester contents. `Space` still reaches `DAT_00636850=1` and `_DAT_00479e7a=1`, but the intro action completes naturally through `FUN_0042ad60`/`FUN_0042b004` and then dispatches opcode `0x07` toward scene `7`, whose child actor `3853` is still missing as a standalone flat-FANT actor record.
+
+Next Frontier: activate the compact control probe matrix while carrying the `Space` action-dispatch/completion split as a separate recovered-game-state frontier.
+
+Regression Risk: the fallback renderer is a hosted visibility repair, not recovered original font fidelity. It is limited to the high-res path and remaps only the requester colors needed for readable labels; replace it with original glyph data when that data is recovered.
+
 ## 2026-07-30 - SDL Presentation Preserves Frame Aspect Ratio
 
 Area: Playable SDL runtime visual fidelity, `E2R_HostPresentIndexed8`, host-window scaling

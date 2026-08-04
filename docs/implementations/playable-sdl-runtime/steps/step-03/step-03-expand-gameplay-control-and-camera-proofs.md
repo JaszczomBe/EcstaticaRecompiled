@@ -2,7 +2,7 @@
 
 Status: active
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-07-31
+Last Updated: 2026-08-04
 
 ## Goal
 
@@ -39,8 +39,8 @@ Keep this to a small input matrix. Split when a single key uncovers a new parser
 
 ## Tasks
 
-1. [Map Gameplay Input State](tasks/task-01-map-gameplay-input-state.md) - active; intro `Esc`/`Space` state mapping is the current blocker.
-2. [Add Control Probe Matrix](tasks/task-02-add-control-probe-matrix.md) - planned.
+1. [Map Gameplay Input State](tasks/task-01-map-gameplay-input-state.md) - completed; intro `Esc`/`Space` state is mapped, `Esc` requester presentation is readable, and `Space` is split to the action-dispatch frontier.
+2. [Add Control Probe Matrix](tasks/task-02-add-control-probe-matrix.md) - active.
 3. [Verify Camera And Action Frontiers](tasks/task-03-verify-camera-and-action-frontiers.md) - planned.
 
 ## Current Findings
@@ -49,12 +49,12 @@ Keep this to a small input matrix. Split when a single key uncovers a new parser
 2. `Space` reaches game state during the horseback/credits intro (`DAT_00636850=1`, `_DAT_00479e7a=1`) but does not skip the intro action. The intro actor action continues to natural completion.
 3. Natural completion currently enters `FUN_0042a70c`'s dependency-action completion path, then dispatches an action table through `FUN_0044f2fc`/`FUN_0044f508`. The observed script opcode is `0x07`, and the runtime activates scene `7`.
 4. Scene `7` then tries to load child actor `3853`; archive scans did not find actor `3853` as a standalone type-`0x08` flat-FANT actor record in `Files/ECSTATIC`. Treat this as a wrong transition or wrong dispatch context until original evidence says otherwise.
-5. `Esc` reaches `FUN_00415d40`'s menu/requester branch, changes requester state, and presents a menu with broken contents. This is likely a requester drawing/content presentation problem, not an input event problem.
+5. `Esc` reaches `FUN_00415d40`'s menu/requester branch, changes requester state, and now presents readable high-res requester contents. The verified intro menu shows `START GAME`, `SAVE GAME...`, `LOAD GAME...`, `SETTINGS...`, `QUIT`, and `CANCEL`.
 6. A hand proof attempt in reconstructed C explored lost callback/action context around `FUN_0042b004`, `FUN_0042b338`, and `FUN_0042b880`. It may still be relevant for later action callbacks, but it did not explain the current first-intro `Space` failure because the observed intro path reaches completion without callback attachment evidence.
 
 ## Acceptance Criteria
 
-1. `Esc` during the horseback/credits intro either opens the expected menu contents or has a documented, source-backed requester content/presentation frontier.
+1. `Esc` during the horseback/credits intro either opens the expected menu contents or has a documented, source-backed requester content/presentation frontier. Completed 2026-08-04: `Esc` opens readable requester contents in the bounded SDL dump.
 2. `Space` during the horseback/credits intro either skips to the expected next sequence/gameplay state or has a documented, source-backed action-dispatch frontier.
 3. After the intro-specific blocker is resolved or split, multiple movement/action keys reach gameplay state.
 4. Probes record the relevant state deltas.
@@ -69,7 +69,7 @@ Keep this to a small input matrix. Split when a single key uncovers a new parser
 
 ## Notes
 
-Do not continue broad control-matrix work until the intro `Esc`/`Space` behavior is classified. Start the next investigation from the proven input-state latches and from the wrong natural-completion dispatch to scene `7`.
+Task 01 classified the intro blocker enough to proceed with the compact control matrix. Carry `Space` as a narrower action-dispatch/completion frontier: it is delivered and latched, but the intro action still completes naturally and dispatches opcode `0x07` into scene `7`.
 
 ## Change Log
 
@@ -82,3 +82,8 @@ Do not continue broad control-matrix work until the intro `Esc`/`Space` behavior
 1. Activated the step around the user-reported intro control blocker.
 2. Reclassified the failure from SDL input delivery to reconstructed game-state consumption and presentation: `Space` latches but does not skip; `Esc` reaches requester state and shows broken menu contents.
 3. Recorded the current wrong-transition evidence: horseback intro actor `0` completes action `0x937800`, dispatches opcode `0x07`, activates scene `7`, and then fails to load missing child actor `3853`.
+
+### 2026-08-04
+
+1. Completed Task 01's input-state mapping slice: `Esc` requester presentation is fixed and proven by `/tmp/e2-step03-escape-labels-final-s2.ppm` (`hash=8f4ff5bf`), while `Space` remains a documented action-dispatch frontier.
+2. Activated Task 02 for the compact gameplay control probe matrix, with the full debug/ASan regression wrapper caveat carried in the parent implementation document.

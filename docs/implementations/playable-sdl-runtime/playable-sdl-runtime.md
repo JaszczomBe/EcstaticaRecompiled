@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-31
+Last Updated: 2026-08-04
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -47,7 +47,7 @@ Each step should be small enough for a single context window. If a step starts c
 
 1. [Stabilize Interactive SDL F5 Runtime](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) - completed; captured the user's F5 behavior, reproduced the stable SDL boundary, and classified the first frontier as DirectDraw page/palette/front-buffer fidelity.
 2. [Recover DirectDraw Page And Palette Semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) - completed; recovered palette ownership and the hires/full-frame front-buffer source.
-3. [Expand Gameplay Control And Camera Proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) - active; first close the intro `Esc`/`Space` response frontier, then grow from one movement latch to a compact control-state matrix.
+3. [Expand Gameplay Control And Camera Proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) - active; intro `Esc` now reaches readable requester contents, `Space` is split to the action-dispatch/completion frontier, and the next task is a compact control-state probe matrix.
 4. [Define Runtime Timing And Frame Pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) - planned; identify timing ownership and add a backend timing contract only where needed.
 5. [Begin DirectSound Compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) - planned; map startup sound behavior and define the first replaceable audio boundary.
 6. [Package Reproducible Developer Runtime](steps/step-06/step-06-package-reproducible-developer-runtime.md) - planned; make clone/submodule/build/launch validation boring and repeatable.
@@ -68,9 +68,9 @@ The Step 2 DirectDraw-facing presentation frontier is closed. Original `E2WIN95.
 
 The SDL backend now preserves the source frame aspect ratio during the final host-window blit. This keeps the recovered `640x480` frame centered inside the original-shaped `640x640` top-level window instead of stretching it to the full surface. With `E2R_PRESENT_DIAG=1`, a dummy-SDL check reports `host backend present rect: src=640x480 window=640x640 dst=0,80 640x480`.
 
-The current active blocker is no longer SDL event delivery. Window events, keydown/keyup events, and Win32-style message dispatch reach the reconstructed window procedure. During the horseback/credits intro, `Space` reaches the game input state (`DAT_00636850=1`, `_DAT_00479e7a=1`) but does not skip the intro action; the action instead completes naturally, then dispatches script opcode `0x07` into scene `7`, whose child actor `3853` is not present as a standalone flat-FANT actor record in `Files/ECSTATIC`. `Esc` reaches the menu/requester branch in `FUN_00415d40` and presents a menu, but the menu contents are broken. Treat the next work as recovered game-state/action-dispatch and requester-content/presentation parity, not host input plumbing.
+The current active blocker is no longer SDL event delivery. Window events, keydown/keyup events, and Win32-style message dispatch reach the reconstructed window procedure. During the horseback/credits intro, `Space` reaches the game input state (`DAT_00636850=1`, `_DAT_00479e7a=1`) but does not skip the intro action; the action instead completes naturally, then dispatches script opcode `0x07` into scene `7`, whose child actor `3853` is not present as a standalone flat-FANT actor record in `Files/ECSTATIC`. `Esc` reaches the menu/requester branch in `FUN_00415d40` and now presents readable requester contents: `START GAME`, `SAVE GAME...`, `LOAD GAME...`, `SETTINGS...`, `QUIT`, and `CANCEL`. Treat the next work as compact control-state proof expansion while carrying the `Space` action-dispatch/completion frontier, not host input plumbing.
 
-The regression wrapper is green again in debug and ASan. Debug still satisfies the historical `DAT_00479de8` control-ready gate. ASan reaches the stronger state needed for this step, including StartGame entry, `DAT_0047a76c=1`, requester state clear, `_DAT_0073cc3c=0x683c84`, movement latch `move=[1,0,0,0,0,0,0,0,0]`, and nonblank surface `3`, but it does not flip `DAT_00479de8` in the bounded sanitized run. The wrapper now keys the ASan pass on that scene/control/surface evidence while still rejecting sanitizer reports.
+The default regression wrapper is not currently green. Debug still satisfies the gameplay-control gate. ASan no longer crashes in the latest `FUN_00423858` actor-transform child-chain frontier and still reaches StartGame entry, `DAT_00479de8=1`, `DAT_0047a76c=1`, requester state clear, movement latch `move=[1,0,0,0,0,0,0,0,0]`, and nonblank surface `3`, but the bounded wrapper rejects the run because `_DAT_0073cc3c` stays `0x0` after the scene-`7`/actor-`3853` transition. Keep that as a regression-wrapper caveat for Task 02 instead of treating the full wrapper as green.
 
 ## Invariants
 
@@ -123,3 +123,10 @@ The regression wrapper is green again in debug and ASan. Debug still satisfies t
 2. Recorded that `Space` latches in game state during the horseback/credits intro yet is not consumed as a skip; natural completion dispatches opcode `0x07` to scene `7`, which then tries to load missing actor `3853`.
 3. Recorded that `Esc` enters the reconstructed menu/requester state path and shows a menu with broken contents, making requester drawing/content presentation the likely next proof area.
 4. Paused broader runtime edits and generator work until the action-dispatch/requester-presentation cause is isolated with smaller evidence.
+
+### 2026-08-04
+
+1. Restored hosted high-res requester label visibility for the intro `Esc` path, including a conservative ASCII fallback renderer, requester-item text y-coordinate correction, and a final label redraw after item rectangles are painted.
+2. Hardened SDL event polling against injected Win32 probe dispatch from a non-main thread; bounded probes now avoid the SDL main-thread assertion while still delivering queued keys.
+3. Added a narrow `FUN_00423858` child/linked actor readability guard after the full wrapper exposed an ASan-only actor-transform crash; the wrapper now fails at the known ASan scene-control gate instead of a sanitizer report.
+4. Completed Step 3 Task 01 and activated Task 02 for the compact control probe matrix, carrying the `Space` action-dispatch/completion frontier as the remaining intro-control split.
