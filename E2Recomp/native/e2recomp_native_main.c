@@ -961,11 +961,34 @@ static unsigned e2r_parse_virtual_key(const char *name)
     if (strcmp(name, "escape") == 0 || strcmp(name, "esc") == 0) {
         return VK_ESCAPE;
     }
+    if (strcmp(name, "up") == 0 || strcmp(name, "arrowup") == 0) {
+        return VK_UP;
+    }
+    if (strcmp(name, "down") == 0 || strcmp(name, "arrowdown") == 0) {
+        return VK_DOWN;
+    }
+    if (strcmp(name, "left") == 0 || strcmp(name, "arrowleft") == 0) {
+        return VK_LEFT;
+    }
+    if (strcmp(name, "right") == 0 || strcmp(name, "arrowright") == 0) {
+        return VK_RIGHT;
+    }
+    if (strcmp(name, "shift") == 0 || strcmp(name, "lshift") == 0 ||
+        strcmp(name, "rshift") == 0) {
+        return VK_SHIFT;
+    }
+    if (strcmp(name, "alt") == 0 || strcmp(name, "lalt") == 0 ||
+        strcmp(name, "leftalt") == 0 || strcmp(name, "menu") == 0) {
+        return VK_MENU;
+    }
+    if (strcmp(name, "ralt") == 0 || strcmp(name, "rightalt") == 0) {
+        return VK_RMENU;
+    }
     if (strcmp(name, "q") == 0) {
         return VK_Q;
     }
     if (strcmp(name, "ctrl") == 0 || strcmp(name, "control") == 0) {
-        return 0x11;
+        return VK_CONTROL;
     }
     if (strcmp(name, "a") == 0) {
         return 0x41;
@@ -976,11 +999,20 @@ static unsigned e2r_parse_virtual_key(const char *name)
     if (strcmp(name, "d") == 0) {
         return 0x44;
     }
+    if (strcmp(name, "i") == 0) {
+        return VK_I;
+    }
     if (strcmp(name, "m") == 0) {
         return 0x4d;
     }
     if (strcmp(name, "p") == 0) {
         return 0x50;
+    }
+    if (strcmp(name, "l") == 0) {
+        return VK_L;
+    }
+    if (strcmp(name, "s") == 0) {
+        return VK_S;
     }
     if (strcmp(name, "w") == 0) {
         return 0x57;

@@ -10,7 +10,7 @@ Grow the current single movement-latch proof into a compact gameplay-control mat
 
 ## Why This Step Exists
 
-The reconstructed runtime proves that `num8` can latch movement after Start Game. A playable runtime needs confidence that multiple controls survive the Win32 queue, legacy key state, and gameplay-state transitions.
+The reconstructed runtime originally proved movement with a `num8` probe, but Ecstatica II's manual and original-game testing show that cursor keys are the canonical movement controls. A playable runtime needs confidence that the arrow keys and their modifier actions survive the Win32 queue, legacy key state, and gameplay-state transitions.
 
 The immediate blocker is earlier than the planned broad matrix: during the horseback/credits intro, SDL input reaches the reconstructed window procedure and key globals, but `Esc` and `Space` do not produce the expected visible behavior. This step remains the owner because the fault is now inside reconstructed control/state consumption rather than the SDL host event bridge.
 
@@ -40,8 +40,8 @@ Keep this to a small input matrix. Split when a single key uncovers a new parser
 ## Tasks
 
 1. [Map Gameplay Input State](tasks/task-01-map-gameplay-input-state.md) - completed; intro `Esc`/`Space` state is mapped, `Esc` requester presentation is readable, and `Space` is split to the action-dispatch frontier.
-2. [Add Control Probe Matrix](tasks/task-02-add-control-probe-matrix.md) - active.
-3. [Verify Camera And Action Frontiers](tasks/task-03-verify-camera-and-action-frontiers.md) - planned.
+2. [Add Control Probe Matrix](tasks/task-02-add-control-probe-matrix.md) - completed; debug and ASan now assert canonical arrow movement: `up`, `down`, `left`, and `right`.
+3. [Verify Camera And Action Frontiers](tasks/task-03-verify-camera-and-action-frontiers.md) - active.
 
 ## Current Findings
 
@@ -51,13 +51,15 @@ Keep this to a small input matrix. Split when a single key uncovers a new parser
 4. Scene `7` then tries to load child actor `3853`; archive scans did not find actor `3853` as a standalone type-`0x08` flat-FANT actor record in `Files/ECSTATIC`. Treat this as a wrong transition or wrong dispatch context until original evidence says otherwise.
 5. `Esc` reaches `FUN_00415d40`'s menu/requester branch, changes requester state, and now presents readable high-res requester contents. The verified intro menu shows `START GAME`, `SAVE GAME...`, `LOAD GAME...`, `SETTINGS...`, `QUIT`, and `CANCEL`.
 6. A hand proof attempt in reconstructed C explored lost callback/action context around `FUN_0042b004`, `FUN_0042b338`, and `FUN_0042b880`. It may still be relevant for later action callbacks, but it did not explain the current first-intro `Space` failure because the observed intro path reaches completion without callback attachment evidence.
+7. `scripts/run-e2-control-matrix.sh` proves four canonical gameplay movement controls in debug and ASan with zero startup-logo delay: `up`, `down`, `left`, and `right` each dispatch through the Win32 queue, reach gameplay-control state, set the expected movement vector and `_DAT_00479e78` direction, keep requester state clear, keep a nonzero scene pointer, and dump nonblank surface `3`.
+8. Original-game modifier and utility-key reports are now represented in the probe parser: `ctrl`, `shift`, `alt`, `ralt`, `s`, `i`, and `l` can be injected by name. Source/manual mapping says `Ctrl`+arrows attack, Left Alt+arrows dodge, `Ctrl`+Left Alt+arrows advanced attack, Left Shift jumps, Right Alt drops carried items, `S` quick-saves, `I` toggles the icon bar, `Return` opens the icon/status page, `Esc` opens menu or closes status/menu, and `Space` interacts. Task 03 should prove the reconstructed owner flags before wiring any unproven behavior.
 
 ## Acceptance Criteria
 
 1. `Esc` during the horseback/credits intro either opens the expected menu contents or has a documented, source-backed requester content/presentation frontier. Completed 2026-08-04: `Esc` opens readable requester contents in the bounded SDL dump.
 2. `Space` during the horseback/credits intro either skips to the expected next sequence/gameplay state or has a documented, source-backed action-dispatch frontier.
-3. After the intro-specific blocker is resolved or split, multiple movement/action keys reach gameplay state.
-4. Probes record the relevant state deltas.
+3. After the intro-specific blocker is resolved or split, multiple movement/action keys reach gameplay state. Completed 2026-08-04 for four canonical arrow movement controls.
+4. Probes record the relevant state deltas. Completed 2026-08-04 for the movement matrix.
 5. New crashes are classified as separate runtime frontiers.
 
 ## Verification
@@ -69,7 +71,7 @@ Keep this to a small input matrix. Split when a single key uncovers a new parser
 
 ## Notes
 
-Task 01 classified the intro blocker enough to proceed with the compact control matrix. Carry `Space` as a narrower action-dispatch/completion frontier: it is delivered and latched, but the intro action still completes naturally and dispatches opcode `0x07` into scene `7`.
+Task 02 completed the compact arrow movement matrix and corrected the host translation that had made physical arrows look like numpad keys. Carry `Space` as a narrower action-dispatch/completion frontier: it is delivered and latched, but the intro action still completes naturally and dispatches opcode `0x07` into scene `7`. Task 03 should compare SDL/default backend behavior and decide whether the next owned frontier is camera/action/modifier-state proof or the intro-completion scene-current split.
 
 ## Change Log
 
@@ -87,3 +89,6 @@ Task 01 classified the intro blocker enough to proceed with the compact control 
 
 1. Completed Task 01's input-state mapping slice: `Esc` requester presentation is fixed and proven by `/tmp/e2-step03-escape-labels-final-s2.ppm` (`hash=8f4ff5bf`), while `Space` remains a documented action-dispatch frontier.
 2. Activated Task 02 for the compact gameplay control probe matrix, with the full debug/ASan regression wrapper caveat carried in the parent implementation document.
+3. Completed Task 02 by adding `scripts/run-e2-control-matrix.sh`; all debug and ASan rows for `up`, `down`, `left`, and `right` pass against the expected movement vectors and surface proof.
+4. Activated Task 03 to verify camera/action frontiers and compare SDL/default backend behavior.
+5. Corrected the matrix and host input translation after original-game/manual evidence showed Ecstatica II does not use numpad movement. Probe aliases now exist for `ctrl`, `shift`, `alt`, `ralt`, `s`, `i`, and `l`; Task 03 still owns modifier/status/save/load classification.

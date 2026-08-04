@@ -1,9 +1,9 @@
 # Verify Camera And Action Frontiers
 
-Status: planned
+Status: active
 Parent Step: [Expand Gameplay Control And Camera Proofs](../step-03-expand-gameplay-control-and-camera-proofs.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-07-31
+Last Updated: 2026-08-04
 
 ## Goal
 
@@ -31,7 +31,7 @@ Classify what camera/action behavior is reachable after the control matrix lands
 
 This closeout should keep the next action crisp: either continue control fidelity or split to a specific runtime crash repair.
 
-Current pre-closeout frontier: `Space` during the intro latches in game state but natural-completes into scene `7` and missing actor `3853`; `Esc` enters requester/menu state and presents a menu with broken contents. Do not close this step until those two paths are either repaired or deliberately split into source-backed follow-up steps.
+Current pre-closeout frontier: `Space` during the intro latches in game state but natural-completes into scene `7` and missing actor `3853`; `Esc` enters requester/menu state and presents readable requester contents. Task 02 added a deterministic movement matrix for canonical Ecstatica II arrow controls: `up`, `down`, `left`, and `right` in debug and ASan. Original-game modifier/utility reports are parser-visible as `ctrl`, `shift`, `alt`, `ralt`, `s`, `i`, and `l`; source/manual mapping says arrows move, `Ctrl`+arrows attack, Left Alt+arrows dodge, `Ctrl`+Left Alt+arrows advanced attack, Left Shift jumps, Right Alt drops carried items, `Space` interacts, `Return` opens the icon/status page, `Esc` opens menu or closes status/menu, `S` quick-saves, and `I` toggles the icon bar. Do not close this step until the camera/action/modifier owner layer is recorded and the intro `Space` split is either repaired or deliberately carried as a source-backed follow-up.
 
 ## Acceptance Criteria
 
@@ -47,8 +47,8 @@ Current pre-closeout frontier: `Space` during the intro latches in game state bu
 ## Review State
 
 1. Planning state: discussed
-2. Implementation state: not_started
-3. Notes: Final task for Step 3; not ready until intro `Esc`/`Space` behavior is classified.
+2. Implementation state: active
+3. Notes: Final task for Step 3; start from the completed arrow movement matrix and compare SDL/default backend behavior before deciding whether to split the remaining intro `Space` action frontier. Classify `Ctrl`/`Shift`/`Left Alt`/`Right Alt`, `Return`, `S`, `I`, and any version-specific `L` quickload report before wiring unproven gameplay behavior.
 
 ## Change Log
 
@@ -59,3 +59,7 @@ Current pre-closeout frontier: `Space` during the intro latches in game state bu
 ### 2026-07-31
 
 1. Added the current intro action/requester frontier as the required pre-closeout evidence.
+
+### 2026-08-04
+
+1. Activated after Task 02 landed `scripts/run-e2-control-matrix.sh` and proved four canonical arrow movement controls in debug and ASan.

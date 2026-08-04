@@ -2,6 +2,22 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-08-04 - Gameplay Control Matrix Added
+
+Area: Playable SDL runtime Step 3, gameplay movement controls, bounded debug/ASan probes
+
+Symptom: the runtime had only one stable gameplay movement proof (`space,num8`), but original Ecstatica II testing and the manual show that movement belongs to the cursor keys, not numpad. Step 3 needed a compact matrix before camera/action frontier work could be separated from basic host/input delivery.
+
+Evidence: `scripts/run-e2-control-matrix.sh` passes in debug and ASan with dummy SDL input and `E2R_STARTUP_LOGO_DELAY_MS=0`. The matrix rows are `space,up`, `space,down`, `space,left`, and `space,right` with `gameplay_key_split=1`; each row reaches `gameplay-control wait satisfied`, dispatches the target key, keeps `_DAT_00643650=0`, keeps `_DAT_0073cc3c` nonzero, dumps nonblank surface `3`, and records the expected movement vector. The proven vectors are `up -> move=[1,0,0,0,0,0,0,0,0]`, `down -> move=[0,0,0,0,0,0,0,1,0]`, `left -> move=[0,0,0,1,0,0,0,0,0]`, and `right -> move=[0,0,0,0,1,0,0,0,0]`.
+
+Change: added `scripts/run-e2-control-matrix.sh`, a serial matrix runner around the existing `--inject-key-sequence-gameplay-surfaces` probe. It builds debug and ASan unless `E2R_SKIP_BUILD=1`, asserts per-row key dispatch, movement vector, `_DAT_00479e78` pending direction, requester clear, scene pointer, and surface proof, and rejects ASan reports. The SDL/X11 host backends now translate physical arrows to arrow virtual keys instead of numpad virtual keys. The Win32 compatibility/parser layer names arrow keys, `Ctrl`, `Shift`, `Alt`, `Right Alt`, `S`, `I`, and `L`; arrow keys map to the canonical movement bits.
+
+Result: `scripts/run-e2-control-matrix.sh`, `bash -n scripts/run-e2-control-matrix.sh`, `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-debug`, and `git diff --check` pass. Task 02 is complete and Task 03 is active.
+
+Next Frontier: compare SDL/default backend behavior for the accepted controls and classify the remaining camera/action/modifier frontier, including whether intro `Space` should be repaired in this step or split to an action-dispatch follow-up. Keep `Ctrl` attacks, Left Alt dodge, `Ctrl`+Left Alt advanced attacks, Left Shift jump, Right Alt drop, Return icon/status page, `S` quicksave, `I` icon-bar toggle, and version-specific `L` quickload as source/probe classification items before wiring behavior.
+
+Regression Risk: the matrix intentionally covers movement-state latches, not full gameplay animation or collision semantics. The rows run serially because concurrent full-runtime probes can introduce noisy failures unrelated to per-key behavior.
+
 ## 2026-08-04 - ASan Actor Transform Child Guard
 
 Area: Playable SDL runtime regression wrapper, `FUN_00423858`, actor transform child-chain traversal

@@ -81,6 +81,17 @@ static const char *E2R_KeyName(WPARAM key) {
     case VK_ESCAPE: return "Escape";
     case VK_SPACE: return "Space";
     case VK_RETURN: return "Return";
+    case VK_UP: return "Up";
+    case VK_DOWN: return "Down";
+    case VK_LEFT: return "Left";
+    case VK_RIGHT: return "Right";
+    case VK_SHIFT: return "Shift";
+    case VK_CONTROL: return "Control";
+    case VK_MENU: return "Alt";
+    case VK_RMENU: return "RightAlt";
+    case VK_I: return "I";
+    case VK_L: return "L";
+    case VK_S: return "S";
     default: return "Other";
     }
 }
@@ -121,13 +132,23 @@ static unsigned E2R_virtual_key_to_scan(WPARAM key) {
     case 0x08: return 0x0e;
     case VK_RETURN: return 0x1c;
     case VK_SPACE: return 0x39;
-    case 0x11: return 0x1d;
+    case VK_SHIFT: return 0x2a;
+    case VK_CONTROL: return 0x1d;
+    case VK_MENU: return 0x38;
+    case VK_RMENU: return 0x38;
+    case VK_LEFT: return 0x4b;
+    case VK_UP: return 0x48;
+    case VK_RIGHT: return 0x4d;
+    case VK_DOWN: return 0x50;
     case 0x41: return 0x1e;
     case 0x43: return 0x2e;
     case 0x44: return 0x20;
+    case VK_I: return 0x17;
+    case VK_L: return 0x26;
     case 0x4d: return 0x32;
     case 0x50: return 0x19;
     case VK_Q: return 0x10;
+    case VK_S: return 0x1f;
     case 0x57: return 0x11;
     case 0x58: return 0x2d;
     case 0x5a: return 0x2c;
@@ -177,6 +198,10 @@ static void E2R_feed_legacy_keydown(WPARAM key, LPARAM lParam) {
 
     if (scan == 0) {
         scan = E2R_virtual_key_to_scan(key);
+    }
+    if (key == VK_RMENU || key == VK_LEFT || key == VK_UP ||
+        key == VK_RIGHT || key == VK_DOWN) {
+        is_extended = 1;
     }
     if (scan != 0) {
         if (is_extended) {
@@ -321,10 +346,14 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         E2R_feed_legacy_keydown(wParam, lParam);
         E2R_LogGameInputEvent("wndproc.keydown.after_legacy", msg, wParam, lParam);
         switch (wParam) {
-        case 0x11:
-            if (DAT_00479dfc == 0) {
-                DAT_00636852 = 1;
-            }
+        case VK_CONTROL:
+            DAT_00636852 = 1;
+            return 0;
+        case VK_SHIFT:
+            DAT_00636846 = 1;
+            return 0;
+        case VK_MENU:
+            DAT_0063684a = 1;
             return 0;
         case VK_ESCAPE:
             DAT_00636844 = 1;
@@ -366,28 +395,17 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             }
             DAT_00636846 = 1;
             return 0;
-        case 0x61:
-            DAT_0063685c = 1;
-            return 0;
-        case 0x62:
-            DAT_0063685a = 1;
-            return 0;
-        case 0x63:
-            DAT_00636855 = 1;
-            return 0;
-        case 0x64:
+        case VK_LEFT:
             DAT_00636854 = 1;
             return 0;
-        case 0x65:
-        case 0x66:
-            DAT_00636856 = 1;
-            return 0;
-        case 0x67:
-        case 0x68:
+        case VK_UP:
             DAT_00636859 = 1;
             return 0;
-        case 0x69:
-            DAT_0063685b = 1;
+        case VK_RIGHT:
+            DAT_00636856 = 1;
+            return 0;
+        case VK_DOWN:
+            DAT_0063685a = 1;
             return 0;
         case 0x70:
         case 0x71:

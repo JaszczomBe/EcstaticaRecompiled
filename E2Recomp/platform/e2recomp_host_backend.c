@@ -121,12 +121,16 @@ static UINT e2r_virtual_key_from_keysym(unsigned long keysym)
     case 0xff1b: return VK_ESCAPE;
     case 0xff0d: return VK_RETURN;
     case 0x20: return VK_SPACE;
+    case 0xffe1:
+    case 0xffe2: return VK_SHIFT;
     case 0xffe3:
-    case 0xffe4: return 0x11;
-    case 0xff51: return 0x64;
-    case 0xff52: return 0x68;
-    case 0xff53: return 0x66;
-    case 0xff54: return 0x62;
+    case 0xffe4: return VK_CONTROL;
+    case 0xffe9: return VK_MENU;
+    case 0xffea: return VK_RMENU;
+    case 0xff51: return VK_LEFT;
+    case 0xff52: return VK_UP;
+    case 0xff53: return VK_RIGHT;
+    case 0xff54: return VK_DOWN;
     default:
         if (keysym >= 'A' && keysym <= 'Z') {
             return (UINT)keysym;

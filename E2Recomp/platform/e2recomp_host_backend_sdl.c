@@ -166,6 +166,12 @@ static const char *e2r_sdl_scancode_name(SDL_Scancode scancode)
     case SDL_SCANCODE_ESCAPE: return "Escape";
     case SDL_SCANCODE_RETURN: return "Return";
     case SDL_SCANCODE_SPACE: return "Space";
+    case SDL_SCANCODE_LCTRL: return "LeftCtrl";
+    case SDL_SCANCODE_RCTRL: return "RightCtrl";
+    case SDL_SCANCODE_LALT: return "LeftAlt";
+    case SDL_SCANCODE_RALT: return "RightAlt";
+    case SDL_SCANCODE_LSHIFT: return "LeftShift";
+    case SDL_SCANCODE_RSHIFT: return "RightShift";
     case SDL_SCANCODE_LEFT: return "Left";
     case SDL_SCANCODE_RIGHT: return "Right";
     case SDL_SCANCODE_UP: return "Up";
@@ -201,8 +207,10 @@ static void e2r_sdl_log_keyboard_snapshot(E2R_HostWindow *window)
     static const SDL_Scancode watched[] = {
         SDL_SCANCODE_ESCAPE, SDL_SCANCODE_RETURN, SDL_SCANCODE_SPACE,
         SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT, SDL_SCANCODE_UP, SDL_SCANCODE_DOWN,
+        SDL_SCANCODE_LCTRL, SDL_SCANCODE_RCTRL, SDL_SCANCODE_LALT, SDL_SCANCODE_RALT,
+        SDL_SCANCODE_LSHIFT, SDL_SCANCODE_RSHIFT,
         SDL_SCANCODE_A, SDL_SCANCODE_C, SDL_SCANCODE_D, SDL_SCANCODE_M,
-        SDL_SCANCODE_P, SDL_SCANCODE_Q, SDL_SCANCODE_W, SDL_SCANCODE_X,
+        SDL_SCANCODE_P, SDL_SCANCODE_Q, SDL_SCANCODE_S, SDL_SCANCODE_W, SDL_SCANCODE_X,
         SDL_SCANCODE_Z, SDL_SCANCODE_F1, SDL_SCANCODE_F2, SDL_SCANCODE_F3,
         SDL_SCANCODE_F4, SDL_SCANCODE_F5, SDL_SCANCODE_F6, SDL_SCANCODE_F7,
         SDL_SCANCODE_F8, SDL_SCANCODE_F9, SDL_SCANCODE_F10, SDL_SCANCODE_F11,
@@ -265,11 +273,15 @@ static UINT e2r_virtual_key_from_sdl(SDL_Keycode key)
     case SDLK_KP_ENTER: return VK_RETURN;
     case SDLK_SPACE: return VK_SPACE;
     case SDLK_LCTRL:
-    case SDLK_RCTRL: return 0x11;
-    case SDLK_LEFT: return 0x64;
-    case SDLK_UP: return 0x68;
-    case SDLK_RIGHT: return 0x66;
-    case SDLK_DOWN: return 0x62;
+    case SDLK_RCTRL: return VK_CONTROL;
+    case SDLK_LALT: return VK_MENU;
+    case SDLK_RALT: return VK_RMENU;
+    case SDLK_LSHIFT:
+    case SDLK_RSHIFT: return VK_SHIFT;
+    case SDLK_LEFT: return VK_LEFT;
+    case SDLK_UP: return VK_UP;
+    case SDLK_RIGHT: return VK_RIGHT;
+    case SDLK_DOWN: return VK_DOWN;
     default: return 0;
     }
 }
@@ -292,11 +304,14 @@ static SDL_Keycode e2r_sdl_key_from_virtual_key(UINT vk)
     case VK_ESCAPE: return SDLK_ESCAPE;
     case VK_RETURN: return SDLK_RETURN;
     case VK_SPACE: return SDLK_SPACE;
-    case 0x11: return SDLK_LCTRL;
-    case 0x64: return SDLK_LEFT;
-    case 0x68: return SDLK_UP;
-    case 0x66: return SDLK_RIGHT;
-    case 0x62: return SDLK_DOWN;
+    case VK_CONTROL: return SDLK_LCTRL;
+    case VK_MENU: return SDLK_LALT;
+    case VK_RMENU: return SDLK_RALT;
+    case VK_SHIFT: return SDLK_LSHIFT;
+    case VK_LEFT: return SDLK_LEFT;
+    case VK_UP: return SDLK_UP;
+    case VK_RIGHT: return SDLK_RIGHT;
+    case VK_DOWN: return SDLK_DOWN;
     default: return SDLK_UNKNOWN;
     }
 }
