@@ -433,6 +433,14 @@ source = source.replace(
   "      if (*(int *)(param_2 + 6) != 0) {\n        E2R_requester_probe_action_count++;\n        E2R_requester_probe_last_action = *(uintptr_t *)(param_2 + 6);\n        E2R_InvokeRequesterAction(E2R_requester_probe_last_action);\n        FUN_0041cfc0();\n        return;\n      }"
 );
 source = source.replace(
+  "    if (*(int *)(param_2 + 6) != 0) {\n      (**(code **)(param_2 + 6))();\n      uVar6 = extraout_ECX_00;\n      uVar8 = extraout_DX_00;\n    }",
+  "    if (*(int *)(param_2 + 6) != 0) {\n      E2R_requester_probe_action_count++;\n      E2R_requester_probe_last_action = *(uintptr_t *)(param_2 + 6);\n      if (E2R_InvokeRequesterAction(E2R_requester_probe_last_action)) {\n        return 1;\n      }\n    }"
+);
+source = source.replace(
+  "  if (*(int *)(param_2 + 6) != 0) {\n    (**(code **)(param_2 + 6))();\n    uVar6 = extraout_ECX;\n    _DAT_006443d0 = extraout_DX;\n  }",
+  "  if (*(int *)(param_2 + 6) != 0) {\n    E2R_requester_probe_action_count++;\n    E2R_requester_probe_last_action = *(uintptr_t *)(param_2 + 6);\n    if (E2R_InvokeRequesterAction(E2R_requester_probe_last_action)) {\n      return 1;\n    }\n  }"
+);
+source = source.replace(
   "  }\n  FUN_0041cfc0();\n  return;\ncode_r0x0043bf38:",
   "  }\n  else {\n    E2R_requester_probe_bd4c_no_key_count++;\n  }\n  FUN_0041cfc0();\n  return;\ncode_r0x0043bf38:"
 );
@@ -3406,6 +3414,22 @@ source = source.replace(
 source = source.replace(
   "    case 6:\n      FUN_00414e68();\n    }\n    FUN_0041cfc0();",
   "    case 6:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));\n    }\n    FUN_0041cfc0();"
+);
+source = source.replace(
+  "    case 2:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(extraout_ECX_06,(int)((ulonglong)uVar4 >> 0x20));",
+  "    case 2:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));"
+);
+source = source.replace(
+  "    case 3:\n      _DAT_0064353c = -1;\n      iVar2 = 0;\n      uVar1 = extraout_ECX_06;",
+  "    case 3:\n      _DAT_0064353c = -1;\n      iVar2 = 0;\n      uVar1 = 0x2a;"
+);
+source = source.replace(
+  "    case 4:\n      _DAT_0064353c = -1;\n      iVar2 = 0;\n      uVar1 = extraout_ECX_06;",
+  "    case 4:\n      _DAT_0064353c = -1;\n      iVar2 = 0;\n      uVar1 = 0x29;"
+);
+source = source.replace(
+  /(longlong __fastcall FUN_0043c1b8\(undefined4 param_1,uint param_2\)[\s\S]*?\r?\n  uint local_20;\r?\n  uint local_1c;\r?\n\s*)if \(9 < in_EAX\) \{\r?\n    FUN_00414e68\(\);\r?\n  \}/,
+  "$1in_EAX = (int)(uintptr_t)param_1;\n  if (9 < in_EAX) {\n    in_EAX = -1;\n  }"
 );
 source = source.replace(
   /(void FUN_0043adc0\(void\)[\s\S]*?\r?\n  uint uVar2;\r?\n\s*)uVar2 = \*\(int \*\)\(in_EAX \+ 0xe\) >> 0x10;/,

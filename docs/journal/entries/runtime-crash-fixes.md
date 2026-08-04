@@ -2,6 +2,34 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-08-04 - Intro Menu Mouse Route Reaches Load And Settings
+
+Area: Playable SDL runtime Step 3 Task 03, intro requester/menu controls, SDL mouse-to-Win32 bridge
+
+Symptom: original-game testing showed the intro menu is mouse-only, but the rebuilt runtime had no working menu mouse path. SDL mouse coordinates were not mapped back into the recovered `640x480` game frame, the Win32 compatibility layer did not preserve cursor position, reconstructed WndProc ignored mouse button state, requester action pointers still jumped into raw labels, and several menu switch arms used decompiler-residual requester ids. Clicking Load also exposed stale hidden `in_EAX` use in the save-slot preview path.
+
+Evidence: a bounded Settings click initially reached the correct item but crashed at raw label `LAB_0043d470` through `FUN_0043b708`. After recovering action dispatch, Settings crashed in `FUN_0043ce58(param_1=0)` until the Settings requester id was restored to `0x31`. A bounded Load click then reached `FUN_0043ce58(param_1=0x29)` but crashed in `FUN_0043c1b8` because the save-slot index still came from stale `in_EAX`; GDB showed the explicit slot argument was `param_1=3`.
+
+Change: the SDL backend now records the last aspect-fit presentation rectangle and maps mouse motion/button coordinates into game-frame coordinates. The Win32 shim tracks cursor position and implements `GetCursorPos`/`SetCursorPos`. The reconstructed WndProc now feeds mouse coordinates and sets left-button requester state. The native probe harness gained `--inject-intro-menu-click-surfaces <prefix> <x> <y> [esc_seconds] [post_click_seconds]`, which opens the intro menu with `Esc`, then leaves injected mouse messages for the requester loop. `FUN_0043b708` routes recovered requester action label pointers through `E2R_InvokeRequesterAction` instead of directly calling raw labels. `FUN_00415d40` now uses recovered requester ids for Settings (`0x31`), Save (`0x2a`), and Load (`0x29`). `FUN_0043c1b8` seeds the save-slot index from explicit `param_1` and treats out-of-range slots as the existing no-preview path. Durable reconstructed repairs are mirrored in `E2Recomp/tools/GenerateRecon.js`; regeneration is intentionally deferred because the current generator still produces unrelated historical drift if run wholesale.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, `cmake --build --preset linux-clang32-sdl-debug`, and `git diff --check` pass. The bounded Settings probe exits cleanly:
+
+```text
+env SDL_VIDEODRIVER=dummy E2R_STARTUP_LOGO_DELAY_MS=0 E2R_INPUT_DIAG=0 ./e2recomp --inject-intro-menu-click-surfaces /tmp/e2-menu-settings 320 225 6 3
+mouse click probe wait finished ... actions 0->1 ... state=2 requester=0x31
+```
+
+The bounded Load probe exits cleanly:
+
+```text
+env SDL_VIDEODRIVER=dummy E2R_STARTUP_LOGO_DELAY_MS=0 E2R_INPUT_DIAG=0 ./e2recomp --inject-intro-menu-click-surfaces /tmp/e2-menu-load 320 203 6 3
+mouse click probe wait finished ... actions 0->1 ... state=4 requester=0x29
+```
+
+Next Frontier: use the proven mouse path to validate submenu interactions beyond first entry: selecting Load slots/OK/Cancel, toggling Settings rows, and Quit confirmation. Keep menu keyboard navigation classified as absent in the original intro menu unless new original evidence appears.
+
+Regression Risk: the mouse bridge changes shared Win32 cursor/button state, so future UI probes should verify clicks at non-centered/aspect-fitted window coordinates. The requester action dispatcher intentionally handles only recovered menu label targets; new labels should be added with original-address evidence instead of raw indirect calls.
+
 ## 2026-08-04 - Gameplay Control Matrix Added
 
 Area: Playable SDL runtime Step 3, gameplay movement controls, bounded debug/ASan probes

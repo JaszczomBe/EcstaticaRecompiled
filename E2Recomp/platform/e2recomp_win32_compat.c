@@ -33,6 +33,7 @@ static DWORD e2r_last_error;
 static void *e2r_tls[64];
 static DWORD e2r_next_tls;
 static WNDPROC e2r_window_proc;
+static POINT e2r_cursor_pos;
 
 #define E2R_MESSAGE_QUEUE_CAPACITY 32
 #define E2R_HOST_ALLOC_MAGIC 0xe2a110c0u
@@ -137,6 +138,12 @@ static BOOL e2r_push_message(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     return queued;
 }
 
+static void e2r_update_cursor_from_lparam(LPARAM lparam)
+{
+    e2r_cursor_pos.x = (int16_t)(lparam & 0xffffu);
+    e2r_cursor_pos.y = (int16_t)((lparam >> 16) & 0xffffu);
+}
+
 static BOOL e2r_class_name_matches(LPCSTR a, LPCSTR b)
 {
     if (a == b) {
@@ -219,6 +226,19 @@ static void e2r_queue_host_message(UINT msg, WPARAM wparam, LPARAM lparam, void 
     static unsigned message_diag_count;
 
     (void)user;
+    switch (msg) {
+    case WM_MOUSEMOVE:
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP:
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONUP:
+        e2r_update_cursor_from_lparam(lparam);
+        break;
+    default:
+        break;
+    }
     if (e2r_input_diag_enabled() && e2r_should_log_host_message(msg) &&
         message_diag_count < 256u) {
         fprintf(stderr,
@@ -792,7 +812,19 @@ BOOL UpdateWindow(HWND hwnd)
 }
 HWND SetFocus(HWND hwnd) { return hwnd; }
 int ShowCursor(BOOL show) { (void)show; return 0; }
-BOOL GetCursorPos(POINT *point) { if (point) point->x = point->y = 0; return TRUE; }
+BOOL GetCursorPos(POINT *point)
+{
+    if (point != NULL) {
+        *point = e2r_cursor_pos;
+    }
+    return TRUE;
+}
+BOOL SetCursorPos(int x, int y)
+{
+    e2r_cursor_pos.x = x;
+    e2r_cursor_pos.y = y;
+    return TRUE;
+}
 void E2R_PumpHost(void)
 {
     if (e2r_window.ptr != NULL) {

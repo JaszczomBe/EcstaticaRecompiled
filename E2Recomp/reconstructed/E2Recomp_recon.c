@@ -8726,12 +8726,12 @@ LAB_00416112:
       break;
     case 2:
       _DAT_00643660 = 1;
-      FUN_0043ce58(extraout_ECX_06,(int)((ulonglong)uVar4 >> 0x20));
+      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));
       break;
     case 3:
       _DAT_0064353c = -1;
       iVar2 = 0;
-      uVar1 = extraout_ECX_06;
+      uVar1 = 0x2a;
       do {
         uVar4 = FUN_0043ce58(uVar1,iVar2);
         iVar2 = (int)((ulonglong)uVar4 >> 0x20);
@@ -8746,7 +8746,7 @@ LAB_00416112:
     case 4:
       _DAT_0064353c = -1;
       iVar2 = 0;
-      uVar1 = extraout_ECX_06;
+      uVar1 = 0x29;
       do {
         uVar4 = FUN_0043ce58(uVar1,iVar2);
         iVar2 = (int)((ulonglong)uVar4 >> 0x20);
@@ -31540,9 +31540,11 @@ undefined4 __fastcall FUN_0043b708(undefined4 param_1,short *param_2)
     _DAT_00643644 = 0;
     uVar8 = (undefined2)((uint)DAT_0047a45e >> 0x10);
     if (*(int *)(param_2 + 6) != 0) {
-      (**(code **)(param_2 + 6))();
-      uVar6 = extraout_ECX_00;
-      uVar8 = extraout_DX_00;
+      E2R_requester_probe_action_count++;
+      E2R_requester_probe_last_action = *(uintptr_t *)(param_2 + 6);
+      if (E2R_InvokeRequesterAction(E2R_requester_probe_last_action)) {
+        return 1;
+      }
     }
     DAT_0047a45e = CONCAT22(uVar8,(undefined2)DAT_0047a45e);
     _DAT_006443d2 = uVar2 & 0x7f;
@@ -31559,9 +31561,11 @@ undefined4 __fastcall FUN_0043b708(undefined4 param_1,short *param_2)
   _DAT_00643538 = 0;
   _DAT_00643644 = 0;
   if (*(int *)(param_2 + 6) != 0) {
-    (**(code **)(param_2 + 6))();
-    uVar6 = extraout_ECX;
-    _DAT_006443d0 = extraout_DX;
+    E2R_requester_probe_action_count++;
+    E2R_requester_probe_last_action = *(uintptr_t *)(param_2 + 6);
+    if (E2R_InvokeRequesterAction(E2R_requester_probe_last_action)) {
+      return 1;
+    }
   }
   _DAT_00643538 = 0;
   DAT_0047a45e = CONCAT22((short)((uint)uVar3 >> 0x10),(undefined2)DAT_0047a45e);
@@ -32179,8 +32183,9 @@ longlong __fastcall FUN_0043c1b8(undefined4 param_1,uint param_2)
   uint local_20;
   uint local_1c;
 
+  in_EAX = (int)(uintptr_t)param_1;
   if (9 < in_EAX) {
-    FUN_00414e68();
+    in_EAX = -1;
   }
   if (DAT_0047a43c == 0) {
     uVar9 = 0x23;

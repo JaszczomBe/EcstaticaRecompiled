@@ -21,6 +21,7 @@ Classify what camera/action behavior is reachable after the control matrix lands
 2. Compare SDL and default backend behavior when presentation is active.
 3. Capture call stacks for any new crash.
 4. Update the step with accepted controls and remaining unknowns.
+5. Prove the original mouse-only intro menu route before treating keyboard menu behavior as missing.
 
 ## Out Of Scope
 
@@ -31,12 +32,13 @@ Classify what camera/action behavior is reachable after the control matrix lands
 
 This closeout should keep the next action crisp: either continue control fidelity or split to a specific runtime crash repair.
 
-Current pre-closeout frontier: `Space` during the intro latches in game state but natural-completes into scene `7` and missing actor `3853`; `Esc` enters requester/menu state and presents readable requester contents. Task 02 added a deterministic movement matrix for canonical Ecstatica II arrow controls: `up`, `down`, `left`, and `right` in debug and ASan. Original-game modifier/utility reports are parser-visible as `ctrl`, `shift`, `alt`, `ralt`, `s`, `i`, and `l`; source/manual mapping says arrows move, `Ctrl`+arrows attack, Left Alt+arrows dodge, `Ctrl`+Left Alt+arrows advanced attack, Left Shift jumps, Right Alt drops carried items, `Space` interacts, `Return` opens the icon/status page, `Esc` opens menu or closes status/menu, `S` quick-saves, and `I` toggles the icon bar. Do not close this step until the camera/action/modifier owner layer is recorded and the intro `Space` split is either repaired or deliberately carried as a source-backed follow-up.
+Current pre-closeout frontier: `Space` during the intro latches in game state but natural-completes into scene `7` and missing actor `3853`; `Esc` enters requester/menu state and presents readable requester contents. Original-game testing showed the intro menu does not respond to keyboard navigation, so this task now carries the mouse path as the menu-control proof. `--inject-intro-menu-click-surfaces /tmp/e2-menu-settings 320 225 6 3` reaches requester id `0x31` with state `2`, and `--inject-intro-menu-click-surfaces /tmp/e2-menu-load 320 203 6 3` reaches requester id `0x29` with state `4`; both record one requester action and exit cleanly. Task 02 added a deterministic movement matrix for canonical Ecstatica II arrow controls: `up`, `down`, `left`, and `right` in debug and ASan. Original-game modifier/utility reports are parser-visible as `ctrl`, `shift`, `alt`, `ralt`, `s`, `i`, and `l`; source/manual mapping says arrows move, `Ctrl`+arrows attack, Left Alt+arrows dodge, `Ctrl`+Left Alt+arrows advanced attack, Left Shift jumps, Right Alt drops carried items, `Space` interacts, `Return` opens the icon/status page, `Esc` opens menu or closes status/menu, `S` quick-saves, and `I` toggles the icon bar. Do not close this step until the camera/action/modifier owner layer is recorded and the intro `Space` split is either repaired or deliberately carried as a source-backed follow-up.
 
 ## Acceptance Criteria
 
 1. Accepted controls are listed.
 2. Remaining frontier has a command and owner layer.
+3. Mouse-only menu controls have bounded probe evidence for at least the first submenu layer.
 
 ## Verification
 
@@ -63,3 +65,4 @@ Current pre-closeout frontier: `Space` during the intro latches in game state bu
 ### 2026-08-04
 
 1. Activated after Task 02 landed `scripts/run-e2-control-matrix.sh` and proved four canonical arrow movement controls in debug and ASan.
+2. Added the menu-control sub-slice after original screenshots/testing showed the intro menu is mouse-only. Bounded SDL probes now prove Settings and Load submenu entry through mouse events, while the visual surface dump remains a diagnostic artifact rather than a faithful screenshot proof.

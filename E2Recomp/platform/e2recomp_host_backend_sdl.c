@@ -11,6 +11,8 @@ struct E2R_HostWindow {
     SDL_Surface *present_surface;
     unsigned present_width;
     unsigned present_height;
+    SDL_Rect presentation_rect;
+    int has_presentation_rect;
 };
 
 static E2R_HostWindow e2r_sdl_backend;
@@ -89,6 +91,41 @@ static LPARAM e2r_pack_point(float x, float y)
     int yi = (int)y;
     return (LPARAM)(((unsigned int)xi & 0xffffu) |
                     (((unsigned int)yi & 0xffffu) << 16));
+}
+
+static LPARAM e2r_pack_mapped_window_point(E2R_HostWindow *window, float x, float y)
+{
+    SDL_Rect rect;
+    int mapped_x;
+    int mapped_y;
+
+    if (window == NULL || !window->has_presentation_rect ||
+        window->present_width == 0 || window->present_height == 0) {
+        return e2r_pack_point(x, y);
+    }
+
+    rect = window->presentation_rect;
+    if (rect.w <= 0 || rect.h <= 0) {
+        return e2r_pack_point(x, y);
+    }
+
+    mapped_x = (int)(((x - (float)rect.x) * (float)window->present_width) /
+                     (float)rect.w);
+    mapped_y = (int)(((y - (float)rect.y) * (float)window->present_height) /
+                     (float)rect.h);
+    if (mapped_x < 0) {
+        mapped_x = 0;
+    }
+    if (mapped_y < 0) {
+        mapped_y = 0;
+    }
+    if (mapped_x >= (int)window->present_width) {
+        mapped_x = (int)window->present_width - 1;
+    }
+    if (mapped_y >= (int)window->present_height) {
+        mapped_y = (int)window->present_height - 1;
+    }
+    return e2r_pack_point((float)mapped_x, (float)mapped_y);
 }
 
 static const char *e2r_sdl_event_name(Uint32 type)
@@ -478,7 +515,9 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
         else if (event.type == SDL_EVENT_MOUSE_MOTION && message_callback != NULL &&
                  event.motion.windowID == window_id) {
             message_callback(WM_MOUSEMOVE, (WPARAM)event.motion.state,
-                             e2r_pack_point(event.motion.x, event.motion.y), user);
+                             e2r_pack_mapped_window_point(window, event.motion.x,
+                                                          event.motion.y),
+                             user);
         }
         else if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
                   event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
@@ -504,7 +543,9 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
                             (unsigned)event.button.down, event.button.x, event.button.y);
                     mouse_diag_count++;
                 }
-                message_callback(msg, 0, e2r_pack_point(event.button.x, event.button.y),
+                message_callback(msg, 0,
+                                 e2r_pack_mapped_window_point(window, event.button.x,
+                                                              event.button.y),
                                  user);
             }
         }
@@ -650,6 +691,8 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
     }
     dst_rect = e2r_sdl_aspect_fit_rect(window_surface->w, window_surface->h,
                                        width, height);
+    window->presentation_rect = dst_rect;
+    window->has_presentation_rect = 1;
     if (!SDL_FillSurfaceRect(window_surface, NULL,
                              SDL_MapSurfaceRGBA(window_surface, 0, 0, 0, 255))) {
         fprintf(stderr, "warning: SDL presentation clear failed: %s\n", SDL_GetError());

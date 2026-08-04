@@ -1,4 +1,5 @@
 #include "E2Recomp_recon.h"
+#include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -271,6 +272,23 @@ static void E2R_feed_legacy_keyup(WPARAM key, LPARAM lParam) {
     }
 }
 
+static void E2R_feed_mouse_position(LPARAM lParam) {
+    int x = (int)(int16_t)(lParam & 0xffffu);
+    int y = (int)(int16_t)((lParam >> 16) & 0xffffu);
+    uintptr_t packed = DAT_00479e8a & 0xffffu;
+
+    if (x < 0) {
+        x = 0;
+    }
+    if (y < 0) {
+        y = 0;
+    }
+    DAT_00479e8a = packed | (((uintptr_t)(uint16_t)x) << 16);
+    _DAT_0063683e = (uintptr_t)(uint16_t)y;
+    *(uint32_t *)(uintptr_t)0x00479e8a = (uint32_t)DAT_00479e8a;
+    SetCursorPos(x, y);
+}
+
 void *memcpy(void *dst, const void *src, size_t n) {
     unsigned char *d = (unsigned char *)dst;
     const unsigned char *s = (const unsigned char *)src;
@@ -439,6 +457,19 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     }
     if (msg == WM_KEYUP) {
         E2R_feed_legacy_keyup(wParam, lParam);
+        return 0;
+    }
+    if (msg == WM_MOUSEMOVE) {
+        E2R_feed_mouse_position(lParam);
+        return 0;
+    }
+    if (msg == WM_LBUTTONDOWN) {
+        E2R_feed_mouse_position(lParam);
+        _DAT_0063683c = 2;
+        return 0;
+    }
+    if (msg == WM_LBUTTONUP) {
+        E2R_feed_mouse_position(lParam);
         return 0;
     }
     if (msg == WM_DESTROY) {
