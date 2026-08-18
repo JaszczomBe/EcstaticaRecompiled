@@ -2,6 +2,54 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-08-18 - Start_sc Completes Into Scene 87 Gameplay
+
+Area: Playable SDL runtime Step 3 Task 03, fastest original intro route and gameplay entry
+
+Symptom: after first-intro `Space` successfully loaded the wait-only `Start_sc` pedestal/lightning sub-intro, waiting through it reached action `0x9377e3` completion but looped back through scene `0`. `FUN_0044c224` logged `lookup=-1 scene_id=0 ... pos=12800,256,-3584`, so the route still did not enter controllable gameplay.
+
+Evidence: the narrowed lookup probe showed Joe's scene-child load supplied stand vector `12800,256,-3584`, and the generated live-vector copy made `FUN_0044c224` evaluate that same position after `Start_sc` completion. The grid cell was valid (`cell=0xbe83`, descriptor words `0057,0036`), but the descriptor height byte was `0xff`; generated C compared it as unsigned `255 <= 130`, rejecting the terminal candidate. Treating that byte as signed matches MSVC-style `char` semantics and makes `0xff` pass as `-1`.
+
+Change: mirrored generated repairs in `E2Recomp/tools/GenerateRecon.js`: scene-child-loaded actors copy nonzero stand vectors into live vectors when the live vector is zero, and `FUN_00448744`/`FUN_004488a4` compare scene descriptor height bytes as signed chars instead of unsigned bytes. The existing skip, wait-only Space consumption, missing sound id `331` suppression, and action-event context repairs remain part of this route.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, `cmake --build --preset linux-clang32-sdl-debug`, and `git diff --check` pass. Probe `--inject-key-sequence-surfaces /tmp/e2-startsc-signed-height space 4 250 50` proves `Start_sc` completion selects descriptor `48771`, scene id `87`, and opens `hires\0087.raw`. Probe `--inject-key-sequence-surfaces /tmp/e2-startsc-gameplay-up space,up 4 40000 65` posts `Up` after the sub-intro handoff and exits with `_DAT_0073cc3c=0x67d0ac` and `move=[1,0,0,0,0,0,0,0,0]`.
+
+Next Frontier: resume Step 3's camera/action/modifier classification from the recovered gameplay state. Full first-intro animation/procession fidelity remains separate; requester Load/Save visual and slot behavior also remains a menu-fidelity frontier.
+
+Regression Risk: signed scene-height lookup affects the shared scene grid helpers, but it matches the expected signed-`char` interpretation of `0xff` descriptors and fixes a concrete original-route handoff. Watch scene transitions near height-layer boundaries in later movement/camera probes.
+
+## 2026-08-18 - Horse Intro Space Skip Enters Wait-Only Subintro
+
+Area: Playable SDL runtime Step 3 Task 03, intro procession and post-skip crash recovery
+
+Symptom: after manual original-game testing clarified the fastest route, the rebuilt runtime still needed first-intro `Space` to enter the pedestal/lightning `Start_sc` sub-intro. The earlier skip helper only recognized a direct action pointer and missed the live scene-child action wrapper; broadening it exposed a post-skip sound/requester crash.
+
+Evidence: early-Space dummy-SDL probes show the live first-intro actor `0xaa6bd8` has action slot `0x93a329`, duration `495`, and actor scene record `horse` id `1564`. After broadening the predicate, gdb showed the next crash in `FUN_0043cac0` through `FUN_00414e68 <- FUN_0044248c <- FUN_00451a54 <- FUN_0042fce0 <- FUN_0042b880`; the event record at `FUN_0042b880` had fields `008c,002e,0005,014b,0000`, proving subcase `5` was passing stale `ECX` instead of the event sound id.
+
+Change: mirrored generated repairs in `E2Recomp/tools/GenerateRecon.js`: first-intro skip now accepts the `horse` scene-child wrapper and loads `Start_sc` scene id `0`; Space during `Start_sc` with no active current actor is consumed as wait-only. Supporting repairs restored distinct `FUN_004533ac` child allocation, skip-over handling for unresolved no-archive startup children in `FUN_00452140`, action-event actor context across `FUN_0042ad60`/`FUN_0042b338`/`FUN_0042c790`, a safe fallback seed for `FUN_0045fc10`, `FUN_00451a54`/`FUN_0044248c` parameter recovery, and `FUN_0042b880` subcase `5` now calls `FUN_0042fce0((int)in_EAX[3],(int)unaff_ESI,1)`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, and `cmake --build --preset linux-clang32-sdl-debug` pass. Probe `--inject-key-sequence-surfaces /tmp/e2-intro-horse-skip-final space 4 250 30` exits cleanly, logs `intro skip request ... Start_sc=0 horse_scene=1564 actor_scene_id=1564 direct=0 horse=1`, clears `DAT_00636850`, and dumps nonblank surface 3 `hash=44b33248`. Probe `--inject-key-sequence-surfaces /tmp/e2-intro-subintro-space-final space 12 250 30` exits cleanly, logs `intro skip ignored wait-only subintro`, clears Space, and dumps nonblank surface 3 `hash=44b33248`.
+
+Next Frontier: wait through `Start_sc` long enough to prove the transition into controllable gameplay. If it stalls, recover the sub-intro completion owner rather than making a direct gameplay bypass.
+
+Regression Risk: the skip predicate is scene-scoped to `horse` id `1564`, so it should not make the `Start_sc` sub-intro skippable. The no-archive child handling and sound-event recovery are pragmatic generated repairs; future original-disassembly work should confirm their exact register ownership once the gameplay route is stable.
+
+## 2026-08-17 - First Intro Space Skip Reaches Completion Frontier
+
+Area: Playable SDL runtime Step 3 Task 03, first-intro action skip/completion
+
+Symptom: manual original-game testing clarified that the fastest valid route is first-intro `Space` skip, then wait through the pedestal/lightning sub-intro. In the rebuilt runtime, `Space` reached WndProc and latched `DAT_00636850`, but the horseback/castle intro did not skip.
+
+Evidence: bounded dummy-SDL probes show the active intro actor/action as actor `0xaa6bd8`, slot `0xaa6c7e`, action `0x937800`, duration `495`. The action updater had lost its elapsed delta (`unaff_EBX`), so progress originally stuck; after recovering `_DAT_00637378`, progress advances. `Space` is now consumed by a narrow first-intro skip helper, which sets progress to the action duration and logs `intro skip request`.
+
+Change: mirrored generated repairs in `E2Recomp/tools/GenerateRecon.js`: recover the action delta in `FUN_0042ad60`, make the linear completion branch use `<=`, avoid stale `extraout_ECX` writes, route completion through actor context, add a narrow first-intro Space skip request for action `0x937800`, and make `FUN_0042b004` break on the observed self-loop keyframe sentinel instead of expecting a null-terminated list. Added temporary action/completion diagnostics and native probe timing fields.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, regeneration, and `cmake --build --preset linux-clang32-sdl-debug` pass. Probe `--inject-key-sequence-surfaces /tmp/e2-first-intro-space-sentinelbreak space 6 250 18` proves Space is delivered, skip is requested, completion starts, and the completion keyframe sentinel is `0x7c8758 -> 0x7c8758` with no events. After completion returns, the runtime now crashes in the actor update/render epilogue at `FUN_00421f54` from `FUN_0042a70c`, so the next repair target is post-completion actor/list context, not input delivery.
+
+Next Frontier: recover the original post-first-intro transition owner. Do not bypass directly to gameplay. First decide whether action `0x937800` completion should hand off to a different actor/action/script for the pedestal/lightning sub-intro, then fix the `FUN_00421f54` hidden-context crash exposed after the action completes.
+
+Regression Risk: the skip helper is intentionally scoped to the observed first-intro action pointer. The completion diagnostics are noisy and should be trimmed once the post-completion owner is recovered.
+
 ## 2026-08-17 - Requester Fixed-Address Labels And Slot Clicks
 
 Area: Playable SDL runtime Step 3 Task 03, intro requester text/actions

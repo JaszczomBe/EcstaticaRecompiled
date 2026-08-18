@@ -2,7 +2,7 @@
 
 Status: active
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-08-17
+Last Updated: 2026-08-18
 
 ## Goal
 
@@ -46,9 +46,9 @@ Keep this to a small input matrix. Split when a single key uncovers a new parser
 ## Current Findings
 
 1. Host input delivery is not the current blocker. SDL window controls, keydown/keyup events, and Win32-style `WM_KEYDOWN`/`WM_KEYUP` dispatch reach the reconstructed window procedure.
-2. `Space` reaches game state during the horseback/credits intro (`DAT_00636850=1`, `_DAT_00479e7a=1`) but does not skip the intro action. The intro actor action continues to natural completion.
-3. Natural completion currently enters `FUN_0042a70c`'s dependency-action completion path, then dispatches an action table through `FUN_0044f2fc`/`FUN_0044f508`. The observed script opcode is `0x07`, and the runtime activates scene `7`.
-4. Scene `7` then tries to load child actor `3853`; archive scans did not find actor `3853` as a standalone type-`0x08` flat-FANT actor record in `Files/ECSTATIC`. Treat this as a wrong transition or wrong dispatch context until original evidence says otherwise.
+2. `Space` reaches game state during the horseback/credits intro (`DAT_00636850=1`, `_DAT_00479e7a=1`) and now skips the first intro when the current actor belongs to the `horse` scene record. The bounded proof logs `horse_scene=1564`, `actor_scene_id=1564`, and loads `Start_sc` scene id `0`.
+3. `Space` during the following `Start_sc` pedestal/lightning sub-intro is intentionally wait-only: the skip hook consumes the latched key with or without an active current actor and logs `intro skip ignored wait-only subintro`.
+4. `Start_sc` now runs to completion and hands off into controllable gameplay. The repaired scene lookup selects descriptor `48771`, scene id `87`, opens `hires\0087.raw`, and a delayed `Up` key in scene pointer `0x67d0ac` ends with `move=[1,0,0,0,0,0,0,0,0]`. Full horseback animation/procession fidelity remains separate from this fastest-route proof.
 5. `Esc` reaches `FUN_00415d40`'s menu/requester branch, changes requester state, and now presents readable high-res requester contents. The verified intro menu shows `START GAME`, `SAVE GAME...`, `LOAD GAME...`, `SETTINGS...`, `QUIT`, and `CANCEL`.
 6. A hand proof attempt in reconstructed C explored lost callback/action context around `FUN_0042b004`, `FUN_0042b338`, and `FUN_0042b880`. It may still be relevant for later action callbacks, but it did not explain the current first-intro `Space` failure because the observed intro path reaches completion without callback attachment evidence.
 7. `scripts/run-e2-control-matrix.sh` proves four canonical gameplay movement controls in debug and ASan with zero startup-logo delay: `up`, `down`, `left`, and `right` each dispatch through the Win32 queue, reach gameplay-control state, set the expected movement vector and `_DAT_00479e78` direction, keep requester state clear, keep a nonzero scene pointer, and dump nonblank surface `3`.
@@ -58,7 +58,7 @@ Keep this to a small input matrix. Split when a single key uncovers a new parser
 ## Acceptance Criteria
 
 1. `Esc` during the horseback/credits intro either opens the expected menu contents or has a documented, source-backed requester content/presentation frontier. Completed 2026-08-04: `Esc` opens readable requester contents in the bounded SDL dump.
-2. `Space` during the horseback/credits intro either skips to the expected next sequence/gameplay state or has a documented, source-backed action-dispatch frontier.
+2. `Space` during the horseback/credits intro either skips to the expected next sequence/gameplay state or has a documented, source-backed action-dispatch frontier. Completed 2026-08-18: first-intro `Space` enters `Start_sc`, `Start_sc` completes into scene `87`, and delayed `Up` movement latches afterward.
 3. After the intro-specific blocker is resolved or split, multiple movement/action keys reach gameplay state. Completed 2026-08-04 for four canonical arrow movement controls.
 4. Probes record the relevant state deltas. Completed 2026-08-04 for the movement matrix.
 5. New crashes are classified as separate runtime frontiers.
@@ -72,7 +72,7 @@ Keep this to a small input matrix. Split when a single key uncovers a new parser
 
 ## Notes
 
-Task 02 completed the compact arrow movement matrix and corrected the host translation that had made physical arrows look like numpad keys. Carry `Space` as a narrower action-dispatch/completion frontier: it is delivered and latched, but the intro action still completes naturally and dispatches opcode `0x07` into scene `7`. Task 03's freshest direction should prioritize the fastest original gameplay route: use `Space` to skip only the first long intro, then wait for the second pedestal/lightning sub-intro to complete into proper gameplay. Requester visual polish and full first-intro animation fidelity remain follow-ups unless they block that proof.
+Task 02 completed the compact arrow movement matrix and corrected the host translation that had made physical arrows look like numpad keys. The fastest original gameplay route is now proven: first-intro `Space` skips into `Start_sc`, Space during the pedestal/lightning sub-intro is consumed and ignored, the sub-intro completes into scene `87`, and delayed `Up` movement latches. Task 03's freshest direction can return to camera/action/modifier classification and requester visual polish; full first-intro animation fidelity remains a separate follow-up.
 
 ## Change Log
 
@@ -107,3 +107,10 @@ Task 02 completed the compact arrow movement matrix and corrected the host trans
 2. Repaired fixed-address requester labels for `OK`, `Yes`, and `No`; Settings rows now redraw after toggles; Load/Save slot actions are diagnosed as `load_slot`/`save_slot` and consumed without closing the active requester.
 3. Added requester `0x28` layout logging and verified focused dummy-SDL probes for Settings Music, Settings OK, Load slot selection, Quit Yes, and Quit No.
 4. Corrected the original playable-intro target: the fastest route is first-intro `Space` skip, then waiting for the roughly 10 second pedestal/lightning sub-intro to finish before gameplay. Full first-intro animation/procession remains fidelity work.
+
+### 2026-08-18
+
+1. Repaired first-intro `Space` skip for the scene-child action wrapper: the hook recognizes actor scene `horse` id `1564` and loads `Start_sc` id `0`.
+2. Repaired the post-skip crash chain by fixing scene-child allocation, preserving action-event/actor context, adding an RNG seed fallback, and recovering the `FUN_0042b880` subcase-`5` sound id from the event record.
+3. Added wait-only sub-intro consumption so Space during `Start_sc` clears `DAT_00636850` without requesting another transition.
+4. Recovered the post-`Start_sc` handoff by copying scene-child actor live vectors and restoring signed-byte scene-height lookup semantics; the delayed `Up` proof reaches scene `0x67d0ac` and movement vector `[1,0,0,0,0,0,0,0,0]`.

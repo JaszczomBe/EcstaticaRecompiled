@@ -871,7 +871,8 @@ static void *e2r_frame_dump_thread(void *arg)
                     "DAT_00479e00=%lu _DAT_00643650=%lu "
                     "DAT_00479de8=%lu DAT_0047a76c=%lu DAT_0047a43c=%lu "
                     "DAT_0047a730=%lu DAT_00479de4=%lu DAT_0047a788=%lu "
-                    "_DAT_00636690=%lu _DAT_0073cc3c=0x%lx "
+                    "_DAT_00636690=%lu _DAT_00637378=%lu _DAT_0063737c=%lu "
+                    "_DAT_0073cc3c=0x%lx "
                     "requester=[ce58=%lu id=0x%lx mode=%lu b384=%lu bad=%lu ptr=0x%lx "
                     "b9bc=%lu item=0x%lx bd4c=%lu key=0x%lx seen=%lu none=%lu cursor=%lu "
                     "param=0x%lx selected=0x%lx next=0x%lx selected_action=0x%lx "
@@ -895,6 +896,7 @@ static void *e2r_frame_dump_thread(void *arg)
                     (unsigned long)DAT_0047a76c, (unsigned long)DAT_0047a43c,
                     (unsigned long)DAT_0047a730, (unsigned long)DAT_00479de4,
                     (unsigned long)DAT_0047a788, (unsigned long)_DAT_00636690,
+                    (unsigned long)_DAT_00637378, (unsigned long)_DAT_0063737c,
                     (unsigned long)_DAT_0073cc3c,
                     (unsigned long)E2R_requester_probe_ce58_count,
                     (unsigned long)E2R_requester_probe_last_id,
@@ -972,13 +974,15 @@ static void *e2r_frame_dump_thread(void *arg)
                 "input state: DAT_00636844=%lu DAT_00636853=%lu _DAT_00643650=%lu "
                 "DAT_00479de8=%lu DAT_0047a76c=%lu DAT_0047a43c=%lu "
                 "DAT_0047a730=%lu DAT_00479de4=%lu DAT_0047a788=%lu "
-                "_DAT_00636690=%lu _DAT_0073cc3c=0x%lx "
+                "_DAT_00636690=%lu _DAT_00637378=%lu _DAT_0063737c=%lu "
+                "_DAT_0073cc3c=0x%lx "
                 "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu]\n",
                 (unsigned long)DAT_00636844, (unsigned long)DAT_00636853,
                 (unsigned long)_DAT_00643650, (unsigned long)DAT_00479de8,
                 (unsigned long)DAT_0047a76c, (unsigned long)DAT_0047a43c,
                 (unsigned long)DAT_0047a730, (unsigned long)DAT_00479de4,
                 (unsigned long)DAT_0047a788, (unsigned long)_DAT_00636690,
+                (unsigned long)_DAT_00637378, (unsigned long)_DAT_0063737c,
                 (unsigned long)_DAT_0073cc3c, (unsigned long)DAT_00636859,
                 (unsigned long)DAT_00636858, (unsigned long)DAT_0063685b,
                 (unsigned long)DAT_00636854, (unsigned long)DAT_00636856,
