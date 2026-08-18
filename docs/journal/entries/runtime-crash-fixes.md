@@ -2,6 +2,22 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-08-17 - Requester Fixed-Address Labels And Slot Clicks
+
+Area: Playable SDL runtime Step 3 Task 03, intro requester text/actions
+
+Symptom: manual SDL testing showed the intro menu was reachable, but Quit's Yes/No buttons were blank, Settings OK/Cancel labels were missing or hard to see, Settings rows appeared unresponsive, and clicking any Load slot closed the Load menu. The same pass confirmed the logo sequence now reaches the intro, but intro character animation/scene progression remains static.
+
+Evidence: requester layout logging showed several original labels are fixed data-symbol addresses rather than hosted C strings: `0x00473298` for OK, `0x004732a4` for Yes, and `0x004732a8` for No. The existing hosted label fallback only handled `0x00473304` as Quit. Load requester rows carried action `LAB_0043fadc`, but diagnostics named it `unknown`, and direct requester click dispatch fed it into the modal return path instead of treating it as slot selection.
+
+Change: added fixed-address label fallbacks for OK/Yes/No, kept the existing Quit fallback, redrew the active requester item after Settings row toggles, named `LAB_0043fadc`/`LAB_0043fb58` as Load/Save slot actions, and consumed Load/Save slot-row clicks by updating `_DAT_0064353c` and redrawing in place. The requester layout logger now includes main-menu requester `0x28`, making Start/Save/Load/Settings/Quit/Cancel bounds visible in probes. Mirrored generated reconstructed changes in `E2Recomp/tools/GenerateRecon.js`.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, whole-file regeneration, `cmake --build --preset linux-clang32-sdl-debug`, and `git diff --check` pass. Dummy-SDL probes prove Settings Music hits item `0x643998` and ends with `settings.music=1`, Settings OK logs `action.settings_ok` followed by `action.settings_return`, Load slot clicks log `action_name=load_slot` and remain in requester `0x29`/state `4`, Quit Yes reaches `action.quit_confirmed` and exits cleanly, and Quit No returns to requester `0x28`/state `5`. `ctest --preset linux-clang32-sdl-debug` was attempted, but that preset does not exist.
+
+Next Frontier: continue requester visual fidelity: Load title/slot overlap, the left black save-location rectangle, OK/Cancel placement, modal-over-main-menu artifacts, and hosted font/color/layout. Save should be classified against original intro behavior before making it visible, and the static intro animation/progression problem remains separate from menu input plumbing.
+
+Regression Risk: the label mapping is fixed-address and intentionally narrow. The slot-click handling is selection-only and does not claim real save/load behavior; later work should recover the original slot confirm/load/save path before allowing state mutation.
+
 ## 2026-08-04 - Confirmed Quit Uses Host Window Shutdown
 
 Area: Playable SDL runtime Step 3 Task 03, intro main-menu Quit confirmation

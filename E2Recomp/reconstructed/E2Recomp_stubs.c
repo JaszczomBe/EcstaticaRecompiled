@@ -362,6 +362,8 @@ void E2R_RequesterProbeLogItemLayout(uintptr_t requester_id, uintptr_t item_addr
 
     if (requester_id == 0x14) {
         record = (short *)0x0047a518;
+    } else if (requester_id == 0x28) {
+        record = (short *)0x0047a588;
     } else if (requester_id == 0x29 || requester_id == 0x2a) {
         record = (short *)0x0047a5a4;
     } else if (requester_id == 0x31) {

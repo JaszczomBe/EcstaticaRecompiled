@@ -743,6 +743,8 @@ static const char *E2R_RequesterActionName(uintptr_t action)
   if (action == (uintptr_t)&LAB_0043d6e4) return "settings_resolution";
   if (action == (uintptr_t)&LAB_0043d83c) return "ok";
   if (action == (uintptr_t)&LAB_0043c4e8) return "cancel";
+  if (action == (uintptr_t)&LAB_0043fadc) return "load_slot";
+  if (action == (uintptr_t)&LAB_0043fb58) return "save_slot";
   return "unknown";
 }
 
@@ -1169,6 +1171,7 @@ static void E2R_UseHostedCdPath(char *path)
 
 
 static int E2R_requester_continue_after_action;
+static void E2R_RedrawActiveRequesterItem(void);
 
 static int E2R_InvokeRequesterAction(uintptr_t action)
 {
@@ -1282,16 +1285,19 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
   if (action == (uintptr_t)&LAB_0043d728) {
     DAT_0047a49c = DAT_0047a49c == 0;
     FUN_0043d934();
+    E2R_RedrawActiveRequesterItem();
     return 1;
   }
   if (action == (uintptr_t)&LAB_0043d7a0) {
     DAT_0047a4a0 = DAT_0047a4a0 == 0;
     FUN_0043d9a0();
+    E2R_RedrawActiveRequesterItem();
     return 1;
   }
   if (action == (uintptr_t)&LAB_0043d7f0) {
     DAT_0047a4a4 = (DAT_0047a4a4 + 1) % 3;
     FUN_0043da04();
+    E2R_RedrawActiveRequesterItem();
     return 1;
   }
   if (action == (uintptr_t)&LAB_0043d6e4) {
@@ -1299,6 +1305,7 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
       DAT_0047a43c = DAT_0047a43c == 0;
       FUN_0043da80();
     }
+    E2R_RedrawActiveRequesterItem();
     return 1;
   }
   if (action == (uintptr_t)&LAB_0043d83c) {
@@ -1828,6 +1835,8 @@ static void E2R_DrawHostedText(byte *text)
 }
 
 
+static byte *E2R_RequesterTextOrFallback(byte *text);
+
 static void E2R_DrawHostedRequesterLabels(short *record)
 {
   byte *text;
@@ -1849,10 +1858,7 @@ static void E2R_DrawHostedRequesterLabels(short *record)
     if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {
       break;
     }
-    text = *(byte **)(item + 4);
-    if ((uintptr_t)text == 0x00473304u) {
-      text = (byte *)"Quit";
-    }
+    text = E2R_RequesterTextOrFallback(*(byte **)(item + 4));
     if (text != (byte *)0x0 && !IsBadReadPtr(text,1) && text[0] != 0) {
       len = 0;
       while (len < 0x100 && !IsBadReadPtr(text + len,1) && text[len] != 0) {
@@ -1873,6 +1879,34 @@ static void E2R_DrawHostedRequesterLabels(short *record)
     }
     item = *(short **)(item + 9);
   }
+}
+
+static byte *E2R_RequesterTextOrFallback(byte *text)
+{
+  uintptr_t address = (uintptr_t)text;
+
+  if (address == 0x00473298u) return (byte *)"OK";
+  if (address == 0x004732a4u) return (byte *)"Yes";
+  if (address == 0x004732a8u) return (byte *)"No";
+  if (address == 0x00473304u) return (byte *)"Quit";
+  return text;
+}
+
+static void E2R_RedrawActiveRequesterItem(void)
+{
+  short *record;
+  short *item;
+
+  record = (short *)FUN_0043aeac();
+  item = (short *)_DAT_00643430;
+  if (record == (short *)0x0 || item == (short *)0x0 ||
+      (uintptr_t)record >= 0x70000000u || (uintptr_t)item >= 0x70000000u ||
+      IsBadReadPtr(record,0x20) || IsBadReadPtr(item,0x20)) {
+    return;
+  }
+  FUN_0043b9bc(0,item);
+  E2R_DrawHostedRequesterLabels(record);
+  DAT_0047a788 = 1;
 }
 
 
@@ -31551,6 +31585,12 @@ int E2R_RequesterHandleMouseClick(uintptr_t x, uintptr_t y)
       _DAT_00643430 = item;
       E2R_requester_probe_action_count++;
       E2R_requester_probe_last_action = action;
+      if ((requester_id == 0x29 && action == (uintptr_t)&LAB_0043fadc) ||
+          (requester_id == 0x2a && action == (uintptr_t)&LAB_0043fb58)) {
+        _DAT_0064353c = (int)(ushort)item[8] & 0xff;
+        E2R_RedrawActiveRequesterItem();
+        return 1;
+      }
       if (requester_id == 0x28) {
         if (action == (uintptr_t)&LAB_0043d47c &&
             !(DAT_0047a76c == 0 && _DAT_0073cc3c != 0 &&
