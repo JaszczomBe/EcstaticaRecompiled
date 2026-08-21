@@ -2,6 +2,86 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-08-21 - Action 384 Probe Is Gated Away From Manual Runtime
+
+Area: Playable SDL runtime Step 3 Task 03, scene-175 action/model frontier
+
+Symptom: the user's fresh manual SDL run reached preserved scene `175` but then crashed at `FUN_00449680` after the experimental flat-FANT action indexing path was enabled by default.
+
+Evidence: the attached log showed the normal `Start_sc` handoff (`start-sc handoff preserve scene current=175 selected=87`, then `start-sc handoff activate preserved scene=175`) before the crash. The no-click default probe now runs with action indexing disabled and logs `archive 47d94 flat FANT: actions=0 actors=81 reps=389 scenes=1205`. It exits `0` and writes `/tmp/e2-auto-scene175-cleaned-default-state.txt` with scene `0x67da4c`, selected surface `3` hash `321e33d6`, SDL present hash `914159a1`, and SDL window hash `5cf799a1`.
+
+Change: made flat-FANT action indexing opt-in behind `E2R_ACTION_INDEX_PROBE=1`, added action lookup breadcrumbs, and unwound the speculative motion/context rewrite around `FUN_0042ae80`/`FUN_00449680` after it only moved the crash.
+
+Result: `cmake --build --preset linux-clang32-sdl-debug` and `git diff --check` pass. The explicit probe `E2R_ACTION_INDEX_PROBE=1 gdb --args ./build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-auto-scene175-actionprobe-gdb 120 7000` reproduces the controlled frontier: action `384` resolves at archive offset `9790200`, installs action pointer `0xac263c`, clears `DAT_0047a470` during parse, then crashes in `FUN_0042ae80` at `if (*in_EAX == 0)` with bogus hidden-register `in_EAX=0x5b59`.
+
+Next Frontier: keep normal/manual runs on the gated default path. Continue from the opt-in action probe by recovering explicit actor/action-slot context for `FUN_0042ae80` and understanding why action `384` parse clears `DAT_0047a470`; this is now the Joe action/model initialization owner, not SDL presentation or page selection.
+
+Regression Risk: default runtime behavior no longer opens archive actions, so it preserves the previous static scene-175 packet and avoids the manual crash. The action-index path is still a deliberate crash repro until the action advance owner is repaired.
+
+## 2026-08-21 - Settled Scene 175 Packet Narrows Joe To Geometry/Rep Update
+
+Area: Playable SDL runtime Step 3 Task 03, scene-175 actor render path
+
+Symptom: the first no-click packet requested the visibility dump immediately after the scene-175 gate, which could have raced the one-shot activation and rep-load/update pass.
+
+Evidence: the automated helper now waits its `packet_wait_ms` value before requesting the packet. `SDL_VIDEODRIVER=dummy timeout 140 ./e2recomp --auto-scene175-visibility /tmp/e2-auto-scene175-settled 120 7000` exits `0`, logs the new settle wait, and still reports selected surface `3` hash `321e33d6`, SDL present hash `914159a1`, and SDL window hash `5cf799a1`. After the wait, Joe still has actor `0xaa6bd8`, render tree `0x950d3c`, draw tail `0x84b34c`, render rep id `67`, `model=0xffffffff`, root tree `rep_list=0`, and draw-node vertices with zero local/projected fields. Scene children `319`, `322`, and `318` still have no actor instances.
+
+Change: kept the automation settle-delay improvement and the render-node/vertex sidecar diagnostics. Two local proof edits were tested and reverted: routing opcode `0x29`'s actor-owned rep attach to the root render node, and clearing actor `0`'s render-skip latch in scene `175`.
+
+Result: neither proof edit changed the static framebuffer hash. The latch-clear proof changed bookkeeping to `front=3 selected=3 visible=1`, but selected/present/window pixels remained byte-identical to the static-room baseline.
+
+Next Frontier: recover Joe's render geometry/model update path: actor `+0x11e` receives rep `67`, but the root render-tree update list stays empty and draw vertices remain unprojected. Continue scene-backed child activation separately for enemies `319`/`322`/`318`.
+
+Regression Risk: retained changes are diagnostic/probe-only. The speculative generated-code proof edits were reverted.
+
+## 2026-08-21 - Automated Scene 175 Visibility Probe
+
+Area: Playable SDL runtime Step 3 Task 03, no-click scene-175 packet capture
+
+Symptom: scene-175 actor visibility still needed a no-click route so future packets do not depend on manual timing or F12.
+
+Evidence: added `SDL_VIDEODRIVER=dummy timeout 140 ./e2recomp --auto-scene175-visibility /tmp/e2-auto-scene175-clean 120 7000`, which waits for scene slot `1073`, injects `Space` only after that scene is live, waits for scene slot `175` after `Start_sc` action `0x9377e3` has finished, requests a presenter-thread visibility packet, then exits after `/tmp/e2-auto-scene175-clean-state.txt` appears. The run exits `0` and logs `start-sc handoff preserve scene current=175 selected=87`, `start-sc handoff activate preserved scene=175`, and `visibility packet end`.
+
+Change: added a native automation probe command and helper thread. It only runs when explicitly requested and does not change normal runtime behavior.
+
+Result: `cmake --build --preset linux-clang32-sdl-debug` and `git diff --check` pass. The automated packet reports `scene_slot=175`, `selected_surface=3`, `surface3 hash=321e33d6`, SDL present hash `914159a1`, and SDL window hash `5cf799a1`. Joe is not suppressed by the current-actor skip gate (`skip_current_actor=0x0`, `current_actor_skip_active=0`) and has a nonzero render tree (`render_tree=0x950d3c`, `render_tail=0x84b34c`), but his render rep still has no model pointer (`model=0xffffffff`, `slots17_24=-1,-1,384,384,384,384,384,384`). Scene children `319`, `322`, and `318` still have no actor instances.
+
+Next Frontier: Joe's failure is now narrowed to render-rep/model initialization rather than SDL presentation, actor skip, or missing top-level render tree. Continue separately on scene-backed child activation for enemies.
+
+Regression Risk: probe-only. It posts the same `Space` key and requests the existing visibility packet only under the explicit CLI mode.
+
+## 2026-08-21 - Manual Scene 175 Packet Confirms Pre-SDL Actor Absence
+
+Area: Playable SDL runtime Step 3 Task 03, scene-175 actor/render-tree frontier
+
+Symptom: the user's manual SDL run still showed no player character or enemies after the preserved `Start_sc` handoff, then F12 wrote `/tmp/e2-visibility-000`.
+
+Evidence: the attached timestamped log shows `intro skip request`, `start-sc handoff preserve scene current=175 selected=87`, and `start-sc handoff activate preserved scene=175`, followed by F12 at `2026-08-21 14:38:22`. The packet state reports `scene_slot=175`, `scene_id=5788`, `selected_surface=3`, `selected_valid=1`, and actor `0xaa6bd8` still current. Its selected page, SDL present dump, and SDL window dump match the earlier static-room-only baseline byte-for-byte: selected/present hash `f82364ed7699aba9ba4a3fb1502e9ff5a12d7071531f320de47ff443a5b078cd`, window hash `f5beba006f404083b6647d10f78a62fd206134ff4bcadc74a924ff8cfd229ed7`. Actor `0` has `render_rep_id=67` but `model=0xffffffff`; scene-175 children `319`, `322`, and `318` remain `actor=0`.
+
+Change: extended the native visibility sidecar with actor render-tree roots (`actor + 0x1e`/`actor + 0xd8`), render-rep slots `17..24`, and `DAT_0047a760`/current-actor skip state. This is diagnostic-only and does not alter gameplay behavior.
+
+Result: `cmake --build --preset linux-clang32-sdl-debug` passes. A no-scene-gate smoke packet `/tmp/e2-render-tree-smoke-state.txt` confirms the new fields are emitted (`render_flags`, `render_tree`, and `render_tail`). The bounded scene-175 route was not rerun to a fresh packet because the corrected automated smoke path naturally landed in scene `87`; the user's manual F12 packet remains the authoritative scene-175 evidence for this slice.
+
+Next Frontier: use the next scene-175 packet to separate Joe's failure into current-actor skip, missing actor render tree, or bad render-rep/model linkage, while continuing scene-backed activation for enemies `319`/`322`/`318`.
+
+Regression Risk: packet text changes only. Runtime rendering and actor activation are unchanged.
+
+## 2026-08-21 - Rep 67 Direct Record Field Probe
+
+Area: Playable SDL runtime Step 3 Task 03, Joe render-rep/model frontier
+
+Symptom: Joe's actor has a live render rep `67`, but the synchronized scene-175 packet still reports `model=0xffffffff` from `render_rep + 0x22`, and Joe is not drawn into the selected framebuffer.
+
+Evidence: added a gated `E2R_REP_RECORD_DIAG=1` direct-rep record trace and ran the short dummy-SDL rep-load route. Rep `67` loads at archive offset `8920640` with version `55` and only six `0x36` field records: `field2=18..23`, all with `field3=384`, mapping to slots `19..24`. The sidecar's model pointer dword spans slots `17/18`, so the missing model pointer is not explained by the old-version generic `0x36` mirror behavior.
+
+Change: kept only the gated diagnostic around the existing direct archive rep parser; no gameplay parsing semantics changed.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, whole-file regeneration, `git diff --check`, and `cmake --build --preset linux-clang32-sdl-debug` pass. The probe exits by timeout as expected after printing the rep-record evidence.
+
+Next Frontier: continue in Joe's render-rep/model path and scene-backed child activation. Do not spend time on mirroring generic rep-record compatibility as the primary Joe visibility fix for current version `55` data.
+
+Regression Risk: diagnostic-only when `E2R_REP_RECORD_DIAG` is set; normal runtime behavior is unchanged.
+
 ## 2026-08-21 - Scene 175 Actor And Rep Visibility Frontier
 
 Area: Playable SDL runtime Step 3 Task 03, post-handoff actor/rep activation

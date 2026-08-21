@@ -14,6 +14,7 @@
 #endif
 
 static volatile unsigned e2r_visibility_dump_requests;
+static char e2r_visibility_dump_request_prefix[512];
 
 void E2R_RequestVisibilityDump(void)
 {
@@ -45,7 +46,14 @@ typedef struct E2R_FrameDumpRequest {
     int dump_all_surfaces;
 } E2R_FrameDumpRequest;
 
+typedef struct E2R_Scene175VisibilityRequest {
+    const char *prefix;
+    unsigned timeout_seconds;
+    unsigned packet_wait_ms;
+} E2R_Scene175VisibilityRequest;
+
 static E2R_FrameDumpRequest e2r_frame_dump_request;
+static E2R_Scene175VisibilityRequest e2r_scene175_visibility_request;
 extern uintptr_t E2R_input_probe_keydown_count;
 extern uintptr_t E2R_input_probe_last_key;
 extern uintptr_t E2R_input_probe_last_char_queue;
@@ -387,7 +395,10 @@ static int e2r_present_current_frame(HWND hwnd, int force_present)
             const char *manual_prefix = getenv("E2R_VISIBILITY_DUMP_PREFIX");
 
             e2r_visibility_dump_requests = request_count - 1;
-            if (manual_prefix != NULL && manual_prefix[0] != '\0') {
+            if (e2r_visibility_dump_request_prefix[0] != '\0') {
+                snprintf(prefix, sizeof(prefix), "%s", e2r_visibility_dump_request_prefix);
+            }
+            else if (manual_prefix != NULL && manual_prefix[0] != '\0') {
                 snprintf(prefix, sizeof(prefix), "%s", manual_prefix);
             }
             else {
@@ -801,6 +812,8 @@ static void e2r_write_actor_summary(FILE *out, const char *label, unsigned index
     uintptr_t next = 0;
     uintptr_t action_field = 0;
     uintptr_t scene_owner = 0;
+    uintptr_t render_tree = 0;
+    uintptr_t render_tail = 0;
     uintptr_t attached_rep = 0;
     uintptr_t render_rep = 0;
     uintptr_t model = 0;
@@ -829,6 +842,8 @@ static void e2r_write_actor_summary(FILE *out, const char *label, unsigned index
     e2r_read_u16_field(actor + 0xac, &action_progress);
     e2r_read_u16_field(actor + 0xb2, &action_flags);
     e2r_read_u32_field(actor + 0x132, &scene_owner);
+    e2r_read_u32_field(actor + 0x1e, &render_tree);
+    e2r_read_u32_field(actor + 0xd8, &render_tail);
     e2r_read_short_field(actor + 0x84, &live_x);
     e2r_read_short_field(actor + 0x86, &live_y);
     e2r_read_short_field(actor + 0x88, &live_z);
@@ -857,6 +872,7 @@ static void e2r_write_actor_summary(FILE *out, const char *label, unsigned index
             "next=0x%lx flags2=0x%02x flags3=0x%02x visible_bit=%d state82=0x%04x "
             "state91=0x%04x scene_owner=0x%lx scene_match=%d action_field=0x%lx "
             "action_duration=%u action_progress=%u action_flags=0x%04x "
+            "render_tree=0x%lx render_tail=0x%lx "
             "attached_rep=0x%lx attached_rep_id=%d render_rep=0x%lx "
             "render_rep_id=%d model=0x%lx model_id=%d live=%d,%d,%d "
             "home=%d,%d,%d prev=%d,%d,%d\n",
@@ -868,12 +884,167 @@ static void e2r_write_actor_summary(FILE *out, const char *label, unsigned index
             flags2, flags3, (flags2 & 8u) != 0u, state82, state91,
             (unsigned long)scene_owner, scene_owner == _DAT_0073cc3c,
             (unsigned long)action_field, action_duration, action_progress,
-            action_flags, (unsigned long)attached_rep, (int)attached_rep_id,
+            action_flags, (unsigned long)render_tree, (unsigned long)render_tail,
+            (unsigned long)attached_rep, (int)attached_rep_id,
             (unsigned long)render_rep, (int)render_rep_id, (unsigned long)model,
             (int)model_id,
             (int)live_x, (int)live_y, (int)live_z,
             (int)home_x, (int)home_y, (int)home_z,
             (int)prev_x, (int)prev_y, (int)prev_z);
+
+    if (render_rep != 0 && !IsBadReadPtr((const void *)render_rep, 0x32)) {
+        short slots[8];
+        unsigned slot_index;
+
+        for (slot_index = 0; slot_index < 8u; slot_index++) {
+            slots[slot_index] = 0;
+            e2r_read_short_field(render_rep + (uintptr_t)(17u + slot_index) * 2u,
+                                 &slots[slot_index]);
+        }
+        fprintf(out,
+                "%s[%u]_render_rep_slots rep=0x%lx slots17_24=%d,%d,%d,%d,%d,%d,%d,%d\n",
+                label, index, (unsigned long)render_rep,
+                (int)slots[0], (int)slots[1], (int)slots[2], (int)slots[3],
+                (int)slots[4], (int)slots[5], (int)slots[6], (int)slots[7]);
+    }
+}
+
+static void e2r_write_render_node_line(FILE *out, const char *label, unsigned actor_index,
+                                       const char *list_name, unsigned node_index,
+                                       uintptr_t actor, uintptr_t node,
+                                       size_t readable_bytes)
+{
+    unsigned flags2 = 0;
+    unsigned flags3 = 0;
+    short word0 = -1;
+    short word4 = -1;
+    short word1c = -1;
+    short word2c = -1;
+    uintptr_t ptr04 = 0;
+    uintptr_t ptr08 = 0;
+    uintptr_t ptr0c = 0;
+    uintptr_t ptr22 = 0;
+    uintptr_t ptr28 = 0;
+    uintptr_t next1e = 0;
+    uintptr_t next4c = 0;
+    uintptr_t nextca = 0;
+    uintptr_t rep_list = 0;
+    uintptr_t child_actor = 0;
+
+    if (node == 0) {
+        return;
+    }
+    if (IsBadReadPtr((const void *)node, readable_bytes)) {
+        fprintf(out, "%s[%u]_%s_node[%u] node=0x%lx readable=0 bytes=%lu\n",
+                label, actor_index, list_name, node_index, (unsigned long)node,
+                (unsigned long)readable_bytes);
+        return;
+    }
+    e2r_read_short_field(node, &word0);
+    e2r_read_u8_field(node + 2, &flags2);
+    e2r_read_u8_field(node + 3, &flags3);
+    e2r_read_short_field(node + 4, &word4);
+    e2r_read_short_field(node + 0x1c, &word1c);
+    e2r_read_short_field(node + 0x2c, &word2c);
+    e2r_read_u32_field(node + 4, &ptr04);
+    e2r_read_u32_field(node + 8, &ptr08);
+    e2r_read_u32_field(node + 0xc, &ptr0c);
+    e2r_read_u32_field(node + 0x1e, &next1e);
+    e2r_read_u32_field(node + 0x22, &ptr22);
+    e2r_read_u32_field(node + 0x28, &ptr28);
+    e2r_read_u32_field(node + 0x4c, &next4c);
+    e2r_read_u32_field(node + 0xca, &nextca);
+    e2r_read_u32_field(node + 0x11e, &rep_list);
+    e2r_read_u32_field(node + 0x13a, &child_actor);
+    fprintf(out,
+            "%s[%u]_%s_node[%u] node=0x%lx word0=%d flags2=0x%02x flags3=0x%02x "
+            "word4=%d word1c=%d word2c=%d ptr04=0x%lx ptr08=0x%lx ptr0c=0x%lx "
+            "owner22=0x%lx ptr28=0x%lx next1e=0x%lx next4c=0x%lx nextca=0x%lx "
+            "rep_list=0x%lx child_actor=0x%lx owner_is_actor=%d\n",
+            label, actor_index, list_name, node_index, (unsigned long)node,
+            (int)word0, flags2, flags3, (int)word4, (int)word1c, (int)word2c,
+            (unsigned long)ptr04, (unsigned long)ptr08, (unsigned long)ptr0c,
+            (unsigned long)ptr22, (unsigned long)ptr28, (unsigned long)next1e,
+            (unsigned long)next4c, (unsigned long)nextca, (unsigned long)rep_list,
+            (unsigned long)child_actor, ptr22 == actor);
+}
+
+static void e2r_write_render_vertex_line(FILE *out, const char *label, unsigned actor_index,
+                                         unsigned node_index, unsigned vertex_index,
+                                         uintptr_t vertex)
+{
+    uintptr_t raw0e = 0;
+    uintptr_t raw10 = 0;
+    uintptr_t raw12 = 0;
+    uintptr_t raw14 = 0;
+    uintptr_t raw16 = 0;
+    uintptr_t raw18 = 0;
+
+    if (vertex == 0 || IsBadReadPtr((const void *)vertex, 0x1c)) {
+        fprintf(out,
+                "%s[%u]_draw_node[%u]_v%u vertex=0x%lx readable=0\n",
+                label, actor_index, node_index, vertex_index, (unsigned long)vertex);
+        return;
+    }
+    e2r_read_u32_field(vertex + 0x0e, &raw0e);
+    e2r_read_u32_field(vertex + 0x10, &raw10);
+    e2r_read_u32_field(vertex + 0x12, &raw12);
+    e2r_read_u32_field(vertex + 0x14, &raw14);
+    e2r_read_u32_field(vertex + 0x16, &raw16);
+    e2r_read_u32_field(vertex + 0x18, &raw18);
+    fprintf(out,
+            "%s[%u]_draw_node[%u]_v%u vertex=0x%lx local=%d,%d,%d "
+            "screen=%d,%d,%d raw14=0x%lx raw16=0x%lx raw18=0x%lx\n",
+            label, actor_index, node_index, vertex_index, (unsigned long)vertex,
+            (int)(short)(raw0e >> 16), (int)(short)(raw10 >> 16),
+            (int)(short)(raw12 >> 16), (int)(short)(raw14 >> 16),
+            (int)(short)(raw16 >> 16), (int)(short)(raw18 >> 16),
+            (unsigned long)raw14, (unsigned long)raw16, (unsigned long)raw18);
+}
+
+static void e2r_write_actor_render_node_state(FILE *out, const char *label,
+                                              unsigned index, uintptr_t actor)
+{
+    uintptr_t tree = 0;
+    uintptr_t draw = 0;
+    unsigned guard;
+
+    if (actor == 0 || IsBadReadPtr((const void *)actor, 0xdc)) {
+        return;
+    }
+    e2r_read_u32_field(actor + 0x1e, &tree);
+    e2r_read_u32_field(actor + 0xd8, &draw);
+    for (guard = 0; tree != 0 && guard < 8u; guard++) {
+        uintptr_t next = 0;
+
+        e2r_write_render_node_line(out, label, index, "tree", guard, actor, tree, 0x140);
+        if (IsBadReadPtr((const void *)tree, 0xce) ||
+            !e2r_read_u32_field(tree + 0xca, &next) || next == tree) {
+            break;
+        }
+        tree = next;
+    }
+    for (guard = 0; draw != 0 && guard < 16u; guard++) {
+        uintptr_t next = 0;
+        uintptr_t v0 = 0;
+        uintptr_t v1 = 0;
+        uintptr_t v2 = 0;
+
+        e2r_write_render_node_line(out, label, index, "draw", guard, actor, draw, 0x44);
+        if (!IsBadReadPtr((const void *)draw, 0x10)) {
+            e2r_read_u32_field(draw + 4, &v0);
+            e2r_read_u32_field(draw + 8, &v1);
+            e2r_read_u32_field(draw + 0xc, &v2);
+            e2r_write_render_vertex_line(out, label, index, guard, 0, v0);
+            e2r_write_render_vertex_line(out, label, index, guard, 1, v1);
+            e2r_write_render_vertex_line(out, label, index, guard, 2, v2);
+        }
+        if (IsBadReadPtr((const void *)draw, 0x22) ||
+            !e2r_read_u32_field(draw + 0x1e, &next) || next == draw) {
+            break;
+        }
+        draw = next;
+    }
 }
 
 static void e2r_write_actor_list_state(FILE *out)
@@ -889,6 +1060,7 @@ static void e2r_write_actor_list_state(FILE *out)
         uintptr_t next = 0;
 
         e2r_write_actor_summary(out, "actor_list", guard, actor);
+        e2r_write_actor_render_node_state(out, "actor_list", guard, actor);
         if (IsBadReadPtr((const void *)actor, 0x50) ||
             !e2r_read_u32_field(actor + 0x4c, &next) || next == actor) {
             if (next == actor) {
@@ -1007,6 +1179,7 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
             "selected_framebuffer=0x%lx selected_valid=%d visible=%u hires=%lu "
             "palette_valid=%lu palette_updates=%lu palette_nonzero=%u "
             "palette_hash=%08x host_dumps=%d\n"
+            "render_flags skip_current_actor=0x%lx current_actor_skip_active=%d\n"
             "flags shift=%lu ctrl=%lu alt=%lu space=%lu q=%lu f1_4=%lu "
             "f5_8=%lu f9_12=%lu\n"
             "move=%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu\n",
@@ -1023,6 +1196,8 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
             (unsigned long)E2R_active_palette_valid,
             (unsigned long)E2R_active_palette_update_count,
             e2r_palette_nonzero_count(), e2r_palette_hash(), host_wrote,
+            (unsigned long)DAT_0047a760,
+            DAT_0047a760 != 0 && DAT_0047a470 != 0,
             (unsigned long)DAT_00636846,
             (unsigned long)DAT_00636852,
             (unsigned long)DAT_0063684a,
@@ -1375,6 +1550,148 @@ static void e2r_inject_sequence_key(E2R_FrameDumpRequest *request, unsigned key_
             *remaining_delay = 0;
         }
     }
+}
+
+static int e2r_scene_slot_matches(unsigned slot, int require_startsc_done)
+{
+    uintptr_t action_actor;
+    uintptr_t action_slot;
+    uintptr_t action;
+    unsigned action_duration;
+    unsigned action_progress;
+    unsigned action_slot_flags;
+    unsigned action_actor_flags;
+
+    if (e2r_current_scene_table_slot(_DAT_0073cc3c) != (int)slot) {
+        return 0;
+    }
+    if (!require_startsc_done) {
+        return 1;
+    }
+    e2r_read_current_action_state(&action_actor, &action_slot, &action,
+                                  &action_duration, &action_progress,
+                                  &action_slot_flags, &action_actor_flags);
+    (void)action_actor;
+    (void)action_slot;
+    (void)action_duration;
+    (void)action_progress;
+    (void)action_slot_flags;
+    (void)action_actor_flags;
+    return action != 0x9377e3u;
+}
+
+static unsigned e2r_wait_for_scene_slot(unsigned slot, unsigned timeout_seconds,
+                                        int require_startsc_done)
+{
+    unsigned waited_ms = 0;
+    unsigned timeout_ms = timeout_seconds * 1000u;
+    unsigned next_report_ms = 5000u;
+
+    while (waited_ms < timeout_ms) {
+        if (e2r_scene_slot_matches(slot, require_startsc_done)) {
+            fprintf(stderr,
+                    "scene-slot wait satisfied after %u ms: slot=%u scene=0x%lx\n",
+                    waited_ms, slot, (unsigned long)_DAT_0073cc3c);
+            return waited_ms;
+        }
+        usleep(10000);
+        waited_ms += 10;
+        if (waited_ms >= next_report_ms) {
+            fprintf(stderr,
+                    "scene-slot wait progress after %u ms: want=%u current=%d "
+                    "scene=0x%lx action=0x%lx\n",
+                    waited_ms, slot, e2r_current_scene_table_slot(_DAT_0073cc3c),
+                    (unsigned long)_DAT_0073cc3c, (unsigned long)_DAT_0063737c);
+            fflush(stderr);
+            next_report_ms += 5000u;
+        }
+    }
+    fprintf(stderr,
+            "scene-slot wait timed out after %u ms: want=%u current=%d scene=0x%lx\n",
+            waited_ms, slot, e2r_current_scene_table_slot(_DAT_0073cc3c),
+            (unsigned long)_DAT_0073cc3c);
+    return waited_ms;
+}
+
+static int e2r_visibility_state_exists(const char *prefix)
+{
+    char path[512];
+
+    snprintf(path, sizeof(path), "%s-state.txt", prefix);
+    return access(path, F_OK) == 0;
+}
+
+static void *e2r_scene175_visibility_thread(void *arg)
+{
+    E2R_Scene175VisibilityRequest *request = (E2R_Scene175VisibilityRequest *)arg;
+    E2R_FrameDumpRequest key_request;
+    unsigned remaining_delay = 0;
+    unsigned waited_ms = 0;
+
+    if (e2r_wait_for_scene_slot(1073u, request->timeout_seconds, 0) >=
+        request->timeout_seconds * 1000u) {
+        _exit(4);
+    }
+
+    memset(&key_request, 0, sizeof(key_request));
+    key_request.inject_keys[0] = VK_SPACE;
+    key_request.inject_key_groups[0] = 0;
+    key_request.inject_key_count = 1;
+    key_request.inject_interval_ms = 250;
+    e2r_inject_sequence_key(&key_request, 0, 0, &remaining_delay);
+
+    if (e2r_wait_for_scene_slot(175u, request->timeout_seconds, 1) >=
+        request->timeout_seconds * 1000u) {
+        _exit(5);
+    }
+
+    if (request->packet_wait_ms != 0) {
+        fprintf(stderr,
+                "scene-175 visibility settle wait begin: %u ms before packet\n",
+                request->packet_wait_ms);
+        usleep((useconds_t)request->packet_wait_ms * 1000u);
+        fprintf(stderr,
+                "scene-175 visibility settle wait end: scene=0x%lx actor=0x%lx\n",
+                (unsigned long)_DAT_0073cc3c, (unsigned long)DAT_0047a470);
+    }
+
+    E2R_RequestVisibilityDump();
+    while (waited_ms < 5000u) {
+        if (e2r_visibility_state_exists(request->prefix)) {
+            fprintf(stderr, "scene-175 visibility packet observed: %s-state.txt\n",
+                    request->prefix);
+            _exit(0);
+        }
+        usleep(10000);
+        waited_ms += 10;
+    }
+    fprintf(stderr,
+            "scene-175 visibility packet wait timed out after %u ms: %s-state.txt\n",
+            waited_ms, request->prefix);
+    _exit(6);
+    return NULL;
+}
+
+static int e2r_start_scene175_visibility_probe(const char *prefix,
+                                               unsigned timeout_seconds,
+                                               unsigned packet_wait_ms)
+{
+    pthread_t thread;
+
+    e2r_scene175_visibility_request.prefix = prefix;
+    e2r_scene175_visibility_request.timeout_seconds =
+        timeout_seconds == 0 ? 120 : timeout_seconds;
+    e2r_scene175_visibility_request.packet_wait_ms =
+        packet_wait_ms == 0 ? 5000 : packet_wait_ms;
+    snprintf(e2r_visibility_dump_request_prefix,
+             sizeof(e2r_visibility_dump_request_prefix), "%s", prefix);
+    if (pthread_create(&thread, NULL, e2r_scene175_visibility_thread,
+                       &e2r_scene175_visibility_request) != 0) {
+        fprintf(stderr, "failed to start scene-175 visibility probe thread\n");
+        return 0;
+    }
+    pthread_detach(thread);
+    return 1;
 }
 
 static LPARAM e2r_pack_mouse_point(unsigned x, unsigned y)
@@ -2230,6 +2547,23 @@ int main(int argc, char **argv)
 #endif
     }
 
+    if (argc > 2 && strcmp(argv[1], "--auto-scene175-visibility") == 0) {
+#if UINTPTR_MAX > UINT32_MAX
+        fprintf(stderr,
+                "--auto-scene175-visibility needs a 32-bit build. Use the linux-clang32-debug CMake preset.\n");
+        return 2;
+#else
+        unsigned timeout_seconds = argc > 3 ? (unsigned)strtoul(argv[3], NULL, 10) : 120;
+        unsigned packet_wait_ms = argc > 4 ? (unsigned)strtoul(argv[4], NULL, 10) : 5000;
+        if (!e2r_start_scene175_visibility_probe(argv[2], timeout_seconds, packet_wait_ms)) {
+            return 3;
+        }
+        fflush(stdout);
+        E2R_WinMainThunk();
+        return 0;
+#endif
+    }
+
     if (argc > 4 && strcmp(argv[1], "--inject-intro-menu-click-surfaces") == 0) {
 #if UINTPTR_MAX > UINT32_MAX
         fprintf(stderr,
@@ -2298,6 +2632,7 @@ int main(int argc, char **argv)
     puts("Pass --inject-key-sequence-surfaces <prefix> <key[,key...]> [inject_seconds] [interval_ms] [dump_seconds] to probe input sequences.");
     puts("Pass --inject-key-sequence-gameplay-surfaces <prefix> <key[,key...]> [inject_seconds] [interval_ms] [gameplay_timeout_seconds] [gameplay_key_split] to wait for gameplay before injecting later keys.");
     puts("Pass --inject-key-sequence-ready-surfaces <prefix> <key[,key...]> [ready_timeout_seconds] [interval_ms] [dump_seconds] to inject when requester-ready state appears.");
+    puts("Pass --auto-scene175-visibility <prefix> [timeout_seconds] [packet_wait_ms] to skip the first intro at scene readiness and write a scene-175 visibility packet.");
     puts("Pass --inject-intro-menu-click-surfaces <prefix> <x> <y> [esc_seconds] [post_click_seconds] to open the intro menu and click a game-coordinate point.");
     puts("Pass --inject-intro-menu-click-sequence-surfaces <prefix> <x,y[;x,y...]> [esc_seconds] [post_click_seconds] [click_interval_ms] [target_requester_id] to open the intro menu, click game-coordinate points, and queue Esc for the target requester.");
     puts("Press F12 in the SDL window to write a visibility packet; set E2R_VISIBILITY_DUMP_PREFIX to choose its prefix.");

@@ -3162,6 +3162,7 @@ source = source.replace(
   uint id;
   uint offset;
   uint resource_offset;
+  uint action_count;
   uint actor_count;
   uint rep_count;
   uint row;
@@ -3211,6 +3212,7 @@ source = source.replace(
       *(int *)(0x6445e8 + offset * 4) = -1;
       *(int *)(0x6467a8 + offset * 4) = -1;
     }
+    action_count = 0;
     actor_count = 0;
     rep_count = 0;
     scene_count = 0;
@@ -3240,6 +3242,13 @@ source = source.replace(
           *(int *)(0x650fa0 + id * 4) = (int)resource_offset;
           break;
         }
+        if (E2R_ActionIndexProbeEnabled() && type == 0x0b && id < 2000) {
+          if (*(int *)(0x64f060 + id * 4) < 0) {
+            action_count = action_count + 1;
+          }
+          *(int *)(0x64f060 + id * 4) = (int)resource_offset;
+          break;
+        }
       }
       rec = scan + 0x42;
       if (rec + 4 <= limit) {
@@ -3257,8 +3266,8 @@ source = source.replace(
     stream[1] = (int)(uint)(end - base);
     if (E2R_archive_read_diag_count < 8) {
       E2R_archive_read_diag_count = E2R_archive_read_diag_count + 1;
-      fprintf(stderr,"archive 47d94 flat FANT: actors=%u reps=%u scenes=%u bytes=%u\\n",
-              actor_count,rep_count,scene_count,(uint)(end - base));
+      fprintf(stderr,"archive 47d94 flat FANT: actions=%u actors=%u reps=%u scenes=%u bytes=%u\\n",
+              action_count,actor_count,rep_count,scene_count,(uint)(end - base));
     }
     return CONCAT44(param_2,1);
   }
@@ -5857,12 +5866,24 @@ source = source.replace(
   "  case 0x37:\n    psVar7 = (short *)(uint)(ushort)in_EAX[2];\n    param_2[0x91] = in_EAX[2];\n    E2R_RetainCurrentRepForMissingTarget(\"2b880.case37\",param_2);\n    if (in_EAX[3] != 0) {"
 );
 source = source.replace(
+  "static int E2R_ParseArchiveRepResource(short expected_rep_id)\n{",
+  "static int E2R_RepRecordDiagEnabled(void)\n{\n  char *value = getenv(\"E2R_REP_RECORD_DIAG\");\n\n  return value != (char *)0x0 && value[0] != '\\0' && value[0] != '0';\n}\n\nstatic int E2R_ParseArchiveRepResource(short expected_rep_id)\n{"
+);
+source = source.replace(
+  "      slot = (int)field2 + 1;\n      if (0 <= slot && slot < 0xd1) {\n        rep[slot] = field3;\n        if (0x31 < _DAT_0067bc92 && 0x4f < field2 && field2 < 0x6b) {\n          rep[slot] = -1;\n        }\n      }\n      continue;",
+  "      if (E2R_RepRecordDiagEnabled()) {\n        fprintf(stderr,\"rep archive record: rep=%d type=%04x field2=%d field3=%d slot=%d version=%d\\n\",\n                (int)*rep,(unsigned int)type,(int)field2,(int)field3,\n                (int)field2 + 1,(int)_DAT_0067bc92);\n      }\n      slot = (int)field2 + 1;\n      if (0 <= slot && slot < 0xd1) {\n        rep[slot] = field3;\n        if (0x31 < _DAT_0067bc92 && 0x4f < field2 && field2 < 0x6b) {\n          rep[slot] = -1;\n        }\n      }\n      continue;"
+);
+source = source.replace(
   /(\n\/\* 00441b24 \*\/[\s\S]*?undefined1 local_48 \[52\];\r?\n\r?\n)\s*if \(in_AX < 0\) \{/,
   "$1  in_AX = (short)param_2;\n  if (in_AX < 0) {"
 );
 source = source.replace(
   /(\n\/\* 0045190c \*\/[\s\S]*?undefined8 uVar3;\r?\n\r?\n)\s*uVar2 = 0;\r?\n\s*if \(\(-1 < in_AX\)/,
   "$1  uVar2 = 0;\n  in_AX = (short)param_2;\n  if ((-1 < in_AX)"
+);
+source = source.replace(
+  "static int E2R_RepIdIsMissing(short rep_id)\n{",
+  "static int E2R_ActionIndexProbeEnabled(void)\n{\n  static int cached = -1;\n  char *value;\n\n  if (cached < 0) {\n    value = getenv(\"E2R_ACTION_INDEX_PROBE\");\n    cached = value != (char *)0x0 && value[0] != '\\0' && value[0] != '0';\n  }\n  return cached;\n}\n\nstatic int E2R_RepIdIsMissing(short rep_id)\n{"
 );
 source = source.replace(/[ \t]+$/gm, "").replace(/\n*$/, "\n");
 fs.writeFileSync(outSrc, source);
