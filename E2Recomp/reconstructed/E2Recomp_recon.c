@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "e2recomp_log.h"
 #ifdef NAN
 #undef NAN
 #endif
@@ -24,7 +25,10 @@ static uint E2R_archive_resource_diag_count;
 static uint E2R_archive_parse_summary_count;
 static uint E2R_scene_load_diag_count;
 static uint E2R_actor_load_diag_count;
+static uint E2R_rep_load_diag_count;
 static int E2R_actor_load_id_override = -1;
+static short E2R_actor_visible_rep_fallback[5000];
+static byte E2R_actor_visible_rep_fallback_valid[5000];
 static int *E2R_fan_parse_stream;
 static short *E2R_fan_parse_record;
 static uint E2R_fan_parse_record_count;
@@ -52,6 +56,8 @@ static uint E2R_scene_child_diag_count;
 static uint E2R_scene_select_diag_count;
 static uint E2R_scene_select_diag_count;
 static uint E2R_scene_child_activate_diag_count;
+static int E2R_start_sc_handoff_pending;
+static int E2R_start_sc_handoff_activate_current;
 static uint E2R_rand_seed_fallback = 0x2a13f00d;
 static int E2R_startup_diag_enabled;
 static int E2R_scene_load_request_id = -1;
@@ -579,6 +585,101 @@ static void E2R_SelectSceneRecord(short scene_id)
   FUN_0044c6bc();
 }
 
+static int E2R_ActivateSelectedSceneRecord(short scene_id)
+{
+  int scene_record;
+  int child;
+  int actor;
+  int selected_actor;
+  uint guard;
+
+  if (scene_id < 0 || 0x4b0 <= scene_id) {
+    return 0;
+  }
+  FUN_0045233c((undefined4)(int)scene_id,(undefined4)(int)scene_id);
+  scene_record = *(int *)((undefined1 *)0x0062e450 + scene_id * 4);
+  if (scene_record == 0 || IsBadReadPtr((void *)(uintptr_t)scene_record,0x20)) {
+    return 0;
+  }
+  FUN_00452140((undefined4)(uintptr_t)scene_record);
+  selected_actor = 0;
+  guard = 0;
+  for (child = *(int *)(scene_record + 4);
+       child != 0 && guard < 0x4000 &&
+       !IsBadReadPtr((void *)(uintptr_t)child,0x1c);
+       child = *(int *)(child + 0x18)) {
+    guard = guard + 1;
+    if (((*(byte *)(child + 0xe) & 0x20) != 0) || *(short *)child < 0) {
+      continue;
+    }
+    actor = *(int *)((undefined1 *)0x00630b60 + *(short *)child * 4);
+    if (actor == 0) {
+      continue;
+    }
+    if ((uintptr_t)actor == (uintptr_t)DAT_0047a470) {
+      selected_actor = actor;
+      break;
+    }
+    if (selected_actor == 0 || *(short *)child == 0) {
+      selected_actor = actor;
+    }
+  }
+  if (selected_actor != 0) {
+    DAT_0047a470 = (short *)(uintptr_t)
+      E2R_TraceCurrentActorWrite("scene.activate-selected",(uintptr_t)selected_actor);
+  }
+  FUN_004523f8((undefined4)(uintptr_t)scene_record);
+  if (E2R_StartupDiagEnabled() && E2R_scene_load_diag_count < 128) {
+    E2R_scene_load_diag_count = E2R_scene_load_diag_count + 1;
+    fprintf(stderr,
+            "scene activate selected: scene=%d record=0x%lx current=0x%lx actor_head=0x%lx\n",
+            (int)scene_id,(unsigned long)(uintptr_t)scene_record,
+            (unsigned long)DAT_0047a470,(unsigned long)_DAT_0063726c);
+  }
+  return 1;
+}
+
+static void E2R_MarkStartScHandoffIfNeeded(short *actor,int *slot)
+{
+  if (actor == (short *)0x0 || slot == (int *)0x0 ||
+      IsBadReadPtr(actor,2) || IsBadReadPtr(slot,4)) {
+    return;
+  }
+  if (*actor != 0 || *slot != 0x9377e3 ||
+      E2R_CurrentSceneTableSlot((uintptr_t)_DAT_0073cc3c) != 175) {
+    return;
+  }
+  E2R_start_sc_handoff_pending = 1;
+  E2R_GameStateLog("start-sc handoff pending actor=0x%lx action=0x%lx scene=0x%lx",
+                   (unsigned long)(uintptr_t)actor,
+                   (unsigned long)(uintptr_t)*slot,
+                   (unsigned long)_DAT_0073cc3c);
+}
+
+static short E2R_AdjustStartScHandoffScene(short selected_scene)
+{
+  int current_slot;
+
+  if (E2R_start_sc_handoff_pending == 0) {
+    return selected_scene;
+  }
+  E2R_start_sc_handoff_pending = 0;
+  current_slot = E2R_CurrentSceneTableSlot((uintptr_t)_DAT_0073cc3c);
+  if (current_slot == 175 && selected_scene == 87 &&
+      DAT_0047a470 != 0 && !IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,2) &&
+      *(short *)(uintptr_t)DAT_0047a470 == 0) {
+    E2R_GameStateLog("start-sc handoff preserve scene current=%d selected=%d actor=0x%lx",
+                     current_slot,(int)selected_scene,
+                     (unsigned long)DAT_0047a470);
+    E2R_start_sc_handoff_activate_current = 1;
+    return (short)current_slot;
+  }
+  E2R_start_sc_handoff_activate_current = 0;
+  E2R_GameStateLog("start-sc handoff pass current=%d selected=%d actor=0x%lx",
+                   current_slot,(int)selected_scene,(unsigned long)DAT_0047a470);
+  return selected_scene;
+}
+
 static int E2R_ShouldForceScene785Fallback(void)
 {
   char *value = getenv("E2R_FORCE_SCENE_785");
@@ -945,6 +1046,97 @@ static void E2R_TraceActorUpdateStage(const char *stage, short *actor)
             (int)word74,(int)word76,(int)wordba,byte2,byte3,bytea3,byteb3,byteb6,
             __builtin_return_address(0));
   }
+}
+
+static int E2R_RepIdIsMissing(short rep_id)
+{
+  if (rep_id < 0 || 500 <= rep_id) {
+    return 0;
+  }
+  return *(int *)((undefined1 *)0x00635980 + rep_id * 4) == 0 &&
+         *(int *)(0x00663a10 + rep_id * 4) < 0;
+}
+
+static int E2R_ActorMotionRef(short *actor)
+{
+  int side;
+  int ref;
+
+  if (actor == (short *)0x0 || IsBadReadPtr(actor,0x58)) {
+    return 0;
+  }
+  side = *(int *)(actor + 0x2a);
+  ref = 0;
+  if (side != 0 && !IsBadReadPtr((void *)(uintptr_t)side,0xc)) {
+    ref = *(int *)(side + 8);
+  }
+  if (ref == 0) {
+    ref = *(int *)(actor + 0xf);
+  }
+  if (ref != 0 && IsBadReadPtr((void *)(uintptr_t)ref,0x86)) {
+    ref = 0;
+  }
+  return ref;
+}
+
+static int E2R_ActorSideLinkedAction(short *actor, int offset)
+{
+  int side;
+  int linked;
+
+  if (actor == (short *)0x0 || IsBadReadPtr(actor,0x58)) {
+    return 0;
+  }
+  side = *(int *)(actor + 0x2a);
+  if (side == 0 || IsBadReadPtr((void *)(uintptr_t)side,(UINT_PTR)(offset + 4))) {
+    return 0;
+  }
+  linked = *(int *)(side + offset);
+  if (linked == 0 || IsBadReadPtr((void *)(uintptr_t)linked,0x13e)) {
+    return 0;
+  }
+  return *(int *)(linked + 0x13a);
+}
+
+static void E2R_RetainCurrentRepForMissingTarget(const char *site, short *actor)
+{
+  uintptr_t rep;
+  short current_rep;
+  short desired_rep;
+  short actor_id;
+
+  if (actor == (short *)0x0 || IsBadReadPtr(actor,0x124)) {
+    return;
+  }
+  rep = *(uint *)((uintptr_t)actor + 0x11e);
+  actor_id = *actor;
+  if (rep != 0 && !IsBadReadPtr((void *)rep,2)) {
+    current_rep = *(short *)rep;
+    if (-1 < actor_id && actor_id < 5000 && 0 <= current_rep && current_rep < 500) {
+      E2R_actor_visible_rep_fallback[actor_id] = current_rep;
+      E2R_actor_visible_rep_fallback_valid[actor_id] = 1;
+    }
+  }
+  else if (-1 < actor_id && actor_id < 5000 &&
+           E2R_actor_visible_rep_fallback_valid[actor_id] != 0) {
+    current_rep = E2R_actor_visible_rep_fallback[actor_id];
+  }
+  else {
+    return;
+  }
+  desired_rep = actor[0x91];
+  if (current_rep < 0 || 500 <= current_rep || current_rep == desired_rep ||
+      !E2R_RepIdIsMissing(desired_rep)) {
+    return;
+  }
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_update_diag_count < 192) {
+    E2R_actor_update_diag_count = E2R_actor_update_diag_count + 1;
+    fprintf(stderr,
+            "actor rep retain: site=%s actor=0x%lx rep=0x%lx current=%d missing=%d\n",
+            site,(unsigned long)(uintptr_t)actor,(unsigned long)rep,
+            (int)current_rep,(int)desired_rep);
+  }
+  actor[0x91] = current_rep;
 }
 
 static void E2R_TraceStartGameStage(const char *stage)
@@ -15983,10 +16175,10 @@ void FUN_00421a14(void)
         *(undefined2 *)(iVar9 + 6) = 0x8001;
         *(undefined2 *)(*(int *)(iVar10 + 0xe4) + 2) = *(undefined2 *)(iVar9 + 6);
         FUN_004249f4((undefined4)(uintptr_t)iVar10);
-        FUN_00424d58();
-        FUN_00424d14();
-        FUN_00424dd8(extraout_ECX);
-        FUN_00424d98();
+        FUN_00424d58(iVar10);
+        FUN_00424d14(iVar10);
+        FUN_00424dd8(extraout_ECX,iVar10);
+        FUN_00424d98(iVar10);
         if (**(short **)(iVar10 + 0xe4) < _DAT_00640124) {
           **(short **)(iVar10 + 0xe4) = _DAT_00640124;
         }
@@ -16149,20 +16341,20 @@ void __fastcall FUN_00421f54(undefined4 param_1)
         for (; iVar4 = _DAT_0063726c, iVar2 != 0; iVar2 = *(int *)(iVar2 + 0x4c)) {
           if ((((*(byte *)(iVar2 + 2) & 8) != 0) && ((*(byte *)(iVar2 + 3) & 8) == 0)) &&
              ((DAT_0047a760 == 0 || (iVar2 != DAT_0047a470)))) {
-            FUN_00424d58();
+            FUN_00424d58(iVar2);
           }
         }
         for (; iVar2 = _DAT_0063726c, iVar4 != 0; iVar4 = *(int *)(iVar4 + 0x4c)) {
           if ((((*(byte *)(iVar4 + 2) & 8) != 0) && ((*(byte *)(iVar4 + 3) & 8) == 0)) &&
              ((DAT_0047a760 == 0 || (iVar4 != DAT_0047a470)))) {
-            FUN_00424d14();
-            FUN_00424dd8(extraout_ECX_01);
+            FUN_00424d14(iVar4);
+            FUN_00424dd8(extraout_ECX_01,iVar4);
           }
         }
         for (; iVar4 = _DAT_0063726c, iVar2 != 0; iVar2 = *(int *)(iVar2 + 0x4c)) {
           if ((((*(byte *)(iVar2 + 2) & 8) != 0) && ((*(byte *)(iVar2 + 3) & 8) == 0)) &&
              ((DAT_0047a760 == 0 || (iVar2 != DAT_0047a470)))) {
-            FUN_00424d98();
+            FUN_00424d98(iVar2);
           }
         }
       }
@@ -16170,8 +16362,8 @@ void __fastcall FUN_00421f54(undefined4 param_1)
         for (; iVar4 = _DAT_0063726c, iVar2 != 0; iVar2 = *(int *)(iVar2 + 0x4c)) {
           if ((((*(byte *)(iVar2 + 2) & 8) != 0) && ((*(byte *)(iVar2 + 3) & 8) == 0)) &&
              ((DAT_0047a760 == 0 || (iVar2 != DAT_0047a470)))) {
-            FUN_00424cbc();
-            FUN_00424dd8(extraout_ECX_00);
+            FUN_00424cbc(iVar2);
+            FUN_00424dd8(extraout_ECX_00,iVar2);
           }
         }
       }
@@ -16962,7 +17154,7 @@ void __fastcall FUN_00422fd8(undefined4 param_1,int param_2)
     *(undefined2 *)(in_EAX + 4) = 0;
   }
   else {
-    FUN_00423070();
+    FUN_00423070((int *)(uintptr_t)in_EAX);
   }
   return;
 }
@@ -16971,7 +17163,7 @@ void __fastcall FUN_00422fd8(undefined4 param_1,int param_2)
 
 /* 00423070 */
 
-void FUN_00423070(void)
+void FUN_00423070(int *coord)
 
 {
   int *in_EAX;
@@ -16979,6 +17171,12 @@ void FUN_00423070(void)
   int iVar2;
   int iVar3;
 
+  in_EAX = coord;
+  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||
+      0x70000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,6) ||
+      (*(int *)((int)in_EAX + 2) >> 0x10) == 0) {
+    return;
+  }
   iVar1 = DAT_0047a2a4 / (*(int *)((int)in_EAX + 2) >> 0x10);
   iVar2 = iVar1 - (iVar1 >> 3);
   if (DAT_0047a43c != 0) {
@@ -17972,7 +18170,7 @@ void FUN_00424bd8(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void FUN_00424cbc(void)
+void FUN_00424cbc(int actor)
 
 {
   int in_EAX;
@@ -17980,16 +18178,19 @@ void FUN_00424cbc(void)
   int extraout_EDX_00;
   int iVar1;
 
+  in_EAX = actor;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x22)) {
+    return;
+  }
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
     if (((*(byte *)(iVar1 + 3) & 4) == 0) &&
        (((DAT_0047a3e0 == 0 || (DAT_0047a414 != 0)) || ((*(byte *)(iVar1 + 3) & 0x20) != 0)))) {
       if ((*(byte *)(iVar1 + 2) & 1) == 0) {
-        FUN_00425538();
-        iVar1 = extraout_EDX;
+        FUN_00425538(iVar1);
       }
       else {
-        FUN_00425018();
-        iVar1 = extraout_EDX_00;
+        FUN_00425018(iVar1);
       }
     }
     _DAT_00640204 = _DAT_00640204 + 1;
@@ -18003,7 +18204,7 @@ void FUN_00424cbc(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void FUN_00424d14(void)
+void FUN_00424d14(int actor)
 
 {
   int in_EAX;
@@ -18011,15 +18212,18 @@ void FUN_00424d14(void)
   int extraout_EDX_00;
   int iVar1;
 
+  in_EAX = actor;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x22)) {
+    return;
+  }
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
     if (((*(byte *)(iVar1 + 3) & 4) == 0) && ((*(byte *)(iVar1 + 2) & 0x42) == 0)) {
       if ((*(byte *)(iVar1 + 2) & 1) == 0) {
-        FUN_00425538();
-        iVar1 = extraout_EDX;
+        FUN_00425538(iVar1);
       }
       else {
-        FUN_00425018();
-        iVar1 = extraout_EDX_00;
+        FUN_00425018(iVar1);
       }
     }
     _DAT_00640204 = _DAT_00640204 + 1;
@@ -18033,18 +18237,22 @@ void FUN_00424d14(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void FUN_00424d58(void)
+void FUN_00424d58(int actor)
 
 {
   int in_EAX;
   int extraout_EDX;
   int iVar1;
 
+  in_EAX = actor;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x22)) {
+    return;
+  }
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
     if ((((*(byte *)(iVar1 + 3) & 4) == 0) && ((*(byte *)(iVar1 + 2) & 0x42) != 0)) &&
        (*(short *)(iVar1 + 0xce) == 0)) {
-      FUN_00425538();
-      iVar1 = extraout_EDX;
+      FUN_00425538(iVar1);
     }
     _DAT_00640204 = _DAT_00640204 + 1;
   }
@@ -18057,18 +18265,22 @@ void FUN_00424d58(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void FUN_00424d98(void)
+void FUN_00424d98(int actor)
 
 {
   int in_EAX;
   int extraout_EDX;
   int iVar1;
 
+  in_EAX = actor;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x22)) {
+    return;
+  }
   for (iVar1 = *(int *)(in_EAX + 0x1e); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
     if ((((*(byte *)(iVar1 + 3) & 4) == 0) && ((*(byte *)(iVar1 + 2) & 0x42) != 0)) &&
        (*(short *)(iVar1 + 0xce) != 0)) {
-      FUN_00425538();
-      iVar1 = extraout_EDX;
+      FUN_00425538(iVar1);
     }
     _DAT_00640204 = _DAT_00640204 + 1;
   }
@@ -18081,7 +18293,7 @@ void FUN_00424d98(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void __fastcall FUN_00424dd8(int param_1)
+void __fastcall FUN_00424dd8(int param_1,int actor)
 
 {
   byte bVar1;
@@ -18090,6 +18302,11 @@ void __fastcall FUN_00424dd8(int param_1)
   int extraout_EDX;
   int iVar2;
 
+  in_EAX = actor;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0xdc)) {
+    return;
+  }
   iVar2 = *(int *)(in_EAX + 0xd8);
   do {
     if (iVar2 == 0) {
@@ -18108,9 +18325,7 @@ joined_r0x00424e1b:
         }
         if (DAT_0047a410 != 2) goto LAB_00424e2c;
       }
-      FUN_00424e44(param_1);
-      param_1 = extraout_ECX;
-      iVar2 = extraout_EDX;
+      FUN_00424e44(param_1,iVar2);
     }
 LAB_00424e2c:
     _DAT_00640204 = _DAT_00640204 + 1;
@@ -18122,12 +18337,18 @@ LAB_00424e2c:
 
 /* 00424e44 */
 
-void __fastcall FUN_00424e44(int param_1)
+void __fastcall FUN_00424e44(int param_1,int node)
 
 {
   int in_EAX;
   int iVar1;
 
+  in_EAX = node;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x26) ||
+      IsBadReadPtr((void *)(uintptr_t)*(int *)(in_EAX + 0x22),4)) {
+    return;
+  }
   if (-1 < *(short *)(in_EAX + 0x1c)) {
     param_1 = (*(int *)(in_EAX + 0x1a) >> 0x10) * 4;
   }
@@ -18138,7 +18359,7 @@ void __fastcall FUN_00424e44(int param_1)
   else {
     iVar1 = 2;
   }
-  FUN_00433d30(param_1,iVar1);
+  FUN_00433d30(in_EAX,iVar1);
   return;
 }
 
@@ -18194,7 +18415,7 @@ void FUN_00424ed0(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void FUN_00425018(void)
+void FUN_00425018(int actor)
 
 {
   int in_EAX;
@@ -18251,6 +18472,11 @@ void FUN_00425018(void)
   int local_20;
   short *local_1c;
 
+  in_EAX = actor;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0xd2)) {
+    return;
+  }
   local_76 = 0;
   local_56 = *(undefined4 *)(in_EAX + 0x22);
   local_68 = *(undefined2 *)(in_EAX + 0xce);
@@ -18377,7 +18603,7 @@ void FUN_00425018(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void FUN_00425538(void)
+void FUN_00425538(int actor)
 
 {
   int in_EAX;
@@ -18395,8 +18621,13 @@ void FUN_00425538(void)
   undefined4 *local_20;
   undefined4 *local_1c;
 
+  in_EAX = actor;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x9a)) {
+    return;
+  }
   if (*(short *)(in_EAX + 0x96) != 0) {
-    FUN_00423070();
+    FUN_00423070((int *)(uintptr_t)(in_EAX + 0x92));
   }
   if (*(short *)(in_EAX + 0x96) == 0) {
     return;
@@ -20165,6 +20396,7 @@ switchD_0042763f_default:
     psVar15 = local_6c;
   }
   E2R_TraceActorUpdateStage("27584.before-rep",local_6c);
+  E2R_RetainCurrentRepForMissingTarget("27584.before-rep-missing",local_6c);
   if (local_6c[0x91] < 0) {
     if (*(int *)(local_6c + 0x90) >> 0x10 == -2) {
       FUN_00441890(param_1,psVar15);
@@ -20192,6 +20424,7 @@ switchD_0042763f_default:
     else {
       psVar15 = (short *)CONCAT22((short)((uint)psVar15 >> 0x10),*psVar8);
       iVar7 = CONCAT22((short)((uint)param_1 >> 0x10),local_6c[0x91]);
+      E2R_RetainCurrentRepForMissingTarget("27584.switch-missing",local_6c);
       if (*psVar8 != local_6c[0x91]) {
         *(byte *)(psVar8 + 0xd5) = *(byte *)(psVar8 + 0xd5) & 0xfd;
         E2R_TraceActorUpdateStage("27584.before-51998-switch",local_6c);
@@ -20350,13 +20583,12 @@ LAB_00427d14:
   E2R_TraceActorUpdateStage("27584.after-target-select",local_6c);
   psVar15 = (short *)((ulonglong)lVar28 >> 0x20);
   local_70 = (short *)lVar28;
-  if (((local_70 != (short *)0x0) &&
-      (local_54 = *(int *)(*(int *)(local_70 + 0x2a) + 8), local_54 == 0)) &&
-     (local_54 = *(int *)(local_70 + 0xf), local_54 == 0)) {
+  local_54 = E2R_ActorMotionRef(local_70);
+  if (local_54 == 0) {
     local_70 = (short *)0x0;
   }
-  local_60 = *(int *)(*(int *)(local_6c + 0x2a) + 8);
-  if ((local_60 == 0) && (local_60 = *(int *)(local_6c + 0xf), local_60 == 0)) {
+  local_60 = E2R_ActorMotionRef(local_6c);
+  if (local_60 == 0) {
     local_70 = (short *)0x0;
   }
   if (((local_70 != (short *)0x0) &&
@@ -20936,7 +21168,7 @@ switchD_00428878_caseD_3:
     case 4:
       bVar4 = true;
       if (DAT_00479dfc == 0) {
-        iVar7 = CONCAT22(_DAT_004c3ada,CONCAT11(uRam004c3ad9,E2R_READ1(DAT_004c3ad5,3)));
+        iVar7 = CONCAT22(_DAT_004c3ada,CONCAT11(uRam004c3ad9,(DAT_004c3ad5 >> 0x18)));
         iVar17 = CONCAT13((undefined1)DAT_004c3add,CONCAT12(uRam004c3adc,_DAT_004c3ada));
         local_38 = DAT_004c3add >> 0x18;
         iVar9 = DAT_004c3ad5;
@@ -20962,10 +21194,8 @@ switchD_00428878_caseD_3:
         else if (DAT_00636850 == '\0') {
           if (((DAT_00479dfc == 0) && (DAT_004c3ac8 != '\0')) ||
              ((DAT_00479dfc != 0 && (DAT_0063685c != '\0')))) {
-            if ((*(int *)(*(int *)(local_6c + 0x2a) + 0x1c) == 0) ||
-               (*(int *)(*(int *)(*(int *)(local_6c + 0x2a) + 0x1c) + 0x13a) == 0)) {
-              if ((*(int *)(*(int *)(local_6c + 0x2a) + 0x20) == 0) ||
-                 (*(int *)(*(int *)(*(int *)(local_6c + 0x2a) + 0x20) + 0x13a) == 0)) {
+            if (E2R_ActorSideLinkedAction(local_6c,0x1c) == 0) {
+              if (E2R_ActorSideLinkedAction(local_6c,0x20) == 0) {
                 uVar19 = 0x27;
               }
               else {
@@ -22623,6 +22853,7 @@ LAB_0042ae53:
                        (unsigned int)*(ushort *)((int)in_EAX + 6),
                        (unsigned int)*(ushort *)(in_EAX + 1),
                        (unsigned long)_DAT_0073cc3c);
+      E2R_MarkStartScHandoffIfNeeded((short *)(uintptr_t)param_2,in_EAX);
       E2R_actor_calc_context = param_2;
       FUN_0042b004();
       E2R_actor_calc_context = 0;
@@ -23823,6 +24054,7 @@ LAB_0042c113:
   case 0x37:
     psVar7 = (short *)(uint)(ushort)in_EAX[2];
     param_2[0x91] = in_EAX[2];
+    E2R_RetainCurrentRepForMissingTarget("2b880.case37",param_2);
     if (in_EAX[3] != 0) {
       uVar4 = in_EAX[4];
       param_2[0x92] = uVar4;
@@ -24027,9 +24259,9 @@ void __fastcall FUN_0042c790(int param_1,int param_2)
     return;
   }
   iVar6 = (uint)(ushort)in_EAX[1] * 2;
-  if (((&DAT_0063679e)[iVar6] & 0x10) == 0) {
-    if (((&DAT_0063679e)[iVar6] & 0x20) == 0) {
-      if (((&DAT_0063679e)[iVar6] & 0x40) == 0) goto LAB_0042c8d9;
+  if ((*(byte *)(iVar6 + 0x63679e) & 0x10) == 0) {
+    if ((*(byte *)(iVar6 + 0x63679e) & 0x20) == 0) {
+      if ((*(byte *)(iVar6 + 0x63679e) & 0x40) == 0) goto LAB_0042c8d9;
       if (*in_EAX < 0) {
         return;
       }
@@ -27350,7 +27582,7 @@ undefined4 __fastcall FUN_00430fd8(undefined4 param_1,int param_2)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void __fastcall FUN_00431a7c(undefined4 param_1,int param_2)
+void __fastcall FUN_00431a7c(int actor,int param_2)
 
 {
   byte bVar1;
@@ -27433,7 +27665,19 @@ void __fastcall FUN_00431a7c(undefined4 param_1,int param_2)
   int iStack_18;
   short sStack_14;
 
-  FUN_00457818(param_1,param_2);
+  in_EAX = actor;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x2c)) {
+    return;
+  }
+  FUN_00457818((undefined4)(uintptr_t)in_EAX,param_2);
+  if (IsBadReadPtr((void *)(uintptr_t)in_EAX,0x10) || *(int *)(in_EAX + 4) == 0 ||
+      *(int *)(in_EAX + 8) == 0 || *(int *)(in_EAX + 0xc) == 0 ||
+      IsBadReadPtr((void *)(uintptr_t)*(int *)(in_EAX + 4),0x1c) ||
+      IsBadReadPtr((void *)(uintptr_t)*(int *)(in_EAX + 8),0x1c) ||
+      IsBadReadPtr((void *)(uintptr_t)*(int *)(in_EAX + 0xc),0x1c)) {
+    return;
+  }
   iVar10 = *(int *)(in_EAX + 4);
   local_6c = *(int *)(iVar10 + 0x18) >> 0x10;
   iVar5 = *(int *)(in_EAX + 8);
@@ -28262,7 +28506,7 @@ void FUN_00432ecc(void)
 
 /* 00433d30 */
 
-void __fastcall FUN_00433d30(undefined4 param_1,int param_2)
+void __fastcall FUN_00433d30(int actor,int param_2)
 
 {
   undefined2 uVar1;
@@ -28279,14 +28523,19 @@ void __fastcall FUN_00433d30(undefined4 param_1,int param_2)
   int extraout_ECX_02;
   int iVar8;
 
+  in_EAX = actor;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
+      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x40)) {
+    return;
+  }
   if (*(int *)(in_EAX + 0x28) != 0) {
     if (((*(short *)(in_EAX + 0x2c) < 0) || (DAT_0047a3e0 != 0)) || (DAT_0047a434 != 0)) {
       FUN_00431a7c(in_EAX,param_2);
-      iVar8 = extraout_ECX_00;
+      iVar8 = in_EAX;
     }
     else {
       FUN_00437ae4(in_EAX,param_2);
-      iVar8 = extraout_ECX;
+      iVar8 = in_EAX;
     }
     uVar6 = *(undefined4 *)(iVar8 + 4);
     uVar1 = *(undefined2 *)(iVar8 + 0x2e);
@@ -28310,11 +28559,9 @@ void __fastcall FUN_00433d30(undefined4 param_1,int param_2)
     }
     if (((*(short *)(iVar8 + 0x2c) < 0) || (DAT_0047a3e0 != 0)) || (DAT_0047a434 != 0)) {
       FUN_00431a7c(iVar8,param_2);
-      iVar8 = extraout_ECX_02;
     }
     else {
       FUN_00437ae4(iVar8,param_2);
-      iVar8 = extraout_ECX_01;
     }
     *(undefined4 *)(iVar8 + 0xc) = uVar7;
     *(undefined4 *)(iVar8 + 4) = uVar6;
@@ -36388,6 +36635,7 @@ undefined8 __fastcall FUN_00441b24(undefined4 param_1,undefined4 param_2)
   undefined1 local_7c [52];
   undefined1 local_48 [52];
 
+  in_AX = (short)param_2;
   if (in_AX < 0) {
     pcVar2 = &DAT_0047a710;
   }
@@ -41045,6 +41293,115 @@ LAB_00446f47:
 
 
 
+static ushort E2R_ReadFanRecordWord(byte *record,int index)
+{
+  record = record + index * 2;
+  return (ushort)(((uint)record[0] << 8) | (uint)record[1]);
+}
+
+static short *E2R_AllocateArchiveRep(void)
+{
+  short *rep;
+
+  rep = (short *)(uintptr_t)FUN_0045f1ff(1,0x1a0);
+  if (rep == (short *)0x0) {
+    return (short *)0x0;
+  }
+  memset(rep,0xff,0x1a0);
+  *(short **)(rep + 0xd3) = _DAT_00637254;
+  _DAT_00637254 = rep;
+  rep[0xd5] = 3;
+  *(undefined4 *)(rep + 0xd6) = _DAT_00636588;
+  return rep;
+}
+
+static int E2R_ParseArchiveRepResource(short expected_rep_id)
+{
+  int *stream;
+  byte *base;
+  byte *end;
+  byte *cursor;
+  byte *limit;
+  byte *scan;
+  byte *record;
+  short *rep;
+  ushort type;
+  ushort id;
+  short field2;
+  short field3;
+  int slot;
+  uint record_count;
+
+  stream = (int *)(uintptr_t)DAT_0047a724;
+  if ((uintptr_t)stream < 0x10000u || IsBadReadPtr(stream,0x1c) ||
+      (uint)stream[6] != E2R_STREAM_MAGIC) {
+    return 0;
+  }
+  base = (byte *)(uintptr_t)stream[5];
+  end = (byte *)(uintptr_t)stream[2];
+  cursor = (byte *)(uintptr_t)stream[0];
+  if (cursor + 0x4c > end || cursor[0] != 'F' || cursor[1] != 'A' ||
+      cursor[2] != 'N' || cursor[3] != 'T') {
+    return 0;
+  }
+  limit = end;
+  for (scan = cursor + 4; scan + 4 <= end; scan = scan + 1) {
+    if (scan[0] == 'F' && scan[1] == 'A' && scan[2] == 'N' && scan[3] == 'T') {
+      limit = scan;
+      break;
+    }
+  }
+  rep = (short *)0x0;
+  record_count = 0;
+  for (record = cursor + 0x42; record + 10 <= limit && record_count < 512;
+       record = record + 10) {
+    record_count = record_count + 1;
+    type = E2R_ReadFanRecordWord(record,0);
+    id = E2R_ReadFanRecordWord(record,1);
+    field2 = (short)E2R_ReadFanRecordWord(record,2);
+    field3 = (short)E2R_ReadFanRecordWord(record,3);
+    if (type == 0) {
+      break;
+    }
+    if (type == 0x35 && id < 500 &&
+        (expected_rep_id < 0 || id == (ushort)expected_rep_id)) {
+      rep = E2R_AllocateArchiveRep();
+      if (rep == (short *)0x0) {
+        return 0;
+      }
+      *rep = (short)id;
+      *(short **)((undefined1 *)0x00635980 + id * 4) = rep;
+      rep[0xd1] = field2 + -1;
+      rep[0xd2] = field3 + -1;
+      continue;
+    }
+    if (type == 0x36 && rep != (short *)0x0 && id == (ushort)*rep) {
+      slot = (int)field2 + 1;
+      if (0 <= slot && slot < 0xd1) {
+        rep[slot] = field3;
+        if (0x31 < _DAT_0067bc92 && 0x4f < field2 && field2 < 0x6b) {
+          rep[slot] = -1;
+        }
+      }
+      continue;
+    }
+    break;
+  }
+  if (rep == (short *)0x0) {
+    return 0;
+  }
+  stream[0] = (int)(uintptr_t)record;
+  stream[1] = (int)(uint)(end - record);
+  if (E2R_RuntimeDiagEnabled() && E2R_rep_load_diag_count < 64) {
+    E2R_rep_load_diag_count = E2R_rep_load_diag_count + 1;
+    fprintf(stderr,
+            "rep archive direct: id=%d table=0x%lx records=%u final=%u limit=%u\n",
+            (int)*rep,(unsigned long)(uintptr_t)rep,record_count,
+            (uint)(record - base),(uint)(limit - base));
+  }
+  return 1;
+}
+
 static undefined4 E2R_ParseArchiveFanResource(void)
 {
   int *previous_stream;
@@ -41900,6 +42257,7 @@ undefined8 __fastcall FUN_00447d94(undefined4 param_1,undefined4 param_2)
   uint offset;
   uint resource_offset;
   uint actor_count;
+  uint rep_count;
   uint row;
   uint row_end;
   uint scene_count;
@@ -41948,6 +42306,7 @@ undefined8 __fastcall FUN_00447d94(undefined4 param_1,undefined4 param_2)
       *(int *)(0x6467a8 + offset * 4) = -1;
     }
     actor_count = 0;
+    rep_count = 0;
     scene_count = 0;
     for (scan = base; scan + 14 <= end; scan = scan + 1) {
       if (scan[0] != 'F' || scan[1] != 'A' || scan[2] != 'N' || scan[3] != 'T') {
@@ -41976,13 +42335,24 @@ undefined8 __fastcall FUN_00447d94(undefined4 param_1,undefined4 param_2)
           break;
         }
       }
+      rec = scan + 0x42;
+      if (rec + 4 <= limit) {
+        type = ((uint)rec[0] << 8) | (uint)rec[1];
+        id = ((uint)rec[2] << 8) | (uint)rec[3];
+        if (type == 0x35 && id < 500) {
+          if (*(int *)(0x663a10 + id * 4) < 0) {
+            rep_count = rep_count + 1;
+          }
+          *(int *)(0x663a10 + id * 4) = (int)resource_offset;
+        }
+      }
     }
     stream[0] = (int)(uintptr_t)base;
     stream[1] = (int)(uint)(end - base);
     if (E2R_archive_read_diag_count < 8) {
       E2R_archive_read_diag_count = E2R_archive_read_diag_count + 1;
-      fprintf(stderr,"archive 47d94 flat FANT: actors=%u scenes=%u bytes=%u\n",
-              actor_count,scene_count,(uint)(end - base));
+      fprintf(stderr,"archive 47d94 flat FANT: actors=%u reps=%u scenes=%u bytes=%u\n",
+              actor_count,rep_count,scene_count,(uint)(end - base));
     }
     return CONCAT44(param_2,1);
   }
@@ -44486,6 +44856,7 @@ void __fastcall FUN_0044c224(undefined4 param_1)
     }
   }
   sVar2 = (short)uVar3;
+  sVar2 = E2R_AdjustStartScHandoffScene(sVar2);
   if (E2R_scene_select_diag_count < 64 && (E2R_RuntimeDiagEnabled() || sVar2 < 1)) {
     E2R_scene_select_diag_count = E2R_scene_select_diag_count + 1;
     fprintf(stderr,
@@ -44519,8 +44890,15 @@ void __fastcall FUN_0044c224(undefined4 param_1)
     }
   }
   if ((undefined1 *)0x0067c728 + sVar2 * 0x1c == _DAT_0073cc3c) {
+    if (E2R_start_sc_handoff_activate_current != 0) {
+      E2R_start_sc_handoff_activate_current = 0;
+      E2R_GameStateLog("start-sc handoff activate preserved scene=%d actor=0x%lx",
+                       (int)sVar2,(unsigned long)DAT_0047a470);
+      E2R_ActivateSelectedSceneRecord(sVar2);
+    }
     return;
   }
+  E2R_start_sc_handoff_activate_current = 0;
   if (sVar2 < 1) {
     iVar1 = _DAT_0063726c;
     if ((DAT_0047a34a == 0) && ((DAT_0064a178 & 4) == 0)) {
@@ -44533,6 +44911,7 @@ void __fastcall FUN_0044c224(undefined4 param_1)
   _DAT_0073ccba = sVar2;
   E2R_SyncSceneViewId();
   FUN_0044c6bc();
+  E2R_ActivateSelectedSceneRecord(sVar2);
   lVar8 = FUN_00449b4c(extraout_ECX,extraout_EDX);
   if ((int)lVar8 != 0) {
     if (DAT_0047a43c != 0) {
@@ -48154,6 +48533,7 @@ undefined8 __fastcall FUN_00451880(undefined4 param_1,undefined4 param_2)
   undefined4 uStack_4;
 
   uStack_4 = param_2;
+  in_AX = (short)param_2;
   uVar4 = FUN_0045190c(param_1,(int)in_AX);
   uVar3 = (undefined4)((ulonglong)uVar4 >> 0x20);
   uVar1 = (uint)uVar4;
@@ -48195,6 +48575,7 @@ undefined8 __fastcall FUN_0045190c(undefined4 param_1,undefined4 param_2)
   undefined8 uVar3;
 
   uVar2 = 0;
+  in_AX = (short)param_2;
   if ((-1 < in_AX) && (iVar1 = in_AX * 4, *(int *)((undefined1 *)0x0062ba20 + iVar1) == 0)) {
     DAT_0047a788 = 1;
     if (DAT_0047ab10 == 0) {
@@ -48242,6 +48623,15 @@ undefined8 __fastcall FUN_00451998(int param_1,undefined4 param_2)
   saved_current = DAT_0047a470;
   if (-1 < rep_id) {
     iVar1 = rep_id * 4;
+    if (E2R_RuntimeDiagEnabled() && E2R_rep_load_diag_count < 64) {
+      E2R_rep_load_diag_count = E2R_rep_load_diag_count + 1;
+      fprintf(stderr,
+              "rep load enter: id=%d table=0x%lx offset=%d current=0x%lx scene=0x%lx\n",
+              rep_id,
+              (unsigned long)*(int *)((undefined1 *)0x00635980 + iVar1),
+              *(int *)(iVar1 + 0x663a10),(unsigned long)DAT_0047a470,
+              (unsigned long)_DAT_0073cc3c);
+    }
     if (*(int *)((undefined1 *)0x00635980 + iVar1) == 0) {
       DAT_0047a788 = 1;
       if (DAT_0047ab10 == 0) {
@@ -48253,15 +48643,41 @@ undefined8 __fastcall FUN_00451998(int param_1,undefined4 param_2)
       }
       else {
         if (*(int *)(iVar1 + 0x663a10) < 0) {
-          FUN_00442420((short)rep_id,iVar1);
+          uVar2 = FUN_00442420((short)rep_id,iVar1);
+          if (E2R_RuntimeDiagEnabled() && E2R_rep_load_diag_count < 64) {
+            E2R_rep_load_diag_count = E2R_rep_load_diag_count + 1;
+            fprintf(stderr,"rep load missing: id=%d name=%s offset=%d current=0x%lx\n",
+                    rep_id,
+                    (char *)uVar2 != (char *)0x0 &&
+                    !IsBadReadPtr((void *)(uintptr_t)(char *)uVar2,1) ?
+                    (char *)uVar2 : "(bad)",
+                    *(int *)(iVar1 + 0x663a10),(unsigned long)DAT_0047a470);
+          }
           uVar2 = FUN_0043cbb4(extraout_ECX_02);
           DAT_0047a470 = E2R_TraceCurrentActorWrite("51998.missing",(uintptr_t)saved_current);
           return CONCAT44(param_2,(int)uVar2);
         }
         FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x663a10));
-        result = E2R_ParseArchiveFanResource();
+        if (E2R_RuntimeDiagEnabled() && E2R_rep_load_diag_count < 16) {
+          E2R_archive_parse_summary_count = 0;
+          E2R_fan_phase_diag_count = 0;
+          E2R_fan_dispatch_diag_count = 0;
+        }
+        result = E2R_ParseArchiveRepResource((short)rep_id);
+        if (result == 0) {
+          result = E2R_ParseArchiveFanResource();
+        }
         DAT_0047a470 = E2R_TraceCurrentActorWrite("51998.archive",(uintptr_t)saved_current);
       }
+    }
+    if (E2R_RuntimeDiagEnabled() && E2R_rep_load_diag_count < 64) {
+      int rep = *(int *)((undefined1 *)0x00635980 + iVar1);
+      E2R_rep_load_diag_count = E2R_rep_load_diag_count + 1;
+      fprintf(stderr,
+              "rep load exit: id=%d result=%d table=0x%lx first=%d records=%u final_current=0x%lx\n",
+              rep_id,result,(unsigned long)rep,
+              rep != 0 && !IsBadReadPtr((void *)(uintptr_t)rep,2) ? (int)*(short *)rep : -9999,
+              E2R_fan_parse_record_count,(unsigned long)saved_current);
     }
   }
   DAT_0047a470 = E2R_TraceCurrentActorWrite("51998.exit",(uintptr_t)saved_current);
@@ -48623,10 +49039,11 @@ void FUN_00451f5c(void)
             (loaded_actor[0x4e] != 0 || loaded_actor[0x4f] != 0 || loaded_actor[0x50] != 0)) {
           FUN_0044146c();
         }
+        E2R_RetainCurrentRepForMissingTarget("51f5c.archive",loaded_actor);
         if (E2R_RuntimeDiagEnabled() && E2R_actor_load_diag_count < 48) {
           E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;
           fprintf(stderr,
-                  "actor load archive: id=%d offset=%d result=%lu table=0x%lx live=%d,%d,%d stand=%d,%d,%d old=%d,%d,%d\n",
+                  "actor load archive: id=%d offset=%d result=%lu table=0x%lx live=%d,%d,%d stand=%d,%d,%d old=%d,%d,%d rep=0x%lx rep_id=%d state91=%d static=%d/%d/%d\n",
                   actor_id,*(int *)(iVar1 + 0x653840),
                   (unsigned long)(uint)parse_result,(unsigned long)loaded_actor,
                   loaded_actor != (short *)0x0 ? (int)loaded_actor[0x42] : -9999,
@@ -48637,7 +49054,17 @@ void FUN_00451f5c(void)
                   loaded_actor != (short *)0x0 ? (int)loaded_actor[0x50] : -9999,
                   loaded_actor != (short *)0x0 ? (int)loaded_actor[0x7e] : -9999,
                   loaded_actor != (short *)0x0 ? (int)loaded_actor[0x7f] : -9999,
-                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x80] : -9999);
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x80] : -9999,
+                  loaded_actor != (short *)0x0 ?
+                    (unsigned long)*(int *)(loaded_actor + 0x8f) : 0,
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x90] : -9999,
+                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x91] : -9999,
+                  loaded_actor != (short *)0x0 ?
+                    (int)*(short *)(*loaded_actor * 2 + 0x6648e8) : -9999,
+                  loaded_actor != (short *)0x0 ?
+                    (int)*(short *)(*loaded_actor * 2 + 0x65feb0) : -9999,
+                  loaded_actor != (short *)0x0 ?
+                    (int)*(short *)(*loaded_actor * 2 + 0x671fc0) : -9999);
         }
       }
       uVar4 = (undefined4)actor_id;

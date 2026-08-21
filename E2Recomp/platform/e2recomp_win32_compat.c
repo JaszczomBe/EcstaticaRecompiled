@@ -12,6 +12,7 @@
 #include <strings.h>
 #include <time.h>
 #include <unistd.h>
+#include "e2recomp_log.h"
 #ifndef _WIN32
 #include <fcntl.h>
 #include <pthread.h>
@@ -246,6 +247,10 @@ static void e2r_queue_host_message(UINT msg, WPARAM wparam, LPARAM lparam, void 
                 (unsigned)msg, (unsigned long)wparam, (unsigned long)lparam,
                 e2r_window_proc != NULL, (void *)e2r_window_proc);
         message_diag_count++;
+    }
+    if (msg == WM_KEYDOWN && wparam == VK_F12) {
+        E2R_RequestVisibilityDump();
+        return;
     }
     if (e2r_window_proc != NULL && msg != WM_QUIT) {
         e2r_window_proc(&e2r_window, msg, wparam, lparam);
@@ -865,17 +870,10 @@ void Sleep(DWORD milliseconds)
 {
 #ifndef _WIN32
     DWORD remaining = milliseconds;
-    int presented = 0;
 
     do {
         DWORD slice = remaining > 16u ? 16u : remaining;
-        if (!presented) {
-            E2R_PumpHost();
-            presented = 1;
-        }
-        else if (e2r_window.ptr != NULL) {
-            E2R_PumpHostEvents();
-        }
+        E2R_PumpHost();
         usleep((slice == 0u ? 1u : slice) * 1000u);
         if (remaining <= slice) {
             break;

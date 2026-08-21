@@ -295,6 +295,7 @@ typedef INT_PTR (WINAPI *FARPROC)();
 #define VK_Q 0x51
 #define VK_L 0x4c
 #define VK_S 0x53
+#define VK_F12 0x7b
 #define VK_LMENU 0xa4
 #define VK_RMENU 0xa5
 #define GENERIC_WRITE 0x40000000u
@@ -320,6 +321,7 @@ BOOL VirtualProtect(LPVOID address, size_t size, DWORD new_protect, DWORD *old_p
 void *SetUnhandledExceptionFilter(void *filter);
 BOOL IsWindow(HWND hwnd);
 int E2R_TryPresentCurrentFrame(HWND hwnd);
+void E2R_RequestVisibilityDump(void);
 void E2R_PumpHostEvents(void);
 void E2R_PumpHost(void);
 int ShowCursor(BOOL show);

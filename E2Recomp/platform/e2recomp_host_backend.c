@@ -4,6 +4,7 @@
 #include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>
+#include "e2recomp_log.h"
 
 typedef struct E2R_XDisplay E2R_XDisplay;
 typedef unsigned long E2R_XWindow;
@@ -241,6 +242,12 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
     (void)palette_rgb;
     return 0;
 }
+
+int E2R_HostDumpPresentation(E2R_HostWindow *window, const char *prefix)
+{
+    (void)window; (void)prefix;
+    return 0;
+}
 #else
 struct E2R_HostWindow {
     int unused;
@@ -272,6 +279,11 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
 {
     (void)window; (void)pixels; (void)width; (void)height; (void)pitch;
     (void)palette_rgb;
+    return 0;
+}
+int E2R_HostDumpPresentation(E2R_HostWindow *window, const char *prefix)
+{
+    (void)window; (void)prefix;
     return 0;
 }
 #endif

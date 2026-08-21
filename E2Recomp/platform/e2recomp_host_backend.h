@@ -17,3 +17,4 @@ int E2R_HostPushSyntheticKeyDown(E2R_HostWindow *window, UINT vk);
 int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
                             unsigned width, unsigned height, unsigned pitch,
                             const uint32_t *palette_rgb);
+int E2R_HostDumpPresentation(E2R_HostWindow *window, const char *prefix);

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "e2recomp_log.h"
 
 struct E2R_HostWindow {
     SDL_Window *window;
@@ -61,6 +62,68 @@ static int e2r_sdl_menu_diag_enabled(void)
         initialized = 1;
     }
     return enabled;
+}
+
+static unsigned e2r_sdl_rgb_hash_update(unsigned hash, Uint8 r, Uint8 g, Uint8 b)
+{
+    hash ^= r;
+    hash *= 16777619u;
+    hash ^= g;
+    hash *= 16777619u;
+    hash ^= b;
+    hash *= 16777619u;
+    return hash;
+}
+
+static int e2r_sdl_write_surface_ppm(const char *path, SDL_Surface *surface,
+                                     unsigned *hash_out, int *nonblack_out)
+{
+    FILE *out;
+    unsigned hash = 2166136261u;
+    int nonblack = 0;
+    int x;
+    int y;
+
+    if (path == NULL || surface == NULL || surface->w <= 0 || surface->h <= 0) {
+        return 0;
+    }
+    out = fopen(path, "wb");
+    if (out == NULL) {
+        fprintf(stderr, "warning: SDL presentation dump fopen failed: %s\n", path);
+        return 0;
+    }
+    fprintf(out, "P6\n%d %d\n255\n", surface->w, surface->h);
+    for (y = 0; y < surface->h; y++) {
+        for (x = 0; x < surface->w; x++) {
+            Uint8 rgba[4] = {0, 0, 0, 255};
+
+            if (!SDL_ReadSurfacePixel(surface, x, y, &rgba[0], &rgba[1],
+                                      &rgba[2], &rgba[3])) {
+                fclose(out);
+                fprintf(stderr,
+                        "warning: SDL presentation dump pixel read failed: %s at %d,%d\n",
+                        path, x, y);
+                return 0;
+            }
+            if (fwrite(rgba, 1, 3, out) != 3) {
+                fclose(out);
+                fprintf(stderr, "warning: SDL presentation dump fwrite failed: %s\n", path);
+                return 0;
+            }
+            if (rgba[0] != 0 || rgba[1] != 0 || rgba[2] != 0) {
+                nonblack = 1;
+            }
+            hash = e2r_sdl_rgb_hash_update(hash, rgba[0], rgba[1], rgba[2]);
+        }
+    }
+    fclose(out);
+    if (hash_out != NULL) {
+        *hash_out = hash;
+    }
+    if (nonblack_out != NULL) {
+        *nonblack_out = nonblack;
+    }
+    return 1;
 }
 
 static SDL_Rect e2r_sdl_aspect_fit_rect(int dst_width, int dst_height,
@@ -740,6 +803,54 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
     }
     return 1;
 }
+
+int E2R_HostDumpPresentation(E2R_HostWindow *window, const char *prefix)
+{
+    SDL_Surface *window_surface;
+    char path[512];
+    unsigned hash = 0;
+    int nonblack = 0;
+    int wrote = 0;
+
+    if (window != &e2r_sdl_backend || window->window == NULL ||
+        prefix == NULL || prefix[0] == '\0') {
+        return 0;
+    }
+    if (!SDL_IsMainThread()) {
+        fprintf(stderr, "SDL presentation dump skipped: not on main thread\n");
+        return 0;
+    }
+    if (window->present_surface != NULL) {
+        snprintf(path, sizeof(path), "%s-sdl-present.ppm", prefix);
+        if (e2r_sdl_write_surface_ppm(path, window->present_surface, &hash, &nonblack)) {
+            fprintf(stderr,
+                    "wrote SDL present dump: %s (%dx%d nonblack=%d hash=%08x)\n",
+                    path, window->present_surface->w, window->present_surface->h,
+                    nonblack, hash);
+            wrote++;
+        }
+    }
+    else {
+        fprintf(stderr, "SDL presentation dump skipped: no present surface\n");
+    }
+    window_surface = SDL_GetWindowSurface(window->window);
+    if (window_surface != NULL) {
+        snprintf(path, sizeof(path), "%s-sdl-window.ppm", prefix);
+        if (e2r_sdl_write_surface_ppm(path, window_surface, &hash, &nonblack)) {
+            fprintf(stderr,
+                    "wrote SDL window dump: %s (%dx%d nonblack=%d hash=%08x rect=%d,%d %dx%d)\n",
+                    path, window_surface->w, window_surface->h, nonblack, hash,
+                    window->presentation_rect.x, window->presentation_rect.y,
+                    window->presentation_rect.w, window->presentation_rect.h);
+            wrote++;
+        }
+    }
+    else {
+        fprintf(stderr, "SDL presentation dump skipped: no window surface: %s\n",
+                SDL_GetError());
+    }
+    return wrote;
+}
 #else
 struct E2R_HostWindow {
     int unused;
@@ -771,6 +882,11 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
 {
     (void)window; (void)pixels; (void)width; (void)height; (void)pitch;
     (void)palette_rgb;
+    return 0;
+}
+int E2R_HostDumpPresentation(E2R_HostWindow *window, const char *prefix)
+{
+    (void)window; (void)prefix;
     return 0;
 }
 #endif

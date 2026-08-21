@@ -105,6 +105,7 @@ add_executable(e2recomp
     E2Recomp/reconstructed/E2Recomp_data_init.c
     E2Recomp/reconstructed/E2Recomp_stubs.c
     ${E2R_HOST_BACKEND_SOURCE}
+    E2Recomp/platform/e2recomp_log.c
     E2Recomp/platform/e2recomp_win32_compat.c
     E2Recomp/native/e2recomp_native_main.c
 )

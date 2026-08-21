@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "e2recomp_log.h"
 
 #undef CreateWindowExA
 #undef DialogBoxParamA

@@ -6,11 +6,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "e2recomp_log.h"
 #if UINTPTR_MAX <= UINT32_MAX
 #include <pthread.h>
 #include <time.h>
 #include <unistd.h>
 #endif
+
+static volatile unsigned e2r_visibility_dump_requests;
+
+void E2R_RequestVisibilityDump(void)
+{
+    e2r_visibility_dump_requests++;
+    fprintf(stderr, "visibility dump requested via host hotkey\n");
+}
 
 #if UINTPTR_MAX <= UINT32_MAX
 #define E2R_MAX_MOUSE_CLICKS 8
@@ -21,6 +30,7 @@ typedef struct E2R_FrameDumpRequest {
     unsigned inject_delay_seconds;
     unsigned inject_key;
     unsigned inject_keys[16];
+    unsigned inject_key_groups[16];
     unsigned inject_key_count;
     unsigned inject_interval_ms;
     unsigned gameplay_key_split;
@@ -124,6 +134,9 @@ static void e2r_read_current_action_state(
 }
 extern uintptr_t E2R_active_palette_valid;
 extern uintptr_t E2R_active_palette_update_count;
+
+static int e2r_write_surface_set(const char *prefix);
+static int e2r_write_visibility_packet(HWND hwnd, const char *prefix);
 
 static uintptr_t e2r_surface_framebuffer(unsigned surface)
 {
@@ -283,12 +296,14 @@ static uint64_t e2r_monotonic_milliseconds(void)
     return ((uint64_t)ts.tv_sec * 1000u) + ((uint64_t)ts.tv_nsec / 1000000u);
 }
 
-int E2R_TryPresentCurrentFrame(HWND hwnd)
+static int e2r_present_current_frame(HWND hwnd, int force_present)
 {
     static uint64_t last_present_ms;
     static int diag_initialized;
     static int diag_enabled;
     static unsigned diag_count;
+    static unsigned diag_last_surface = ~0u;
+    static unsigned long diag_last_hires = ~0ul;
     uintptr_t framebuffer;
     unsigned surface;
     unsigned width = (unsigned)_DAT_006401ec;
@@ -306,7 +321,8 @@ int E2R_TryPresentCurrentFrame(HWND hwnd)
         return 0;
     }
     now_ms = e2r_monotonic_milliseconds();
-    if (last_present_ms != 0 && now_ms != 0 && now_ms - last_present_ms < 33u) {
+    if (!force_present && last_present_ms != 0 && now_ms != 0 &&
+        now_ms - last_present_ms < 33u) {
         return 0;
     }
     last_present_ms = now_ms;
@@ -323,11 +339,117 @@ int E2R_TryPresentCurrentFrame(HWND hwnd)
         diag_enabled = diag != NULL && diag[0] != '\0' && diag[0] != '0';
         diag_initialized = 1;
     }
-    if (presented && diag_enabled && diag_count < 8u) {
-        e2r_trace_present_surfaces(surface, bytes);
-        diag_count++;
+    if (presented && diag_enabled) {
+        unsigned long hires = (unsigned long)DAT_0047a43c;
+        int changed = surface != diag_last_surface || hires != diag_last_hires;
+
+        if (diag_count < 8u || changed) {
+            e2r_trace_present_surfaces(surface, bytes);
+            if (diag_count < 64u) {
+                diag_count++;
+            }
+            diag_last_surface = surface;
+            diag_last_hires = hires;
+        }
+    }
+    if (presented) {
+        static int auto_initialized;
+        static int auto_done;
+        static int auto_enabled;
+        static uint64_t auto_start_ms;
+        static uint64_t auto_delay_ms;
+        static int auto_scene_slot = -1;
+        static char auto_prefix[512];
+        unsigned request_count = e2r_visibility_dump_requests;
+        int should_dump = 0;
+        char prefix[512];
+
+        if (!auto_initialized) {
+            const char *value = getenv("E2R_VISIBILITY_DUMP_PREFIX");
+            const char *delay = getenv("E2R_VISIBILITY_DUMP_AFTER_MS");
+            const char *scene_slot = getenv("E2R_VISIBILITY_DUMP_SCENE_SLOT");
+
+            if (value != NULL && value[0] != '\0') {
+                snprintf(auto_prefix, sizeof(auto_prefix), "%s", value);
+                auto_enabled = 1;
+            }
+            if (delay != NULL && delay[0] != '\0') {
+                auto_delay_ms = (uint64_t)strtoull(delay, NULL, 10);
+            }
+            if (scene_slot != NULL && scene_slot[0] != '\0') {
+                auto_scene_slot = (int)strtol(scene_slot, NULL, 0);
+            }
+            auto_start_ms = now_ms;
+            auto_initialized = 1;
+        }
+        if (request_count != 0) {
+            static unsigned manual_dump_count;
+            const char *manual_prefix = getenv("E2R_VISIBILITY_DUMP_PREFIX");
+
+            e2r_visibility_dump_requests = request_count - 1;
+            if (manual_prefix != NULL && manual_prefix[0] != '\0') {
+                snprintf(prefix, sizeof(prefix), "%s", manual_prefix);
+            }
+            else {
+                snprintf(prefix, sizeof(prefix), "/tmp/e2-visibility-%03u",
+                         manual_dump_count++);
+            }
+            should_dump = 1;
+        }
+        else if (auto_enabled && !auto_done) {
+            uint64_t elapsed_ms = 0;
+            uintptr_t scene = _DAT_0073cc3c;
+            int slot_match = 1;
+            int startsc_done_match = 1;
+
+            if (now_ms != 0 && auto_start_ms != 0 && now_ms >= auto_start_ms) {
+                elapsed_ms = now_ms - auto_start_ms;
+            }
+            if (auto_scene_slot >= 0) {
+                uintptr_t base = 0x0067c728u;
+                uintptr_t end = base + (uintptr_t)0x4b0u * (uintptr_t)0x1cu;
+
+                slot_match = scene >= base && scene < end &&
+                    ((scene - base) % 0x1cu) == 0 &&
+                    (int)((scene - base) / 0x1cu) == auto_scene_slot;
+            }
+            if (auto_scene_slot == 175) {
+                uintptr_t action_actor;
+                uintptr_t action_slot;
+                uintptr_t action;
+                unsigned action_duration;
+                unsigned action_progress;
+                unsigned action_slot_flags;
+                unsigned action_actor_flags;
+
+                e2r_read_current_action_state(&action_actor, &action_slot, &action,
+                                              &action_duration, &action_progress,
+                                              &action_slot_flags, &action_actor_flags);
+                (void)action_actor;
+                (void)action_slot;
+                (void)action_duration;
+                (void)action_progress;
+                (void)action_slot_flags;
+                (void)action_actor_flags;
+                startsc_done_match = action != 0x9377e3u;
+            }
+            if (scene != 0 && elapsed_ms >= auto_delay_ms && slot_match &&
+                startsc_done_match) {
+                snprintf(prefix, sizeof(prefix), "%s", auto_prefix);
+                should_dump = 1;
+                auto_done = 1;
+            }
+        }
+        if (should_dump) {
+            e2r_write_visibility_packet(hwnd, prefix);
+        }
     }
     return presented;
+}
+
+int E2R_TryPresentCurrentFrame(HWND hwnd)
+{
+    return e2r_present_current_frame(hwnd, 0);
 }
 
 static int e2r_write_frame_pgm(const char *path, unsigned *surface_out)
@@ -447,16 +569,23 @@ static int e2r_write_surface_set(const char *prefix)
     unsigned width = (unsigned)_DAT_006401ec;
     unsigned height = (unsigned)_DAT_006401d4;
     size_t bytes = 0;
+    uintptr_t selected_framebuffer = 0;
+    unsigned selected_surface = 0;
+    int selected_valid = 0;
 
     if (width != 0 && height != 0 && width <= 4096 && height <= 4096) {
         bytes = (size_t)width * (size_t)height;
+        selected_valid = e2r_select_framebuffer(&selected_framebuffer,
+                                                &selected_surface, bytes);
     }
 
     fprintf(stderr,
-            "surface dump state: width=%u height=%u front=%u visible=%u "
+            "surface dump state: width=%u height=%u front=%u selected=%u selected_fb=0x%lx "
+            "selected_valid=%d visible=%u "
             "fb=[0x%lx,0x%lx,0x%lx,0x%lx] bad=[%d,%d,%d,%d] "
             "palette=%lu updates=%lu palette_nonzero=%u palette_hash=%08x\n",
             width, height, e2r_recovered_front_surface(),
+            selected_surface, (unsigned long)selected_framebuffer, selected_valid,
             (unsigned)(DAT_0047a279 >> 24) & 3u,
             (unsigned long)_DAT_00636150, (unsigned long)_DAT_00636154,
             (unsigned long)_DAT_00636158, (unsigned long)_DAT_0063615c,
@@ -497,6 +626,444 @@ static int e2r_write_surface_set(const char *prefix)
         }
     }
     return wrote;
+}
+
+static int e2r_current_scene_table_slot(uintptr_t scene)
+{
+    uintptr_t base = 0x0067c728u;
+    uintptr_t end = base + (uintptr_t)0x4b0u * (uintptr_t)0x1cu;
+
+    if (scene < base || scene >= end || ((scene - base) % 0x1cu) != 0) {
+        return -1;
+    }
+    return (int)((scene - base) / 0x1cu);
+}
+
+static int e2r_read_short_field(uintptr_t ptr, short *value_out)
+{
+    if (ptr == 0 || IsBadReadPtr((const void *)ptr, sizeof(short))) {
+        return 0;
+    }
+    *value_out = *(const short *)ptr;
+    return 1;
+}
+
+static int e2r_read_u8_field(uintptr_t ptr, unsigned *value_out)
+{
+    if (ptr == 0 || IsBadReadPtr((const void *)ptr, sizeof(unsigned char))) {
+        return 0;
+    }
+    *value_out = *(const unsigned char *)ptr;
+    return 1;
+}
+
+static int e2r_read_u16_field(uintptr_t ptr, unsigned *value_out)
+{
+    if (ptr == 0 || IsBadReadPtr((const void *)ptr, sizeof(uint16_t))) {
+        return 0;
+    }
+    *value_out = *(const uint16_t *)ptr;
+    return 1;
+}
+
+static int e2r_read_u32_field(uintptr_t ptr, uintptr_t *value_out)
+{
+    if (ptr == 0 || IsBadReadPtr((const void *)ptr, sizeof(uint32_t))) {
+        return 0;
+    }
+    *value_out = *(const uint32_t *)ptr;
+    return 1;
+}
+
+static uintptr_t e2r_actor_table_entry(short actor_id)
+{
+    uintptr_t table_entry = 0x00630b60u + (uintptr_t)(uint16_t)actor_id * 4u;
+    uintptr_t actor = 0;
+
+    if (actor_id < 0 || actor_id >= 5000 ||
+        IsBadReadPtr((const void *)table_entry, sizeof(uint32_t))) {
+        return 0;
+    }
+    e2r_read_u32_field(table_entry, &actor);
+    return actor;
+}
+
+static unsigned e2r_actor_table_flags(short actor_id)
+{
+    uintptr_t flags = 0x0064a178u + (uintptr_t)(uint16_t)actor_id * 2u;
+    unsigned value = 0;
+
+    if (actor_id < 0 || actor_id >= 5000) {
+        return 0;
+    }
+    e2r_read_u16_field(flags, &value);
+    return value;
+}
+
+static uintptr_t e2r_actor_asset_offset(short actor_id)
+{
+    uintptr_t offset_ptr = 0x00653840u + (uintptr_t)(uint16_t)actor_id * 4u;
+    uintptr_t value = 0;
+
+    if (actor_id < 0 || actor_id >= 5000) {
+        return 0;
+    }
+    e2r_read_u32_field(offset_ptr, &value);
+    return value;
+}
+
+static uintptr_t e2r_scene_record_table_entry(int scene_slot)
+{
+    uintptr_t table_entry;
+    uintptr_t scene_record = 0;
+
+    if (scene_slot < 0 || scene_slot >= 0x4b0) {
+        return 0;
+    }
+    table_entry = 0x0062e450u + (uintptr_t)scene_slot * 4u;
+    e2r_read_u32_field(table_entry, &scene_record);
+    return scene_record;
+}
+
+static int e2r_actor_on_global_list(uintptr_t actor)
+{
+    uintptr_t cursor = _DAT_0063726c;
+    unsigned guard;
+
+    if (actor == 0) {
+        return 0;
+    }
+    for (guard = 0; cursor != 0 && guard < 256u; guard++) {
+        uintptr_t next = 0;
+
+        if (cursor == actor) {
+            return 1;
+        }
+        if (IsBadReadPtr((const void *)cursor, 0x50)) {
+            return 0;
+        }
+        e2r_read_u32_field(cursor + 0x4c, &next);
+        if (next == cursor) {
+            return 0;
+        }
+        cursor = next;
+    }
+    return 0;
+}
+
+static void e2r_write_actor_summary(FILE *out, const char *label, unsigned index, uintptr_t actor)
+{
+    short id = -1;
+    unsigned flags2 = 0;
+    unsigned flags3 = 0;
+    unsigned state82 = 0;
+    unsigned state91 = 0;
+    unsigned action_duration = 0;
+    unsigned action_progress = 0;
+    unsigned action_flags = 0;
+    short live_x = 0;
+    short live_y = 0;
+    short live_z = 0;
+    short home_x = 0;
+    short home_y = 0;
+    short home_z = 0;
+    short prev_x = 0;
+    short prev_y = 0;
+    short prev_z = 0;
+    short rep_id = -1;
+    short model_id = -1;
+    uintptr_t table_actor = 0;
+    uintptr_t next = 0;
+    uintptr_t action_field = 0;
+    uintptr_t scene_owner = 0;
+    uintptr_t rep = 0;
+    uintptr_t model = 0;
+    int readable;
+
+    if (actor == 0) {
+        fprintf(out, "%s[%u] actor=0x0 readable=0\n", label, index);
+        return;
+    }
+    readable = !IsBadReadPtr((const void *)actor, 0x136);
+    if (!readable) {
+        fprintf(out, "%s[%u] actor=0x%lx readable=0\n",
+                label, index, (unsigned long)actor);
+        return;
+    }
+
+    e2r_read_short_field(actor, &id);
+    table_actor = e2r_actor_table_entry(id);
+    e2r_read_u8_field(actor + 2, &flags2);
+    e2r_read_u8_field(actor + 3, &flags3);
+    e2r_read_u16_field(actor + 0x82, &state82);
+    e2r_read_u16_field(actor + 0x122, &state91);
+    e2r_read_u32_field(actor + 0x4c, &next);
+    e2r_read_u32_field(actor + 0xa6, &action_field);
+    e2r_read_u16_field(actor + 0xaa, &action_duration);
+    e2r_read_u16_field(actor + 0xac, &action_progress);
+    e2r_read_u16_field(actor + 0xb2, &action_flags);
+    e2r_read_u32_field(actor + 0x132, &scene_owner);
+    e2r_read_short_field(actor + 0x84, &live_x);
+    e2r_read_short_field(actor + 0x86, &live_y);
+    e2r_read_short_field(actor + 0x88, &live_z);
+    e2r_read_short_field(actor + 0x9c, &home_x);
+    e2r_read_short_field(actor + 0x9e, &home_y);
+    e2r_read_short_field(actor + 0xa0, &home_z);
+    e2r_read_short_field(actor + 0xfc, &prev_x);
+    e2r_read_short_field(actor + 0xfe, &prev_y);
+    e2r_read_short_field(actor + 0x100, &prev_z);
+    e2r_read_u32_field(actor + 0xf2, &rep);
+    if (rep != 0 && !IsBadReadPtr((const void *)rep, 0x26)) {
+        e2r_read_short_field(rep, &rep_id);
+        e2r_read_u32_field(rep + 0x22, &model);
+        if (model != 0 && !IsBadReadPtr((const void *)model, sizeof(short))) {
+            e2r_read_short_field(model, &model_id);
+        }
+    }
+
+    fprintf(out,
+            "%s[%u] actor=0x%lx readable=1 id=%d current=%d table=0x%lx "
+            "table_match=%d table_flags=0x%04x asset_offset=0x%lx on_global=%d "
+            "next=0x%lx flags2=0x%02x flags3=0x%02x visible_bit=%d state82=0x%04x "
+            "state91=0x%04x scene_owner=0x%lx scene_match=%d action_field=0x%lx "
+            "action_duration=%u action_progress=%u action_flags=0x%04x rep=0x%lx "
+            "rep_id=%d model=0x%lx model_id=%d live=%d,%d,%d home=%d,%d,%d prev=%d,%d,%d\n",
+            label, index, (unsigned long)actor, (int)id,
+            actor == DAT_0047a470, (unsigned long)table_actor,
+            table_actor == actor, e2r_actor_table_flags(id),
+            (unsigned long)e2r_actor_asset_offset(id),
+            e2r_actor_on_global_list(actor), (unsigned long)next,
+            flags2, flags3, (flags2 & 8u) != 0u, state82, state91,
+            (unsigned long)scene_owner, scene_owner == _DAT_0073cc3c,
+            (unsigned long)action_field, action_duration, action_progress,
+            action_flags, (unsigned long)rep, (int)rep_id,
+            (unsigned long)model, (int)model_id,
+            (int)live_x, (int)live_y, (int)live_z,
+            (int)home_x, (int)home_y, (int)home_z,
+            (int)prev_x, (int)prev_y, (int)prev_z);
+}
+
+static void e2r_write_actor_list_state(FILE *out)
+{
+    uintptr_t actor = _DAT_0063726c;
+    unsigned guard;
+
+    fprintf(out,
+            "actor_heads global=0x%lx head_7248=0x%lx head_7254=0x%lx head_7270=0x%lx\n",
+            (unsigned long)_DAT_0063726c, (unsigned long)_DAT_00637248,
+            (unsigned long)_DAT_00637254, (unsigned long)_DAT_00637270);
+    for (guard = 0; actor != 0 && guard < 128u; guard++) {
+        uintptr_t next = 0;
+
+        e2r_write_actor_summary(out, "actor_list", guard, actor);
+        if (IsBadReadPtr((const void *)actor, 0x50) ||
+            !e2r_read_u32_field(actor + 0x4c, &next) || next == actor) {
+            if (next == actor) {
+                fprintf(out, "actor_list_cycle actor=0x%lx\n", (unsigned long)actor);
+            }
+            return;
+        }
+        actor = next;
+    }
+    if (actor != 0) {
+        fprintf(out, "actor_list_truncated next=0x%lx limit=128\n", (unsigned long)actor);
+    }
+}
+
+static void e2r_write_scene_child_state(FILE *out, uintptr_t scene)
+{
+    uintptr_t child = 0;
+    uintptr_t active_next = 0;
+    unsigned guard;
+
+    if (scene == 0 || IsBadReadPtr((const void *)scene, 0xa0)) {
+        fprintf(out, "scene_children scene=0x%lx readable=0\n", (unsigned long)scene);
+        return;
+    }
+    e2r_read_u32_field(scene + 4, &child);
+    e2r_read_u32_field(scene + 0x9c, &active_next);
+    fprintf(out, "scene_children scene=0x%lx head=0x%lx active_next=0x%lx\n",
+            (unsigned long)scene, (unsigned long)child, (unsigned long)active_next);
+
+    for (guard = 0; child != 0 && guard < 128u; guard++) {
+        short child_id = -1;
+        short word2_id = -1;
+        unsigned child_flags = 0;
+        uintptr_t child_action = 0;
+        uintptr_t next = 0;
+        uintptr_t actor = 0;
+        uintptr_t word2_actor = 0;
+
+        if (IsBadReadPtr((const void *)child, 0x1c)) {
+            fprintf(out, "scene_child[%u] child=0x%lx readable=0\n",
+                    guard, (unsigned long)child);
+            return;
+        }
+        e2r_read_short_field(child, &child_id);
+        e2r_read_short_field(child + 4, &word2_id);
+        e2r_read_u8_field(child + 0xe, &child_flags);
+        e2r_read_u32_field(child + 6, &child_action);
+        e2r_read_u32_field(child + 0x18, &next);
+        actor = e2r_actor_table_entry(child_id);
+        word2_actor = e2r_actor_table_entry(word2_id);
+
+        fprintf(out,
+                "scene_child[%u] child=0x%lx id=%d word2=%d flags=0x%02x hidden=%d "
+                "action=0x%lx next=0x%lx actor=0x%lx actor_on_global=%d "
+                "word2_actor=0x%lx table_flags=0x%04x asset_offset=0x%lx\n",
+                guard, (unsigned long)child, (int)child_id, (int)word2_id,
+                child_flags, (child_flags & 0x20u) != 0u,
+                (unsigned long)child_action, (unsigned long)next,
+                (unsigned long)actor, e2r_actor_on_global_list(actor),
+                (unsigned long)word2_actor, e2r_actor_table_flags(child_id),
+                (unsigned long)e2r_actor_asset_offset(child_id));
+        e2r_write_actor_summary(out, "scene_child_actor", guard, actor);
+        if (next == child) {
+            fprintf(out, "scene_child_cycle child=0x%lx\n", (unsigned long)child);
+            return;
+        }
+        child = next;
+    }
+    if (child != 0) {
+        fprintf(out, "scene_children_truncated next=0x%lx limit=128\n",
+                (unsigned long)child);
+    }
+}
+
+static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
+                                       unsigned selected_surface,
+                                       uintptr_t selected_framebuffer,
+                                       int selected_valid, int host_wrote)
+{
+    uintptr_t action_actor;
+    uintptr_t action_slot;
+    uintptr_t action;
+    unsigned action_duration;
+    unsigned action_progress;
+    unsigned action_slot_flags;
+    unsigned action_actor_flags;
+    uintptr_t scene = _DAT_0073cc3c;
+    int scene_slot = e2r_current_scene_table_slot(scene);
+    short scene_id = -1;
+    short actor_id = -1;
+    unsigned width = (unsigned)_DAT_006401ec;
+    unsigned height = (unsigned)_DAT_006401d4;
+    size_t bytes = width != 0 && height != 0 ? (size_t)width * (size_t)height : 0;
+    unsigned surface;
+
+    e2r_read_current_action_state(&action_actor, &action_slot, &action,
+                                  &action_duration, &action_progress,
+                                  &action_slot_flags, &action_actor_flags);
+    e2r_read_short_field(scene, &scene_id);
+    e2r_read_short_field(DAT_0047a470, &actor_id);
+
+    fprintf(out,
+            "visibility_packet\n"
+            "scene_ptr=0x%lx scene_slot=%d scene_id=%d view_selector=0x%lx\n"
+            "current_actor=0x%lx current_actor_id=%d action_actor=0x%lx "
+            "action_slot=0x%lx action_ptr=0x%lx action_duration=%u "
+            "action_progress=%u action_slot_flags=0x%x action_actor_flags=0x%x\n"
+            "width=%u height=%u front_surface=%u selected_surface=%u "
+            "selected_framebuffer=0x%lx selected_valid=%d visible=%u hires=%lu "
+            "palette_valid=%lu palette_updates=%lu palette_nonzero=%u "
+            "palette_hash=%08x host_dumps=%d\n"
+            "flags shift=%lu ctrl=%lu alt=%lu space=%lu q=%lu f1_4=%lu "
+            "f5_8=%lu f9_12=%lu\n"
+            "move=%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu\n",
+            (unsigned long)scene, scene_slot, (int)scene_id,
+            (unsigned long)_DAT_0073ccb8,
+            (unsigned long)DAT_0047a470, (int)actor_id,
+            (unsigned long)action_actor, (unsigned long)action_slot,
+            (unsigned long)action, action_duration, action_progress,
+            action_slot_flags, action_actor_flags,
+            width, height, front_surface, selected_surface,
+            (unsigned long)selected_framebuffer, selected_valid,
+            (unsigned)(DAT_0047a279 >> 24) & 3u,
+            (unsigned long)DAT_0047a43c,
+            (unsigned long)E2R_active_palette_valid,
+            (unsigned long)E2R_active_palette_update_count,
+            e2r_palette_nonzero_count(), e2r_palette_hash(), host_wrote,
+            (unsigned long)DAT_00636846,
+            (unsigned long)DAT_00636852,
+            (unsigned long)DAT_0063684a,
+            (unsigned long)DAT_00636850,
+            (unsigned long)DAT_00636853,
+            (unsigned long)DAT_0063684d,
+            (unsigned long)DAT_00636848,
+            (unsigned long)DAT_0063684c,
+            (unsigned long)DAT_00636859,
+            (unsigned long)DAT_00636858, (unsigned long)DAT_0063685b,
+            (unsigned long)DAT_00636854, (unsigned long)DAT_00636856,
+            (unsigned long)DAT_00636857, (unsigned long)DAT_0063685c,
+            (unsigned long)DAT_0063685a, (unsigned long)DAT_00636855);
+
+    for (surface = 0; surface < 4u; surface++) {
+        uintptr_t framebuffer = e2r_surface_framebuffer(surface);
+        int readable = bytes != 0 && framebuffer != 0 &&
+            !IsBadReadPtr((const void *)framebuffer, bytes);
+
+        fprintf(out, "surface%u framebuffer=0x%lx readable=%d nonblank=%d hash=%08x\n",
+                surface, (unsigned long)framebuffer, readable,
+                readable ? e2r_frame_has_pixels(framebuffer, bytes) : 0,
+                readable ? e2r_frame_hash(framebuffer, bytes) : 0u);
+    }
+    e2r_write_actor_list_state(out);
+    fprintf(out, "scene_record_table slot=%d record=0x%lx\n",
+            scene_slot, (unsigned long)e2r_scene_record_table_entry(scene_slot));
+    e2r_write_scene_child_state(out, scene);
+    e2r_write_scene_child_state(out, e2r_scene_record_table_entry(scene_slot));
+}
+
+static int e2r_write_visibility_packet(HWND hwnd, const char *prefix)
+{
+    char path[512];
+    FILE *state;
+    uintptr_t selected_framebuffer = 0;
+    unsigned selected_surface = 0;
+    unsigned width = (unsigned)_DAT_006401ec;
+    unsigned height = (unsigned)_DAT_006401d4;
+    size_t bytes = width != 0 && height != 0 ? (size_t)width * (size_t)height : 0;
+    int selected_valid = 0;
+    unsigned front_surface = e2r_recovered_front_surface();
+    int surface_wrote;
+    int host_wrote = 0;
+
+    if (prefix == NULL || prefix[0] == '\0') {
+        return 0;
+    }
+    if (bytes != 0 && width <= 4096u && height <= 4096u) {
+        selected_valid = e2r_select_framebuffer(&selected_framebuffer,
+                                                &selected_surface, bytes);
+    }
+
+    fprintf(stderr, "visibility packet begin: prefix=%s\n", prefix);
+    surface_wrote = e2r_write_surface_set(prefix);
+    if (hwnd != NULL && hwnd->ptr != NULL) {
+        host_wrote = E2R_HostDumpPresentation((E2R_HostWindow *)hwnd->ptr, prefix);
+    }
+    else {
+        fprintf(stderr, "visibility packet host dump skipped: no hwnd\n");
+    }
+
+    snprintf(path, sizeof(path), "%s-state.txt", prefix);
+    state = fopen(path, "wb");
+    if (state != NULL) {
+        e2r_write_visibility_state(state, front_surface, selected_surface,
+                                   selected_framebuffer, selected_valid, host_wrote);
+        fclose(state);
+        fprintf(stderr, "wrote visibility state: %s\n", path);
+    }
+    else {
+        fprintf(stderr, "failed to write visibility state: %s errno=%d %s\n",
+                path, errno, strerror(errno));
+    }
+    fprintf(stderr,
+            "visibility packet end: prefix=%s game_surfaces=%d host_surfaces=%d "
+            "front=%u selected=%u selected_valid=%d scene=0x%lx actor=0x%lx\n",
+            prefix, surface_wrote, host_wrote, front_surface, selected_surface,
+            selected_valid, (unsigned long)_DAT_0073cc3c,
+            (unsigned long)DAT_0047a470);
+    return surface_wrote > 0 || host_wrote > 0;
 }
 
 static unsigned e2r_wait_for_requester_ready(unsigned timeout_seconds)
@@ -616,29 +1183,46 @@ static void e2r_inject_sequence_key(E2R_FrameDumpRequest *request, unsigned key_
     uintptr_t action_count_before_key = E2R_requester_probe_action_count;
     uintptr_t start_game_count_before_key = E2R_start_game_probe_count;
     uintptr_t keydown_count_before = E2R_input_probe_keydown_count;
-    unsigned inject_key = request->inject_keys[key_index];
+    unsigned group = request->inject_key_groups[key_index];
+    unsigned group_end = key_index + 1;
+    unsigned key_cursor;
     MSG msg;
     unsigned dispatch_count = 0;
-    int dispatched_target_key = 0;
+    unsigned dispatched_target_keys = 0;
 
+    while (group_end < request->inject_key_count &&
+           request->inject_key_groups[group_end] == group) {
+        group_end++;
+    }
     if (key_index != phase_first_key_index) {
         usleep(request->inject_interval_ms * 1000u);
     }
     if (request->wait_for_requester_ready && key_index > 0) {
-        E2R_RequesterProbeQueueKey(inject_key);
-        fprintf(stderr,
-                "queued requester probe key 0x%02x for bd4c dispatch (%lu/%lu fed=%lu)\n",
-                inject_key,
-                (unsigned long)E2R_requester_probe_pending_key_read,
-                (unsigned long)E2R_requester_probe_pending_key_count,
-                (unsigned long)E2R_requester_probe_fed_key_count);
-    }
-    else if (PostMessageA((HWND)_DAT_00ac4dac, WM_KEYDOWN, inject_key, 0)) {
-        fprintf(stderr, "posted key 0x%02x through the Win32 message queue\n", inject_key);
+        for (key_cursor = key_index; key_cursor < group_end; key_cursor++) {
+            unsigned inject_key = request->inject_keys[key_cursor];
+            E2R_RequesterProbeQueueKey(inject_key);
+            fprintf(stderr,
+                    "queued requester probe key 0x%02x for bd4c dispatch (%lu/%lu fed=%lu)\n",
+                    inject_key,
+                    (unsigned long)E2R_requester_probe_pending_key_read,
+                    (unsigned long)E2R_requester_probe_pending_key_count,
+                    (unsigned long)E2R_requester_probe_fed_key_count);
+        }
     }
     else {
-        fprintf(stderr, "failed to post key 0x%02x through the Win32 message queue\n",
-                inject_key);
+        for (key_cursor = key_index; key_cursor < group_end; key_cursor++) {
+            unsigned inject_key = request->inject_keys[key_cursor];
+            if (PostMessageA((HWND)_DAT_00ac4dac, WM_KEYDOWN, inject_key, 0)) {
+                fprintf(stderr,
+                        "posted key 0x%02x through the Win32 message queue group=%u\n",
+                        inject_key, group);
+            }
+            else {
+                fprintf(stderr,
+                        "failed to post key 0x%02x through the Win32 message queue group=%u\n",
+                        inject_key, group);
+            }
+        }
     }
     if (!request->wait_for_requester_ready || key_index == 0) {
         while (dispatch_count < 16 && PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE)) {
@@ -648,15 +1232,22 @@ static void e2r_inject_sequence_key(E2R_FrameDumpRequest *request, unsigned key_
             TranslateMessage(&msg);
             DispatchMessageA(&msg);
             dispatch_count++;
-            if (msg.message == WM_KEYDOWN && (unsigned)msg.wParam == inject_key) {
-                dispatched_target_key = 1;
-                break;
+            if (msg.message == WM_KEYDOWN) {
+                for (key_cursor = key_index; key_cursor < group_end; key_cursor++) {
+                    if ((unsigned)msg.wParam == request->inject_keys[key_cursor]) {
+                        dispatched_target_keys++;
+                        break;
+                    }
+                }
+                if (dispatched_target_keys == group_end - key_index) {
+                    break;
+                }
             }
         }
         if (dispatch_count != 0) {
             fprintf(stderr,
-                    "dispatched %u queued probe message(s), target_key_seen=%d\n",
-                    dispatch_count, dispatched_target_key);
+                    "dispatched %u queued probe message(s), target_keys_seen=%u/%u\n",
+                    dispatch_count, dispatched_target_keys, group_end - key_index);
         }
         else {
             fprintf(stderr, "no queued probe message available for dispatch\n");
@@ -667,6 +1258,7 @@ static void e2r_inject_sequence_key(E2R_FrameDumpRequest *request, unsigned key_
             "input state after dispatch wait: keydowns %lu->%lu last_key=0x%02lx "
             "last_char_queue=0x%02lx last_scan_queue=0x%02lx "
             "DAT_00636844=%lu DAT_00636853=%lu DAT_00479de8=%lu "
+            "flags=[shift=%lu ctrl=%lu alt=%lu space=%lu q=%lu f1_4=%lu f5_8=%lu] "
             "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu] "
             "DAT_0047a76c=%lu DAT_0047a43c=%lu _DAT_0073cc3c=0x%lx\n",
             (unsigned long)keydown_count_before,
@@ -675,7 +1267,12 @@ static void e2r_inject_sequence_key(E2R_FrameDumpRequest *request, unsigned key_
             (unsigned long)E2R_input_probe_last_char_queue,
             (unsigned long)E2R_input_probe_last_scan_queue,
             (unsigned long)DAT_00636844, (unsigned long)DAT_00636853,
-            (unsigned long)DAT_00479de8, (unsigned long)DAT_00636859,
+            (unsigned long)DAT_00479de8,
+            (unsigned long)DAT_00636846, (unsigned long)DAT_00636852,
+            (unsigned long)DAT_0063684a, (unsigned long)DAT_00636850,
+            (unsigned long)DAT_00636853, (unsigned long)DAT_0063684d,
+            (unsigned long)DAT_00636848,
+            (unsigned long)DAT_00636859,
             (unsigned long)DAT_00636858, (unsigned long)DAT_0063685b,
             (unsigned long)DAT_00636854, (unsigned long)DAT_00636856,
             (unsigned long)DAT_00636857, (unsigned long)DAT_0063685c,
@@ -820,6 +1417,11 @@ static void *e2r_frame_dump_thread(void *arg)
         }
         for (key_index = 0; key_index < pre_gameplay_key_count; key_index++) {
             e2r_inject_sequence_key(request, key_index, 0, &remaining_delay);
+            while (key_index + 1 < pre_gameplay_key_count &&
+                   request->inject_key_groups[key_index + 1] ==
+                       request->inject_key_groups[key_index]) {
+                key_index++;
+            }
         }
         if (request->wait_for_gameplay_frame && pre_gameplay_key_count < request->inject_key_count) {
             if (remaining_delay != 0) {
@@ -837,6 +1439,11 @@ static void *e2r_frame_dump_thread(void *arg)
                  key_index++) {
                 e2r_inject_sequence_key(request, key_index, pre_gameplay_key_count,
                                         &remaining_delay);
+                while (key_index + 1 < request->inject_key_count &&
+                       request->inject_key_groups[key_index + 1] ==
+                           request->inject_key_groups[key_index]) {
+                    key_index++;
+                }
             }
         }
     }
@@ -887,6 +1494,7 @@ static void *e2r_frame_dump_thread(void *arg)
                     "slot_flags=0x%x actor_flags=0x%x] "
                     "settings=[music=%lu sfx=%lu difficulty=%lu resolution=%lu "
                     "requested_resolution=%lu install=%lu] "
+                    "flags=[shift=%lu ctrl=%lu alt=%lu space=%lu q=%lu f1_4=%lu f5_8=%lu f9_12=%lu] "
                     "move=[%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu]\n",
                     (unsigned long)DAT_00636844, (unsigned long)DAT_00636850,
                     (unsigned long)DAT_00636853,
@@ -955,6 +1563,14 @@ static void *e2r_frame_dump_thread(void *arg)
                     (unsigned long)DAT_0047a43c,
                     (unsigned long)DAT_0047a440,
                     (unsigned long)DAT_00479dbc,
+                    (unsigned long)DAT_00636846,
+                    (unsigned long)DAT_00636852,
+                    (unsigned long)DAT_0063684a,
+                    (unsigned long)DAT_00636850,
+                    (unsigned long)DAT_00636853,
+                    (unsigned long)DAT_0063684d,
+                    (unsigned long)DAT_00636848,
+                    (unsigned long)DAT_0063684c,
                     (unsigned long)DAT_00636859,
                     (unsigned long)DAT_00636858, (unsigned long)DAT_0063685b,
                     (unsigned long)DAT_00636854, (unsigned long)DAT_00636856,
@@ -1008,6 +1624,7 @@ static int e2r_start_frame_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.inject_delay_seconds = inject_delay_seconds;
     e2r_frame_dump_request.inject_key = inject_key;
     e2r_frame_dump_request.inject_keys[0] = inject_key;
+    e2r_frame_dump_request.inject_key_groups[0] = 0;
     e2r_frame_dump_request.inject_key_count = inject_key != 0 ? 1 : 0;
     e2r_frame_dump_request.inject_interval_ms = 250;
     e2r_frame_dump_request.gameplay_key_split = e2r_frame_dump_request.inject_key_count;
@@ -1119,28 +1736,64 @@ static unsigned e2r_parse_virtual_key(const char *name)
     return (unsigned)strtoul(name, NULL, 0);
 }
 
-static unsigned e2r_parse_virtual_key_sequence(const char *value, unsigned *keys, unsigned max_keys)
+static unsigned e2r_parse_virtual_key_sequence(const char *value, unsigned *keys,
+                                               unsigned *groups, unsigned max_keys)
 {
     char buffer[256];
-    char *token;
+    char *token_start;
+    char *cursor;
+    unsigned group = 0;
     unsigned count = 0;
 
     snprintf(buffer, sizeof(buffer), "%s", value);
-    token = strtok(buffer, ",+");
-    while (token != NULL && count < max_keys) {
-        unsigned key = e2r_parse_virtual_key(token);
-        if (key == 0) {
-            return 0;
+    token_start = buffer;
+    cursor = buffer;
+    while (1) {
+        char delimiter = *cursor;
+        if (delimiter != ',' && delimiter != '+' && delimiter != '\0') {
+            cursor++;
+            continue;
         }
-        keys[count++] = key;
-        token = strtok(NULL, ",+");
+        *cursor = '\0';
+        if (*token_start != '\0') {
+            unsigned key;
+            if (count >= max_keys) {
+                break;
+            }
+            key = e2r_parse_virtual_key(token_start);
+            if (key == 0) {
+                return 0;
+            }
+            keys[count] = key;
+            groups[count] = group;
+            count++;
+        }
+        if (delimiter == '\0') {
+            break;
+        }
+        if (delimiter == ',') {
+            group++;
+        }
+        token_start = cursor + 1;
+        cursor++;
     }
-    return count;
+    if (count != 0) {
+        return count;
+    }
+    return 0;
+}
+
+static unsigned e2r_parse_virtual_key_sequence_legacy(const char *value, unsigned *keys,
+                                                      unsigned max_keys)
+{
+    unsigned groups[16];
+    return e2r_parse_virtual_key_sequence(value, keys, groups, max_keys);
 }
 
 static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
                                        unsigned inject_delay_seconds, const unsigned *keys,
-                                       unsigned key_count, unsigned interval_ms,
+                                       const unsigned *groups, unsigned key_count,
+                                       unsigned interval_ms,
                                        int dump_all_surfaces, int wait_for_requester_ready,
                                        unsigned post_action_delay_seconds,
                                        int wait_for_gameplay_frame, unsigned gameplay_key_split)
@@ -1167,6 +1820,7 @@ static int e2r_start_key_sequence_dump(const char *path, unsigned delay_seconds,
     e2r_frame_dump_request.dump_all_surfaces = dump_all_surfaces;
     for (i = 0; i < key_count && i < 16; i++) {
         e2r_frame_dump_request.inject_keys[i] = keys[i];
+        e2r_frame_dump_request.inject_key_groups[i] = groups != NULL ? groups[i] : i;
     }
     if (pthread_create(&thread, NULL, e2r_frame_dump_thread, &e2r_frame_dump_request) != 0) {
         fprintf(stderr, "failed to start key sequence dump thread\n");
@@ -1209,7 +1863,7 @@ static int e2r_start_intro_menu_click_dump(const char *path, unsigned delay_seco
 {
     unsigned key = VK_ESCAPE;
 
-    if (!e2r_start_key_sequence_dump(path, delay_seconds, inject_delay_seconds, &key, 1,
+    if (!e2r_start_key_sequence_dump(path, delay_seconds, inject_delay_seconds, &key, NULL, 1,
                                      250, 1, 0, post_click_delay_seconds, 0, 1)) {
         return 0;
     }
@@ -1237,7 +1891,7 @@ static int e2r_start_intro_menu_click_sequence_dump(const char *path,
     if (mouse_count == 0 || mouse_count > E2R_MAX_MOUSE_CLICKS) {
         return 0;
     }
-    if (!e2r_start_key_sequence_dump(path, delay_seconds, inject_delay_seconds, &key, 1,
+    if (!e2r_start_key_sequence_dump(path, delay_seconds, inject_delay_seconds, &key, NULL, 1,
                                      250, 1, 0, post_click_delay_seconds, 0, 1)) {
         return 0;
     }
@@ -1349,7 +2003,7 @@ static int e2r_run_host_backend_present_probe(void)
 
 int main(int argc, char **argv)
 {
-    printf("Ecstatica II data: %s\n", E2RECOMP_DATA_DIR);
+    fprintf(stderr, "Ecstatica II data: %s\n", E2RECOMP_DATA_DIR);
     if (!SetCurrentDirectoryA(E2RECOMP_DATA_DIR)) {
         fprintf(stderr, "failed to enter Ecstatica II data directory\n");
         return 1;
@@ -1460,7 +2114,8 @@ int main(int argc, char **argv)
         return 2;
 #else
         unsigned keys[16];
-        unsigned key_count = e2r_parse_virtual_key_sequence(argv[3], keys, 16);
+        unsigned groups[16];
+        unsigned key_count = e2r_parse_virtual_key_sequence(argv[3], keys, groups, 16);
         unsigned inject_delay_seconds = argc > 4 ? (unsigned)strtoul(argv[4], NULL, 10) : 2;
         unsigned interval_ms = argc > 5 ? (unsigned)strtoul(argv[5], NULL, 10) : 250;
         unsigned delay_seconds = argc > 6 ? (unsigned)strtoul(argv[6], NULL, 10) : 6;
@@ -1469,6 +2124,7 @@ int main(int argc, char **argv)
             return 3;
         }
         if (!e2r_start_key_sequence_dump(argv[2], delay_seconds, inject_delay_seconds, keys,
+                                         groups,
                                          key_count, interval_ms, 1, 0, 0, 0, key_count)) {
             return 3;
         }
@@ -1485,7 +2141,8 @@ int main(int argc, char **argv)
         return 2;
 #else
         unsigned keys[16];
-        unsigned key_count = e2r_parse_virtual_key_sequence(argv[3], keys, 16);
+        unsigned groups[16];
+        unsigned key_count = e2r_parse_virtual_key_sequence(argv[3], keys, groups, 16);
         unsigned inject_delay_seconds = argc > 4 ? (unsigned)strtoul(argv[4], NULL, 10) : 2;
         unsigned interval_ms = argc > 5 ? (unsigned)strtoul(argv[5], NULL, 10) : 250;
         unsigned timeout_seconds = argc > 6 ? (unsigned)strtoul(argv[6], NULL, 10) : 120;
@@ -1495,6 +2152,7 @@ int main(int argc, char **argv)
             return 3;
         }
         if (!e2r_start_key_sequence_dump(argv[2], timeout_seconds, inject_delay_seconds, keys,
+                                         groups,
                                          key_count, interval_ms, 1, 0, 0, 1, gameplay_key_split)) {
             return 3;
         }
@@ -1511,7 +2169,8 @@ int main(int argc, char **argv)
         return 2;
 #else
         unsigned keys[16];
-        unsigned key_count = e2r_parse_virtual_key_sequence(argv[3], keys, 16);
+        unsigned groups[16];
+        unsigned key_count = e2r_parse_virtual_key_sequence(argv[3], keys, groups, 16);
         unsigned ready_timeout_seconds = argc > 4 ? (unsigned)strtoul(argv[4], NULL, 10) : 6;
         unsigned interval_ms = argc > 5 ? (unsigned)strtoul(argv[5], NULL, 10) : 250;
         unsigned dump_seconds = argc > 6 ? (unsigned)strtoul(argv[6], NULL, 10) : 5;
@@ -1521,6 +2180,7 @@ int main(int argc, char **argv)
             return 3;
         }
         if (!e2r_start_key_sequence_dump(argv[2], total_seconds, ready_timeout_seconds, keys,
+                                         groups,
                                          key_count, interval_ms, 1, 1, dump_seconds, 0, key_count)) {
             return 3;
         }
@@ -1600,5 +2260,7 @@ int main(int argc, char **argv)
     puts("Pass --inject-key-sequence-ready-surfaces <prefix> <key[,key...]> [ready_timeout_seconds] [interval_ms] [dump_seconds] to inject when requester-ready state appears.");
     puts("Pass --inject-intro-menu-click-surfaces <prefix> <x> <y> [esc_seconds] [post_click_seconds] to open the intro menu and click a game-coordinate point.");
     puts("Pass --inject-intro-menu-click-sequence-surfaces <prefix> <x,y[;x,y...]> [esc_seconds] [post_click_seconds] [click_interval_ms] [target_requester_id] to open the intro menu, click game-coordinate points, and queue Esc for the target requester.");
+    puts("Press F12 in the SDL window to write a visibility packet; set E2R_VISIBILITY_DUMP_PREFIX to choose its prefix.");
+    puts("Set E2R_VISIBILITY_DUMP_PREFIX plus optional E2R_VISIBILITY_DUMP_AFTER_MS and E2R_VISIBILITY_DUMP_SCENE_SLOT to auto-write one visibility packet.");
     return 0;
 }

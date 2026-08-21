@@ -2,6 +2,86 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-08-21 - Visibility Packet Captures Game And SDL Presentation Layers
+
+Area: Playable SDL runtime Step 3 Task 03, post-handoff visibility instrumentation
+
+Symptom: the latest manual SDL run still showed no visible player after the pedestal/lightning sub-intro, even though the log preserved scene pointer `0x67da4c` and real arrow keys reached `WndProc` in that scene. The dummy probe already proved selected framebuffer surface `3` was nonblank, so the next frontier needed synchronized visibility evidence instead of more input or scene-selection fixes.
+
+Evidence: added a packet dump that captures all four indexed game pages, all four palette-applied game pages, SDL's converted presentation surface, SDL's final window surface after aspect-fit blit/update, and a state sidecar. The post-handoff dummy-SDL proof with `E2R_VISIBILITY_DUMP_PREFIX=/tmp/e2-visibility-packet-post E2R_VISIBILITY_DUMP_AFTER_MS=14000 E2R_VISIBILITY_DUMP_SCENE_SLOT=175 --inject-key-sequence-surfaces /tmp/e2-visibility-probe-post space 4 40000 22` logs `start-sc handoff preserve scene current=175 selected=87`, then writes the visibility packet with `front=2 selected=3 selected_valid=1`, surface 3 hash `321e33d6`, SDL present hash `914159a1`, and SDL window hash `5cf799a1`.
+
+Change: added backend API `E2R_HostDumpPresentation`, implemented SDL PPM dumps for `*-sdl-present.ppm` and `*-sdl-window.ppm`, and added native packet/state writing plus an F12 manual hotkey. `E2R_VISIBILITY_DUMP_PREFIX` enables one automatic packet; `E2R_VISIBILITY_DUMP_AFTER_MS` and `E2R_VISIBILITY_DUMP_SCENE_SLOT` narrow timed captures, with scene slot `175` gated until the `Start_sc` action `0x9377e3` is no longer current. Added `scripts/e2r_visibility_sheet.py` to generate a contact sheet and selected-vs-SDL-present diff from packet artifacts.
+
+Result: `git diff --check`, `cmake --build --preset linux-clang32-sdl-debug`, the post-handoff dummy-SDL packet probe, `scripts/e2r_visibility_sheet.py /tmp/e2-visibility-packet-post`, and `python3 -m py_compile scripts/e2r_visibility_sheet.py` pass. The generated artifacts include `/tmp/e2-visibility-packet-post-contact.ppm` and `/tmp/e2-visibility-packet-post-selected-vs-present-diff.ppm`.
+
+Next Frontier: use F12 during a real SDL run immediately after the user observes the missing player. If the packet's selected game page and SDL window page both contain Joe, the remaining bug is outside game framebuffer selection and SDL surface blitting; if selected surface 3 lacks Joe, return to actor/render visibility.
+
+Regression Risk: F12 is consumed as developer tooling before reconstructed gameplay receives it. The SDL dump path reads surfaces synchronously on the main thread and writes large PPM files only when explicitly requested or when the env-trigger is set.
+
+## 2026-08-20 - Sleep Loop Keeps SDL Presentation Live
+
+Area: Playable SDL runtime Step 3 Task 03, host presentation after the second intro
+
+Symptom: a manual SDL run confirmed the second pedestal/lightning intro now stayed on the correct scene, but after the sub-intro finished the visible window still showed no player character and movement appeared to do nothing. The attached log still showed the preserved scene pointer `0x67da4c`.
+
+Evidence: a matching dummy-SDL probe without broad runtime diagnostics ended after the handoff with `front=2 visible=0`, while surface 3 was nonblank with hash `321e33d6` and contained Joe in the pedestal room. `E2R_PRESENT_DIAG=1` showed the framebuffer selector already chose surface 3, so the stale visible window was presentation cadence rather than scene selection or actor visibility.
+
+Change: `Sleep` in the Win32 compatibility layer now pumps host presentation on every 16 ms slice instead of presenting only once and then only polling events. Surface dumps now include the selected framebuffer page and selected pointer beside the raw recovered front page, making `front=2 selected=3` cases explicit in logs. `E2R_PRESENT_DIAG` still logs the first few presentation lines but only emits later changes when the selected page or high-res mode changes.
+
+Result: `cmake --build --preset linux-clang32-sdl-debug` passes. Probe `--inject-key-sequence-surfaces /tmp/e2-present-loop-clean-space-only space 4 40000 20` exits cleanly after `start-sc handoff preserve scene current=175 selected=87` with `_DAT_0073cc3c=0x67da4c`, `front=2 selected=3 selected_valid=1`, and surface 3 nonblank hash `321e33d6`.
+
+Next Frontier: ask for manual real-SDL confirmation that Joe is visible after the second intro. If movement still appears inert, use arrow keys rather than WASD and continue control-readiness/action-owner tracing from scene `175`.
+
+Regression Risk: pumping presentation during `Sleep` increases host refresh attempts during long waits, but `E2R_TryPresentCurrentFrame` already throttles to roughly 30 FPS. Watch for unexpected CPU load or presentation reentrancy in later timing-heavy paths.
+
+## 2026-08-20 - Start_sc Handoff Preserves Pedestal Scene
+
+Area: Playable SDL runtime Step 3 Task 03, post-intro scene handoff and visible player
+
+Symptom: a manual SDL run showed the second pedestal/lightning intro over the correct underlying location, but when the sub-intro finished the rebuilt runtime switched to a wrong location. Earlier dummy-SDL evidence matched this: after action `0x9377e3` completed in scene pointer `0x67da4c` (scene slot `175`), `FUN_0044c224` proposed scene `87` and opened `hires\0087.raw`.
+
+Evidence: a GDB proof forced only the bad handoff (`current scene=0x67da4c`, selected `sVar2=87`) back to scene `175`. That run exited normally with `_DAT_0073cc3c=0x67da4c`, surface 3 hash `321e33d6`, and visual inspection showed the expected pedestal room with Joe visible. The rebuilt non-GDB proof then logged `start-sc handoff pending`, `start-sc handoff preserve scene current=175 selected=87`, and the compact selector line reported `scene_id=175`.
+
+Change: mirrored generated repairs in `E2Recomp/tools/GenerateRecon.js`: `FUN_0042ad60` marks a one-shot `Start_sc` handoff when Joe's action `0x9377e3` completes in scene slot `175`, and `FUN_0044c224` preserves the current scene only for that pending handoff when the selected scene is `87`. Other positive scene selections still use the existing selected-scene activation path.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, whole-file regeneration, `git diff --check`, and `cmake --build --preset linux-clang32-sdl-debug` pass. Probe `--inject-key-sequence-surfaces /tmp/e2-startsc-handoff-fix space,up 4 40000 105` exits cleanly with `_DAT_0073cc3c=0x67da4c`, `view raw open: scene=175 camera=175 hires=1 path=hires\0175.raw`, surface 3 hash `321e33d6`, and Joe visible in the converted dump.
+
+Next Frontier: verify control readiness/action ownership in scene `175`. The handoff now fixes the wrong location and player visibility; movement/action probes should start from the visible pedestal scene rather than chasing scene-87 rendering.
+
+Regression Risk: the guard is intentionally narrow: actor id `0`, action pointer `0x9377e3`, current scene slot `175`, pending one-shot state, and selected scene `87`. It should not affect normal scene transitions, but future scene-transition work should watch for any legitimate later 175-to-87 movement path.
+
+## 2026-08-19 - Scene 87 Activation And Archive Rep Frontier
+
+Area: Playable SDL runtime Step 3 Task 03, post-intro scene activation and player visibility
+
+Symptom: a manual SDL pass reached movement after the intro wait, but the controllable actor was invisible and movement opened a wrong/non-related location. The bounded `space,up` repro confirmed this can happen when the flat archive scanner pollutes scene offsets while trying to discover rep resources.
+
+Evidence: the broad byte-window scanner found `reps=392` but regressed actor/scene counts to `actors=35 scenes=1212`, and the route opened `hires\1073.raw`. Restoring aligned actor/scene scans and adding a targeted `FANT + 0x42` rep check restored `actors=81 scenes=1205`, found `reps=389`, selected descriptor `48771`, loaded scene `87`, activated record `0xaba3a4`, and opened `hires\0087.raw`. Rep `67` now resolves to archive offset `8920640` instead of missing. The next manual-stack crash was a chain of generated C frontiers in `FUN_00427584`: an unguarded actor motion side pointer, a bad byte read from `DAT_004c3ad5`, an unguarded side-linked action pointer, and stale `in_AX` action-id ownership in `FUN_00451880`/`FUN_0045190c`/`FUN_00441b24`.
+
+Change: mirrored generated repairs in `E2Recomp/tools/GenerateRecon.js`: `FUN_0044c224` activates the selected scene record after scene selection; flat-FANT indexing keeps actor/scene records on the original aligned walk and indexes reps from the observed `0x35/id` pair at `FANT + 0x42`; `FUN_00451998` has gated rep-load diagnostics; the archive rep path now has a narrow direct `0x35`/`0x36` parser with explicit rep allocation before falling back to the generic FAN parser; and the actor/action crash path now uses explicit helpers for actor motion refs, side-linked action refs, packed `DAT_004c3ad5` byte extraction, and action-id parameter recovery.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, whole-file regeneration, `git diff --check`, and `cmake --build --preset linux-clang32-sdl-debug` pass. GDB and normal dummy-SDL probes for `--inject-key-sequence-surfaces /tmp/e2-after-action-param-fix space,up 4 40000 105` now exit without the reported crash, load rep `67` through `rep archive direct`, and dump scene-87 surface 3 as nonblank hash `bf4a8e25`. Visual inspection confirms this is still the scene-87 background without a visible player. The gameplay-gated probe still latches `move=[1,0,0,0,0,0,0,0,0]`, but that gate fires during `Start_sc` (`_DAT_0073cc3c=0x67da4c`), so it is not a final scene-87 movement proof.
+
+Next Frontier: recover final scene-87 player visibility and control readiness. Start from actor `0xaa6bd8` after `rep archive direct` for rep `67`: the actor gets a rep table and reaches `27584.after-target-select`, but the final scene-87 dump still has no visible Joe and a timed `Up` does not latch after the sub-intro completion.
+
+Regression Risk: the direct rep parser is intentionally limited to archive-backed `0x35`/`0x36` rep resources and falls back to the old parser if it cannot recognize the record stream. The flat-FANT scanner must preserve the restored actor/scene counts; broad byte scanning should not be reintroduced for actor or scene offsets.
+
+## 2026-08-18 - ASan Control Matrix Render And Action Helpers
+
+Area: Playable SDL runtime Step 3 Task 03, gameplay control matrix and modifier probe infrastructure
+
+Symptom: after grouped modifier probes were added, rerunning `scripts/run-e2-control-matrix.sh` exposed ASan crashes in the gameplay `space,up` row. The first frontier was stale hidden actor context in the render epilogue (`FUN_00421a14`/`FUN_00421f54` through `FUN_00424d58`, then `FUN_00433d30 -> FUN_00431a7c`). After that moved, ASan reported a global-buffer-overflow in `FUN_0042c790` while indexing from `&DAT_0063679e` as though fixed-address byte globals were contiguous C objects.
+
+Evidence: no-delay gdb reproduced the render/helper stack at `FUN_00433d30 -> FUN_00431a7c`, crashing on `*(int *)(iVar10 + 0x18)` with an invalid candidate. After explicit actor context was restored there, `/tmp/e2-task03-asan-up-after-33d30.log` showed `AddressSanitizer: global-buffer-overflow` at `E2Recomp_recon.c:24069` in `FUN_0042c790`, reading between generated globals `DAT_0063684e`, `DAT_0063684f`, and `DAT_00636850`.
+
+Change: mirrored generated repairs in `E2Recomp/tools/GenerateRecon.js`: sibling-list/render helpers now take explicit actor or node context (`FUN_00424cbc`, `FUN_00424d14`, `FUN_00424d58`, `FUN_00424d98`, `FUN_00424dd8`, `FUN_00424e44`); child/vector helpers now take explicit actor/coordinate context (`FUN_00423070`, `FUN_00425018`, `FUN_00425538`); `FUN_00433d30` and `FUN_00431a7c` now take explicit actor context and avoid stale `extraout_ECX` actor recovery; and `FUN_0042c790` reads the action-event flag table at absolute byte address `0x0063679e` instead of indexing from a generated global symbol.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, whole-file regeneration, `cmake --build --preset linux-clang32-sdl-debug`, and `cmake --build build/linux-clang32-asan` pass. The repaired ASan probe `--inject-key-sequence-gameplay-surfaces /tmp/e2-task03-asan-up-after-c790 space,up 6 10000 20 1` exits cleanly, writes four surface dumps, and ends with `move=[1,0,0,0,0,0,0,0,0]`. The full `scripts/run-e2-control-matrix.sh` passes debug and ASan rows for `up`, `down`, `left`, and `right`.
+
+Next Frontier: continue Task 03 owner-layer classification for grouped controls. Left `Ctrl`, Left `Alt`, `Ctrl+Alt`, and Left `Shift` are now input-flag proven; Right Alt/drop, Return/status, S/I/L utility behavior, Space interaction, and camera/action deltas remain unclassified.
+
+Regression Risk: the explicit-context changes affect shared render/list helper families, but they replace decompiler pseudo-register dependencies with the actor/node/coordinate already supplied by callers. The absolute byte-table read is an ASan compatibility repair for fixed-address original data layout and should be watched around later action-event interpolation probes.
+
 ## 2026-08-18 - Start_sc Completes Into Scene 87 Gameplay
 
 Area: Playable SDL runtime Step 3 Task 03, fastest original intro route and gameplay entry
