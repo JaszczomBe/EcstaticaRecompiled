@@ -2,6 +2,22 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-08-21 - Scene 175 Actor And Rep Visibility Frontier
+
+Area: Playable SDL runtime Step 3 Task 03, post-handoff actor/rep activation
+
+Symptom: the user's latest manual F12 packet, plus the matching dummy-SDL packet, showed the preserved scene-175 frame still contains no living player or enemies. The selected game framebuffer, SDL converted surface, and SDL window dump all agree, so the failure is not SDL page selection or presentation.
+
+Evidence: `/tmp/e2-rep-field-check-state.txt` reports `scene_slot=175`, selected surface `3` hash `321e33d6`, SDL present hash `914159a1`, and SDL window hash `5cf799a1`. Actor `0` is live and visible in state (`actor=0xaa6bd8`, `visible_bit=1`, `render_rep=0xf4430008`, `render_rep_id=67`), but the packet still lacks Joe pixels. The preserved scene record has children `319/sword2cv`, `322/burkrt`, and `318/sword2`; all three have no actor-table entries and no actor archive offsets, but they do have scene/rep offsets: `319` has `scene_offset=0x216ae` and `rep_offset=0x890d46`, `322` has `scene_offset=0x218dc` and `rep_offset=0x891052`, and `318` has `scene_offset=0x215ec` and `rep_offset=0x890bc0`.
+
+Change: extended the visibility sidecar and scene-child diagnostics to distinguish actor, scene, and rep archive offsets for scene children and their `word2` ids. The actor summary now prints `attached_rep` from actor field `0xf2` separately from `render_rep` at actor field `0x11e`, which matches the normal actor update path and avoids the earlier misleading `rep=0` read.
+
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, whole-file regeneration, `cmake --build --preset linux-clang32-sdl-debug`, and `git diff --check` pass. The post-instrumentation probe `E2R_VISIBILITY_DUMP_PREFIX=/tmp/e2-rep-field-check E2R_VISIBILITY_DUMP_SCENE_SLOT=175 E2R_VISIBILITY_DUMP_AFTER_MS=200 --inject-key-sequence-surfaces /tmp/e2-rep-field-check space 4 40000 20` exits cleanly and writes the synchronized packet.
+
+Next Frontier: recover scene-backed child activation and Joe's render-rep/model path. Scene 175's living enemies are not ordinary actor resources in the current archive index, while Joe has a live render rep but still does not render into the selected game framebuffer.
+
+Regression Risk: this slice is diagnostic-only except for generated trace formatting. It changes packet text and stderr diagnostics, not gameplay behavior.
+
 ## 2026-08-21 - Visibility Packet Captures Game And SDL Presentation Layers
 
 Area: Playable SDL runtime Step 3 Task 03, post-handoff visibility instrumentation
@@ -14,7 +30,7 @@ Change: added backend API `E2R_HostDumpPresentation`, implemented SDL PPM dumps 
 
 Result: `git diff --check`, `cmake --build --preset linux-clang32-sdl-debug`, the post-handoff dummy-SDL packet probe, `scripts/e2r_visibility_sheet.py /tmp/e2-visibility-packet-post`, and `python3 -m py_compile scripts/e2r_visibility_sheet.py` pass. The generated artifacts include `/tmp/e2-visibility-packet-post-contact.ppm` and `/tmp/e2-visibility-packet-post-selected-vs-present-diff.ppm`.
 
-Next Frontier: use F12 during a real SDL run immediately after the user observes the missing player. If the packet's selected game page and SDL window page both contain Joe, the remaining bug is outside game framebuffer selection and SDL surface blitting; if selected surface 3 lacks Joe, return to actor/render visibility.
+Next Frontier: superseded by the later same-day packet: selected surface 3, SDL present, and SDL window all lack the living characters, so continue in actor/rep activation rather than SDL presentation.
 
 Regression Risk: F12 is consumed as developer tooling before reconstructed gameplay receives it. The SDL dump path reads surfaces synchronously on the main thread and writes large PPM files only when explicitly requested or when the env-trigger is set.
 
@@ -24,13 +40,13 @@ Area: Playable SDL runtime Step 3 Task 03, host presentation after the second in
 
 Symptom: a manual SDL run confirmed the second pedestal/lightning intro now stayed on the correct scene, but after the sub-intro finished the visible window still showed no player character and movement appeared to do nothing. The attached log still showed the preserved scene pointer `0x67da4c`.
 
-Evidence: a matching dummy-SDL probe without broad runtime diagnostics ended after the handoff with `front=2 visible=0`, while surface 3 was nonblank with hash `321e33d6` and contained Joe in the pedestal room. `E2R_PRESENT_DIAG=1` showed the framebuffer selector already chose surface 3, so the stale visible window was presentation cadence rather than scene selection or actor visibility.
+Evidence: a matching dummy-SDL probe without broad runtime diagnostics ended after the handoff with `front=2 visible=0`, while surface 3 was nonblank with hash `321e33d6`. Later synchronized visibility packets corrected the initial visual read: that surface is the static pedestal room without the living characters. `E2R_PRESENT_DIAG=1` still showed the framebuffer selector already chose surface 3, so the stale visible window was presentation cadence rather than page selection.
 
 Change: `Sleep` in the Win32 compatibility layer now pumps host presentation on every 16 ms slice instead of presenting only once and then only polling events. Surface dumps now include the selected framebuffer page and selected pointer beside the raw recovered front page, making `front=2 selected=3` cases explicit in logs. `E2R_PRESENT_DIAG` still logs the first few presentation lines but only emits later changes when the selected page or high-res mode changes.
 
 Result: `cmake --build --preset linux-clang32-sdl-debug` passes. Probe `--inject-key-sequence-surfaces /tmp/e2-present-loop-clean-space-only space 4 40000 20` exits cleanly after `start-sc handoff preserve scene current=175 selected=87` with `_DAT_0073cc3c=0x67da4c`, `front=2 selected=3 selected_valid=1`, and surface 3 nonblank hash `321e33d6`.
 
-Next Frontier: ask for manual real-SDL confirmation that Joe is visible after the second intro. If movement still appears inert, use arrow keys rather than WASD and continue control-readiness/action-owner tracing from scene `175`.
+Next Frontier: superseded by later manual and packet evidence: scene `175` is preserved and presented, but the living player/enemy actors are not drawn into the selected game framebuffer.
 
 Regression Risk: pumping presentation during `Sleep` increases host refresh attempts during long waits, but `E2R_TryPresentCurrentFrame` already throttles to roughly 30 FPS. Watch for unexpected CPU load or presentation reentrancy in later timing-heavy paths.
 
@@ -40,13 +56,13 @@ Area: Playable SDL runtime Step 3 Task 03, post-intro scene handoff and visible 
 
 Symptom: a manual SDL run showed the second pedestal/lightning intro over the correct underlying location, but when the sub-intro finished the rebuilt runtime switched to a wrong location. Earlier dummy-SDL evidence matched this: after action `0x9377e3` completed in scene pointer `0x67da4c` (scene slot `175`), `FUN_0044c224` proposed scene `87` and opened `hires\0087.raw`.
 
-Evidence: a GDB proof forced only the bad handoff (`current scene=0x67da4c`, selected `sVar2=87`) back to scene `175`. That run exited normally with `_DAT_0073cc3c=0x67da4c`, surface 3 hash `321e33d6`, and visual inspection showed the expected pedestal room with Joe visible. The rebuilt non-GDB proof then logged `start-sc handoff pending`, `start-sc handoff preserve scene current=175 selected=87`, and the compact selector line reported `scene_id=175`.
+Evidence: a GDB proof forced only the bad handoff (`current scene=0x67da4c`, selected `sVar2=87`) back to scene `175`. That run exited normally with `_DAT_0073cc3c=0x67da4c` and surface 3 hash `321e33d6`. Later synchronized visibility packets corrected the initial visual read: the proof preserves and presents the expected pedestal room background, but not the living player/enemy actors. The rebuilt non-GDB proof then logged `start-sc handoff pending`, `start-sc handoff preserve scene current=175 selected=87`, and the compact selector line reported `scene_id=175`.
 
 Change: mirrored generated repairs in `E2Recomp/tools/GenerateRecon.js`: `FUN_0042ad60` marks a one-shot `Start_sc` handoff when Joe's action `0x9377e3` completes in scene slot `175`, and `FUN_0044c224` preserves the current scene only for that pending handoff when the selected scene is `87`. Other positive scene selections still use the existing selected-scene activation path.
 
-Result: `node --check E2Recomp/tools/GenerateRecon.js`, whole-file regeneration, `git diff --check`, and `cmake --build --preset linux-clang32-sdl-debug` pass. Probe `--inject-key-sequence-surfaces /tmp/e2-startsc-handoff-fix space,up 4 40000 105` exits cleanly with `_DAT_0073cc3c=0x67da4c`, `view raw open: scene=175 camera=175 hires=1 path=hires\0175.raw`, surface 3 hash `321e33d6`, and Joe visible in the converted dump.
+Result: `node --check E2Recomp/tools/GenerateRecon.js`, whole-file regeneration, `git diff --check`, and `cmake --build --preset linux-clang32-sdl-debug` pass. Probe `--inject-key-sequence-surfaces /tmp/e2-startsc-handoff-fix space,up 4 40000 105` exits cleanly with `_DAT_0073cc3c=0x67da4c`, `view raw open: scene=175 camera=175 hires=1 path=hires\0175.raw`, and surface 3 hash `321e33d6`. The later packet reclassifies this as correct scene/background preservation without dynamic-character visibility.
 
-Next Frontier: verify control readiness/action ownership in scene `175`. The handoff now fixes the wrong location and player visibility; movement/action probes should start from the visible pedestal scene rather than chasing scene-87 rendering.
+Next Frontier: preserve this handoff, but recover dynamic actor/rep visibility in scene `175` before treating movement/action probes as user-visible gameplay.
 
 Regression Risk: the guard is intentionally narrow: actor id `0`, action pointer `0x9377e3`, current scene slot `175`, pending one-shot state, and selected scene `87`. It should not affect normal scene transitions, but future scene-transition work should watch for any legitimate later 175-to-87 movement path.
 

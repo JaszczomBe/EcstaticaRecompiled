@@ -245,6 +245,8 @@ static void E2R_TraceSceneChildren(const char *stage,short *scene)
   uintptr_t actor_dep;
   uintptr_t actor_scene;
   int actor_offset;
+  int rep_offset;
+  int scene_offset;
   uint guard;
   short scene_id;
 
@@ -274,10 +276,18 @@ static void E2R_TraceSceneChildren(const char *stage,short *scene)
     actor_dep = 0;
     actor_scene = 0;
     actor_offset = 0;
+    rep_offset = -1;
+    scene_offset = -1;
     actor_name = (char *)0x0;
     if (0 <= *child && *child < 5000) {
       actor = *(uint *)((undefined1 *)0x00630b60 + *child * 4);
       actor_offset = *(int *)(*child * 4 + 0x653840);
+      if (*child < 0x9c4) {
+        scene_offset = *(int *)(*child * 4 + 0x650fa0);
+      }
+      if (*child < 500) {
+        rep_offset = *(int *)(*child * 4 + 0x663a10);
+      }
       actor_name = E2R_PackedNameByIndex(_DAT_006366b4,10000,5000,*child);
       if (actor != 0 && !IsBadReadPtr((void *)actor,0x136)) {
         actor_next = *(uint *)(actor + 0x4c);
@@ -287,10 +297,11 @@ static void E2R_TraceSceneChildren(const char *stage,short *scene)
     }
     E2R_scene_child_diag_count = E2R_scene_child_diag_count + 1;
     fprintf(stderr,
-            "scene child: %s #%lu child=0x%lx actor_id=%d actor_name=%s actor_offset=%ld flags=0x%02x actions=0x%lx next=0x%lx table=0x%lx actor_next=0x%lx dep=0x%lx p132=0x%lx\n",
+            "scene child: %s #%lu child=0x%lx actor_id=%d actor_name=%s actor_offset=%ld scene_offset=%ld rep_offset=%ld flags=0x%02x actions=0x%lx next=0x%lx table=0x%lx actor_next=0x%lx dep=0x%lx p132=0x%lx\n",
             stage,(unsigned long)guard,(unsigned long)(uintptr_t)child,
             (int)*child,actor_name != (char *)0x0 ? actor_name : "(null)",
-            (long)actor_offset,(unsigned int)*(byte *)(child + 7),
+            (long)actor_offset,(long)scene_offset,(long)rep_offset,
+            (unsigned int)*(byte *)(child + 7),
             (unsigned long)*(int *)(child + 3),(unsigned long)*(int *)(child + 0xc),
             (unsigned long)actor,(unsigned long)actor_next,
             (unsigned long)actor_dep,(unsigned long)actor_scene);
@@ -304,7 +315,11 @@ static void E2R_TraceSceneChildActivate(const char *stage,int scene_id,short *ch
   char *actor_name;
   char *word2_name;
   int actor_offset;
+  int actor_rep_offset;
+  int actor_scene_offset;
   int word2_offset;
+  int word2_rep_offset;
+  int word2_scene_offset;
   uintptr_t actor;
   uintptr_t word2_actor;
   short actor_id;
@@ -322,27 +337,45 @@ static void E2R_TraceSceneChildActivate(const char *stage,int scene_id,short *ch
   actor = 0;
   word2_actor = 0;
   actor_offset = -1;
+  actor_rep_offset = -1;
+  actor_scene_offset = -1;
   word2_offset = -1;
+  word2_rep_offset = -1;
+  word2_scene_offset = -1;
   actor_name = (char *)0x0;
   word2_name = (char *)0x0;
   if (0 <= actor_id && actor_id < 5000) {
     actor = *(uint *)((undefined1 *)0x00630b60 + actor_id * 4);
     actor_offset = *(int *)(actor_id * 4 + 0x653840);
+    if (actor_id < 0x9c4) {
+      actor_scene_offset = *(int *)(actor_id * 4 + 0x650fa0);
+    }
+    if (actor_id < 500) {
+      actor_rep_offset = *(int *)(actor_id * 4 + 0x663a10);
+    }
     actor_name = E2R_PackedNameByIndex(_DAT_006366b4,10000,5000,actor_id);
   }
   if (0 <= word2_id && word2_id < 5000) {
     word2_actor = *(uint *)((undefined1 *)0x00630b60 + word2_id * 4);
     word2_offset = *(int *)(word2_id * 4 + 0x653840);
+    if (word2_id < 0x9c4) {
+      word2_scene_offset = *(int *)(word2_id * 4 + 0x650fa0);
+    }
+    if (word2_id < 500) {
+      word2_rep_offset = *(int *)(word2_id * 4 + 0x663a10);
+    }
     word2_name = E2R_PackedNameByIndex(_DAT_006366b4,10000,5000,word2_id);
   }
   E2R_scene_child_activate_diag_count = E2R_scene_child_activate_diag_count + 1;
   fprintf(stderr,
-          "scene child activate: %s scene=%d child=0x%lx actor=%d/%s/%ld table=0x%lx word2=%d/%s/%ld word2_table=0x%lx flags=0x%02x actions=0x%lx next=0x%lx DAT_0047ab10=%lu\n",
+          "scene child activate: %s scene=%d child=0x%lx actor=%d/%s actor_offset=%ld scene_offset=%ld rep_offset=%ld table=0x%lx word2=%d/%s actor_offset=%ld scene_offset=%ld rep_offset=%ld word2_table=0x%lx flags=0x%02x actions=0x%lx next=0x%lx DAT_0047ab10=%lu\n",
           stage,scene_id,(unsigned long)(uintptr_t)child,
           (int)actor_id,actor_name != (char *)0x0 ? actor_name : "(null)",
-          (long)actor_offset,(unsigned long)actor,
+          (long)actor_offset,(long)actor_scene_offset,(long)actor_rep_offset,
+          (unsigned long)actor,
           (int)word2_id,word2_name != (char *)0x0 ? word2_name : "(null)",
-          (long)word2_offset,(unsigned long)word2_actor,
+          (long)word2_offset,(long)word2_scene_offset,(long)word2_rep_offset,
+          (unsigned long)word2_actor,
           (unsigned int)*(byte *)(child + 7),(unsigned long)*(int *)(child + 3),
           (unsigned long)*(int *)(child + 0xc),(unsigned long)DAT_0047ab10);
 }

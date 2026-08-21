@@ -712,6 +712,30 @@ static uintptr_t e2r_actor_asset_offset(short actor_id)
     return value;
 }
 
+static uintptr_t e2r_scene_asset_offset(short scene_id)
+{
+    uintptr_t offset_ptr = 0x00650fa0u + (uintptr_t)(uint16_t)scene_id * 4u;
+    uintptr_t value = 0;
+
+    if (scene_id < 0 || scene_id >= 0x9c4) {
+        return 0;
+    }
+    e2r_read_u32_field(offset_ptr, &value);
+    return value;
+}
+
+static uintptr_t e2r_rep_asset_offset(short rep_id)
+{
+    uintptr_t offset_ptr = 0x00663a10u + (uintptr_t)(uint16_t)rep_id * 4u;
+    uintptr_t value = 0;
+
+    if (rep_id < 0 || rep_id >= 500) {
+        return 0;
+    }
+    e2r_read_u32_field(offset_ptr, &value);
+    return value;
+}
+
 static uintptr_t e2r_scene_record_table_entry(int scene_slot)
 {
     uintptr_t table_entry;
@@ -770,13 +794,15 @@ static void e2r_write_actor_summary(FILE *out, const char *label, unsigned index
     short prev_x = 0;
     short prev_y = 0;
     short prev_z = 0;
-    short rep_id = -1;
+    short attached_rep_id = -1;
+    short render_rep_id = -1;
     short model_id = -1;
     uintptr_t table_actor = 0;
     uintptr_t next = 0;
     uintptr_t action_field = 0;
     uintptr_t scene_owner = 0;
-    uintptr_t rep = 0;
+    uintptr_t attached_rep = 0;
+    uintptr_t render_rep = 0;
     uintptr_t model = 0;
     int readable;
 
@@ -812,10 +838,14 @@ static void e2r_write_actor_summary(FILE *out, const char *label, unsigned index
     e2r_read_short_field(actor + 0xfc, &prev_x);
     e2r_read_short_field(actor + 0xfe, &prev_y);
     e2r_read_short_field(actor + 0x100, &prev_z);
-    e2r_read_u32_field(actor + 0xf2, &rep);
-    if (rep != 0 && !IsBadReadPtr((const void *)rep, 0x26)) {
-        e2r_read_short_field(rep, &rep_id);
-        e2r_read_u32_field(rep + 0x22, &model);
+    e2r_read_u32_field(actor + 0xf2, &attached_rep);
+    if (attached_rep != 0 && !IsBadReadPtr((const void *)attached_rep, 0x26)) {
+        e2r_read_short_field(attached_rep, &attached_rep_id);
+    }
+    e2r_read_u32_field(actor + 0x11e, &render_rep);
+    if (render_rep != 0 && !IsBadReadPtr((const void *)render_rep, 0x26)) {
+        e2r_read_short_field(render_rep, &render_rep_id);
+        e2r_read_u32_field(render_rep + 0x22, &model);
         if (model != 0 && !IsBadReadPtr((const void *)model, sizeof(short))) {
             e2r_read_short_field(model, &model_id);
         }
@@ -826,8 +856,10 @@ static void e2r_write_actor_summary(FILE *out, const char *label, unsigned index
             "table_match=%d table_flags=0x%04x asset_offset=0x%lx on_global=%d "
             "next=0x%lx flags2=0x%02x flags3=0x%02x visible_bit=%d state82=0x%04x "
             "state91=0x%04x scene_owner=0x%lx scene_match=%d action_field=0x%lx "
-            "action_duration=%u action_progress=%u action_flags=0x%04x rep=0x%lx "
-            "rep_id=%d model=0x%lx model_id=%d live=%d,%d,%d home=%d,%d,%d prev=%d,%d,%d\n",
+            "action_duration=%u action_progress=%u action_flags=0x%04x "
+            "attached_rep=0x%lx attached_rep_id=%d render_rep=0x%lx "
+            "render_rep_id=%d model=0x%lx model_id=%d live=%d,%d,%d "
+            "home=%d,%d,%d prev=%d,%d,%d\n",
             label, index, (unsigned long)actor, (int)id,
             actor == DAT_0047a470, (unsigned long)table_actor,
             table_actor == actor, e2r_actor_table_flags(id),
@@ -836,8 +868,9 @@ static void e2r_write_actor_summary(FILE *out, const char *label, unsigned index
             flags2, flags3, (flags2 & 8u) != 0u, state82, state91,
             (unsigned long)scene_owner, scene_owner == _DAT_0073cc3c,
             (unsigned long)action_field, action_duration, action_progress,
-            action_flags, (unsigned long)rep, (int)rep_id,
-            (unsigned long)model, (int)model_id,
+            action_flags, (unsigned long)attached_rep, (int)attached_rep_id,
+            (unsigned long)render_rep, (int)render_rep_id, (unsigned long)model,
+            (int)model_id,
             (int)live_x, (int)live_y, (int)live_z,
             (int)home_x, (int)home_y, (int)home_z,
             (int)prev_x, (int)prev_y, (int)prev_z);
@@ -910,13 +943,20 @@ static void e2r_write_scene_child_state(FILE *out, uintptr_t scene)
         fprintf(out,
                 "scene_child[%u] child=0x%lx id=%d word2=%d flags=0x%02x hidden=%d "
                 "action=0x%lx next=0x%lx actor=0x%lx actor_on_global=%d "
-                "word2_actor=0x%lx table_flags=0x%04x asset_offset=0x%lx\n",
+                "word2_actor=0x%lx table_flags=0x%04x actor_offset=0x%lx "
+                "scene_offset=0x%lx rep_offset=0x%lx word2_actor_offset=0x%lx "
+                "word2_scene_offset=0x%lx word2_rep_offset=0x%lx\n",
                 guard, (unsigned long)child, (int)child_id, (int)word2_id,
                 child_flags, (child_flags & 0x20u) != 0u,
                 (unsigned long)child_action, (unsigned long)next,
                 (unsigned long)actor, e2r_actor_on_global_list(actor),
                 (unsigned long)word2_actor, e2r_actor_table_flags(child_id),
-                (unsigned long)e2r_actor_asset_offset(child_id));
+                (unsigned long)e2r_actor_asset_offset(child_id),
+                (unsigned long)e2r_scene_asset_offset(child_id),
+                (unsigned long)e2r_rep_asset_offset(child_id),
+                (unsigned long)e2r_actor_asset_offset(word2_id),
+                (unsigned long)e2r_scene_asset_offset(word2_id),
+                (unsigned long)e2r_rep_asset_offset(word2_id));
         e2r_write_actor_summary(out, "scene_child_actor", guard, actor);
         if (next == child) {
             fprintf(out, "scene_child_cycle child=0x%lx\n", (unsigned long)child);
