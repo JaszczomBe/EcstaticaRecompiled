@@ -51,8 +51,8 @@ Subsequent Task 05 recovery identifies aliased keyframe allocation. With its gat
 ## Verification
 
 ```sh
-env -u DISPLAY E2R_ACTION_INDEX_PROBE=1 timeout 140 build/linux-clang32-asan/e2recomp --auto-scene175-visibility /tmp/e2-action384-missing-scene 120 7000
-SDL_VIDEODRIVER=dummy E2R_ACTION_INDEX_PROBE=1 timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-action384-scene-check 120 7000
+env -u DISPLAY E2R_ACTION_INDEX_PROBE=1 timeout 140 build/Debug/clang21-i386-x11-asan/e2recomp --auto-scene175-visibility /tmp/e2-action384-missing-scene 120 7000
+SDL_VIDEODRIVER=dummy E2R_ACTION_INDEX_PROBE=1 timeout 140 build/Debug/clang21-i386-sdl/e2recomp --auto-scene175-visibility /tmp/e2-action384-scene-check 120 7000
 ```
 
 Inspect logs and actual `scene_slot`; a GDB pause or logging can let the probe observe transient readiness, and a packet's filename does not establish its scene. The plain SDL reference exits 5 after missing that window. Keep indexing opt-in.

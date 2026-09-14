@@ -64,13 +64,15 @@ echo "Temporary prefix: ${tmp_root}"
 node --check E2Recomp/tools/GenerateRecon.js
 
 if [[ "${skip_build}" != "1" ]]; then
+    cmake --preset linux-clang32-debug
     cmake --build --preset linux-clang32-debug
-    cmake --build build/linux-clang32-asan
+    cmake --preset linux-clang32-debug-asan
+    cmake --build --preset linux-clang32-debug-asan
 fi
 
 # This gate proves input state and a nonblank surface, not visible actor motion.
 run_capture "${debug_log}" \
-    build/linux-clang32-debug/e2recomp \
+    build/Debug/clang21-i386-x11/e2recomp \
     --inject-key-sequence-gameplay-surfaces \
     "${debug_prefix}" space,up 6 10000 180 1
 
@@ -84,7 +86,7 @@ if [[ "${runtime_diag}" == "0" || -z "${runtime_diag}" ]]; then
 fi
 
 run_capture "${asan_log}" \
-    build/linux-clang32-asan/e2recomp \
+    build/Debug/clang21-i386-x11-asan/e2recomp \
     --inject-key-sequence-gameplay-surfaces \
     "${asan_prefix}" space,up 30 10000 60 1
 

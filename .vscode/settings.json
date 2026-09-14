@@ -1,0 +1,57 @@
+{
+  "cmake.useCMakePresets": "always",
+  "cmake.configureOnOpen": true,
+  "cmake.buildBeforeRun": true,
+  "cmake.options.statusBarVisibility": "hidden",
+  "cmake.options.advanced": {
+    "folder": {
+      "statusBarVisibility": "hidden"
+    },
+    "buildPreset": {
+      "statusBarVisibility": "hidden"
+    },
+    "buildTarget": {
+      "statusBarVisibility": "hidden"
+    },
+    "kit": {
+      "statusBarVisibility": "hidden"
+    },
+    "variant": {
+      "statusBarVisibility": "hidden"
+    },
+    "ctest": {
+      "statusBarVisibility": "hidden"
+    },
+    "testPreset": {
+      "statusBarVisibility": "hidden"
+    },
+    "cpack": {
+      "statusBarVisibility": "hidden"
+    },
+    "packagePreset": {
+      "statusBarVisibility": "hidden"
+    },
+    "workflow": {
+      "statusBarVisibility": "hidden"
+    },
+    "workflowPreset": {
+      "statusBarVisibility": "hidden"
+    },
+    "debug": {
+      "statusBarVisibility": "hidden"
+    },
+    "launch": {
+      "statusBarVisibility": "hidden"
+    },
+    "configurePreset": {
+      "statusBarVisibility": "visible"
+    },
+    "build": {
+      "statusBarVisibility": "visible"
+    },
+    "launchTarget": {
+      "statusBarVisibility": "visible"
+    }
+  },
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+}

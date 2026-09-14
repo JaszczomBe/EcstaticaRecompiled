@@ -51,6 +51,10 @@ void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
 #endif
 }
 
+/* Shared by the host-only probes in both native and i386 builds. */
+extern uintptr_t E2R_input_probe_keydown_count;
+extern uintptr_t E2R_input_probe_last_key;
+
 static volatile unsigned e2r_visibility_dump_requests;
 static char e2r_visibility_dump_request_prefix[512];
 
@@ -92,8 +96,6 @@ typedef struct E2R_Scene175VisibilityRequest {
 
 static E2R_FrameDumpRequest e2r_frame_dump_request;
 static E2R_Scene175VisibilityRequest e2r_scene175_visibility_request;
-extern uintptr_t E2R_input_probe_keydown_count;
-extern uintptr_t E2R_input_probe_last_key;
 extern uintptr_t E2R_input_probe_last_char_queue;
 extern uintptr_t E2R_input_probe_last_scan_queue;
 extern uintptr_t E2R_requester_probe_ce58_count;

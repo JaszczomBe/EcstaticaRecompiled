@@ -14,16 +14,16 @@ The completed reconstruction milestone is a historical state/surface proof. It i
 
 ## SDL Launch
 
-With a 32-bit Clang toolchain, CMake, Ninja, the SDL submodule, and your original game data available, run from the repository root:
+With a 32-bit Clang toolchain, CMake 3.25+, Ninja, the SDL submodule, and your original game data available, run from the repository root:
 
 ```sh
 git submodule update --init --recursive dep/SDL
 cmake --preset linux-clang32-sdl-debug -DECSTATICA2_DATA_DIR=/path/to/Ecstatica2
 cmake --build --preset linux-clang32-sdl-debug
-./build/linux-clang32-sdl-debug/e2recomp --run-recon
+./build/Debug/clang21-i386-sdl/e2recomp --run-recon
 ```
 
-The SDL VS Code launch entry is `Ecstatica Recompiled (SDL)`. X11 remains the default backend. Runtime execution requires the 32-bit build; the 64-bit target is a scaffold. Audio is stubbed, quick-save is a no-op, and functional save/load is unproven. Original game data is required separately.
+The single VS Code launch is `Ecstatica Recompiled`; select the `linux-clang32-sdl-debug` configure preset for SDL with actor cues. F5 follows the selected CMake target. Debug, Release, RelWithDebInfo and MinSizeRel SDL presets are available; Debug remains the validated everyday choice. Outputs are grouped under `build/<configuration>/`, and X11 presets remain available for regression work. See [build setup and editor workflow](docs/building.md). Runtime execution requires the 32-bit build; the 64-bit target is a scaffold. Audio is stubbed, quick-save is a no-op, and functional save/load is unproven. Original game data is required separately.
 
 ## Original Project Credit
 

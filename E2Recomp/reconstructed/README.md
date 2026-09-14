@@ -20,12 +20,12 @@ Historical Windows/MSVC route (not reverified by the 2026-09-14 audit), from `C:
 .\reverse\E2Recomp\reconstructed\Build-Reconstructed.ps1
 ```
 
-Run Linux commands from the repository root. The 64-bit scaffold initializes data tables but does not execute the reconstructed runtime:
+Follow [build setup and editor workflow](../../docs/building.md) for CMake 3.25+, data-path setup, presets and F5. Run Linux commands from the repository root. The 64-bit scaffold initializes data tables but does not execute the reconstructed runtime:
 
 ```sh
 cmake --preset linux-clang-debug
 cmake --build --preset linux-clang-debug
-./build/linux-clang-debug/e2recomp
+./build/Debug/clang21-native64-x11/e2recomp
 ```
 
 The recovered executable code still assumes a 32-bit pointer model. Use the
@@ -34,7 +34,7 @@ The recovered executable code still assumes a 32-bit pointer model. Use the
 ```sh
 cmake --preset linux-clang32-debug
 cmake --build --preset linux-clang32-debug
-./build/linux-clang32-debug/e2recomp --run-recon
+./build/Debug/clang21-i386-x11/e2recomp --run-recon
 ```
 
 CMake creates `Ecstatica2` inside the selected build directory as a symlink to the
@@ -72,12 +72,12 @@ Initialize the [SDL submodule](../../dep/README.md), then configure and build wi
 git submodule update --init --recursive dep/SDL
 cmake --preset linux-clang32-sdl-debug -DECSTATICA2_DATA_DIR=/path/to/Ecstatica2
 cmake --build --preset linux-clang32-sdl-debug
-./build/linux-clang32-sdl-debug/e2recomp --run-recon
+./build/Debug/clang21-i386-sdl/e2recomp --run-recon
 ```
 
-SDL is pinned to 3.4.12. VS Code's `Ecstatica Recompiled (SDL)` entry configures/builds this target before launch. X11 remains the default for non-SDL presets. Both paths require the full original data directory; CMake's machine-specific default is `/home/rgrabowski/Games/Ecstatica2`.
+SDL is pinned to 3.4.12. Select `linux-clang32-sdl-debug` in CMake Tools and launch **Ecstatica Recompiled**. The executable follows the selected preset. Supply original data through `ECSTATICA2_DATA_DIR`, an explicit cache argument, or an ignored local user preset; there is no committed personal path.
 
-Both **Ecstatica Recompiled (SDL)** and **Ecstatica Recompiled (SDL + actor cues)** launches enable `E2R_ACTOR_CUES=1`: a host X/Z map with a cyan Joe square and amber other-actor diamonds. Two hollow enemy-status icons in the current Joe-only scene-175 capture mean **not loaded**, not recovered enemy positions. See [cue usage and limits](../README.md#rebuild-status-and-next-recovery). Game framebuffer pixels are unchanged; SDL dump hashes change when cues are enabled.
+The single **Ecstatica Recompiled** launch enables `E2R_ACTOR_CUES=1`: a host X/Z map with a cyan Joe square and amber other-actor diamonds. Two hollow enemy-status icons in the current Joe-only scene-175 capture mean **not loaded**, not recovered enemy positions. See [cue usage and limits](../README.md#rebuild-status-and-next-recovery). Game framebuffer pixels are unchanged; SDL dump hashes change when cues are enabled.
 
 ## Verification And Status
 
@@ -85,9 +85,9 @@ The 2026-09-14 audit rebuilt default debug, ASan, and SDL debug, passed all 8 ar
 
 ```sh
 scripts/run-e2-control-matrix.sh
-SDL_VIDEODRIVER=dummy timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-scene175 120 7000
+SDL_VIDEODRIVER=dummy timeout 140 build/Debug/clang21-i386-sdl/e2recomp --auto-scene175-visibility /tmp/e2-scene175 120 7000
 ```
 
-The matrix expects an already configured `build/linux-clang32-asan`; no ASan preset or CTest test preset is currently defined. Full fresh-checkout/ASan setup and unified validation remain Step 06 work. `scripts/run-e2-runtime-regressions.sh` uses canonical Up and now passes both debug and ASan after Step 07’s actor/action/motion repairs. All 8 arrow rows and the static SDL packet pass. Step 07 Task 02 is complete: the manual screenshot/log agrees with the static scene-175 baseline.
+The regression scripts configure and build the standard Debug and ASan presets unless `E2R_SKIP_BUILD=1`. Both X11 and SDL ASan presets now exist. CTest integration and unified developer validation remain Step 06 work. `scripts/run-e2-runtime-regressions.sh` uses canonical Up and now passes both debug and ASan after Step 07’s actor/action/motion repairs. All 8 arrow rows and the static SDL packet pass. Step 07 Task 02 is complete: the manual screenshot/log agrees with the static scene-175 baseline.
 
 Generator parity is restored: all four artifacts match the committed reference. Follow the [audit's scratch comparison](../../docs/journal/entries/runtime-audit-2026-09-14.md) for future generator changes and [Step 07](../../docs/implementations/playable-sdl-runtime/steps/step-07/step-07-restore-reproducible-runtime-baseline.md) for the completed manual static-scene comparison. The next source task is [Step 08 Task 06](../../docs/implementations/playable-sdl-runtime/steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md); Tasks 05 and 01 retain incomplete gated validation. Build commands do not require Ghidra export or regeneration.

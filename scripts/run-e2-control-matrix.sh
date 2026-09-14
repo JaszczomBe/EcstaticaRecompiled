@@ -6,8 +6,8 @@ tmp_root="${E2R_CONTROL_MATRIX_TMP:-/tmp/e2-step03-control-matrix}"
 skip_build="${E2R_SKIP_BUILD:-0}"
 run_asan="${E2R_CONTROL_MATRIX_ASAN:-1}"
 
-debug_exe="${E2R_CONTROL_MATRIX_DEBUG_EXE:-build/linux-clang32-debug/e2recomp}"
-asan_exe="${E2R_CONTROL_MATRIX_ASAN_EXE:-build/linux-clang32-asan/e2recomp}"
+debug_exe="${E2R_CONTROL_MATRIX_DEBUG_EXE:-build/Debug/clang21-i386-x11/e2recomp}"
+asan_exe="${E2R_CONTROL_MATRIX_ASAN_EXE:-build/Debug/clang21-i386-x11-asan/e2recomp}"
 
 keys=(up down left right)
 vkeys=(0x26 0x28 0x25 0x27)
@@ -106,9 +106,11 @@ echo "Temporary prefix: ${tmp_root}"
 node --check E2Recomp/tools/GenerateRecon.js
 
 if [[ "${skip_build}" != "1" ]]; then
+    cmake --preset linux-clang32-debug
     cmake --build --preset linux-clang32-debug
     if [[ "${run_asan}" != "0" ]]; then
-        cmake --build build/linux-clang32-asan
+        cmake --preset linux-clang32-debug-asan
+        cmake --build --preset linux-clang32-debug-asan
     fi
 fi
 

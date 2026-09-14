@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.25)
 
 project(EcstaticaRecompiled LANGUAGES C)
 
@@ -6,7 +6,37 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
-set(ECSTATICA2_DATA_DIR "/home/rgrabowski/Games/Ecstatica2" CACHE PATH
+option(E2R_REQUIRE_I386 "Require a 32-bit reconstructed runtime toolchain" OFF)
+option(E2R_ENABLE_ASAN "Instrument the runtime with AddressSanitizer" OFF)
+if(UNIX AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "The Linux reconstruction baseline requires Clang (validated with 21.1.8). Set CMAKE_C_COMPILER to clang.")
+endif()
+set(E2R_EXPECTED_CLANG_MAJOR "" CACHE STRING "Expected Clang major version; empty permits any Clang version")
+if(E2R_EXPECTED_CLANG_MAJOR)
+    string(REGEX MATCH "^[0-9]+" E2R_ACTUAL_CLANG_MAJOR "${CMAKE_C_COMPILER_VERSION}")
+    if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang" OR
+       NOT E2R_ACTUAL_CLANG_MAJOR STREQUAL E2R_EXPECTED_CLANG_MAJOR)
+        message(FATAL_ERROR
+            "This preset advertises Clang ${E2R_EXPECTED_CLANG_MAJOR}, but resolved ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION} at ${CMAKE_C_COMPILER}. Use the matching compiler or a local preset with its own version and build directory.")
+    endif()
+endif()
+if(E2R_REQUIRE_I386 AND NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
+    message(FATAL_ERROR "This runtime preset requires i386. Install 32-bit development libraries and configure with -m32 in a separate build directory.")
+endif()
+message(STATUS "E2R compiler: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}; pointer bytes: ${CMAKE_SIZEOF_VOID_P}")
+if(E2R_ENABLE_ASAN)
+    include(CheckCSourceCompiles)
+    include(CMakePushCheckState)
+    cmake_push_check_state(RESET)
+    set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
+    check_c_source_compiles("int main(void) { return 0; }" E2R_ASAN_LINKS)
+    cmake_pop_check_state()
+    if(NOT E2R_ASAN_LINKS)
+        message(FATAL_ERROR "AddressSanitizer could not link for this architecture. Install the matching Clang ASan runtime (including i386 support).")
+    endif()
+endif()
+
+set(ECSTATICA2_DATA_DIR "$ENV{ECSTATICA2_DATA_DIR}" CACHE PATH
     "Path to the full Ecstatica II CD data directory")
 set(ECSTATICA2_DATA_LINK "${CMAKE_BINARY_DIR}/Ecstatica2" CACHE PATH
     "Symlink created at configure time for local Ecstatica II data")
@@ -38,7 +68,7 @@ if(EXISTS "${ECSTATICA2_DATA_DIR}")
 else()
     message(FATAL_ERROR
         "ECSTATICA2_DATA_DIR does not exist: ${ECSTATICA2_DATA_DIR}\n"
-        "Set it with -DECSTATICA2_DATA_DIR=/path/to/Ecstatica2")
+        "Set ECSTATICA2_DATA_DIR in the environment, a local preset, or with -DECSTATICA2_DATA_DIR=/path/to/Ecstatica2")
 endif()
 
 find_program(NODE_EXECUTABLE node)
@@ -109,6 +139,11 @@ add_executable(e2recomp
     E2Recomp/platform/e2recomp_win32_compat.c
     E2Recomp/native/e2recomp_native_main.c
 )
+
+if(E2R_ENABLE_ASAN)
+    target_compile_options(e2recomp PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+    target_link_options(e2recomp PRIVATE -fsanitize=address)
+endif()
 
 target_include_directories(e2recomp PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/E2Recomp/reconstructed"

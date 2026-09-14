@@ -39,7 +39,7 @@ The 2026-09-14 audit rebuilt commit `43ddc8a`; the same-day Step 07 continuation
 | Generator | Syntax and all four artifact comparisons pass after diagnostic mirrors and recursive-pointer repair | Generated C/header include the focused actor/action/motion repairs; no unexplained drift |
 | Audio/save | Compatibility stubs and requester routing exist | MIDI is silent; quick-save writer is a no-op; functional save/load is unproven |
 
-SDL 3.4.12 is vendored in `dep/SDL`. The host backend presents 640x480 frames centered in the 640x640 window and owns window/input/presentation services. X11 remains the default backend; VS Code offers `Ecstatica Recompiled (SDL)`. The audit used dummy SDL and did not repeat manual F5 or all menu/modifier probes.
+SDL 3.4.12 is vendored in `dep/SDL`. The host backend presents 640x480 frames centered in the 640x640 window and owns window/input/presentation services. X11 remains the default backend; VS Code offers one `Ecstatica Recompiled` launch following the selected CMake preset; select SDL/i386 Debug for everyday use. The audit used dummy SDL and did not repeat manual F5 or all menu/modifier probes.
 
 ## Step Roadmap
 
@@ -66,7 +66,7 @@ All automated Step 07 baseline checks now pass. Tasks 03–06 repaired recursive
 
 [Task 05 — Recover post-intro scene selection](steps/step-08/tasks/task-05-recover-post-intro-scene-selection.md) now identifies the corrupt coordinate event and the keyframe allocator's mismatched flag addresses. Corrected mapped-pool reads produce distinct 15-byte keys, but expose an earlier missing actor input in `FUN_004523f8 → FUN_00426124`, reproduced by SDL/GDB and ASan. The pool repair shares the action-index gate; the gate-off allocator remains a known temporary compromise. Next is [Task 06 — Recover scene-activation pose inputs](steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md), then Task 05/01 validation and Joe geometry. Tasks 05 and 01 remain active. The supplied manual final image matches the gate-off static baseline; gated scene-selection fidelity remains unresolved.
 
-Both VS Code SDL launches enable a read-only host X/Z map (`E2R_ACTOR_CUES=1`). Joe is a cyan square; other table-confirmed actors are amber diamonds. The current scene-175 capture has only Joe, so two hollow enemy-status icons report **not loaded**, without inventing enemy positions. This diagnostic is separate from camera-projected game rendering and does not satisfy Step 08's actor visibility criteria.
+The single VS Code launch enables a read-only host X/Z map with the SDL presets (`E2R_ACTOR_CUES=1`). Joe is a cyan square; other table-confirmed actors are amber diamonds. The current scene-175 capture has only Joe, so two hollow enemy-status icons report **not loaded**, without inventing enemy positions. This diagnostic is separate from camera-projected game rendering and does not satisfy Step 08's actor visibility criteria.
 
 Keep action indexing opt-in during recovery. The default path has `actions=0` and reaches the static scene-175 packet. The one-shot 175-over-87 handoff guard remains a narrow stabilizer requiring later scene-transition validation.
 
@@ -90,11 +90,11 @@ Run from the repository root:
 
 1. `node --check E2Recomp/tools/GenerateRecon.js`
 2. `cmake --build --preset linux-clang32-debug`
-3. `cmake --build build/linux-clang32-asan` (requires a configured ASan build)
+3. `cmake --build build/Debug/clang21-i386-x11-asan` (requires a configured ASan build)
 4. `cmake --build --preset linux-clang32-sdl-debug`
 5. `scripts/run-e2-control-matrix.sh`
 6. `scripts/run-e2-runtime-regressions.sh` — debug and ASan pass after Tasks 03–06.
-7. `SDL_VIDEODRIVER=dummy timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-scene175 120 7000`
+7. `SDL_VIDEODRIVER=dummy timeout 140 build/Debug/clang21-i386-sdl/e2recomp --auto-scene175-visibility /tmp/e2-scene175 120 7000`
 8. `git diff --check`
 
 Use the [audit](../../journal/entries/runtime-audit-2026-09-14.md) for safe scratch regeneration and the gated GDB repro. Manual F5 remains a separate visual check when runtime behavior changes.
@@ -182,3 +182,11 @@ The user’s 2026-09-14 screenshot matches the automated scene-175 static captur
 ### 2026-09-14 — SDL Cue Launch Follow-Up
 
 The usual SDL F5 launch now enables actor cues. The supplied screenshot/log resolves the manual static-scene comparison and closes Step 07; Step 08 remains active.
+
+### 2026-09-14 — Build And Editor Workflow
+
+Consolidated F5 around the selected CMake target, shared preset settings, added X11/SDL ASan presets, and moved personal data paths to environment/cache/local overrides. See [build and editor setup](../../building.md). Step 08 source recovery is unchanged; Step 06 still owns unified validation and broader bootstrap acceptance.
+
+### 2026-09-14 — Build Types And Compiler Visibility
+
+Added SDL Debug/Release/RelWithDebInfo/MinSizeRel choices, explicit Debug + ASan names, and configuration-first output directories. Shared presets use `clang-21` with a major-version check; local presets can select another installed Clang in an isolated directory. Regression scripts and current Step 08 commands follow the new paths. All nine configurations build; the Debug wrapper/matrix and SDL probes pass. Release, RelWithDebInfo and MinSizeRel currently crash during startup, so their runtime recovery remains separate from the active Debug scene-pose work. See [build setup](../../building.md).

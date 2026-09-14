@@ -39,8 +39,8 @@ Original `0x4524f1..0x4524f4` resolves ESI from the actor table; `0x452553..0x45
 ```sh
 objdump -d -Mintel --start-address=0x4524d0 --stop-address=0x4525e6 /home/rgrabowski/Games/Ecstatica2/E2WIN95.EXE
 objdump -d -Mintel --start-address=0x426124 --stop-address=0x426268 /home/rgrabowski/Games/Ecstatica2/E2WIN95.EXE
-env -u DISPLAY E2R_ACTION_INDEX_PROBE=1 timeout 140 build/linux-clang32-asan/e2recomp --auto-scene175-visibility /tmp/e2-scene-pose-asan 120 7000
-SDL_VIDEODRIVER=dummy E2R_ACTION_INDEX_PROBE=1 timeout 140 gdb -q -batch -ex 'set pagination off' -ex run -ex 'bt 8' -ex 'frame 0' -ex 'info locals' --args build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-scene-pose-sdl 120 7000
+env -u DISPLAY E2R_ACTION_INDEX_PROBE=1 timeout 140 build/Debug/clang21-i386-x11-asan/e2recomp --auto-scene175-visibility /tmp/e2-scene-pose-asan 120 7000
+SDL_VIDEODRIVER=dummy E2R_ACTION_INDEX_PROBE=1 timeout 140 gdb -q -batch -ex 'set pagination off' -ex run -ex 'bt 8' -ex 'frame 0' -ex 'info locals' --args build/Debug/clang21-i386-sdl/e2recomp --auto-scene175-visibility /tmp/e2-scene-pose-sdl 120 7000
 ```
 
 GDB can exit zero after catching SIGSEGV; inspect the inferior stop reason and actual capture, not just the shell status. Current evidence: `/tmp/e2-keyframes-probe.log` and `/tmp/e2-step05-gated-asan.log`.
