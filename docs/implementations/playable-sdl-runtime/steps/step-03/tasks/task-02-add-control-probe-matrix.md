@@ -3,7 +3,7 @@
 Status: completed
 Parent Step: [Expand Gameplay Control And Camera Proofs](../step-03-expand-gameplay-control-and-camera-proofs.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-08-04
+Last Updated: 2026-09-14
 
 ## Goal
 
@@ -32,7 +32,7 @@ Add a compact bounded probe matrix for gameplay controls.
 
 Avoid turning exploratory unknowns into hard regression failures. First record, then harden.
 
-The intro blocker is now split: `Esc` visibly opens readable requester contents, while `Space` latches in game state but does not skip the intro action. Additional probes should avoid broad automation and focus on a small deterministic matrix that preserves this evidence while mapping the first stable gameplay controls.
+Current audit (2026-09-14): first-intro Space skips to `Start_sc`, and the sub-intro completes into preserved scene 175. Living actors remain absent; [Step 08](../../step-08/step-08-recover-scene-175-actors.md) owns their recovery. This completed task proves input latches only. Its readiness gate does not establish sub-intro completion, visible geometry, or actual movement.
 
 Implemented matrix:
 
@@ -41,7 +41,7 @@ Implemented matrix:
 3. `left` - `last_key=0x25`, `_DAT_00479e78=3`, `move=[0,0,0,1,0,0,0,0,0]`.
 4. `right` - `last_key=0x27`, `_DAT_00479e78=4`, `move=[0,0,0,0,1,0,0,0,0]`.
 
-`scripts/run-e2-control-matrix.sh` runs each row through `--inject-key-sequence-gameplay-surfaces` with dummy SDL input and `E2R_STARTUP_LOGO_DELAY_MS=0`, first posting `space`, waiting for the gameplay-control gate, then posting the row key. Each row asserts key dispatch, movement vector, pending direction, requester clear, nonzero scene pointer, and nonblank surface `3`. ASan rows also reject sanitizer reports.
+`scripts/run-e2-control-matrix.sh` runs each row through `--inject-key-sequence-gameplay-surfaces` with `SDL_VIDEODRIVER=dummy` and `E2R_STARTUP_LOGO_DELAY_MS=0` (default executables use the X11 backend; SDL binaries can be selected with the script overrides), first posting `space`, waiting for the gameplay-control gate, then posting the row key. Each row asserts key dispatch, movement vector, pending direction, requester clear, nonzero scene pointer, and nonblank surface `3`. ASan rows also reject sanitizer reports.
 
 ## Acceptance Criteria
 
@@ -59,7 +59,7 @@ Implemented matrix:
 
 1. Planning state: discussed
 2. Implementation state: completed
-3. Notes: Four canonical arrow movement controls are now asserted in debug and ASan. Numpad is no longer treated as original Ecstatica II movement. The older long-delay regression wrapper still owns the separate ASan scene-current caveat after intro natural completion.
+3. Notes: Four canonical arrow movement controls are now asserted in debug and ASan. Numpad is no longer treated as original Ecstatica II movement. The corrected wrapper now passes debug and ASan after Step 07 Tasks 03–06. All 8 arrow rows and the static SDL packet pass; [Step 07 Task 02](../../step-07/tasks/task-02-repair-canonical-control-regressions.md) retains manual SDL F5 verification.
 
 ## Change Log
 
@@ -76,3 +76,7 @@ Implemented matrix:
 1. Activated the task after Task 01 restored readable intro `Esc` requester labels and split the remaining `Space` behavior to the action-dispatch/completion frontier.
 2. Added `scripts/run-e2-control-matrix.sh`, then corrected it to the original Ecstatica II control layout after manual/original-game evidence showed numpad is not used for movement.
 3. `up`, `down`, `left`, and `right` now pass with the expected movement vectors and `_DAT_00479e78` directions in debug and ASan. Added named probe aliases for `ctrl`, `shift`, `alt`, `ralt`, `s`, `i`, and `l`; Task 03 keeps modifier/status/save/load behavior open until source-backed.
+
+### 2026-09-14
+
+1. Reverified all 8 arrow rows and clarified the state-only gate, backend selection, and current wrapper failure.

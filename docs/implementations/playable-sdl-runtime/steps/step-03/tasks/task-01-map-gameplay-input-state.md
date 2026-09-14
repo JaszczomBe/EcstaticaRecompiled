@@ -3,7 +3,11 @@
 Status: completed
 Parent Step: [Expand Gameplay Control And Camera Proofs](../step-03-expand-gameplay-control-and-camera-proofs.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-08-04
+Last Updated: 2026-09-14
+
+## Historical Result
+
+This task records the completed 2026-08-04 input mapping. Its intro-Space failure and scene-7 transition describe that earlier investigation. First-intro skipping and scene-175 handoff are now proven; see the [active implementation](../../../playable-sdl-runtime.md) for current status and [Step 08](../../step-08/step-08-recover-scene-175-actors.md) for remaining actor recovery.
 
 ## Goal
 

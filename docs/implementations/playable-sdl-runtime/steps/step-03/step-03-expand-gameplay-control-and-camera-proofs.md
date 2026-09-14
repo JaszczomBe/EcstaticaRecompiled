@@ -1,80 +1,69 @@
 # Expand Gameplay Control And Camera Proofs
 
-Status: active
+Status: deferred
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-08-20
+Last Updated: 2026-09-14
 
 ## Goal
 
-Grow the current single movement-latch proof into a compact gameplay-control matrix covering movement, action, cancel/menu, and camera-adjacent state.
+Classify gameplay controls and camera behavior using both recovered state and visible actor response.
 
 ## Why This Step Exists
 
-The reconstructed runtime originally proved movement with a `num8` probe, but Ecstatica II's manual and original-game testing show that cursor keys are the canonical movement controls. A playable runtime needs confidence that the arrow keys and their modifier actions survive the Win32 queue, legacy key state, and gameplay-state transitions.
-
-The immediate blocker is earlier than the planned broad matrix: during the horseback/credits intro, SDL input reaches the reconstructed window procedure and key globals, but `Esc` and `Space` do not produce the expected visible behavior. This step remains the owner because the fault is now inside reconstructed control/state consumption rather than the SDL host event bridge.
+The canonical arrow-key mapping and bounded input latches are proven. The investigation also exposed action/context, geometry, and child-instantiation failures, which now belong to [Step 08](../step-08/step-08-recover-scene-175-actors.md). Remaining control classification resumes after that step and the [Step 07 baseline repairs](../step-07/step-07-restore-reproducible-runtime-baseline.md).
 
 ## Scope
 
-1. Map current gameplay input globals and key queues.
-2. Add bounded probes for several control paths.
-3. Record camera/control state that changes in response to input.
-4. First classify the intro `Esc`/`Space` response path before expanding the matrix.
+1. Preserve the completed input-state map and four-arrow matrix.
+2. Classify modifier/action/status/interaction owners after actors render.
+3. Record source-backed movement/camera changes and relevant backend comparisons.
 
 ## Out Of Scope
 
-1. Full key rebinding.
-2. Controller support.
-3. Combat or inventory systems.
+1. Action 384 calling conventions, Joe geometry, and scene-child activation (Step 08).
+2. Full combat/inventory implementation, rebinding, or controller support.
+3. Full intro animation, save/load implementation, and requester visual polish; split these before implementation.
 
 ## Usage Budget
 
-Keep this to a small input matrix. Split when a single key uncovers a new parser or actor crash family.
+Keep each control proof bounded. Split any new parser, renderer, or actor crash family into a separate task.
 
 ## Temporary Sacrifices
 
-1. Sacrifice: Use scripted probes before broad manual play.
-2. Why accepted now: Scripted keys give repeatable proof while runtime stability is still moving.
-3. Removal trigger: Interactive play is stable enough for longer manual sessions.
+1. Existing probes prove state delivery while visible gameplay is incomplete.
+2. Resume behavioral assertions only after the actor recovery prerequisites pass.
 
 ## Tasks
 
-1. [Map Gameplay Input State](tasks/task-01-map-gameplay-input-state.md) - completed; intro `Esc`/`Space` state is mapped, `Esc` requester presentation is readable, and `Space` is split to the action-dispatch frontier.
-2. [Add Control Probe Matrix](tasks/task-02-add-control-probe-matrix.md) - completed; debug and ASan now assert canonical arrow movement: `up`, `down`, `left`, and `right`.
-3. [Verify Camera And Action Frontiers](tasks/task-03-verify-camera-and-action-frontiers.md) - active.
+1. [Map Gameplay Input State](tasks/task-01-map-gameplay-input-state.md) — completed historical mapping.
+2. [Add Control Probe Matrix](tasks/task-02-add-control-probe-matrix.md) — completed; 8/8 debug/ASan arrow rows reverified 2026-09-14.
+3. [Verify Camera And Action Frontiers](tasks/task-03-verify-camera-and-action-frontiers.md) — deferred behind Step 08; not completed by the task split.
 
 ## Current Findings
 
-1. Host input delivery is not the current blocker. SDL window controls, keydown/keyup events, and Win32-style `WM_KEYDOWN`/`WM_KEYUP` dispatch reach the reconstructed window procedure.
-2. `Space` reaches game state during the horseback/credits intro (`DAT_00636850=1`, `_DAT_00479e7a=1`) and now skips the first intro when the current actor belongs to the `horse` scene record. The bounded proof logs `horse_scene=1564`, `actor_scene_id=1564`, and loads `Start_sc` scene id `0`.
-3. `Space` during the following `Start_sc` pedestal/lightning sub-intro is intentionally wait-only: the skip hook consumes the latched key with or without an active current actor and logs `intro skip ignored wait-only subintro`.
-4. `Start_sc` now runs to completion and preserves the pedestal scene after the handoff. The scene lookup still proposes descriptor `48771`/scene `87`, but the repaired handoff marks the exact `Start_sc` action completion and keeps current scene slot `175` instead. The latest long probes exit without the user-reported crash, keep `_DAT_0073cc3c=0x67da4c`, open `hires\0175.raw`, and dump nonblank surface 3 hash `321e33d6`. Synchronized visibility packets corrected the earlier visual read: the correct pedestal background is preserved and presented, but the living player and enemies are not drawn into the selected game framebuffer. Final gameplay-control readiness in this scene remains behind the actor/rep visibility frontier. Full horseback animation/procession fidelity remains separate from this fastest-route proof.
-5. `Esc` reaches `FUN_00415d40`'s menu/requester branch, changes requester state, and now presents readable high-res requester contents. The verified intro menu shows `START GAME`, `SAVE GAME...`, `LOAD GAME...`, `SETTINGS...`, `QUIT`, and `CANCEL`.
-6. A hand proof attempt in reconstructed C explored lost callback/action context around `FUN_0042b004`, `FUN_0042b338`, and `FUN_0042b880`. It may still be relevant for later action callbacks, but it did not explain the current first-intro `Space` failure because the observed intro path reaches completion without callback attachment evidence.
-7. `scripts/run-e2-control-matrix.sh` proves four canonical gameplay movement controls in debug and ASan with zero startup-logo delay: `up`, `down`, `left`, and `right` each dispatch through the Win32 queue, reach gameplay-control state, set the expected movement vector and `_DAT_00479e78` direction, keep requester state clear, keep a nonzero scene pointer, and dump nonblank surface `3`.
-8. Original-game modifier and utility-key reports are now represented in the probe parser: `ctrl`, `shift`, `alt`, `ralt`, `s`, `i`, and `l` can be injected by name, and plus notation holds keys in one group (`space,ctrl+up`) while comma separates taps. Debug grouped probes prove Left `Ctrl`, Left `Alt`, `Ctrl+Alt`, and Left `Shift` reach reconstructed gameplay flags; `ralt` reaches the key queue but does not set the gameplay alt flag; `return`, `s`, `i`, `l`, and gameplay `space` still need owner-layer classification because they show no short-probe state delta yet. Source/manual mapping says `Ctrl`+arrows attack, Left Alt+arrows dodge, `Ctrl`+Left Alt+arrows advanced attack, Left Shift jumps, Right Alt drops carried items, `S` quick-saves, `I` toggles the icon bar, `Return` opens the icon/status page, `Esc` opens menu or closes status/menu, and `Space` interacts.
-9. Original-game menu testing showed the intro menu is mouse-only. The SDL backend now maps host mouse coordinates through the aspect-fit presentation rectangle, the Win32 shim preserves cursor position, and the reconstructed WndProc feeds requester mouse state. Bounded intro-menu click probes now route Settings to requester id `0x31`/state `2` and Load to requester id `0x29`/state `4` without crashing. A targeted Settings sequence probe selects item `0x643998` and toggles `settings.music=1`, proving at least one submenu row action beyond first-entry routing. Target-requester Esc probes for Settings and Load now close requester ids `0x31`/`0x29` with final `DAT_00636844=0` and `_DAT_00643650=0`. The manual artifact/crash repro is now covered by a narrow fix set: Start Game guards stale `DAT_0047a470`, high-res requester rectangles use explicit hosted bounds on both high-res pages, disabled Save is consumed without closing requester `0x28`, normal main-menu actions fall through to the recovered modal loop, main-menu Escape now returns cancel state `5` and unwinds through `15d40.menu_complete`, and Settings Music/OK dispatch in bounded probes. Settings and Load/Save submenu entry now pass explicit requester records into `FUN_0043b384`; Load/Save uses a widened slot-list record (`0xf0 x 0xb4`) so the submenu is visible and framed. A high-res requester backdrop stack now restores the intro frame after main-menu close and restores the main menu after Settings/Load close; Settings/Load open as nested modal requesters over requester `0x28`. The 2026-08-17 manual pass confirmed the remaining user-facing issues: intro playback is static after the logo sequence, Quit prompt and Settings/Load surfaces are rough, Save is inert, several labels/layouts are wrong, and Load clicks closed the requester. The latest generated repair resolves the blank fixed-address labels for `OK`/`Yes`/`No`, redraws Settings row changes immediately, consumes Load/Save slot-row clicks as selection instead of close, and logs main-menu requester bounds. Start during intro now routes to `action.restart_intro` instead of gameplay StartGame. The corrected fastest original route is: skip the first 30-40 second horseback/castle intro with `Space`, then wait roughly 10 seconds for the pedestal/lightning sub-intro to finish, then enter controllable gameplay. Load title/slot overlap, the left black rectangle, modal-over-main-menu artifacts, and hosted font/color fidelity remain the next menu visual frontier.
+1. First-intro Space enters `Start_sc`; Space during the sub-intro is wait-only. Completion preserves scene 175 through a one-shot guard. The selected framebuffer has the pedestal background but lacks living actors.
+2. SDL input delivery and frame presentation are sufficient for the next engine investigation. The current action-index crash and actor render state are tracked in Step 08.
+3. The arrow matrix verifies Win32 delivery, movement vector, direction, requester clear, nonzero scene pointer, and a nonblank surface. Its readiness gate does not require completed sub-intro, geometry, or actual motion.
+4. Historical grouped probes establish left Ctrl/Alt/Shift flags. Right Alt/drop, Return/status, S/I/L utilities, gameplay Space, and camera/action state remain unclassified at the owning game-logic layer.
+5. Historical mouse-menu probes reach Settings/Load, toggle Music, close Settings, and route Quit confirmation. Intro Save is intentionally disabled; quick-save is a no-op. Slot behavior and visual fidelity remain separate follow-ups.
 
 ## Acceptance Criteria
 
-1. `Esc` during the horseback/credits intro either opens the expected menu contents or has a documented, source-backed requester content/presentation frontier. Completed 2026-08-04: `Esc` opens readable requester contents in the bounded SDL dump.
-2. `Space` during the horseback/credits intro either skips to the expected next sequence/gameplay state or has a documented, source-backed action-dispatch frontier. Completed 2026-08-20: first-intro `Space` enters `Start_sc`, `Start_sc` completes, and the handoff preserves visible scene `175` instead of jumping to scene `87`.
-3. After the intro-specific blocker is resolved or split, multiple movement/action keys reach gameplay state. Completed 2026-08-04 for four canonical arrow movement controls.
-4. Probes record the relevant state deltas. Completed 2026-08-04 for the movement matrix.
-5. New crashes are classified as separate runtime frontiers.
+1. Preserve the completed input mapping and arrow-state evidence.
+2. Record the owner and observable result of each accepted action/modifier/status control, or link a narrowly scoped unresolved task.
+3. Demonstrate input-driven player/camera changes after actual sub-intro completion on the recovered visible-actor path.
+4. Record default/SDL differences and a manual visual check before closing remaining Task 03.
 
 ## Verification
 
-1. Intro `Esc`/`Space` key-sequence probes.
-2. Gameplay key-sequence probes.
-3. Default runtime regression script.
-4. SDL F5 smoke check when controls affect presentation.
+1. Existing arrow matrix and corrected Step 07 wrapper.
+2. Grouped key probes with completed-sub-intro and actor-state evidence.
+3. Synchronized game/SDL captures and manual F5 when behavior changes.
+4. `git diff --check`.
 
 ## Notes
 
-Task 02 completed the compact arrow movement matrix and corrected the host translation that had made physical arrows look like numpad keys. The fastest original intro route now reaches the preserved pedestal scene without the post-subintro crash: first-intro `Space` skips into `Start_sc`, Space during the pedestal/lightning sub-intro is consumed and ignored, the sub-intro completes, and the one-shot handoff guard preserves scene `175` when the scene selector proposes scene `87`. Task 03's freshest direction is actor/rep visibility in scene `175`, then gameplay-control readiness, camera/action/modifier classification, and requester visual polish; full first-intro animation fidelity remains a separate follow-up.
-
-Task 03 also repaired the latest ASan movement-matrix crash chain in the render/action epilogue by passing explicit actor/node/vector context through generated helper families and by reading the `DAT_0063679e` action-event flag table through absolute byte addresses. `scripts/run-e2-control-matrix.sh` passes all debug and ASan rows for `up`, `down`, `left`, and `right`.
+See the [2026-09-14 audit](../../../../journal/entries/runtime-audit-2026-09-14.md) for reverified evidence. The dated entries below describe investigation history; their earlier blocker descriptions do not override the current task/dependency map.
 
 ## Change Log
 
@@ -123,3 +112,8 @@ Task 03 also repaired the latest ASan movement-matrix crash chain in the render/
 1. Reclassified the user's wrong-location report: the post-`Start_sc` scene lookup still proposed scene `87`, but the expected visible frame is current scene slot `175`.
 2. Added a one-shot `Start_sc` action-completion handoff guard in generated reconstruction code. The long dummy-SDL route now exits with scene pointer `0x67da4c`, `hires\0175.raw`, and surface 3 hash `321e33d6`; later visibility packets reclassified this as correct pedestal background preservation without living-character rendering.
 3. Repaired stale SDL presentation after the second intro by pumping host presentation during every compatibility `Sleep` slice. Surface dumps now report the selected framebuffer page; the clean proof ends with `front=2 selected=3 selected_valid=1`, surface 3 hash `321e33d6`, and scene pointer `0x67da4c`.
+
+### 2026-09-14
+
+1. Deferred remaining controls behind Steps 07/08 and split actor recovery into dedicated tasks.
+2. Replaced stale intro-skip/current-gameplay claims with bounded input and presentation evidence.

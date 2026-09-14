@@ -1,90 +1,37 @@
-<img width="477" height="179" alt="ECSX" src="https://github.com/user-attachments/assets/8d6775e9-7f74-427d-83ef-75f6b4cf3777" />
+# Ecstatica Recompiled
 
-# Ecstatica Recompiled (1 and 2)
-Ecstatica I & II — Modern Windows Recompilation
+This checkout develops an experimental reconstruction of **Ecstatica II on Linux/i386**, using original game data. It loads resources, runs bounded engine probes, accepts arrow-key input, and presents recovered 640x480 frames through SDL. Visible actor rendering and playable behavior are still under recovery.
 
-A full 64‑bit native port of the legendary ellipsoid survival classics
-Spacefarer Retro Remasters proudly presents the definitive way to experience Ecstatica and Ecstatica II on modern hardware.
+The completed reconstruction milestone is a historical state/surface proof. It is not a completed 64-bit Windows port, a D3D12/1080p renderer, or a verified 60-FPS release. Ecstatica I is part of the original project name; the active implementation here concerns Ecstatica II.
 
-> This is a Free, Non-profit passion project but takes us a lot of coffee to get it done! Donate to us at https://buymeacoffee.com/jakeysbakery
-> PayPal- jake@spacefarergames.com
-> 
-For the first time in decades, both games run smoothly, stably, and beautifully — exactly as you remember them, but finally playable again.
+## Start Here
 
-<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/efa6c845-1123-4b46-9fb1-5b6ba4fcf747" />
+- [Handoff and workflow](docs/HANDOFF.md)
+- [Current runtime status and next tasks](docs/implementations/playable-sdl-runtime/playable-sdl-runtime.md)
+- [Build and launch instructions](E2Recomp/reconstructed/README.md)
+- [Decompilation and generation workflow](E2Recomp/README.md)
+- [2026-09-14 audit and reproducible checks](docs/journal/entries/runtime-audit-2026-09-14.md)
 
-⭐ Features
-Complete 64‑bit recompilation of Ecstatica 1 & 2
-Rebuilt from the ground up to run natively on modern Windows systems.
+## SDL Launch
 
-Full HD rendering (1920×1080 minimum)  
-The new engine is hard‑coded for crisp, faithful fidelity.
+With a 32-bit Clang toolchain, CMake, Ninja, the SDL submodule, and your original game data available, run from the repository root:
 
-Direct3D 12 (Feature Level 11)  
-Modern GPU pipeline, zero legacy dependencies.
+```sh
+git submodule update --init --recursive dep/SDL
+cmake --preset linux-clang32-sdl-debug -DECSTATICA2_DATA_DIR=/path/to/Ecstatica2
+cmake --build --preset linux-clang32-sdl-debug
+./build/linux-clang32-sdl-debug/e2recomp --run-recon
+```
 
-60 FPS gameplay  
-The original experience, now fluid and responsive.
+The SDL VS Code launch entry is `Ecstatica Recompiled (SDL)`. X11 remains the default backend. Runtime execution requires the 32-bit build; the 64-bit target is a scaffold. Audio is stubbed, quick-save is a no-op, and functional save/load is unproven. Original game data is required separately.
 
-Modern controller support  
-Powered by an SDL3 input layer to replace archaic Win95 direct pooling.
+## Original Project Credit
 
-Enhanced audio  
-SoLoud + MIDI playback for clean, stable sound on modern systems.
+Original project presentation: Spacefarer Retro Remasters. Existing support links: [Buy Me a Coffee](https://buymeacoffee.com/jakeysbakery), PayPal `jake@spacefarergames.com`. See [LICENSE](LICENSE).
 
-HD background support  
-Preserves the iconic pre‑rendered look with modern clarity.
+## Original-Game Control Reference
 
-Runs flawlessly on Windows 10 / 11  
-No compatibility mode. No wrappers. No VM.
-
-🖥️ System Requirements
-Component	Requirement
-OS	Windows 10 or Windows 11 (64‑bit)
-Resolution	1920×1080 minimum
-Graphics	Direct3D 12 compatible GPU (FL11)
-Sound	SoLoud / MIDI compatible output
-Input	Keyboard, mouse, or modern game controller
-
-⚠️ Note: This port is Windows‑only.
-Linux/Wine and macOS are not supported.
-
-🚀 Why This Exists
-Ecstatica is a cult classic — but running it today was practically impossible.
-Between ancient APIs, broken timing, and OS‑level incompatibilities, the original binaries simply couldn’t survive the jump to modern systems.
-
-After countless requests from fans, Spacefarer Retro Remasters rebuilt the entire runtime, delivering a version that finally just works.
-
-📦 Installation
-Download the latest release from the Releases page.
-
-Extract the archive.
-
-Launch the executable (Ecstatica1Recomp_Win64.exe, or Ecstatica2Recomp_Win64.exe)
-
-Enjoy Ecstatica the way it was always meant to be played.
-
-🛠️ Technical Notes
-Engine is hard‑coded for 1080p to maintain visual consistency and avoid scaling artifacts.
-
-Audio stack uses SoLoud for modern stability and clean mixing.
-
-Graphics pipeline is fully rewritten for D3D12.
-
-❤️ Community & Support
-If you encounter issues, open an Issue on GitHub.
-Pull Requests are welcome — especially for controller mappings, QoL improvements, and documentation.
-
-🕯️ A Tribute to a Lost Era
-Ecstatica was weird, bold, atmospheric, and utterly unlike anything else.
-This project exists to preserve that magic — not to change it.
-
-Welcome back to Tirich.
-Welcome back to the nightmare.
-
-<img width="1536" height="1024" alt="ECRecomp" src="https://github.com/user-attachments/assets/70384ed3-96af-4945-a27d-887360a16114" />
-
-CONTROLS
+The reference tables below describe the original game, not a list of implemented reconstructed behavior. The current automated matrix proves the four arrow-key latches; most action/status behavior remains unclassified. F12 currently also requests a developer visibility packet, so its original healing behavior is not verified. Follow the active implementation for accepted controls.
 
 Basic Keyboard Layout
 
@@ -197,4 +144,3 @@ fire bombs (weak power)
 <img width="1536" height="1024" alt="EC2Recomp" src="https://github.com/user-attachments/assets/075a3032-6f1f-4af8-a826-4bc009e2a5f9" />
 
 <img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/4ece3d14-54d9-47f7-b96f-46216bd12594" />
-

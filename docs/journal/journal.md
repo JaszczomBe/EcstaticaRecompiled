@@ -4,6 +4,8 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Runtime/documentation audit — 2026-09-14](entries/runtime-audit-2026-09-14.md): reverified baseline, generator drift, debug wrapper failure, actor visibility, action-384 repro, and task ownership.
+
 - [Runtime crash fixes](entries/runtime-crash-fixes.md): call stacks, symptoms, fixes, and the next crash exposed by each repair.
 - [Generated code repairs](entries/generated-code-repairs.md): source transformations in `E2Recomp/tools/GenerateRecon.js` that keep regenerated C aligned with hand fixes.
 - [Linux portability](entries/linux-portability.md): CMake, VS Code, data symlink, 32-bit toolchain, and Win32 compatibility work.

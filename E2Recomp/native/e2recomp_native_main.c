@@ -13,6 +13,44 @@
 #include <unistd.h>
 #endif
 
+/* Host diagnostics only: never write actor state or reconstructed pixels. */
+void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
+{
+    memset(snapshot, 0, sizeof(*snapshot));
+    snapshot->scene_slot = -1;
+#if UINTPTR_MAX <= UINT32_MAX
+    uintptr_t scene = (uintptr_t)_DAT_0073cc3c;
+    uintptr_t actor = (uintptr_t)_DAT_0063726c;
+    if (scene >= 0x67c728u && scene < 0x67c728u + 1200u * 28u &&
+        (scene - 0x67c728u) % 28u == 0)
+        snapshot->scene_slot = (int)((scene - 0x67c728u) / 28u);
+    for (unsigned visited = 0; actor && visited < E2R_ACTOR_CUE_CAPACITY; ++visited) {
+        uint32_t next, table_actor;
+        int16_t id, position[3], home[3];
+        if (IsBadReadPtr((void *)actor, 0x18c)) break;
+        memcpy(&id, (void *)actor, sizeof(id));
+        memcpy(&next, (void *)(actor + 0x4c), sizeof(next));
+        if (id >= 0 && id < 5000 &&
+            !IsBadReadPtr((void *)(0x630b60u + (unsigned)id * 4u), 4)) {
+            memcpy(&table_actor, (void *)(0x630b60u + (unsigned)id * 4u), 4);
+            if (table_actor == actor) {
+                E2R_ActorCue *cue = &snapshot->actors[snapshot->count++];
+                memcpy(position, (void *)(actor + 0x84), sizeof(position));
+                cue->id = id;
+                cue->is_joe = id == 0;
+                cue->x = position[0]; cue->y = position[1]; cue->z = position[2];
+                if (cue->is_joe) {
+                    memcpy(home, (void *)(actor + 0x9c), sizeof(home));
+                    snapshot->origin_x = home[0]; snapshot->origin_z = home[2];
+                }
+            }
+        }
+        if (next == actor) break;
+        actor = next;
+    }
+#endif
+}
+
 static volatile unsigned e2r_visibility_dump_requests;
 static char e2r_visibility_dump_request_prefix[512];
 
@@ -1227,6 +1265,18 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
             scene_slot, (unsigned long)e2r_scene_record_table_entry(scene_slot));
     e2r_write_scene_child_state(out, scene);
     e2r_write_scene_child_state(out, e2r_scene_record_table_entry(scene_slot));
+    const char *cues_enabled = getenv("E2R_ACTOR_CUES");
+    if (cues_enabled && *cues_enabled && *cues_enabled != '0') {
+        E2R_ActorCueSnapshot cues;
+        E2R_GetActorCues(&cues);
+        fprintf(out, "actor_cues scene=%d count=%u origin=%d,%d\n",
+                cues.scene_slot, cues.count, cues.origin_x, cues.origin_z);
+        for (unsigned i = 0; i < cues.count; ++i) {
+            const E2R_ActorCue *cue = &cues.actors[i];
+            fprintf(out, "actor_cue[%u] id=%d joe=%d live=%d,%d,%d\n",
+                    i, cue->id, cue->is_joe, cue->x, cue->y, cue->z);
+        }
+    }
 }
 
 static int e2r_write_visibility_packet(HWND hwnd, const char *prefix)
@@ -1260,13 +1310,20 @@ static int e2r_write_visibility_packet(HWND hwnd, const char *prefix)
         fprintf(stderr, "visibility packet host dump skipped: no hwnd\n");
     }
 
-    snprintf(path, sizeof(path), "%s-state.txt", prefix);
+    /* Publish only a closed packet: the automation thread exits when it sees it. */
+    snprintf(path, sizeof(path), "%s-state.txt.tmp", prefix);
     state = fopen(path, "wb");
     if (state != NULL) {
+        char complete_path[512];
         e2r_write_visibility_state(state, front_surface, selected_surface,
                                    selected_framebuffer, selected_valid, host_wrote);
-        fclose(state);
-        fprintf(stderr, "wrote visibility state: %s\n", path);
+        int write_failed = ferror(state);
+        int close_failed = fclose(state);
+        snprintf(complete_path, sizeof(complete_path), "%s-state.txt", prefix);
+        if (!write_failed && !close_failed && rename(path, complete_path) == 0)
+            fprintf(stderr, "wrote visibility state: %s\n", complete_path);
+        else
+            fprintf(stderr, "failed to publish visibility state: %s\n", complete_path);
     }
     else {
         fprintf(stderr, "failed to write visibility state: %s errno=%d %s\n",

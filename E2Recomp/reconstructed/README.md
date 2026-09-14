@@ -1,6 +1,6 @@
 # Reconstructed Build
 
-This folder contains the current compileable reconstruction of `E2Recomp.exe`.
+This folder contains the generated Ecstatica II reconstruction and supporting runtime files. Current Linux/i386 builds execute recovered engine logic with original game data. See the [active implementation](../../docs/implementations/playable-sdl-runtime/playable-sdl-runtime.md) for limitations and next tasks.
 
 ## Files
 
@@ -14,13 +14,13 @@ This folder contains the current compileable reconstruction of `E2Recomp.exe`.
 
 ## Build
 
-From `C:\ecstatica2`:
+Historical Windows/MSVC route (not reverified by the 2026-09-14 audit), from `C:\ecstatica2`:
 
 ```powershell
 .\reverse\E2Recomp\reconstructed\Build-Reconstructed.ps1
 ```
 
-On Linux, the repository root now has a CMake/Clang scaffold:
+Run Linux commands from the repository root. The 64-bit scaffold initializes data tables but does not execute the reconstructed runtime:
 
 ```sh
 cmake --preset linux-clang-debug
@@ -37,7 +37,7 @@ cmake --build --preset linux-clang32-debug
 ./build/linux-clang32-debug/e2recomp --run-recon
 ```
 
-CMake creates `build/linux-clang-debug/Ecstatica2` as a symlink to the
+CMake creates `Ecstatica2` inside the selected build directory as a symlink to the
 Ecstatica II CD data directory. Override it with:
 
 ```sh
@@ -64,6 +64,30 @@ binary refuses `--run-recon` because the decompiled code contains packed
 32-bit function-pointer and COM-vtable assumptions. That path is still
 experimental and is not a behavior-complete Linux game port yet.
 
-## Status
+## SDL Developer Route
 
-The project now compiles and links with MSVC x86. The result is a rebuildable reconstruction scaffold, not a behavior-complete port. The stubs in `E2Recomp_stubs.c` must be replaced with real implementations or import-library bindings before runtime behavior can be expected to match the original executable.
+Initialize the [SDL submodule](../../dep/README.md), then configure and build with the existing SDL preset:
+
+```sh
+git submodule update --init --recursive dep/SDL
+cmake --preset linux-clang32-sdl-debug -DECSTATICA2_DATA_DIR=/path/to/Ecstatica2
+cmake --build --preset linux-clang32-sdl-debug
+./build/linux-clang32-sdl-debug/e2recomp --run-recon
+```
+
+SDL is pinned to 3.4.12. VS Code's `Ecstatica Recompiled (SDL)` entry configures/builds this target before launch. X11 remains the default for non-SDL presets. Both paths require the full original data directory; CMake's machine-specific default is `/home/rgrabowski/Games/Ecstatica2`.
+
+Both **Ecstatica Recompiled (SDL)** and **Ecstatica Recompiled (SDL + actor cues)** launches enable `E2R_ACTOR_CUES=1`: a host X/Z map with a cyan Joe square and amber other-actor diamonds. Two hollow enemy-status icons in the current Joe-only scene-175 capture mean **not loaded**, not recovered enemy positions. See [cue usage and limits](../README.md#rebuild-status-and-next-recovery). Game framebuffer pixels are unchanged; SDL dump hashes change when cues are enabled.
+
+## Verification And Status
+
+The 2026-09-14 audit rebuilt default debug, ASan, and SDL debug, passed all 8 arrow-state matrix rows, and captured the scene-175 room background. Living actors remain absent. The later action-context repair verifies the first action-384 update, and the missing-scene message lifetime error is repaired; Task 05 identifies aliased keyframe allocation behind corrupt position events. The corrected mapped-pool scan is gated with action indexing and now exposes an earlier missing actor input in scene-pose restoration (`FUN_00426124`) under SDL/GDB and ASan. Gate-off retains the legacy allocator temporarily. Audio is stubbed and quick-save is a no-op.
+
+```sh
+scripts/run-e2-control-matrix.sh
+SDL_VIDEODRIVER=dummy timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-scene175 120 7000
+```
+
+The matrix expects an already configured `build/linux-clang32-asan`; no ASan preset or CTest test preset is currently defined. Full fresh-checkout/ASan setup and unified validation remain Step 06 work. `scripts/run-e2-runtime-regressions.sh` uses canonical Up and now passes both debug and ASan after Step 07’s actor/action/motion repairs. All 8 arrow rows and the static SDL packet pass. Step 07 Task 02 is complete: the manual screenshot/log agrees with the static scene-175 baseline.
+
+Generator parity is restored: all four artifacts match the committed reference. Follow the [audit's scratch comparison](../../docs/journal/entries/runtime-audit-2026-09-14.md) for future generator changes and [Step 07](../../docs/implementations/playable-sdl-runtime/steps/step-07/step-07-restore-reproducible-runtime-baseline.md) for the completed manual static-scene comparison. The next source task is [Step 08 Task 06](../../docs/implementations/playable-sdl-runtime/steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md); Tasks 05 and 01 retain incomplete gated validation. Build commands do not require Ghidra export or regeneration.

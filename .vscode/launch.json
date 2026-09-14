@@ -22,7 +22,27 @@
       "args": ["--run-recon"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/build/linux-clang32-sdl-debug",
-      "environment": [],
+      "environment": [{ "name": "E2R_ACTOR_CUES", "value": "1" }],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "preLaunchTask": "CMake: Build SDL 32-bit"
+    },
+    {
+      "name": "Ecstatica Recompiled (SDL + actor cues)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/linux-clang32-sdl-debug/e2recomp",
+      "args": [
+        "--run-recon"
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/build/linux-clang32-sdl-debug",
+      "environment": [
+        {
+          "name": "E2R_ACTOR_CUES",
+          "value": "1"
+        }
+      ],
       "externalConsole": false,
       "MIMode": "gdb",
       "preLaunchTask": "CMake: Build SDL 32-bit"

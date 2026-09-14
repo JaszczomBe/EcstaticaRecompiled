@@ -3,8 +3,12 @@
 Status: completed
 Priority: top
 Owner: mixed
-Last Updated: 2026-07-28
+Last Updated: 2026-09-14
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
+
+## Historical Proof Record
+
+The completion status applies to the bounded reconstruction milestones recorded here, not current playability or a continuously green regression wrapper. The 2026-09-14 audit confirms input latches and static scene presentation, while living actors remain absent and the old wrapper fails on debug numpad input. Use [Playable SDL Runtime](../playable-sdl-runtime/playable-sdl-runtime.md) for current status and tasks; the dated results below are preserved as history.
 
 ## Goal
 
@@ -30,7 +34,7 @@ Linux is the current proof platform. Portability work should preserve reconstruc
 4. Calling SDL or any other host library directly from reconstructed game logic.
 5. True multi-platform release support before 32-bit, fixed-address, and legacy memory-layout assumptions are understood well enough to relax.
 
-## Current State
+## Reconstruction State At Completion
 
 Steps 1 through 5 are complete. Debug and ASan 32-bit builds compile. The runtime enters the Ecstatica II data directory through the build-tree `Ecstatica2` symlink, resolves read-only paths case-insensitively, creates a Linux-hosted X11 window from the original Ecstatica II window path, reaches title logic after startup logo loading, and now reaches the suspected main-loop entry thunk.
 

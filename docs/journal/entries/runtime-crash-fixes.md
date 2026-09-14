@@ -2,6 +2,309 @@
 
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
+## 2026-09-14 - Enable Actor Cues In The Usual SDL Launch
+
+The user supplied a scene-175 screenshot without the cue panel. The usual `Ecstatica Recompiled (SDL)` configuration had an empty environment; only the separate cue configuration enabled `E2R_ACTOR_CUES=1`. Both SDL launch configurations now enable cues. Existing sessions must restart to inherit the setting; terminal launches remain opt-in. No runtime or generator changes were needed.
+
+The screenshot visually matches the static scene-175 capture, and the accompanying input log reports `scene=0x67da4c`. Together with the earlier crash-free F5 report, this closes Step 07's outstanding manual baseline comparison. It does not prove living actor rendering or original scene-selection fidelity. Step 08 Task 06 remains the next source recovery task.
+
+Verification uses the normal SDL launch's program, working directory and environment parsed directly from `.vscode/launch.json`, with dummy SDL and the existing bounded capture command. The capture exits 0 in scene 175, reports Joe’s cue state, and its SDL pixels match the previously verified cue-enabled capture exactly. Evidence prefix: `/tmp/e2-usual-sdl-cues`. The launch JSON parses and documentation whitespace checks pass. No source changes require a new build or control-matrix run.
+
+## 2026-09-14 - Distinct Keyframes Expose Scene-Pose Input Failure
+
+Area: Step 08 Task 05, coordinate events in `FUN_0042b880` and keyframe allocation in `FUN_00453754`.
+
+Symptom: action 384 moves Joe from X 12800 to -11792 and eventually selects missing scene 40. An early watch catches event type `0x16` copying coordinates; the copy matches original `0x42bb4b..0x42bb82`, but action 384's original archive record has no such event. Its keyframe pointer aliases other scene children's keys.
+
+Evidence: `Files/ECSTATIC` is the 33075606-byte runtime archive; action 384 starts at offset 9790200. Its keys at 0/`0x8000`/`0xc100` carry event types 3/4/14. Original allocator `0x453762/0x45378b` reads mapped flags at `0x7c872a + slot_offset`, whereas C reads separate host globals and clears mapped slots. Four legacy allocations return the same `0x7c8758`; repaired allocations return `0x7c871c`, `0x7c872b`, `0x7c873a`, `0x7c8749`. See `/tmp/e2-scene-early-watch.gdb`/`.log` and `/tmp/e2-key-pool-{legacy,fixed}.log`.
+
+Change: normalize the three pool flag reads under the existing action-index probe and mirror them through checked generator anchors. Gate-off retains its known legacy allocator behavior while this repair exposes another failure family. No forced scene, fabricated resource, geometry bypass, or new sanitizer suppression.
+
+Result: distinct keys reach an earlier initial-pose branch in `FUN_004523f8 → FUN_00426124`. SDL/GDB reports `in_EAX=0`; ASan exits 1 with a read at `0x1e`. Original `0x452553..0x452555` passes the table-resolved actor in EAX. Task 05's final position/scene acceptance and Task 01 full-route validation remain open. [Task 06](../../implementations/playable-sdl-runtime/steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md) owns the pose actor/saved-state/destination inputs. The former scene-40 timeout is historical, not the current corrected-pool endpoint.
+
+Validation: generator syntax, in-place generation, all four scratch artifacts, three builds, default debug/ASan wrapper, and all eight arrow rows pass. Commands and focused allocation proof:
+
+```sh
+objdump -d -Mintel --start-address=0x453754 --stop-address=0x4537bc /home/rgrabowski/Games/Ecstatica2/E2WIN95.EXE
+SDL_VIDEODRIVER=dummy E2R_ACTION_INDEX_PROBE=1 timeout 140 gdb -q -batch -x /tmp/e2-key-pool-proof.gdb --args build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-key-proof 120 7000
+env -u DISPLAY E2R_ACTION_INDEX_PROBE=1 timeout 140 build/linux-clang32-asan/e2recomp --auto-scene175-visibility /tmp/e2-step05-gated-asan 120 7000
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_REGRESSION_TMP=/tmp/e2-step05-regression timeout 300 scripts/run-e2-runtime-regressions.sh
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_CONTROL_MATRIX_TMP=/tmp/e2-step05-controls timeout 300 scripts/run-e2-control-matrix.sh
+```
+
+To recreate the ephemeral allocation script: `set pagination off`, `set confirm off`, `break FUN_00453754`, `run`, then repeat `finish`, `printf "key=%#x\n", $eax`, `continue` for four allocations (omit the last continue). Run once with the gate unset and once with `E2R_ACTION_INDEX_PROBE=1`. GDB's shell status does not establish inferior success: the scene-pose crash log catches SIGSEGV despite shell exit zero.
+
+User-requested visual cues: added the optional VS Code **Ecstatica Recompiled (SDL + actor cues)** launch and `E2R_ACTOR_CUES=1`. Host diagnostics read up to 64 global-list actors, validate their actor-table entries, and plot live X/Z around Joe's home (`+0x9c..+0xa0`); Joe is cyan, others amber. The Joe-only scene-175 snapshot shows two hollow **not-loaded** enemy-status icons. Enemy positions/factions and camera projection remain unrecovered. The cue overlay touches only the SDL RGB presentation, while packets retain game pixels and include cue state. Visual inspection caught and corrected an initial diagnostic home-offset mistake.
+
+Capture verification also exposed an existing publication race: the automation thread could see `-state.txt` immediately after `fopen` and `_exit` before its contents were flushed (observed zero-byte file). Write to `-state.txt.tmp`, check write/close results, then rename the completed file. Fresh probe prefixes remain required. This is host diagnostic synchronization, not game state recovery.
+
+Final visual verification: default and cue-enabled SDL captures exit 0 in scene 175. Both contain Joe alone at `12800,256,-3584`, home map origin `12800,-3584`. Default selected/present/window hashes remain `321e33d6` / `914159a1` / `5cf799a1`; cue-enabled present/window are `64b4cf17` / `99e74f17`. Raw game-surface RGB files are byte-identical and all SDL pixel differences fit inside `(396,10)..(630,206)`. Completed sidecars are nonempty after atomic publication. Screenshot: `/tmp/e2-step05-final-cues.png`; packet prefixes `/tmp/e2-step05-final-default` and `/tmp/e2-step05-final-cues`.
+
+The additional headless gate-off ASan scene-175 waits exit 5 in scene 87 (no sanitizer error). A cue-enabled canonical-control run exits 0 with scene-87 surface `bf4a8e25`, but produces no cue packet because headless mode never presents. That run does not prove the new snapshot was exercised. Keep this distinct from the SDL captures and from gated ASan's pose-entry crash.
+
+Focused snapshot validation under ASan: at the `FUN_00426124` breakpoint, allocate an `E2R_ActorCueSnapshot`, call `E2R_GetActorCues`, inspect the count/origin/first actor, and free it. The final debugger script exits 0 and reports scene 1073, count 1, Joe `12800,256,-3584`, origin `12800,-3584`, with no address-sanitizer error. `ASAN_OPTIONS=detect_leaks=0` is limited to this ptrace check. This does not validate full SDL/ASan rendering. Script/log: `/tmp/e2-cue-snapshot-asan.gdb`, `/tmp/e2-cue-snapshot-asan-final.log`.
+
+```gdb
+set pagination off
+set confirm off
+set environment ASAN_OPTIONS detect_leaks=0
+break FUN_00426124
+run
+set $snapshot = (E2R_ActorCueSnapshot *)malloc(sizeof(E2R_ActorCueSnapshot))
+call E2R_GetActorCues($snapshot)
+print *$snapshot
+call (void)free($snapshot)
+quit
+```
+
+Run with `env -u DISPLAY E2R_ACTION_INDEX_PROBE=1 timeout 60 gdb -q -batch -x /tmp/e2-cue-snapshot-asan.gdb --args build/linux-clang32-asan/e2recomp --auto-scene175-visibility /tmp/e2-cue-snapshot-asan 45 7000`. The first attempt successfully read the snapshot but stopped on GDB's missing `free` return type; the final script fixes that debugger call with the explicit void cast.
+
+Regression Risk: gate-off retains known aliased allocation; gated gameplay remains broken at pose initialization. Pool exhaustion is unverified. The debug map is a diagnostic, not rendered living characters; current missing enemies still require Step 08 child activation. Default/manual final-scene parity remains unresolved.
+
+## 2026-09-14 - Missing-Scene Message Receives A Live String List
+
+Area: Step 08 Task 04, `FUN_0045233c → FUN_0043cbb4 → FUN_0043cbf0` message inputs.
+
+Symptom: gated ASan reached a missing scene after action 384's first update and reported stack-use-after-return in `E2R_ResolveMenuStringList`. The scene loader passed a phantom `extraout_ECX_01` through a one-argument reconstruction of a two-string wrapper.
+
+Evidence: original `0x4523a2` resolves the scene name; `0x4523a7` supplies it in EDX, and `0x4523a9` supplies EAX=`0x47563c`. The original bytes at that address spell `Can't find scene`. Wrapper `0x43cbb4` builds contiguous `[EAX, EDX, 0]` pointer words on its stack and calls `0x43cbf0`. The reconstructed mapped address contains an empty string, so a bare address is insufficient. Numerous other wrapper callers still lack recovered inputs; this task does not guess their signatures.
+
+Change: inline that three-word list at the missing-scene call site, preserve the low-word name return from `FUN_00441e38`, and supply the original message as a C string literal. The list remains live for the synchronous message call. This is a seven-line replacement of two lines in generated C, mirrored through one checked generator anchor; no header/global/name-map change, new pointer guard, or sanitizer suppression.
+
+Result: GDB identifies scene id **40**, name **`mtorc4`**, resource pointer **0**, archive offset **-1**, current actor **`0xaa6bd8`**. It verifies both strings and the terminator, then shows `E2R_ResolveMenuStringList` returning the identical caller-owned stack list and execution reaching `FUN_0043b384`. Final gated ASan reports no sanitizer error and exits **5** at the 120-second scene wait; plain gated SDL also exits **5** in scene slot 40. Task 04's message-input criteria are complete; Task 01's full-route acceptance remains open.
+
+The error UI itself is not proven: `FUN_0043cbf0` still uses a no-op copy helper and passes requester argument 2 (line count), whereas original `0x43ccb3` passes pointer `0x47a630`. The proof stops at requester entry; visible text, dismissal, and loader return are not claimed. Those are separate requester limitations. The failed readiness checks must not be called passing gameplay tests just because ASan is quiet.
+
+Validation: generator syntax, all three builds, four-artifact scratch parity (`/tmp/e2-generator-audit-hl23_86h`), final default debug/ASan wrapper, all 8 arrow rows, and the default SDL scene-175 packet pass. Default hashes remain `321e33d6` / `914159a1` / `5cf799a1`. Source/data proof commands:
+
+```sh
+objdump -d -Mintel --start-address=0x452398 --stop-address=0x4523e5 /home/rgrabowski/Games/Ecstatica2/E2WIN95.EXE
+objdump -d -Mintel --start-address=0x43cbb4 --stop-address=0x43cbd0 /home/rgrabowski/Games/Ecstatica2/E2WIN95.EXE
+objdump -s --start-address=0x47563c --stop-address=0x475650 /home/rgrabowski/Games/Ecstatica2/E2WIN95.EXE
+env -u DISPLAY E2R_ACTION_INDEX_PROBE=1 timeout 140 build/linux-clang32-asan/e2recomp --auto-scene175-visibility /tmp/e2-scene-message-final-asan 120 7000
+SDL_VIDEODRIVER=dummy E2R_ACTION_INDEX_PROBE=1 timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-scene-message-final-sdl 120 7000
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_REGRESSION_TMP=/tmp/e2-scene-message-final-regression timeout 300 scripts/run-e2-runtime-regressions.sh
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_CONTROL_MATRIX_TMP=/tmp/e2-scene-message-controls timeout 300 scripts/run-e2-control-matrix.sh
+SDL_VIDEODRIVER=dummy timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-scene-message-default 120 7000
+```
+
+For the focused GDB proof, break at the new `FUN_0043cbf0` call in `FUN_0045233c` (line 49551 at this repair), inspect `iVar2`, table/offset, `message_lines`, and both strings. Step into `E2R_ResolveMenuStringList`, `finish`, compare its returned list, then stop at `FUN_0043b384`. Ephemeral exact script/log: `/tmp/e2-scene-message-final-proof.gdb` and `.log`. Other evidence: `/tmp/e2-missing-scene-before.log`, `/tmp/e2-scene-message-final-asan.log`, `/tmp/e2-scene-message-final-sdl.log`, `/tmp/e2-scene-message-final-regression.log`, `/tmp/e2-scene-message-controls.log`, `/tmp/e2-scene-message-default-state.txt`.
+
+Next Frontier: [Task 05 — Recover post-intro scene selection](../../implementations/playable-sdl-runtime/steps/step-08/tasks/task-05-recover-post-intro-scene-selection.md). Explain the position/query/scene-descriptor path into missing scene 40 before forcing a scene or rendering Joe. A late X watch installed at the first child commit did not fire before a scene-40 packet (`/tmp/e2-scene-drift-watch.log`); start earlier to find the actual writer. That debugger run captured a packet and exited normally, but its actual scene was 40; subsequent `bt` failed because execution had ended. This is not a scene-175 pass. Keep action indexing opt-in and the user's manual final-image comparison open.
+
+Regression Risk: the missing-scene input/list path is bounded and source-backed; message UI and other shared-wrapper callers retain decompiler artifacts. No claim is made that scene 40 is intended, that collision heights are correct, or that the gated route explains the manual rooftop report.
+
+## 2026-09-14 - Action 384 Retains Its Actor Through Loading And First Update
+
+Area: Step 08 Task 01, `FUN_0045190c` and `FUN_0042ae80 → FUN_0042b338 → FUN_0042b5fc/FUN_0042b490`.
+
+Symptom: after the Step 07 entry-input repair, the gated route still lost `DAT_0047a470` across action parsing and crashed in `FUN_0042a098`. Restoring the loader's actor exposed a second crash in `FUN_0042b5fc`, whose uninitialized EAX supplied an arbitrary child-list owner.
+
+Evidence and change: original `0x451914` saves the entry actor in ECX and `0x451988` restores it on all exits; the loader now uses a stable local. Original `0x42ae87` preserves the slot in ECX across helpers, `0x42aee5` passes the owner to reset, and `0x42afd6` passes it to update. The reconstructed advance function now retains the slot, supplies the signed next-action id at `0x42af03`, and saves/restores the existing actor context around reset/update. `FUN_0042b338` keeps the owner for its child commit/interpolation calls, matching `0x42b3ed` and `0x42b470`; those helpers initialize their actor inputs. Removed the now-unused phantom ECX read in the interpolation loop. All changes are mirrored in the generator, including the child-commit prototype.
+
+Bounded result: action 384 resolves at offset 9790200 and installs at `0xac263c`. At child commit, actor/current/context all equal Joe `0xaa6bd8`. Action slot `0xaa6c7e` progresses 0 → 1638 for duration 40; after the enclosing call, current remains Joe and prior context is restored to zero. This proves the first update, not every action event, chained transition, or nested transform branch.
+
+Rep diagnostic correction: `E2R_TraceActorUpdate`'s `rep_id` reads actor word `+0x120`, overlapping the high half of the rep pointer at `+0x11e`. For pointer `0xf451b008`, that word is -2991; the pointed-to rep's first word is 67. A hardware watch on that first word did not fire from loader entry to the former callback crash. The earlier trace does not establish rep payload corruption; the complete layout remains a geometry-recovery question.
+
+Validation:
+
+| Check | Result |
+| --- | --- |
+| Generator syntax / scratch parity | Pass; all four outputs match, `/tmp/e2-generator-audit-_707at8m` |
+| Default debug / ASan / SDL debug builds | Pass |
+| Default debug/ASan wrapper | Pass, `/tmp/e2-action-owner-regression.log` |
+| Eight arrow-control rows | Pass, `/tmp/e2-action-owner-controls.log` |
+| Default SDL packet | Exit 0, scene 175, hashes `321e33d6` / `914159a1` / `5cf799a1` |
+| Gated diagnostic GDB | Inferior exits normally with a packet, but actual scene slot is 40 |
+| Gated plain SDL | Exit 5 waiting for scene-175 completion; observed scene 40 |
+| Gated ASan | Exit 1, stack-use-after-return in missing-scene message path |
+
+The diagnostic packet retains action 384, but Joe's live coordinates are `-11792,-16256,-8160` versus home `12800,256,-3584`; sampled local/projected vertices remain zero. The first query changes Y to -16256; a later scene lookup uses the changed X/Z and selects 40. These observations do not establish intended motion or a correct scene. Logging/debugger scheduling can allow the automation to observe the transient scene-175 completion window; a packet name is not evidence that the captured scene is 175.
+
+Next Frontier: [Step 08 Task 04](../../implementations/playable-sdl-runtime/steps/step-08/tasks/task-04-recover-missing-scene-message-inputs.md) owns the newly exposed `FUN_0045233c → FUN_0043cbb4 → FUN_0043cbf0 → E2R_ResolveMenuStringList` ASan failure. Original `0x4523a7` supplies the scene-name return in EDX, `0x4523a9` supplies `Can't find scene` in EAX, and `FUN_0043cbb4` builds `[EAX, EDX, 0]` on its stack. The current call instead uses `extraout_ECX_01`. Establish the requested missing scene and recover this separate message-input family before rerunning Task 01 acceptance. Task 01 stays active; indexing stays opt-in. Scene readiness/position drift remains unresolved. Step 07's manual final-image comparison also remains open; the user authorized continued isolated recovery, not a claim that the manual image matches.
+
+Reproduction after the three builds:
+
+```sh
+SDL_VIDEODRIVER=dummy E2R_ACTION_INDEX_PROBE=1 E2R_RUNTIME_DIAG=1 timeout 140 gdb -q -batch -ex 'set pagination off' -ex run -ex 'bt 8' --args build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-action384-callback 120 7000
+SDL_VIDEODRIVER=dummy E2R_ACTION_INDEX_PROBE=1 timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-action384-final 120 7000
+env -u DISPLAY E2R_ACTION_INDEX_PROBE=1 timeout 140 build/linux-clang32-asan/e2recomp --auto-scene175-visibility /tmp/e2-action384-asan 120 7000
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_REGRESSION_TMP=/tmp/e2-action-owner-regression timeout 300 scripts/run-e2-runtime-regressions.sh
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_CONTROL_MATRIX_TMP=/tmp/e2-action-owner-controls timeout 300 scripts/run-e2-control-matrix.sh
+SDL_VIDEODRIVER=dummy timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-action-owner-default 120 7000
+```
+
+For the first-update proof, break `FUN_0042b5fc` when `actor == 0xaa6bd8`, record actor/current/context and the slot progress word, then `finish` through child commit, `FUN_0042b338`, and `FUN_0042ae80`; record current/context/progress again. `/tmp/e2-action384-input-proof.gdb` and `.log` retain the exact commands/results. Other ephemeral evidence: `/tmp/e2-action384-current.log` (pre-repair), `/tmp/e2-action384-owner.log` (loader-only repair), `/tmp/e2-action384-rep-watch.log`, `/tmp/e2-action384-callback-state.txt`, `/tmp/e2-action384-final.log`, `/tmp/e2-action384-asan.log`, and `/tmp/e2-action-owner-default-state.txt`. The scratch comparison recipe remains in the audit.
+
+Regression Risk: untouched action/transform helpers and the missing-scene error path retain decompiler artifacts. The passing default checks do not exercise the gated resource-loading path and do not prove visible player movement. Do not enable action indexing by default or close Task 01's full-route criteria on the first-update proof alone.
+
+## 2026-09-14 - Motion-Query Ownership Repair Makes The Automated Baseline Pass
+
+Area: Step 07 Task 06, `FUN_00427584 -> FUN_004495e0 -> FUN_00449680 -> FUN_00448a48`.
+
+Symptom: natural intro completion reached a query with an arbitrary coordinate pointer and a stale optional output pointer. The query overwrote the caller frame before ASan reported an out-of-bounds host-global read.
+
+Evidence before repair: GDB stops at `*unaff_EBX = iVar4`, with output `0xffffb038` and value `-1`. One step changes its contents from `0xffffc368` to `0xffffffff`; the subsequent unwind is damaged. Original caller `0x449691` sets EBX to zero. Original query `0x448a55` preserves optional output EBX, and `0x448b65` tests a byte at fixed address `0x636624 + signed_index*2`; the reconstruction indexed a host `uintptr_t` global instead. The signed index itself is original and was not clamped.
+
+Source recovery:
+
+- `0x429fde` supplies actor EAX to `FUN_004495e0`; `0x4495e4` and `0x449688` preserve it in ECX across motion helpers. The reconstruction now retains that actor instead of consuming `extraout_ECX` placeholders.
+- `0x44968c` and `0x4496eb` query actor position `+0x84`; `0x449748` supplies the candidate vector at ESP. A three-short C array now provides contiguous vector storage. The final copy at `0x449671` targets actor `+0x64`, not the actor header.
+- All eleven direct `FUN_00448a48` callers were checked. Ten pass a null output; `0x449529` supplies `[esp+0x7c]`, corresponding to `local_58`. The explicit third parameter preserves this distinction. Existing coordinate recovery outside the selected motion chain remains incomplete.
+- The flag read uses the original fixed byte address and signed index. No sanitizer suppression or defensive index clamp was added.
+
+Change: scoped actor/query ownership and vector-storage repair, mirrored by 19 unique generator anchors and two prototype updates. Generated C changes are limited to the selected motion chain, query signature/call contracts, and byte-table expression. Scratch and in-place generation match all four artifacts.
+
+Post-repair proof: GDB observes `FUN_00448a48(param_1=0xaa6c5c,param_2=0,surface_id=0)`, with position `12800,256,-3584` and actor `0xaa6bd8` preserved in both caller frames. Query returns `-16256`, motion step returns `1`, and the wrapper returns to `FUN_00427584` with an intact unwind. These values demonstrate ownership/return behavior, not verified collision fidelity.
+
+Result: all three builds, all four generator comparisons, the isolated 30-second-delay ASan probe, the full debug/ASan wrapper, all 8 arrow rows, and the default SDL packet pass. No assertion was relaxed. The natural ASan route dispatches Space/Up (`last_key=0x26`), requester zero, movement `[1,0,0,0,0,0,0,0,0]`, and nonblank surface 3 `bf4a8e25` in scene slot 87. Space is ignored after natural completion because its intro action is already empty. The separate skip route still captures scene 175: selected/present/window hashes `321e33d6` / `914159a1` / `5cf799a1`, with living geometry absent.
+
+Verification commands (after rebuilding all three trees):
+
+```sh
+env -u DISPLAY E2R_STARTUP_LOGO_DELAY_MS=0 timeout 150 build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-natural-motion-asan space,up 30 10000 60 1
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_REGRESSION_TMP=/tmp/e2-motion-regression timeout 300 scripts/run-e2-runtime-regressions.sh
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_CONTROL_MATRIX_TMP=/tmp/e2-motion-controls timeout 300 scripts/run-e2-control-matrix.sh
+SDL_VIDEODRIVER=dummy timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-motion-scene175 120 7000
+```
+
+GDB verification: break `FUN_00448a48` when `param_1 == 0xaa6c5c`, inspect the position and output pointer, then `finish` through the query and both motion callers. Before-repair output-write proof: break at the `*unaff_EBX` assignment and inspect its target before/after one step. Ephemeral artifacts: `/tmp/e2-motion-before.gdb`, `/tmp/e2-motion-before.log`, `/tmp/e2-motion-after.gdb`, `/tmp/e2-motion-after.log`, `/tmp/e2-natural-motion-asan.log`, `/tmp/e2-motion-regression.log`, `/tmp/e2-motion-controls.log`, `/tmp/e2-motion-scene175-state.txt`; parity scratch `/tmp/e2-generator-audit-ebb_tj8x`.
+
+Next Frontier: Task 06 and Task 03 are complete. [Step 07 Task 02](../../implementations/playable-sdl-runtime/steps/step-07/tasks/task-02-repair-canonical-control-regressions.md) and Step 07 remain open for the explicitly required manual SDL F5 check after runtime changes. It was requested from the user and is pending; no automated crash remains in the baseline. After that check, activate Step 08's loaded-action/geometry recovery and rerun its gated probe against the newer action-advance signature.
+
+Regression Risk: positive movement/collision branches and nested action helpers retain unrecovered inputs; optional-output arguments at other query callers are now explicit, but their coordinate inputs are not fully recovered. All passing probes remain bounded state/surface evidence rather than visible motion or full gameplay fidelity. Manual F5 has not been claimed as tested.
+
+Manual follow-up: the user reports a crash-free pedestal intro followed by an “unrelated castle rooftops” image. The automated capture was inspected directly: it is a ruined castle interior with red sky, a horned skull over the doorway, and straw-covered stone platforms. The earlier “room” shorthand is insufficient to distinguish these descriptions. Skip timing and visual agreement were requested; no scene mismatch has yet been proven. The additional 30-second settle capture exits zero and retains scene 175 and all three image hashes (`/tmp/e2-motion-scene175-late-state.txt`). No late automatic transition was observed.
+
+## 2026-09-14 - Explicit Action-Advance Inputs Restore The Empty-Slot Return
+
+Area: Step 07 Task 05, `FUN_00427584 -> FUN_0042ae80`.
+
+Symptom: after default-action initialization, the action-advance helper interpreted stack storage as its slot and reached `FUN_0042b338` with `puVar1=0x72`.
+
+Evidence: original `0x42759a` saves incoming EDX into `[ebp+0x32]`; reconstructed `local_64 = param_2` represents that value. The local is not overwritten before `0x429f68–0x429f76` loads EAX = actor + `0xa6`, EDX = actor, and EBX = saved advance. Callee `0x42ae87–0x42ae8b` preserves those inputs. There is one reconstructed caller.
+
+Change: explicit `FUN_0042ae80(int *action_slot,int param_2,int advance)` signature and matching header; the caller supplies its actor slot, actor, and `local_64`; entry initializes the two lost register locals. Three checked generator replacements plus a prototype update reproduce the repair. No guard, skipped call, or action-index change was added.
+
+Proof: batch GDB breaks on the empty-slot call with `action_slot=0xaa6c7e`, actor `0xaa6bd8`, advance zero, and `*action_slot=0`. `finish` returns to the caller normally, with actor flags `0x8c`. This follows the original empty-slot branch to `0x42afee`. It does not enter nested action helpers or verify the nonempty-slot ECX/actor ownership still deferred to Step 08.
+
+Result: generator syntax, scratch and in-place parity for all four outputs, three builds, all 8 arrow rows, debug wrapper, and default SDL scene-175 packet pass. Selected/present/window hashes remain `321e33d6` / `914159a1` / `5cf799a1`. Packet bookkeeping now reports front surface 3 (previous capture 2); this does not change the selected pixels or establish living geometry. Manual F5 was not rerun.
+
+The isolated long-delay ASan probe and wrapper still exit 1, now with a global-buffer-overflow followed by a nested ASan reporting error. A GDB breakpoint on `__asan_report_load4` identifies the first read at `FUN_00448a48` line 42957: `(&DAT_00636624)[iVar4 * 2]`, with `iVar4=-1`, query result `iVar3=42278`, and output pointer `unaff_EBX=0xffffb038`. The stack is `FUN_00448a48 <- FUN_00449680 <- FUN_004495e0 <- FUN_00427584`; the outer unwind is already damaged. Investigate the output-pointer write as well as the table read. Original `0x448a55` saves optional output EBX, `0x448b62` writes through it, and `0x448b65` tests a byte at fixed address `0x636624 + index*2`. Its signed shift at `0x448b5b` is original; the reconstructed host-global array expression has a different base and width. Original `0x429fde` also supplies actor EAX to the still-unrecovered motion chain.
+
+Verification (after rebuilding all three trees):
+
+```sh
+env -u DISPLAY E2R_STARTUP_LOGO_DELAY_MS=0 timeout 150 build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-natural-advance-asan space,up 30 10000 60 1
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_REGRESSION_TMP=/tmp/e2-advance-regression timeout 300 scripts/run-e2-runtime-regressions.sh
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_CONTROL_MATRIX_TMP=/tmp/e2-advance-controls timeout 300 scripts/run-e2-control-matrix.sh
+SDL_VIDEODRIVER=dummy timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-advance-scene175 120 7000
+```
+
+GDB proof uses the ASan command with `ASAN_OPTIONS=detect_leaks=0`, a conditional breakpoint at `FUN_0042ae80` when `*action_slot == 0 && param_2 == 0xaa6bd8`, and `finish`; disable that breakpoint and break `__asan_report_load4` to capture the next failure before ASan reporting. Ephemeral evidence: `/tmp/e2-advance-proof.gdb`, `/tmp/e2-advance-gdb.log`, `/tmp/e2-natural-advance-asan.log`, `/tmp/e2-advance-regression.log`, `/tmp/e2-advance-controls.log`, `/tmp/e2-advance-scene175-state.txt`; parity scratch `/tmp/e2-generator-audit-bgyy0ojw`.
+
+Next Frontier: [Step 07 Task 06](../../implementations/playable-sdl-runtime/steps/step-07/tasks/task-06-recover-natural-motion-query.md) owns the motion-query failure. Task 05's bounded input repair is complete; Tasks 02/03 and Step 07 remain open. Step 08 must rerun its gated action-384 probe against the new signature; its former entry crash is historical and loaded-action behavior remains unverified.
+
+Regression Risk: nonempty action slots still exercise unrecovered ECX/helper context in `FUN_0042ae80`. Passing the natural empty-slot return does not establish full advancement, collision correctness, or playable actor motion. Preserve the separate long-delay and skip-route checks.
+
+## 2026-09-14 - Default-Action Helper Receives And Restores Actor Context
+
+Area: Step 07 Task 04, the three `FUN_00427584 -> FUN_0042b0f4` calls.
+
+Symptom: after the recursive-pointer repair, natural intro completion entered `FUN_0042b0f4` with uninitialized `in_EAX` while `E2R_actor_calc_context` was zero.
+
+Evidence: original calls at `0x427ad9`, `0x429d55`, and `0x429ed5` supply the current actor in EAX; the callee preserves EAX in EBX at `0x42b0f9`. The reconstructed callee already reads the actor context when nonzero. Other callers use this mechanism, but the three action-selection calls did not set it.
+
+Change: each of those calls now saves the enclosing `E2R_actor_calc_context`, sets it to `local_6c`, calls the helper, then restores the saved owner. The generator scopes the replacement to `FUN_00427584` and requires exactly three call matches, after the existing diagnostic mirrors. Other callers and transform helpers remain unrecovered where they were previously unrecovered.
+
+Proof: GDB at reconstructed line 22288 shows `local_6c=0xaa6bd8`, saved context zero, and current context `0xaa6bd8`. Stepping over the helper returns at line 22289; stepping over restoration reaches line 22291 with context zero. Thus the formerly failing default-action call completes and does not leave its actor installed globally.
+
+Result: generator syntax, all four scratch comparisons, in-place generation, default debug/ASan/SDL debug builds, all 8 arrow rows, and debug wrapper pass. The default SDL scene-175 selected/present/window hashes remain `321e33d6` / `914159a1` / `5cf799a1`; living geometry remains missing. Manual F5 was not rerun.
+
+The long-delay ASan probe and full wrapper still exit 1, now reading `0x72` inside `FUN_0042b338` (line 23425), called from `FUN_0042ae80` (line 23149) and `FUN_00427584` (line 22374). GDB shows `FUN_0042ae80.in_EAX=0xffffb040`, `unaff_EBX=-65469`, downstream `puVar1=0x72`, and caller actor `0xaa6bd8` with action pointer zero. The action-advance helper is interpreting unrelated stack storage as a slot. Original `0x429f68–0x429f76` supplies EAX = actor + `0xa6`, EDX = actor, EBX = local `[ebp+0x32]`; callee `0x42ae87–0x42ae8b` preserves them. Recover the advance local and this calling convention next. The original empty-slot test at `0x42ae8d` should take the return path for the observed actor.
+
+Verification commands (after rebuilding all three trees):
+
+```sh
+env -u DISPLAY E2R_STARTUP_LOGO_DELAY_MS=0 timeout 150 build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-default-action-asan space,up 30 10000 60 1
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_REGRESSION_TMP=/tmp/e2-context-regression timeout 300 scripts/run-e2-runtime-regressions.sh
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_CONTROL_MATRIX_TMP=/tmp/e2-context-controls timeout 300 scripts/run-e2-control-matrix.sh
+SDL_VIDEODRIVER=dummy timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-context-scene175 120 7000
+```
+
+GDB proof: use the same ASan arguments with `ASAN_OPTIONS=detect_leaks=0`; break at the default-action call, inspect actor/saved/current context, `next` over the call and restoration, disable the breakpoint, then continue to collect the later crash and caller action slot. Ephemeral artifacts: `/tmp/e2-context-proof.gdb`, `/tmp/e2-context-gdb.log`, `/tmp/e2-default-action-asan.log`, `/tmp/e2-context-regression.log`, `/tmp/e2-context-controls.log`, `/tmp/e2-context-scene175-state.txt`; scratch parity `/tmp/e2-generator-audit-iolr2au0`.
+
+Next Frontier: [Step 07 Task 05](../../implementations/playable-sdl-runtime/steps/step-07/tasks/task-05-recover-natural-action-advance-inputs.md). Task 04's bounded repair is complete, with the new independent failure split under its acceptance criteria. Tasks 02/03 and Step 07 remain open. This now overlaps Step 08's action-advance helper, but the default empty-action route and opt-in loaded action-384 route require separate proofs.
+
+Regression Risk: the context bridge repairs these three source-backed calls only. Other `FUN_0042b0f4` callers, child transforms, and the action-advance chain still contain unrecovered register artifacts. No guard or assertion was relaxed.
+
+## 2026-09-14 - Recursive Actor Pointer Repair Removes Queued-Action Corruption
+
+Area: Step 07 Task 03, `FUN_00423858` child recursion feeding `FUN_00427584` natural-intro action selection.
+
+Symptom: natural horse-action completion reads `0x8002` through Joe's queued-action pointer. The consumer's original reads at actor `+0x126`/`+0x12a` match the reconstruction; the corruption occurs earlier.
+
+Evidence: a hardware watchpoint on Joe `+0x12a` (`0xaa6d02`) catches its transition from zero to `0x8000`. `FUN_00423858(param_1=0xaa6d00, param_2=0)` executes the actor-flag OR at `+3`; its argument is Joe `+0x128`, inside actor storage. The calling `FUN_00423858(param_1=0xaa6bd8, param_2=0)` passed coordinate-derived `uVar2` instead of the child actor. The upstream stack is `FUN_00421074 -> FUN_004211c8 -> FUN_0042a70c -> FUN_00426df8`.
+
+Original executable evidence:
+
+- `0x423c0b` and `0x423cae` load child EBP into EAX before the common recursive call at `0x424144`.
+- The special branch calls with child EBP at `0x424129`, first descendant `[esp+0x64]` at `0x424135`, then second descendant `[esp+0x58]` at `0x42413e`. EDX selects modes 1, 1, and 0 respectively.
+- The reconstruction's `iVar10`, `local_44`, and `local_50` hold these three actor pointers. Its coordinate/`extraout_ECX` values do not represent the original EAX arguments.
+
+Change: five C lines restore the recursive targets; three unique-anchor generator patches preserve the exact repair. No consumer pointer guard or action-index change was added. Scratch generation matches all four artifacts, and in-place generation leaves exactly five changed C lines relative to the committed reference.
+
+Result: default debug, ASan, and SDL debug build; all 8 arrow rows pass; debug passes the canonical wrapper. The default SDL scene-175 packet still records selected/present/window hashes `321e33d6` / `914159a1` / `5cf799a1`, with missing living geometry unchanged. Manual SDL F5 was not rerun.
+
+The isolated long-delay ASan probe and full wrapper still fail, now inside `FUN_0042b0f4` called from `FUN_00427584` line 22280. ASan stops at line 23264; batch GDB reaches line 23309 with `in_EAX=-15512` and `E2R_actor_calc_context=0`. Joe's queued-action fields are both zero; caller `local_6c=0xaa6bd8`, candidate `iVar17=0`. This is a separate uninitialized actor input. Original caller `0x429d52` loads EAX from the actor local before `0x429d55`; callee `0x42b0f9` saves actor EAX into EBX. The reconstructed zero-argument helper only initializes its local when the fallback global context is nonzero.
+
+Verification (from repository root after the three builds):
+
+```sh
+env -u DISPLAY E2R_STARTUP_LOGO_DELAY_MS=0 timeout 150 build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-natural-intro-repaired space,up 30 10000 60 1
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_REGRESSION_TMP=/tmp/e2-handoff-regression timeout 300 scripts/run-e2-runtime-regressions.sh
+env -u DISPLAY E2R_SKIP_BUILD=1 E2R_CONTROL_MATRIX_TMP=/tmp/e2-handoff-controls timeout 300 scripts/run-e2-control-matrix.sh
+SDL_VIDEODRIVER=dummy timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-handoff-scene175 120 7000
+```
+
+To reproduce the original writer before this repair, start the ASan executable under GDB, `watch -l *(unsigned int *)0xaa6d02`, condition that watchpoint on the value equaling `0x8000`, then continue the long-delay probe and collect `bt`/locals. The addresses are observations for the current fixed-address actor allocation. Ephemeral evidence: `/tmp/e2-natural-action-watch.log`, `/tmp/e2-natural-intro-repaired.log`, `/tmp/e2-natural-repaired-gdb.log`, `/tmp/e2-handoff-regression.log`, `/tmp/e2-handoff-controls.log`, `/tmp/e2-handoff-scene175-state.txt`; parity scratch `/tmp/e2-generator-audit-8ttq5ejh`.
+
+Next Frontier: [Step 07 Task 04](../../implementations/playable-sdl-runtime/steps/step-07/tasks/task-04-recover-default-action-actor-context.md) recovers the default-action helper's actor context. Tasks 03/02 remain deferred because their full baseline acceptance is not met. Step 07 remains open; Step 08 action-384 recovery remains gated.
+
+Regression Risk: these recursive inputs are source-backed, but transform helpers in this family still contain unrecovered registers. Passing state/surface probes do not establish full actor traversal/animation fidelity. Keep natural completion and the short skip route as separate checks.
+
+## 2026-09-14 - Canonical Wrapper Exposes Natural-Intro Action Candidate Crash
+
+Area: Step 07 baseline, `FUN_00427584` action selection after natural horse-action completion.
+
+Symptom: after the wrapper's `space,num8` sequences were corrected to `space,up`, debug passed and ASan executed for the first time in the full wrapper. ASan crashes before its 30-second first-key delay. A repeat with `DISPLAY` removed fails at the same read, excluding the live X11 key events seen in the first run as the cause of this observation.
+
+Evidence: action `0x93a329` completes at progress 494/duration 495, then the last requester log reports `scene=0x67d0ac current=0xaa6bd8` (scene slot 87). ASan reads `0x8002` at `local_6c[0x55] = *(short *)(iVar17 + 2)` in `FUN_00427584` (line 20602 at discovery).
+
+```text
+FUN_00427584 <- FUN_0042a70c <- FUN_00426df8
+             <- FUN_0041007c <- E2R_WinMainThunk <- main
+AddressSanitizer: SEGV on unknown address 0x00008002
+```
+
+Reproducer, from repository root with the ASan build current:
+
+```sh
+env -u DISPLAY E2R_STARTUP_LOGO_DELAY_MS=0 timeout 150 build/linux-clang32-asan/e2recomp --inject-key-sequence-gameplay-surfaces /tmp/e2-natural-intro-asan space,up 30 10000 60 1
+```
+
+Change: mirrored committed diagnostics in the generator (all four artifacts reproduce byte-for-byte), removed its intermediate output write, changed both wrapper input sequences to canonical Up, asserted VK_UP delivery, and extended quiet-mode rejection to actor-exit/action-lookup logs. No reconstructed game behavior changed and no runtime guard was added.
+
+Result: generator syntax/parity, debug/ASan/SDL debug builds, all 8 arrow matrix rows, and the default scene-175 SDL packet pass. Packet hashes remain `321e33d6` / `914159a1` / `5cf799a1`. The full wrapper still fails ASan and Step 07 remains open. Discovery artifacts: `/tmp/e2-step07-regression.log`, `/tmp/e2-step07-regression-asan.log`, `/tmp/e2-step07-asan-isolated.log`, `/tmp/e2-step07-controls.log`, and `/tmp/e2-step07-scene175-state.txt` (ephemeral).
+
+Next Frontier: [Step 07 Task 03](../../implementations/playable-sdl-runtime/steps/step-07/tasks/task-03-recover-natural-intro-action-handoff.md) recovers the candidate producer/ownership in natural intro completion. Inspect actor `+0x126`/`+0x12a` and the delayed/side-linked action lookup against original code. This repro has action indexing disabled and is distinct from Step 08's gated action-384 `FUN_0042ae80` crash.
+
+Regression Risk: the short arrow matrix skips before natural completion and cannot substitute for the longer ASan route. Preserve that coverage and the sanitizer rejection; do not shorten the delay to declare the wrapper green.
+
+## 2026-09-14 - Audit Reconfirms Action 384 And Corrects Baseline Claims
+
+No runtime repair was made. The [audit](runtime-audit-2026-09-14.md) rebuilt all three variants, passed all 8 arrow rows, reproduced the static scene-175 packet and gated `FUN_0042ae80` crash, and found that the old wrapper fails on debug numpad input before ASan. Scratch generation also loses committed diagnostics. Steps 07/08 now own baseline and actor recovery; the commands and durable evidence are in the audit.
+
 ## 2026-08-21 - Action 384 Probe Is Gated Away From Manual Runtime
 
 Area: Playable SDL runtime Step 3 Task 03, scene-175 action/model frontier

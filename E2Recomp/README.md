@@ -1,10 +1,10 @@
 # E2Recomp.exe Reconstruction
 
-This directory contains a first-pass Ghidra decompilation of `C:\ecstatica2\E2Recomp.exe`.
+This directory contains Ghidra export artifacts, generated reconstruction, Linux native probes, and compatibility/host backends for Ecstatica II. The current export route targets original `E2WIN95.EXE`; older Windows commands below refer to the historical `E2Recomp.exe` input. See the [active implementation](../docs/implementations/playable-sdl-runtime/playable-sdl-runtime.md) for current status and [build instructions](reconstructed/README.md) for Linux launch.
 
 ## What Was Recovered
 
-- `src/E2Recomp_decompiled.c`: Ghidra C-like output for 839 discovered functions.
+- `src/E2Recomp_decompiled.c`: Ghidra C-like output; `metadata/functions.tsv` records the exported function inventory.
 - `src/e2recomp_types.h`: type shim for Ghidra primitive types.
 - `reconstructed/E2Recomp_recon.c`: compileable normalized reconstruction.
 - `reconstructed/E2Recomp_rebuilt.exe`: linked 32-bit rebuilt executable.
@@ -60,7 +60,7 @@ That target intentionally rewrites `reconstructed/E2Recomp_recon.c`,
 `reconstructed/E2Recomp_recon.h`, and related generated artifacts, so use it when
 you want a fresh Ghidra-derived reconstruction pass.
 
-From `C:\ecstatica2`:
+Historical Windows export route (not reverified by the 2026-09-14 audit), from `C:\ecstatica2`:
 
 ```powershell
 .\reverse\E2Recomp\tools\ReExport.ps1
@@ -77,21 +77,14 @@ Equivalent direct Ghidra command:
   -postScript ExportDecomp.java 'C:\ecstatica2\reverse\E2Recomp'
 ```
 
-## Rebuild Status
+## Rebuild Status And Next Recovery
 
-The reconstruction now compiles and links with MSVC x86 via `reconstructed/Build-Reconstructed.ps1`.
+Linux/i386 default debug, ASan, and SDL debug builds passed the 2026-09-14 audit. The 64-bit executable refuses reconstructed runtime execution. The MSVC x86 script is retained as a historical build route; it was not reverified in the audit.
 
-This is still not a clean original-source rebuild. Native PE decompilation recovers control flow and expressions, but not original headers, structs, source file layout, local names, comments, or exact runtime imports.
+Recovering behavior still requires original calling conventions, typed data ownership, and accurate helper semantics. The current code includes compatibility implementations alongside unresolved hardware, x87, SIMD, audio, and decompiler-helper stubs. It is not a behavior-complete port.
 
-The current linked executable uses isolated stubs for unresolved x87, I/O-port, SIMD, and decompiler-helper symbols. Replace those stubs with real implementations/import bindings to move from "buildable" toward behavior-equivalent.
+Generator parity and the full canonical-control debug/ASan wrapper now pass after Step 07’s actor/action/motion repairs. All 8 arrow rows and the default SDL static packet pass. [Task 02](../docs/implementations/playable-sdl-runtime/steps/step-07/tasks/task-02-repair-canonical-control-regressions.md) is complete after the manual screenshot/log confirmed the static scene-175 baseline. Use the [scratch comparison recipe](../docs/journal/entries/runtime-audit-2026-09-14.md) to verify generation changes.
 
-To make this rebuildable as maintainable C, the next reconstruction pass should:
+Action 384's loader/callback ownership and the missing-scene message list are recovered. [Step 08 Task 05](../docs/implementations/playable-sdl-runtime/steps/step-08/tasks/task-05-recover-post-intro-scene-selection.md) traces bad position events to a keyframe allocator reading host globals instead of mapped pool flags. Its corrected scan shares `E2R_ACTION_INDEX_PROBE=1`; distinct keys now expose an earlier actor-input crash in scene-pose restoration under SDL/GDB and ASan. [Task 06](../docs/implementations/playable-sdl-runtime/steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md) is next, then Task 05/01 validation and Joe geometry. The default allocator remains a temporary baseline compromise. Mirror source-backed repairs in `tools/GenerateRecon.js`; global renaming, broad struct cleanup, and platform migration remain later work.
 
-1. Rename high-confidence functions using strings, imports, and call sites.
-2. Recover global structs around dense regions such as `DAT_00479*`, `DAT_0047a*`, and `DAT_0063*`.
-3. Replace absolute `DAT_` and `s_` labels with typed globals or resource blobs.
-4. Add real prototypes before the first function body.
-5. Split runtime/library-looking functions away from game code.
-6. Compile frequently with a 32-bit Windows C compiler and fix type mismatches function by function.
-
-The saved Ghidra project is the best place to do that cleanup because renames and types can then be exported repeatedly.
+Both **Ecstatica Recompiled (SDL)** and **Ecstatica Recompiled (SDL + actor cues)** in VS Code enable visual cues. Restart the debug session after changing launch settings. For a terminal launch, run `E2R_ACTOR_CUES=1 ./build/linux-clang32-sdl-debug/e2recomp --run-recon`. A cyan square marks Joe on a top-down X/Z map; amber diamonds mark other table-confirmed live actors. It is centered on Joe's home with a ±8192 range; `+` marks clipped positions. The current scene-175 runtime has no instantiated enemies, so two hollow status icons say **2 ENEMIES NOT LOADED**. These are not enemy positions or camera-projected game geometry. The overlay changes only SDL presentation; visibility packets keep the original game surfaces and add `actor_cue` state when enabled.

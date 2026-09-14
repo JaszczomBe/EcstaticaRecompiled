@@ -3,96 +3,105 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-08-20
+Last Updated: 2026-09-14
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
 
-Turn the reconstructed Ecstatica II Linux runtime from a proven first-gameplay/live-frame milestone into a practical SDL-backed developer runtime that can be launched, observed, controlled, debugged, and improved through repeatable bounded checks.
+Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer runtime with visible actors, usable controls, repeatable diagnostics, and recovered game behavior.
 
 ## Scope
 
-1. Interactive SDL F5 stability and crash-frontier triage.
-2. DirectDraw page, palette, and front-buffer fidelity.
-3. Gameplay input, camera, and control-state proof expansion.
-4. Runtime timing and frame pacing ownership.
-5. Initial DirectSound/audio compatibility boundary.
-6. Repeatable developer bootstrap, launch, and validation workflow.
+1. Reproducible generated code and bounded runtime validation.
+2. Actor/action initialization and rendering after the intro.
+3. Gameplay controls, camera behavior, and requester fidelity.
+4. Timing, initial audio compatibility, and developer bootstrap.
 
 ## Non-Goals
 
-1. Shipping a polished multi-platform release.
-2. Replacing original-shaped reconstructed game logic with host-library shortcuts.
-3. Pixel-perfect rendering or full audio fidelity in the first pass.
-4. Removing 32-bit/fixed-address assumptions before they are mapped.
-5. Broad generated-file churn outside focused, Ghidra-backed repairs.
+1. A release-ready port, full original fidelity, or 64-bit core migration.
+2. Replacing recovered logic with speculative shortcuts or direct SDL calls.
+3. Broad generated-file changes unrelated to a source-backed repair.
 
 ## Current Baseline
 
-The completed [Run Reconstructed E2 On Linux](../linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md) implementation proves the first runtime horizon:
+The 2026-09-14 audit rebuilt commit `43ddc8a`; the same-day Step 07 continuations restored generator parity, repaired recursive actor ownership, and reran the corrected wrapper, matrix, and SDL packet. See the [audit evidence and commands](../../journal/entries/runtime-audit-2026-09-14.md). The earlier [Linux reconstruction implementation](../linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md) remains a historical milestone record.
 
-1. Original Ecstatica II data loads from `/home/rgrabowski/Games/Ecstatica2/`.
-2. The reconstructed main loop survives under debug and ASan probes.
-3. Menu input reaches requester navigation and Start Game.
-4. Gameplay control-ready probes reach `_DAT_00643650=0`, `_DAT_0073cc3c=0x681d04`, nonblank surface 3 `hash=6e39f5ea`, and `move=[1,0,0,0,0,0,0,0,0]`.
-5. Host window/input/presentation behavior is isolated behind a backend boundary.
-6. SDL 3.4.12 is vendored under `dep/SDL`.
-7. The SDL backend receives real recovered `640x480` runtime frames from recovered front surface `3` in hires/full-frame mode.
-8. The SDL backend aspect-fits those frames into the host window instead of stretching them; a `640x640` host surface now presents the game at centered `640x480`.
-9. VS Code exposes `Ecstatica Recompiled (SDL)` for the live-presentation backend.
+| Area | Verified state | Limit |
+| --- | --- | --- |
+| Builds | Default debug, ASan, and SDL debug compile | Runtime remains Linux/i386 with fixed-address assumptions |
+| Controls | All four arrow rows pass in debug and ASan (8/8) | Checks establish input-state latches, not actor motion or visible gameplay |
+| Intro route | First-intro Space enters `Start_sc`; completion preserves scene 175 | Full animated intro fidelity is unresolved; Space during `Start_sc` remains wait-only |
+| Presentation | Scene 175, selected surface 3 `321e33d6`, SDL present `914159a1`, window `5cf799a1` | Static background; living Joe and enemies are absent |
+| Joe | Actor 0 has render rep 67 and a render tree | `model=0xffffffff`, root update list empty, draw vertices zero |
+| Scene children | 319/322/318 have scene/rep offsets | No actor instances |
+| Regression wrapper | Full canonical-Up debug and ASan probes pass; all evidence/rejection assertions retained | ASan natural completion ends in scene 87; state/surface checks do not prove visible motion |
+| Generator | Syntax and all four artifact comparisons pass after diagnostic mirrors and recursive-pointer repair | Generated C/header include the focused actor/action/motion repairs; no unexplained drift |
+| Audio/save | Compatibility stubs and requester routing exist | MIDI is silent; quick-save writer is a no-op; functional save/load is unproven |
+
+SDL 3.4.12 is vendored in `dep/SDL`. The host backend presents 640x480 frames centered in the 640x640 window and owns window/input/presentation services. X11 remains the default backend; VS Code offers `Ecstatica Recompiled (SDL)`. The audit used dummy SDL and did not repeat manual F5 or all menu/modifier probes.
 
 ## Step Roadmap
 
-Each step should be small enough for a single context window. If a step starts collecting unrelated fixes, split it before implementation continues.
+Step numbers are stable identifiers, not execution order. Resume order is **07 → 08 → remaining 03 → 04 → 05 → 06**. Steps 01/02 and Step 03 Tasks 01/02 retain their bounded historical completions.
 
-1. [Stabilize Interactive SDL F5 Runtime](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) - completed; captured the user's F5 behavior, reproduced the stable SDL boundary, and classified the first frontier as DirectDraw page/palette/front-buffer fidelity.
-2. [Recover DirectDraw Page And Palette Semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) - completed; recovered palette ownership and the hires/full-frame front-buffer source.
-3. [Expand Gameplay Control And Camera Proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) - active; intro `Esc` now reaches readable requester contents, the mouse-only intro menu can route clicks to Load and Settings, a bounded Settings submenu proof toggles Music through the reconstructed row/action chain, requester backdrop stacking restores main-menu/intro layers in bounded probes, four movement controls are covered by a debug/ASan matrix, grouped held-key probes can classify modifiers, and the fastest intro route now preserves the post-`Start_sc` scene `175` without crashing. The current frontier is gameplay control readiness in the visible Joe/pedestal scene, not scene-87 player rendering.
-4. [Define Runtime Timing And Frame Pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) - planned; identify timing ownership and add a backend timing contract only where needed.
-5. [Begin DirectSound Compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) - planned; map startup sound behavior and define the first replaceable audio boundary.
-6. [Package Reproducible Developer Runtime](steps/step-06/step-06-package-reproducible-developer-runtime.md) - planned; make clone/submodule/build/launch validation boring and repeatable.
+| Step | Status | Outcome / dependency |
+| --- | --- | --- |
+| [01 — Interactive SDL stability](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) | completed | Historical bounded startup/F5 investigation |
+| [02 — DirectDraw page and palette semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) | completed | Recovered front source, palette, aspect-fit presentation |
+| [07 — Restore reproducible baseline](steps/step-07/step-07-restore-reproducible-runtime-baseline.md) | completed | Automated checks pass; manual screenshot/log confirms scene-175 baseline |
+| [08 — Recover scene-175 actors](steps/step-08/step-08-recover-scene-175-actors.md) | active | Action/message inputs repaired; gated validation awaits position/scene-selection recovery |
+| [03 — Gameplay control and camera proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) | deferred | Input mapping/matrix complete; Task 03 resumes after 08 |
+| [04 — Timing and frame pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) | planned | Recover game timing ownership after visible control proofs |
+| [05 — DirectSound compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) | planned | Map sound calls before implementing an audio boundary |
+| [06 — Developer runtime packaging](steps/step-06/step-06-package-reproducible-developer-runtime.md) | planned | Consolidate existing setup docs, add unified validation, define release gate |
 
 ## Active Frontier
 
-The current user-facing target is E2WIN95 startup-sequence parity, not only palette or front-buffer selection. The expected reference path is:
+All automated Step 07 baseline checks now pass. Tasks 03–06 repaired recursive actor corruption, default-action context, action-advance inputs, and motion-query ownership. The long-delay ASan probe dispatches Space/Up and captures a nonblank scene-87 surface (`bf4a8e25`) without sanitizer errors. The separate default SDL skip route still captures scene 175 with the recorded static hashes. The user’s crash-free F5 report and subsequent screenshot/log confirm the static scene-175 final image, completing [Task 02’s manual check](steps/step-07/tasks/task-02-repair-canonical-control-regressions.md) and Step 07. Original scene-selection fidelity and living actors remain Step 08 work.
 
-1. Psygnosis logo.
-2. Andrew Spencer Studios logo.
-3. Ecstatica II loading/logo screen.
-4. First engine intro scene: two people ride on horseback toward the castle; at the castle gate one is captured and the other is knocked down by flying beings. This scene lasts roughly 30-40 seconds.
-5. The first intro scene can be skipped with `Space`, or it can run to natural completion.
-6. Second brief intro/sub-intro scene: the main character is bound to a pedestal, lightning strikes, and the character breaks free. This scene lasts roughly 10 seconds and should be waited out rather than skipped.
-7. Proper gameplay begins with normal controls after the sub-intro finishes.
-8. `Esc` can enter the menu during the intro; `Space` should advance toward the gameplay path.
+[Step 08 Task 01](steps/step-08/tasks/task-01-recover-action-context.md) now restores the current actor across action parsing, preserves the action slot across helpers, and supplies Joe to child updates. GDB verifies action 384 at `0xac263c`, Joe `0xaa6bd8`, slot `0xaa6c7e`, and progress 0 → 1638 with context restored. Generator parity, three builds, the default wrapper, all 8 arrow rows, and the default SDL packet pass again.
 
-Current rebuilt SDL behavior has advanced past several crash boundaries, but it still does not fully match that sequence because the first intro remains visually static and lacks character/scene procession fidelity. Startup diagnostics now prove the route finds and dispatches `ken:StartUp`, and `FUN_00447d94` now recognizes the flat `FANT` layout in `Files/ECSTATIC` instead of treating it as an offset-indexed archive. The flat-FANT scan populates the scene offset table at `0x650fa0`, so opcode-`0x4d` preloads install matching scene records and child-list passes execute instead of walking empty table slots. Follow-up generated repairs stabilized scene removal/list cleanup, scene activation, actor/name lookup, first-intro skip, `Start_sc` completion, signed scene-height lookup, and the post-subintro handoff. The pragmatic fastest gameplay route is now recovered in bounded SDL probes: skip the first long intro with `Space`, let the pedestal/lightning sub-intro finish naturally, preserve scene `175` when the selector tries to jump to scene `87`, and reach a visible Joe/pedestal frame. Full animated first-intro fidelity can follow separately.
+[Task 04](steps/step-08/tasks/task-04-recover-missing-scene-message-inputs.md) now supplies a live `["Can't find scene", "mtorc4", NULL]` list and eliminates the missing-scene ASan lifetime error. GDB confirms scene 40 has resource pointer 0 and archive offset -1. At Task 04 completion, both gated SDL and ASan checks exited 5 waiting for scene 175; the recovered list reaches requester code, whose visible message rendering/dismissal is not validated.
 
-The Step 2 DirectDraw-facing presentation frontier is closed. Original `E2WIN95.EXE` disassembly around `FUN_0043acec` maps surfaces `0/1/2` to the low VGA-style pages and surface `3` to the full `640x480` raw frame buffer. The host presenter now recovers surface `3` as the front source whenever `DAT_0047a43c != 0`, logs both `front` and `visible`, and only falls back to the old nonblank scan if the recovered front is unreadable or blank. A dummy-SDL probe reports `selected=3 front=3 visible=0 hires=4`, dump state `front=3 visible=1`, scene palette hash `de4e4c5d`, and nonblank surface `3` hash `44b33248`, matching the stable horseback/credits intro frame family.
+[Task 05 — Recover post-intro scene selection](steps/step-08/tasks/task-05-recover-post-intro-scene-selection.md) now identifies the corrupt coordinate event and the keyframe allocator's mismatched flag addresses. Corrected mapped-pool reads produce distinct 15-byte keys, but expose an earlier missing actor input in `FUN_004523f8 → FUN_00426124`, reproduced by SDL/GDB and ASan. The pool repair shares the action-index gate; the gate-off allocator remains a known temporary compromise. Next is [Task 06 — Recover scene-activation pose inputs](steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md), then Task 05/01 validation and Joe geometry. Tasks 05 and 01 remain active. The supplied manual final image matches the gate-off static baseline; gated scene-selection fidelity remains unresolved.
 
-The SDL backend now preserves the source frame aspect ratio during the final host-window blit. This keeps the recovered `640x480` frame centered inside the original-shaped `640x640` top-level window instead of stretching it to the full surface. With `E2R_PRESENT_DIAG=1`, a dummy-SDL check reports `host backend present rect: src=640x480 window=640x640 dst=0,80 640x480`.
+Both VS Code SDL launches enable a read-only host X/Z map (`E2R_ACTOR_CUES=1`). Joe is a cyan square; other table-confirmed actors are amber diamonds. The current scene-175 capture has only Joe, so two hollow enemy-status icons report **not loaded**, without inventing enemy positions. This diagnostic is separate from camera-projected game rendering and does not satisfy Step 08's actor visibility criteria.
 
-The current active blocker is no longer SDL event delivery or fastest-route intro progression. Window events, keydown/keyup events, mouse motion/button events, and Win32-style message dispatch reach the reconstructed window procedure. During the horseback/credits intro, `Space` now reaches `E2R_RequestIntroSkip`, recognizes the active actor's owning scene as `horse` scene id `1564`, and loads `Start_sc` scene id `0`; the same hook consumes Space during the wait-only `Start_sc` sub-intro without requesting a second transition. `Start_sc` now runs to action `0x9377e3` completion, ignores missing sound id `331` without opening the requester/error path, copies Joe's live vector to `12800,256,-3584`, and uses signed scene-height lookup so descriptor height byte `0xff` resolves the original descriptor instead of looping scene `0`. The 2026-08-20 handoff repair marks that exact `Start_sc` action completion and preserves scene `175` when `FUN_0044c224` would otherwise select scene `87`; the long dummy-SDL route exits with `_DAT_0073cc3c=0x67da4c`, `hires\0175.raw`, nonblank surface-3 hash `321e33d6`, and Joe visible in the pedestal room. The 2026-08-21 visibility packet adds an F12/env-triggered proof across game framebuffer memory, SDL's converted present surface, and SDL's final window surface; the post-handoff dummy-SDL packet after `start-sc handoff preserve scene current=175 selected=87` records selected surface `3` hash `321e33d6`, SDL present hash `914159a1`, and SDL window hash `5cf799a1`. A manual real-SDL pass on 2026-08-17 confirmed startup now shows the Psygnosis logo, Andrew Spencer Studios logo, and Ecstatica II title/loading screen, then reaches a static intro scene without animated characters or scene progression. `Esc` reaches the menu/requester branch in `FUN_00415d40` and now presents readable requester contents: `START GAME`, `SAVE GAME...`, `LOAD GAME...`, `SETTINGS...`, `QUIT`, and `CANCEL`. Original testing showed the intro menu is mouse-only, so the current proof follows that route: bounded SDL probes inject an intro `Esc`, then Win32 mouse clicks. Settings reaches requester id `0x31` with state `2`, Load reaches requester id `0x29` with state `4` without crashing, a targeted two-click Settings proof selects item `0x643998` and toggles `settings.music` from `0` to `1`, Settings OK returns to the main menu, and Quit Yes/No now draw fallback labels and route to confirm/cancel. The widened Load/Save slot-list record now frames its children instead of spilling across the screen, but title/slot overlap, the left black save-location rectangle, modal-over-main-menu artifacts, and hosted font/color/layout fidelity remain visual frontiers. The Ecstatica II manual mapping uses cursor keys for movement, not numpad; `scripts/run-e2-control-matrix.sh` now proves the four canonical arrow movement controls in debug and ASan: `up`, `down`, `left`, and `right`. Held groups such as `space,ctrl+up` now prove left-modifier flags reach the gameplay input layer, while Right Alt/drop, Return/status, S/I/L utility behavior, Space interaction, and action/camera owner state remain Task 03 classification work.
+Keep action indexing opt-in during recovery. The default path has `actions=0` and reaches the static scene-175 packet. The one-shot 175-over-87 handoff guard remains a narrow stabilizer requiring later scene-transition validation.
 
-The default regression wrapper is not currently green. Debug still satisfies the gameplay-control gate. ASan no longer crashes in the latest `FUN_00423858` actor-transform child-chain frontier and still reaches StartGame entry, `DAT_00479de8=1`, `DAT_0047a76c=1`, requester state clear, movement latch `move=[1,0,0,0,0,0,0,0,0]`, and nonblank surface `3`, but the bounded wrapper rejects the run because `_DAT_0073cc3c` stays `0x0` after the scene-`7`/actor-`3853` transition. Keep that as a regression-wrapper caveat for Task 03 instead of treating the full wrapper as green.
+## Deferred Fidelity Work
+
+The original reference sequence is three logos, the 30–40 second horseback/castle intro (Space-skippable), the roughly 10 second pedestal/lightning sub-intro (wait-only), then gameplay. Recovered transitions are proven; full character animation/procession is not.
+
+Historical menu probes show readable Esc contents, mouse-only intro-menu routing to Settings/Load, Music toggling, Settings OK, and Quit confirmation. Load title/slot overlap, a black slot-area rectangle, modal artifacts, and font/color/layout remain unresolved. The missing-scene message also retains a no-op copy helper and a lost requester pointer in `FUN_0043cbf0`; recovering its input list does not prove visible text or dismissal. These are follow-ups after actor recovery unless they block a specific proof. Full save/load implementation needs a separate task before it is attempted.
 
 ## Invariants
 
-1. Keep SDL below the host backend; reconstructed C must not call SDL directly.
-2. Keep the default debug route available until SDL is intentionally promoted to default.
-3. Treat visual/audio fidelity fixes as compatibility semantics unless original logic evidence says otherwise.
-4. Mirror durable reconstructed fixes in `E2Recomp/tools/GenerateRecon.js`.
-5. Record every new crash frontier with command, call stack, last useful proof line, and regression impact.
-6. Prefer bounded probes that terminate automatically; manual F5 findings should become reproducible commands when feasible.
+1. Keep SDL below the host backend and preserve default X11 builds.
+2. Recover calling conventions and data ownership from original disassembly/Ghidra; mirror durable fixes and diagnostics in `GenerateRecon.js`.
+3. Distinguish a state latch, a visible actor, actual movement, and faithful gameplay in acceptance claims.
+4. Record bounded commands, failures, last useful evidence, and regression impact in the journal.
+5. Split new crash families into narrow tasks instead of expanding the control matrix indefinitely.
 
 ## Verification
 
-1. `cmake --build --preset linux-clang32-debug`
-2. `cmake --build build/linux-clang32-asan`
-3. `cmake --build --preset linux-clang32-sdl-debug`
-4. `scripts/run-e2-runtime-regressions.sh`
-5. SDL backend probes relevant to the active step.
-6. Manual VS Code F5 check when a step changes interactive behavior.
-7. `git diff --check`
+Run from the repository root:
+
+1. `node --check E2Recomp/tools/GenerateRecon.js`
+2. `cmake --build --preset linux-clang32-debug`
+3. `cmake --build build/linux-clang32-asan` (requires a configured ASan build)
+4. `cmake --build --preset linux-clang32-sdl-debug`
+5. `scripts/run-e2-control-matrix.sh`
+6. `scripts/run-e2-runtime-regressions.sh` — debug and ASan pass after Tasks 03–06.
+7. `SDL_VIDEODRIVER=dummy timeout 140 build/linux-clang32-sdl-debug/e2recomp --auto-scene175-visibility /tmp/e2-scene175 120 7000`
+8. `git diff --check`
+
+Use the [audit](../../journal/entries/runtime-audit-2026-09-14.md) for safe scratch regeneration and the gated GDB repro. Manual F5 remains a separate visual check when runtime behavior changes.
+
+## Manual Follow-Up — 2026-09-14
+
+The user’s 2026-09-14 screenshot matches the automated scene-175 static capture (red sky, central horned skull, stone platforms and straw); the accompanying input log reports `scene=0x67da4c`, the scene-175 slot address. Together with the earlier crash-free manual F5 report, this resolves the pending final-image comparison and completes the Step 07 baseline check. It does not establish original scene-selection fidelity or visible living actors; those remain Step 08 work. The missing cue panel was traced to the usual SDL launch leaving `E2R_ACTOR_CUES` unset; both SDL launch configurations now enable it after restarting the session.
 
 ## Change Log
 
@@ -155,9 +164,21 @@ The default regression wrapper is not currently green. Debug still satisfies the
 ### 2026-08-20
 
 1. Repaired the post-`Start_sc` wrong-location handoff reported from manual SDL: the exact action `0x9377e3` completion now sets a one-shot guard, and `FUN_0044c224` preserves current scene slot `175` when descriptor `48771` proposes scene `87`.
-2. Verified `node --check`, regeneration, `git diff --check`, `cmake --build --preset linux-clang32-sdl-debug`, and the long dummy-SDL route. The route exits with `_DAT_0073cc3c=0x67da4c`, `hires\0175.raw`, surface 3 hash `321e33d6`, and Joe visible.
+2. Verified `node --check`, regeneration, `git diff --check`, `cmake --build --preset linux-clang32-sdl-debug`, and the long dummy-SDL route. The route exits with `_DAT_0073cc3c=0x67da4c`, `hires\0175.raw`, surface 3 hash `321e33d6`. The initial Joe-visible interpretation was disproved by the 2026-08-21 packets.
 
 ### 2026-08-21
 
 1. Added a post-handoff visibility packet probe with F12 and env triggers. It captures game framebuffer pages, SDL converted presentation, SDL final window surface, and a state sidecar so the current manual no-player report can be classified by layer.
 2. Verified the post-handoff dummy-SDL packet: scene slot `175`, action pointer cleared, selected surface `3` hash `321e33d6`, SDL present hash `914159a1`, SDL window hash `5cf799a1`, and contact/diff artifacts generated by `scripts/e2r_visibility_sheet.py`.
+
+### 2026-09-14
+
+1. Reconciled current claims against the audit, retracted living-Joe visibility, and separated input proof from playability.
+2. Added Steps 07/08 and deferred remaining Step 03 controls behind baseline and actor recovery.
+3. Recorded generator drift and the current debug numpad-wrapper failure; source repairs remain pending.
+
+4. Completed generator diagnostic mirrors and canonical wrapper correction; split the ASan natural-intro action-candidate crash into Step 07 Task 03. All 8 arrow rows and the SDL static packet remain passing; Step 07 is not complete.
+
+### 2026-09-14 — SDL Cue Launch Follow-Up
+
+The usual SDL F5 launch now enables actor cues. The supplied screenshot/log resolves the manual static-scene comparison and closes Step 07; Step 08 remains active.

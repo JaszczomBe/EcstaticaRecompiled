@@ -6,7 +6,7 @@ This is the durable root road sign for future context windows. It explains where
 
 Run the decompiled Ecstatica II reconstructed runtime on Linux using original game data, while preserving recovered game behavior and isolating host services behind compatibility boundaries suitable for later replacement.
 
-The first reconstruction implementation is complete: original data loads, the main loop survives bounded debug/ASan probes, Start Game reaches first gameplay, movement input latches, real recovered frames present through SDL, SDL 3.4.12 is vendored under `dep/SDL`, and VS Code has an `Ecstatica Recompiled (SDL)` launch route.
+The first reconstruction implementation is a completed historical proof of resource loading, bounded loop execution, input-state latching, and recovered-frame presentation through SDL. Those probes do not establish visible, controllable gameplay. The active implementation owns current playability, regression results, and remaining recovery work; completed milestones must be read with their recorded acceptance limits.
 
 Development is evidence-driven: use repeatable CMake builds, bounded runtime probes, ASan/GDB observations, original disassembly or Ghidra evidence, and concise journal entries.
 
@@ -21,7 +21,7 @@ Read these sources in order:
 5. [Runtime Milestones](plans/runtime-milestones.md) - durable milestone order and architecture direction.
 6. `git status --short` and `git log -1 --oneline` - worktree and latest-commit state.
 
-Do not infer the current step from this file. The active implementation document owns changing execution state so this root anchor cannot drift out of sync. As of 2026-07-28, the completed reconstruction record is [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md), and the active next horizon is [Playable SDL Runtime](implementations/playable-sdl-runtime/playable-sdl-runtime.md).
+Do not infer the current step from this file. The active implementation document owns changing execution state so this root anchor cannot drift out of sync. The completed reconstruction record is [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md), and the active next horizon is [Playable SDL Runtime](implementations/playable-sdl-runtime/playable-sdl-runtime.md).
 
 ## Blank Context Protocol
 
@@ -53,7 +53,7 @@ When touching generated reconstruction behavior:
 1. Read the active implementation and relevant journal before changing reconstructed code.
 2. Prefer original disassembly or Ghidra-backed recovery over speculative defensive behavior.
 3. Mirror reconstructed C hand fixes in `E2Recomp/tools/GenerateRecon.js` so regeneration preserves them.
-4. Keep reconstructed game logic original-shaped. Linux/X11, Win32, DirectDraw, DirectSound, CRT, and future SDL behavior belongs in compatibility or host-backend layers.
+4. Keep reconstructed game logic original-shaped. Linux/X11, Win32, DirectDraw, DirectSound, CRT, and SDL behavior belongs in compatibility or host-backend layers.
 5. Build and run after each runtime fix when feasible; use bounded probes for unstable paths.
 6. Journal fixes that advance the runtime frontier, including evidence, result, next frontier, and regression risk.
 7. Preserve user changes in a dirty worktree. Do not revert unrelated work.
