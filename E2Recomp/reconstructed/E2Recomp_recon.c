@@ -1754,6 +1754,12 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
   ushort requester_id = E2R_WORD_AT(DAT_0047a45e,2);
 
   if (action == (uintptr_t)&LAB_0043c594) {
+    /* Original 0x43c5c6..0x43c5d0 accepts the message OK action. */
+    if (requester_id == 0x2e) {
+      _DAT_006443d0 = 1;
+      E2R_WORD_AT(DAT_0047a45e,2) = 0;
+      return 1;
+    }
     if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643dc4) {
       _DAT_006443d2 = (_DAT_006443d2 & 0xffff) | 0x10000;
       _DAT_006443d0 = 1;
@@ -32292,9 +32298,10 @@ int E2R_RequesterHandleMouseClick(uintptr_t x, uintptr_t y)
   uint guard;
 
   requester_id = E2R_WORD_AT(DAT_0047a45e,2);
-  if (_DAT_00643650 == 0 ||
+  /* Message requester 0x2e is modal even when the gameplay state is zero. */
+  if (requester_id != 0x2e && (_DAT_00643650 == 0 ||
       (requester_id != 0x14 && requester_id != 0x28 &&
-       requester_id != 0x29 && requester_id != 0x2a && requester_id != 0x31)) {
+       requester_id != 0x29 && requester_id != 0x2a && requester_id != 0x31))) {
     if (E2R_MenuDiagEnabled()) {
       fprintf(stderr,
               "menu click: phase=requester-direct outcome=ignored x=%ld y=%ld "
@@ -33778,6 +33785,19 @@ undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)
     return (ulonglong)param_2 << 0x20;
   }
   E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;
+  /* Original static record at 0x47a630 and the 18 line items built by
+   * 0x43fc20. Their generated host globals do not populate mapped records. */
+  E2R_InitRequesterRecord(0x0047a630,-1,-1,320,180,0,0x006430dc);
+  for (int line = 0; line < 18; ++line) {
+    uintptr_t item = 0x006430dc + line * 0x1e;
+    E2R_InitRequesterItem(item,300,10,10 + line * 9,8,
+                         0x0064403a + line * 0x33,0,0xc000 | line,
+                         line < 17 ? item + 0x1e : 0x00643de4);
+    /* Static text must not acquire the hosted selectable-item flag. */
+    *(short *)(item + 0x10) = (short)(0xc000 | line);
+  }
+  E2R_InitRequesterItem(0x00643de4,0x38,10,-0x14,0xc,(uintptr_t)"OK",
+                       (uintptr_t)&LAB_0043c594,0x2000,0);
   iVar2 = 0;
   do {
     iVar1 = iVar2 + 0x33;
@@ -33793,7 +33813,10 @@ undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)
     if (!E2R_IsReadableCString((char *)(uintptr_t)*in_EAX)) {
       break;
     }
-    FUN_0045f22f(iVar1,(char *)*in_EAX);
+    /* Original 0x43cc3d..0x43cc4e: copy at most 50 bytes into
+     * the mapped 51-byte line slot, then terminate it. */
+    strncpy((char *)(uintptr_t)(0x64403a + iVar1 * 0x33),
+            (const char *)(uintptr_t)*in_EAX,50);
     *(undefined1 *)(iVar1 * 0x33 + 0x64406c) = 0;
     if (iVar1 < 0x11) {
       *(int *)((undefined1 *)0x006430ee + iVar3) = iVar4;
@@ -33806,7 +33829,7 @@ undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)
     if (IsBadReadPtr(in_EAX,4)) break;
     iVar2 = *in_EAX;
   }
-  _DAT_0047a636 = (short)iVar1 * 9 + 0x28;
+  *(short *)(uintptr_t)0x0047a636 = (short)iVar1 * 9 + 0x28;
   if (iVar1 < 0x12) {
     iVar3 = iVar1 * 0xf;
     *(undefined4 *)((undefined1 *)0x006430ee + iVar1 * 0x1e) = 0x643de4;
@@ -33814,7 +33837,7 @@ undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)
   else {
     *(undefined4 *)0x006432ec = 0x643de4;
   }
-  uVar5 = FUN_0043b384(iVar1,iVar3);
+  uVar5 = FUN_0043b384(0x0047a630,0);
   return CONCAT44(param_2,(int)uVar5);
 }
 
@@ -48704,44 +48727,34 @@ undefined4 __fastcall FUN_0045186c(undefined4 param_1,undefined4 param_2)
 undefined8 __fastcall FUN_00451880(undefined4 param_1,undefined4 param_2)
 
 {
-  short in_AX;
-  uint uVar1;
-  undefined4 uVar2;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 uVar3;
-  undefined8 uVar4;
-  undefined1 local_6c [52];
-  undefined1 local_38 [52];
-  undefined4 uStack_4;
+  int action_id = (short)param_2;
+  undefined8 result;
+  unsigned status;
+  char detail[52];
+  const char *name;
+  const char *lines[3];
 
-  uStack_4 = param_2;
-  in_AX = (short)param_2;
-  E2R_TraceActionLookup("51880.entry",(int)in_AX,0);
-  uVar4 = FUN_0045190c(param_1,(int)in_AX);
-  uVar3 = (undefined4)((ulonglong)uVar4 >> 0x20);
-  uVar1 = (uint)uVar4;
-  E2R_TraceActionLookup("51880.after-5190c",(int)in_AX,(int)uVar1);
-  uVar2 = 0;
-  if (uVar1 != 0) {
-    if (uVar1 != 0) {
-      if (uVar1 < 2) {
-        FUN_00441b24(extraout_ECX,uVar3);
-        FUN_0045f0a1((int)local_6c,(byte *)s___s___d_004754c0);
-        uVar4 = FUN_0043cbb4(extraout_ECX_00);
-        return CONCAT44(uStack_4,(int)uVar4);
-      }
-      if (uVar1 == 2) {
-        FUN_00441b24(extraout_ECX,uVar3);
-        FUN_0045f0a1((int)local_38,(byte *)s___s__004754e4);
-        uVar4 = FUN_0043cbb4(extraout_ECX_01);
-        return CONCAT44(uStack_4,(int)uVar4);
-      }
-    }
-    uVar2 = FUN_00414e68();
+  E2R_TraceActionLookup("51880.entry",action_id,0);
+  result = FUN_0045190c(param_1,action_id);
+  status = (unsigned)result;
+  E2R_TraceActionLookup("51880.after-5190c",action_id,status);
+  if (status == 1 || status == 2) {
+    /* Original 0x4518a4..0x4518f3 supplies the name/id to snprintf's
+     * predecessor, then EAX/EDX as a two-line 0x43cbb4 message. */
+    name = E2R_ActionNameByIndex((short)action_id);
+    if (name == NULL) name = "(unknown)";
+    if (status == 1) snprintf(detail,sizeof(detail),"     '%s' %d",name,action_id);
+    else snprintf(detail,sizeof(detail),"     '%s'",name);
+    lines[0] = status == 1 ? "Can't load action:" : "Action name not in directory:";
+    lines[1] = detail;
+    lines[2] = NULL;
+    E2R_GameStateLog("action load message: id=%d status=%u name=%s indexed=%d",
+                    action_id,status,name,E2R_ActionIndexProbeEnabled());
+    result = FUN_0043cbf0((uintptr_t)lines,0);
+    return CONCAT44(param_2,(unsigned)result);
   }
-  return CONCAT44(uStack_4,uVar2);
+  if (status != 0) return CONCAT44(param_2,FUN_00414e68());
+  return CONCAT44(param_2,0);
 }
 
 

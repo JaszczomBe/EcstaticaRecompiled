@@ -53,3 +53,7 @@ The default SDL packet exits 0 and confirms the real behind-camera result. A pre
 The final gated SDL/GDB capture catches the geometry SIGSEGV above (`/tmp/e2-cues-final-gated.log`); GDB's shell exit 0 is not a successful game run. The gated headless ASan readiness probe exits 5, still in camera 1073 after 35 seconds (`/tmp/e2-cues-final-gated-asan.log`), without a sanitizer report. A separate default SDL ASan readiness probe exits 5 in camera 87. Neither establishes scene-175 ASan readiness. The new manual F5 visual check remains pending.
 
 Regression risk: recovered math activates previously inert transform callers. The two watched destination fixes address confirmed corrupting writes, but other hidden-register renderer calls remain. Keep action indexing and its pool/event-metadata repairs gated until geometry, final placement, action progression and child activation are validated.
+
+## Same-day F5 follow-up
+
+The supplied 35-second recording confirms grid replacement and bounded default-route survival, completing Task 07’s manual cue check. Its apparent post-intro freeze is a blocking action-error requester, not proof that the intro timer stops. The [requester continuation](post-intro-requester-2026-09-15.md) restores visible text/OK routing and records updated regressions. Static hashes above describe the earlier pre-repair capture; the new dialog changes game pixels.

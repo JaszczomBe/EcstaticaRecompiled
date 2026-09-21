@@ -8,8 +8,10 @@ runtime_diag="${E2R_RUNTIME_DIAG:-0}"
 
 debug_prefix="${tmp_root}-debug"
 asan_prefix="${tmp_root}-asan"
+asan_controls_prefix="${tmp_root}-asan-controls"
 debug_log="${debug_prefix}.log"
 asan_log="${asan_prefix}.log"
+asan_controls_log="${asan_controls_prefix}.log"
 runtime_diag_pattern="scene pointer write:|frame stage:|actor loop:|actor update:|actor update exit:|action lookup:|start-game stage:|requester state write:|menu request flag write:|current pointer shape:|actor load (enter|exit|invalid id):|current actor invalid at 4c164:"
 
 cd "${repo_root}"
@@ -78,22 +80,40 @@ run_capture "${debug_log}" \
 
 require_log "${debug_log}" "gameplay-control wait satisfied" "debug control-ready gate"
 require_log "${debug_log}" "last_key=0x26([[:space:]]|$)" "debug canonical Up dispatch"
-require_log "${debug_log}" "_DAT_00643650=0" "debug requester state clear"
+require_log "${debug_log}" "_DAT_00643650=0" "debug gameplay requester state"
 require_log "${debug_log}" "move=\\[1,0,0,0,0,0,0,0,0\\]" "debug delayed movement latch"
 require_log "${debug_log}" "surface 3 nonblank=1" "debug nonblank gameplay surface"
 if [[ "${runtime_diag}" == "0" || -z "${runtime_diag}" ]]; then
     reject_log "${debug_log}" "${runtime_diag_pattern}" "debug opt-in runtime diagnostics"
 fi
 
+# Keep positive ASan input coverage before the missing-action modal is entered.
+run_capture "${asan_controls_log}" \
+    build/Debug/clang21-i386-x11-asan/e2recomp \
+    --inject-key-sequence-gameplay-surfaces \
+    "${asan_controls_prefix}" space,up 6 10000 20 1
+
+require_log "${asan_controls_log}" "last_key=0x26([[:space:]]|$)" "ASan early canonical Up dispatch"
+require_log "${asan_controls_log}" "move=\\[1,0,0,0,0,0,0,0,0\\]" "ASan early movement latch"
+require_log "${asan_controls_log}" "surface 3 nonblank=1" "ASan early nonblank surface"
+reject_log "${asan_controls_log}" "ERROR: AddressSanitizer|SUMMARY: AddressSanitizer" "ASan early report"
+if [[ "${runtime_diag}" == "0" || -z "${runtime_diag}" ]]; then
+    reject_log "${asan_controls_log}" "${runtime_diag_pattern}" "ASan early opt-in runtime diagnostics"
+fi
+
+# Natural completion reaches the action-error modal. Gameplay state zero alone
+# does not imply an idle requester; movement is blocked while this message waits.
 run_capture "${asan_log}" \
     build/Debug/clang21-i386-x11-asan/e2recomp \
     --inject-key-sequence-gameplay-surfaces \
     "${asan_prefix}" space,up 30 10000 60 1
 
-require_log "${asan_log}" "start_game=1 .*DAT_0047a76c=1 .*_DAT_0073cc3c=0x[1-9a-fA-F][0-9a-fA-F]+" "ASan scene/control state"
+require_log "${asan_log}" "start_game=1 .*DAT_0047a76c=1 .*_DAT_0073cc3c=0x[1-9a-fA-F][0-9a-fA-F]+" "ASan nonzero scene state"
 require_log "${asan_log}" "last_key=0x26([[:space:]]|$)" "ASan canonical Up dispatch"
-require_log "${asan_log}" "_DAT_00643650=0" "ASan requester state clear"
-require_log "${asan_log}" "move=\\[1,0,0,0,0,0,0,0,0\\]" "ASan delayed movement latch"
+require_log "${asan_log}" "_DAT_00643650=0" "ASan gameplay requester state"
+require_log "${asan_log}" "action load message: id=384 status=1 .* indexed=0" "ASan missing-action error"
+require_log "${asan_log}" "requester=\\[.*b384=[1-9][0-9]* .*ptr=0x47a630" "ASan message requester entry"
+require_log "${asan_log}" "move=\\[0,0,0,0,0,0,0,0,0\\]" "ASan modal blocks movement"
 require_log "${asan_log}" "surface 3 nonblank=1" "ASan nonblank gameplay surface"
 reject_log "${asan_log}" "ERROR: AddressSanitizer|SUMMARY: AddressSanitizer" "ASan report"
 if [[ "${runtime_diag}" == "0" || -z "${runtime_diag}" ]]; then
@@ -102,4 +122,5 @@ fi
 
 echo "Runtime regressions passed."
 echo "Debug log: ${debug_log}"
-echo "ASan log: ${asan_log}"
+echo "ASan controls log: ${asan_controls_log}"
+echo "ASan modal log: ${asan_log}"

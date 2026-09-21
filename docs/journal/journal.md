@@ -4,6 +4,8 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Post-intro action-error requester — 2026-09-15](entries/post-intro-requester-2026-09-15.md): invisible modal diagnosis, recovered error text/OK routing, SDL Debug/ASan interaction proof and the exposed camera-87 transition.
+
 - [Scene projection and actor recovery — 2026-09-15](entries/actor-cues-and-projection-2026-09-15.md): projected cues, original-x86 arithmetic checks, pose/matrix/event repairs, corrected child namespaces and the next geometry failure.
 
 - [Runtime/documentation audit — 2026-09-14](entries/runtime-audit-2026-09-14.md): reverified baseline, generator drift, debug wrapper failure, actor visibility, action-384 repro, and task ownership.

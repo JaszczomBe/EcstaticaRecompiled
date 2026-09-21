@@ -37,7 +37,7 @@ GDB now proves scene id **40**, name **`mtorc4`**, resource table entry **0**, a
 
 At Task 04 completion, the gated ASan run no longer reported stack-use-after-return or another sanitizer error. Both plain SDL and ASan runs exited **5** after the 120-second scene-readiness wait, with scene slot 40. This is a resolved message-input failure, not a passing gameplay route. Task 01 stays active; [Task 05](task-05-recover-post-intro-scene-selection.md) owns the remaining position/scene-selection investigation.
 
-Visible error presentation is not validated: `FUN_0043cbf0` still copies through the no-op `FUN_0045f22f`, and passes line count 2 to `FUN_0043b384`, where the original passes requester pointer `0x47a630`. The proof stops at requester entry; dismissal and loader return were not established. Those existing requester limitations are separate from the recovered string inputs and remain deferred UI work.
+At Task 04 completion, visible presentation was not validated: `FUN_0043cbf0` used a no-op copy and passed a line count instead of requester pointer `0x47a630`. [Task 09](task-09-recover-post-intro-action-error-requester.md) subsequently repairs these shared presentation defects and proves dismissal on the default action-error route. The historical gated scene-40 route has not been revalidated through dismissal.
 
 Subsequent Task 05 recovery identifies aliased keyframe allocation. With its gated pool repair, the current endpoint is an earlier scene-pose actor-input crash, owned by [Task 06](task-06-recover-scene-activation-pose-inputs.md). The scene-40 timeout above records this task's historical verification, not the latest gated result.
 
@@ -61,7 +61,7 @@ Latest verification: all three builds and generator syntax pass; all four scratc
 
 ## Current Follow-Up — 2026-09-15
 
-The pose-input crash described above is historical: Task 06 now supplies the actor and explicit destinations. Camera/math and matrix-destination recovery plus Task 08 packed event metadata move gated SDL into a polygon-input crash in `FUN_00431a7c`; gated headless ASan times out in camera 1073. Resume Task 02 geometry inputs before Task 05/01 final placement/action validation. The new cue projection does not establish living actors or correct movement. Default isolated Debug/ASan regressions pass; the new manual F5 check remains pending. See the [2026-09-15 journal](../../../../../journal/entries/actor-cues-and-projection-2026-09-15.md).
+The pose-input crash described above is historical: Task 06 now supplies the actor and explicit destinations. Camera/math and matrix-destination recovery plus Task 08 packed event metadata move gated SDL into a polygon-input crash in `FUN_00431a7c`; gated headless ASan times out in camera 1073. Resume Task 02 geometry inputs before Task 05/01 final placement/action validation. The new cue projection does not establish living actors or correct movement. Default isolated Debug/ASan regressions pass; the supplied video confirms cue replacement, while Task 09’s new dialog manual check remains pending. See the [2026-09-15 journal](../../../../../journal/entries/actor-cues-and-projection-2026-09-15.md).
 
 ## Review State
 

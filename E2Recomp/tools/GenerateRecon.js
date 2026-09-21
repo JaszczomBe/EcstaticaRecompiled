@@ -6585,6 +6585,44 @@ for (const [before, after] of [
   source = source.replace(before,after);
 }
 
+// Original action-error message inputs and mapped message-line destinations.
+for (const [before, after] of [
+  [
+    "undefined8 __fastcall FUN_00451880(undefined4 param_1,undefined4 param_2)\n\n{\n  short in_AX;\n  uint uVar1;\n  undefined4 uVar2;\n  undefined4 extraout_ECX;\n  undefined4 extraout_ECX_00;\n  undefined4 extraout_ECX_01;\n  undefined4 uVar3;\n  undefined8 uVar4;\n  undefined1 local_6c [52];\n  undefined1 local_38 [52];\n  undefined4 uStack_4;\n\n  uStack_4 = param_2;\n  in_AX = (short)param_2;\n  E2R_TraceActionLookup(\"51880.entry\",(int)in_AX,0);\n  uVar4 = FUN_0045190c(param_1,(int)in_AX);\n  uVar3 = (undefined4)((ulonglong)uVar4 >> 0x20);\n  uVar1 = (uint)uVar4;\n  E2R_TraceActionLookup(\"51880.after-5190c\",(int)in_AX,(int)uVar1);\n  uVar2 = 0;\n  if (uVar1 != 0) {\n    if (uVar1 != 0) {\n      if (uVar1 < 2) {\n        FUN_00441b24(extraout_ECX,uVar3);\n        FUN_0045f0a1((int)local_6c,(byte *)s___s___d_004754c0);\n        uVar4 = FUN_0043cbb4(extraout_ECX_00);\n        return CONCAT44(uStack_4,(int)uVar4);\n      }\n      if (uVar1 == 2) {\n        FUN_00441b24(extraout_ECX,uVar3);\n        FUN_0045f0a1((int)local_38,(byte *)s___s__004754e4);\n        uVar4 = FUN_0043cbb4(extraout_ECX_01);\n        return CONCAT44(uStack_4,(int)uVar4);\n      }\n    }\n    uVar2 = FUN_00414e68();\n  }\n  return CONCAT44(uStack_4,uVar2);\n}",
+    "undefined8 __fastcall FUN_00451880(undefined4 param_1,undefined4 param_2)\n\n{\n  int action_id = (short)param_2;\n  undefined8 result;\n  unsigned status;\n  char detail[52];\n  const char *name;\n  const char *lines[3];\n\n  E2R_TraceActionLookup(\"51880.entry\",action_id,0);\n  result = FUN_0045190c(param_1,action_id);\n  status = (unsigned)result;\n  E2R_TraceActionLookup(\"51880.after-5190c\",action_id,status);\n  if (status == 1 || status == 2) {\n    /* Original 0x4518a4..0x4518f3 supplies the name/id to snprintf's\n     * predecessor, then EAX/EDX as a two-line 0x43cbb4 message. */\n    name = E2R_ActionNameByIndex((short)action_id);\n    if (name == NULL) name = \"(unknown)\";\n    if (status == 1) snprintf(detail,sizeof(detail),\"     '%s' %d\",name,action_id);\n    else snprintf(detail,sizeof(detail),\"     '%s'\",name);\n    lines[0] = status == 1 ? \"Can't load action:\" : \"Action name not in directory:\";\n    lines[1] = detail;\n    lines[2] = NULL;\n    E2R_GameStateLog(\"action load message: id=%d status=%u name=%s indexed=%d\",\n                    action_id,status,name,E2R_ActionIndexProbeEnabled());\n    result = FUN_0043cbf0((uintptr_t)lines,0);\n    return CONCAT44(param_2,(unsigned)result);\n  }\n  if (status != 0) return CONCAT44(param_2,FUN_00414e68());\n  return CONCAT44(param_2,0);\n}"
+  ],
+  [
+    "undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)\n\n{\n  int *in_EAX;\n  int iVar1;\n  int iVar3;\n  int iVar4;\n  undefined8 uVar5;\n  int iVar2;\n  undefined4 local_single [2];\n\n  in_EAX = E2R_ResolveMenuStringList(param_1,param_2,local_single);\n  if (in_EAX == (int *)0x0) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;\n  iVar2 = 0;\n  do {\n    iVar1 = iVar2 + 0x33;\n    iVar3 = 0;\n    *(undefined1 *)(iVar2 + 0x64403a) = 0;\n    iVar2 = iVar1;\n  } while (iVar1 != 0x396);\n  iVar1 = 0;\n  iVar3 = 0;\n  iVar4 = 0x6430fa;\n  iVar2 = *in_EAX;\n  while (iVar2 != 0) {\n    if (!E2R_IsReadableCString((char *)(uintptr_t)*in_EAX)) {\n      break;\n    }\n    FUN_0045f22f(iVar1,(char *)*in_EAX);\n    *(undefined1 *)(iVar1 * 0x33 + 0x64406c) = 0;\n    if (iVar1 < 0x11) {\n      *(int *)((undefined1 *)0x006430ee + iVar3) = iVar4;\n    }\n    in_EAX = in_EAX + 1;\n    iVar4 = iVar4 + 0x1e;\n    iVar3 = iVar3 + 0x1e;\n    iVar1 = iVar1 + 1;\n    if (0x11 < iVar1) break;\n    if (IsBadReadPtr(in_EAX,4)) break;\n    iVar2 = *in_EAX;\n  }\n  _DAT_0047a636 = (short)iVar1 * 9 + 0x28;\n  if (iVar1 < 0x12) {\n    iVar3 = iVar1 * 0xf;\n    *(undefined4 *)((undefined1 *)0x006430ee + iVar1 * 0x1e) = 0x643de4;\n  }\n  else {\n    *(undefined4 *)0x006432ec = 0x643de4;\n  }\n  uVar5 = FUN_0043b384(iVar1,iVar3);\n  return CONCAT44(param_2,(int)uVar5);\n}",
+    "undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)\n\n{\n  int *in_EAX;\n  int iVar1;\n  int iVar3;\n  int iVar4;\n  undefined8 uVar5;\n  int iVar2;\n  undefined4 local_single [2];\n\n  in_EAX = E2R_ResolveMenuStringList(param_1,param_2,local_single);\n  if (in_EAX == (int *)0x0) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;\n  iVar2 = 0;\n  do {\n    iVar1 = iVar2 + 0x33;\n    iVar3 = 0;\n    *(undefined1 *)(iVar2 + 0x64403a) = 0;\n    iVar2 = iVar1;\n  } while (iVar1 != 0x396);\n  iVar1 = 0;\n  iVar3 = 0;\n  iVar4 = 0x6430fa;\n  iVar2 = *in_EAX;\n  while (iVar2 != 0) {\n    if (!E2R_IsReadableCString((char *)(uintptr_t)*in_EAX)) {\n      break;\n    }\n    /* Original 0x43cc3d..0x43cc4e: copy at most 50 bytes into\n     * the mapped 51-byte line slot, then terminate it. */\n    strncpy((char *)(uintptr_t)(0x64403a + iVar1 * 0x33),\n            (const char *)(uintptr_t)*in_EAX,50);\n    *(undefined1 *)(iVar1 * 0x33 + 0x64406c) = 0;\n    if (iVar1 < 0x11) {\n      *(int *)((undefined1 *)0x006430ee + iVar3) = iVar4;\n    }\n    in_EAX = in_EAX + 1;\n    iVar4 = iVar4 + 0x1e;\n    iVar3 = iVar3 + 0x1e;\n    iVar1 = iVar1 + 1;\n    if (0x11 < iVar1) break;\n    if (IsBadReadPtr(in_EAX,4)) break;\n    iVar2 = *in_EAX;\n  }\n  *(short *)(uintptr_t)0x0047a636 = (short)iVar1 * 9 + 0x28;\n  if (iVar1 < 0x12) {\n    iVar3 = iVar1 * 0xf;\n    *(undefined4 *)((undefined1 *)0x006430ee + iVar1 * 0x1e) = 0x643de4;\n  }\n  else {\n    *(undefined4 *)0x006432ec = 0x643de4;\n  }\n  uVar5 = FUN_0043b384(0x0047a630,0);\n  return CONCAT44(param_2,(int)uVar5);\n}"
+  ]
+]) {
+  if (source.split(before).length !== 2) throw new Error("Action message anchor mismatch");
+  source = source.replace(before, after);
+}
+
+// Original message requester record and OK callback ownership.
+for (const [before, after] of [
+  [
+    "  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;\n  iVar2 = 0;",
+    "  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;\n  /* Original static record at 0x47a630 and the 18 line items built by\n   * 0x43fc20. Their generated host globals do not populate mapped records. */\n  E2R_InitRequesterRecord(0x0047a630,-1,-1,320,180,0,0x006430dc);\n  for (int line = 0; line < 18; ++line) {\n    uintptr_t item = 0x006430dc + line * 0x1e;\n    E2R_InitRequesterItem(item,300,10,10 + line * 9,8,\n                         0x0064403a + line * 0x33,0,0xc000 | line,\n                         line < 17 ? item + 0x1e : 0x00643de4);\n    /* Static text must not acquire the hosted selectable-item flag. */\n    *(short *)(item + 0x10) = (short)(0xc000 | line);\n  }\n  E2R_InitRequesterItem(0x00643de4,0x38,10,-0x14,0xc,(uintptr_t)\"OK\",\n                       (uintptr_t)&LAB_0043c594,0x2000,0);\n  iVar2 = 0;"
+  ],
+  [
+    "  if (action == (uintptr_t)&LAB_0043c594) {\n    if (requester_id == 0x14",
+    "  if (action == (uintptr_t)&LAB_0043c594) {\n    /* Original 0x43c5c6..0x43c5d0 accepts the message OK action. */\n    if (requester_id == 0x2e) {\n      _DAT_006443d0 = 1;\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      return 1;\n    }\n    if (requester_id == 0x14"
+  ]
+]) {
+  if (source.split(before).length !== 2) throw new Error("Message record anchor mismatch");
+  source = source.replace(before, after);
+}
+
+// Message dialogs use requester ID 0x2e with gameplay state zero.
+{
+  const before = "  if (_DAT_00643650 == 0 ||\n      (requester_id != 0x14 && requester_id != 0x28 &&\n       requester_id != 0x29 && requester_id != 0x2a && requester_id != 0x31)) {";
+  const after = "  /* Message requester 0x2e is modal even when the gameplay state is zero. */\n  if (requester_id != 0x2e && (_DAT_00643650 == 0 ||\n      (requester_id != 0x14 && requester_id != 0x28 &&\n       requester_id != 0x29 && requester_id != 0x2a && requester_id != 0x31))) {";
+  if (source.split(before).length !== 2) throw new Error("Message click routing anchor mismatch");
+  source = source.replace(before, after);
+}
+
 fs.writeFileSync(outSrc, source);
 
 const sortedIds = [...ids].sort();

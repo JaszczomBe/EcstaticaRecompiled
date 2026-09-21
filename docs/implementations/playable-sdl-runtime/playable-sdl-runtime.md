@@ -31,11 +31,11 @@ The 2026-09-14 audit rebuilt commit `43ddc8a`; the same-day Step 07 continuation
 | --- | --- | --- |
 | Builds | X11/SDL Debug and ASan compile | Runtime remains Linux/i386 with fixed-address assumptions |
 | Controls | All four arrow rows pass in debug and ASan (8/8) | Checks establish input-state latches, not actor motion or visible gameplay |
-| Intro route | First-intro Space enters `Start_sc`; completion preserves scene 175 | Full animated intro fidelity is unresolved; Space during `Start_sc` remains wait-only |
-| Presentation | Scene 175, selected surface 3 `321e33d6`, SDL present `914159a1`, window `5cf799a1` | Static background; living Joe and enemies are absent |
+| Intro route | First-intro Space enters `Start_sc`; completion reaches action-error requester 0x2e | OK resumes updates at camera 87; final scene selection and intro fidelity remain unresolved |
+| Presentation | Action error visible over camera 175; selected surface `c2a56a11`, cue-enabled SDL present/window `fd124785` / `ef9e0785` | Static actor position; hosted dialog typography remains rough |
 | Joe | Actor 0 has render rep 67 and a render tree | `model=0xffffffff`, root update list empty, draw vertices zero |
 | Scene children | Camera and script-resource namespaces distinguished; Start_sc resource 0 traced | Pedestal enemy identities/instances unresolved; 319/322/318 belonged to an unproven resource lookup |
-| Regression wrapper | Full canonical-Up debug and ASan probes pass; all evidence/rejection assertions retained | ASan natural completion ends in scene 87; state/surface checks do not prove visible motion |
+| Regression wrapper | Debug/early ASan canonical-Up latches and long-delay ASan error-modal checks pass; arrow matrix 8/8 | State/surface checks do not prove actor motion; separate SDL test covers OK and Escape menu entry |
 | Generator | Syntax and all four artifact comparisons pass after diagnostic mirrors and recursive-pointer repair | Generated C/header include the focused actor/action/motion repairs; no unexplained drift |
 | Audio/save | Compatibility stubs and requester routing exist | MIDI is silent; quick-save writer is a no-op; functional save/load is unproven |
 
@@ -58,7 +58,7 @@ Step numbers are stable identifiers, not execution order. Resume order is **07 �
 
 ## Active Frontier
 
-All automated Step 07 baseline checks now pass. Tasks 03–06 repaired recursive actor corruption, default-action context, action-advance inputs, and motion-query ownership. The long-delay ASan probe dispatches Space/Up and captures a nonblank scene-87 surface (`bf4a8e25`) without sanitizer errors. The separate default SDL skip route still captures scene 175 with the recorded static hashes. The user’s crash-free F5 report and subsequent screenshot/log confirm the static scene-175 final image, completing [Task 02’s manual check](steps/step-07/tasks/task-02-repair-canonical-control-regressions.md) and Step 07. Original scene-selection fidelity and living actors remain Step 08 work.
+At Step 07 completion, all automated baseline checks passed. Tasks 03–06 repaired recursive actor corruption, default-action context, action-advance inputs, and motion-query ownership. The long-delay ASan probe dispatches Space/Up and captures a nonblank scene-87 surface (`bf4a8e25`) without sanitizer errors. The then-current default SDL skip route captured scene 175 with the recorded static hashes. Task 09 below supersedes that capture after making the blocking dialog visible. The user’s crash-free F5 report and subsequent screenshot/log confirm the static scene-175 final image, completing [Task 02’s manual check](steps/step-07/tasks/task-02-repair-canonical-control-regressions.md) and Step 07. Original scene-selection fidelity and living actors remain Step 08 work.
 
 [Step 08 Task 01](steps/step-08/tasks/task-01-recover-action-context.md) now restores the current actor across action parsing, preserves the action slot across helpers, and supplies Joe to child updates. GDB verifies action 384 at `0xac263c`, Joe `0xaa6bd8`, slot `0xaa6c7e`, and progress 0 → 1638 with context restored. Generator parity, three builds, the default wrapper, all 8 arrow rows, and the default SDL packet pass again.
 
@@ -66,15 +66,17 @@ All automated Step 07 baseline checks now pass. Tasks 03–06 repaired recursive
 
 [Task 05](steps/step-08/tasks/task-05-recover-post-intro-scene-selection.md) traced corrupt coordinate events to aliased keyframe allocation. [Task 06](steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md) now supplies the pose actor/state and real output destinations. The projection continuation also repaired two matrix destinations that corrupted a scene child head and a node attachment; [Task 08](steps/step-08/tasks/task-08-recover-packed-event-metadata.md) restored packed dispatch metadata under the action-index gate. Gated SDL now changes Joe's position and reaches a polygon-input crash in `FUN_00431a7c`. Resume [Task 02 geometry](steps/step-08/tasks/task-02-recover-joe-geometry-and-rendering.md), then Task 05/01 full-route validation and Task 03 child activation. Gated headless ASan instead times out in camera 1073 without a sanitizer report. The gate remains off by default.
 
-[Task 07](steps/step-08/tasks/task-07-project-actor-cues-into-scene.md) replaces the inset with read-only scene-projected crosses/uprights (`E2R_ACTOR_CUES=1`). Recovered trigonometry, rotations, vector transforms and perspective are checked against original machine code. Default Joe's stored position is behind the pedestal camera (depth -3062), so the settled cue reports **0 VISIBLE / 1 BEHIND**; enemies remain absent. A synthetic drawing fixture verifies the primitives, not actual character placement. The new manual F5 check is pending. See the [2026-09-15 journal](../../journal/entries/actor-cues-and-projection-2026-09-15.md) for exact tests and remaining limitations.
+[Task 07](steps/step-08/tasks/task-07-project-actor-cues-into-scene.md) replaces the inset with read-only scene-projected crosses/uprights (`E2R_ACTOR_CUES=1`). Recovered trigonometry, rotations, vector transforms and perspective are checked against original machine code. Default Joe's stored position is behind the pedestal camera (depth -3062), so the settled cue reports **0 VISIBLE / 1 BEHIND**; enemies remain absent. A synthetic drawing fixture verifies the primitives, not actual character placement. The supplied 35-second recording confirms grid replacement and bounded default-route survival, completing the cue check. It does not establish character placement. See the [2026-09-15 journal](../../journal/entries/actor-cues-and-projection-2026-09-15.md) for exact tests and remaining limitations.
 
-Keep action indexing opt-in during recovery. The default path has `actions=0` and reaches the static scene-175 packet. The one-shot 175-over-87 handoff guard remains a narrow stabilizer requiring later scene-transition validation.
+[Task 09](steps/step-08/tasks/task-09-recover-post-intro-action-error-requester.md) diagnoses the video’s apparent freeze: `Start_sc` completes at 1102/1102, then missing action 384 (`dav:heropick`) opens an invisible modal. The repair restores its live message list, mapped record/text/items and OK routing. SDL Debug and ASan capture the visible error, dismiss it, resume a game update at camera 87, and verify Escape enters the main menu. The revised wrapper retains early ASan input-latch coverage and explicitly checks the later modal. New manual F5 confirmation is pending; see the [requester journal](../../journal/entries/post-intro-requester-2026-09-15.md).
+
+Keep action indexing opt-in during recovery. The default path has `actions=0`; dismissing the error does not recover actions or prove gameplay. The one-shot 175-over-87 handoff guard remains a narrow stabilizer requiring later scene-transition validation. Resume Task 02 geometry inputs, then placement/action validation and children.
 
 ## Deferred Fidelity Work
 
 The original reference sequence is three logos, the 30–40 second horseback/castle intro (Space-skippable), the roughly 10 second pedestal/lightning sub-intro (wait-only), then gameplay. Recovered transitions are proven; full character animation/procession is not.
 
-Historical menu probes show readable Esc contents, mouse-only intro-menu routing to Settings/Load, Music toggling, Settings OK, and Quit confirmation. Load title/slot overlap, a black slot-area rectangle, modal artifacts, and font/color/layout remain unresolved. The missing-scene message also retains a no-op copy helper and a lost requester pointer in `FUN_0043cbf0`; recovering its input list does not prove visible text or dismissal. These are follow-ups after actor recovery unless they block a specific proof. Full save/load implementation needs a separate task before it is attempted.
+Historical menu probes show readable Esc contents, mouse-only intro-menu routing to Settings/Load, Music toggling, Settings OK, and Quit confirmation. Load title/slot overlap, a black slot-area rectangle, modal artifacts, and font/color/layout remain unresolved. Task 09 repairs the shared message-copy/requester-pointer defects and verifies the default action-error dialog. Other message callers, keyboard-only modal interaction and typography remain incomplete; the historical gated missing-scene route has not been revalidated through dismissal. These are follow-ups after actor recovery unless they block a specific proof. Full save/load implementation needs a separate task before it is attempted.
 
 ## Invariants
 
@@ -95,7 +97,8 @@ Run from the repository root:
 5. `env -u DISPLAY scripts/run-e2-control-matrix.sh`
 6. `env -u DISPLAY scripts/run-e2-runtime-regressions.sh` — isolated debug and ASan pass on the 2026-09-15 continuation.
 7. `SDL_VIDEODRIVER=dummy timeout 140 build/Debug/clang21-i386-sdl/e2recomp --auto-scene175-visibility /tmp/e2-scene175 120 7000`
-8. `git diff --check`
+8. `python3 scripts/check-e2-postintro-requester.py build/Debug/clang21-i386-sdl/e2recomp` — repeat with the SDL ASan executable; requires GDB/ptrace.
+9. `git diff --check`
 
 Use the [audit](../../journal/entries/runtime-audit-2026-09-14.md) for safe scratch regeneration and the gated GDB repro. Manual F5 remains a separate visual check when runtime behavior changes.
 

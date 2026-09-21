@@ -1,6 +1,6 @@
 # Project Actor Cues Into The Scene
 
-Status: active
+Status: completed
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
 Last Updated: 2026-09-15
@@ -27,9 +27,9 @@ The default camera-175 packet contains only Joe at `12800,256,-3584`, camera dep
 2. Default SDL capture: passed, indexed frame unchanged (`321e33d6`), one behind-camera Joe reported.
 3. Synthetic presentation-only fixture: visible cyan/amber primitives inspected; game pixels unchanged. This does not establish character placement.
 4. Generator parity and four Debug builds pass; default isolated Debug/ASan wrapper passes. The final isolated arrow-control matrix passes all eight Debug/ASan rows.
-5. Manual F5 confirmation of the grid replacement and crash-free default route: pending. Correctly placed living actors remain Tasks 02/05/03, not a completed cue acceptance claim.
+5. The supplied 35-second F5 recording confirms grid replacement and bounded default-route survival; the apparent post-intro stall is the message requester recovered in Task 09. Correctly placed living actors remain Tasks 02/05/03, not a completed cue acceptance claim.
 
 ## Review State
 
-1. Implementation state: implemented; manual verification pending.
+1. Implementation state: completed for projected cues and grid replacement. The video does not validate character placement or movement.
 2. Next source work: Task 02 geometry inputs, then Task 05/01 placement/action validation and Task 03 child-resource recovery.
