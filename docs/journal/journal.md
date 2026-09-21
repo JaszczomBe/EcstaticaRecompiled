@@ -4,6 +4,9 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Flat-polygon lighting — 2026-09-21](entries/polygon-lighting-2026-09-21.md): recovered normal/angle/rotation inputs and mapped byte reads; original-x86 comparisons pass; gated SDL now reaches framebuffer-copy failure.
+- [Polygon inputs — 2026-09-21](entries/polygon-inputs-2026-09-21.md): explicit polygon/mode/reference arguments, temporary record storage, original-x86 routing comparisons and the next lighting/matrix failure.
+
 - [Post-intro action-error requester — 2026-09-15](entries/post-intro-requester-2026-09-15.md): invisible modal diagnosis, recovered error text/OK routing, SDL Debug/ASan interaction proof and the exposed camera-87 transition.
 
 - [Scene projection and actor recovery — 2026-09-15](entries/actor-cues-and-projection-2026-09-15.md): projected cues, original-x86 arithmetic checks, pose/matrix/event repairs, corrected child namespaces and the next geometry failure.

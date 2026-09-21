@@ -3,7 +3,7 @@
 Status: active
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-15
+Last Updated: 2026-09-21
 
 ## Goal
 
@@ -63,6 +63,10 @@ Use the Task 04 gated commands with a fresh `/tmp` prefix and a watchpoint start
 ## Current Follow-Up — 2026-09-15
 
 The pose-input crash described above is historical: Task 06 now supplies the actor and explicit destinations. Camera/math and matrix-destination recovery plus Task 08 packed event metadata move gated SDL into a polygon-input crash in `FUN_00431a7c`; gated headless ASan times out in camera 1073. Resume Task 02 geometry inputs before Task 05/01 final placement/action validation. The new cue projection does not establish living actors or correct movement. Default isolated Debug/ASan regressions pass; the new manual F5 check remains pending. See the [2026-09-15 journal](../../../../../journal/entries/actor-cues-and-projection-2026-09-15.md).
+
+## 2026-09-21 Follow-Up
+
+Task 02 has passed the polygon reference-pointer failure, and Task 10 subsequently recovered the flat-lighting inputs. The next minimally interrupted gated SDL stop is in framebuffer copying at `FUN_00418514`, owned by [Task 11](task-11-recover-dirty-rectangle-copy-inputs.md). Gated SDL ASan still times out in camera 1073. Default regressions pass; placement and living actors remain unproven. See the [lighting evidence](../../../../../journal/entries/polygon-lighting-2026-09-21.md).
 
 ## Review State
 

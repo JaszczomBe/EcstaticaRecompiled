@@ -6623,6 +6623,96 @@ for (const [before, after] of [
   source = source.replace(before, after);
 }
 
+// Recover EAX polygon / EDX mode / EBX reference-plane ownership.
+function patchPolygonFunction(name, edit) {
+  const start = source.indexOf(`\nvoid ${name}(`) >= 0
+    ? source.indexOf(`\nvoid ${name}(`) + 1
+    : source.indexOf(`\nvoid __fastcall ${name}(`) + 1;
+  if (start <= 0) throw new Error(`Missing polygon function ${name}`);
+  const end = source.indexOf('\n}', start) + 2;
+  const before = source.slice(start, end);
+  source = source.slice(0, start) + edit(before) + source.slice(end);
+}
+patchPolygonFunction('FUN_00424e44', body => {
+  body = body.replace('  int iVar1;', '  int iVar1;\n  int reference_polygon = 0;');
+  body = body.replace('    param_1 = (*(int *)(in_EAX + 0x1a) >> 0x10) * 4;',
+    '    /* Original 0x424e4b..0x424e68: EBX is zero or owner->polygon_table[index]. */\n' +
+    '    int owner = *(int *)(in_EAX + 0x22);\n' +
+    '    int table = *(int *)(owner + 0xdc);\n' +
+    '    reference_polygon = *(int *)(table + *(short *)(in_EAX + 0x1c) * 4);');
+  return body.replace('FUN_00433d30(in_EAX,iVar1);', 'FUN_00433d30(in_EAX,iVar1,reference_polygon);');
+});
+for (const name of ['FUN_00431a7c', 'FUN_00433d30', 'FUN_00437ae4']) {
+  const signature = `void __fastcall ${name}(int polygon,int param_2,int reference_polygon)`;
+  const proto = prototypes.findIndex(p => p.includes(`${name}(`));
+  if (proto < 0) throw new Error(`Missing polygon prototype ${name}`);
+  prototypes[proto] = signature + ';';
+  patchPolygonFunction(name, body => {
+    body = body.replace(/^void [^\n]+/, signature);
+    body = body.replace('  int unaff_EBX;\n', '');
+    body = body.replace(/\bunaff_EBX\b/g, 'reference_polygon');
+    body = body.replace('  in_EAX = actor;', '  in_EAX = polygon;');
+    if (name === 'FUN_00431a7c') {
+      // The other original caller supplies a stack polygon, not a low arena node.
+      body = body.replace(' || 0x70000000u <= (uint)in_EAX', '');
+    }
+    if (name === 'FUN_00433d30') {
+      body = body.replace(/FUN_(00431a7c|00437ae4)\((in_EAX|iVar8),param_2\)/g,
+                          'FUN_$1($2,param_2,reference_polygon)');
+    }
+    if (name === 'FUN_00437ae4') {
+      // Original 0x437aee..0x437b09 preserves EAX and loads the texture by signed +0x2c.
+      body = body.replace('  FUN_004525f0(param_1,param_2);',
+        '  in_EAX = polygon;\n  FUN_004525f0(0,(int)*(short *)(in_EAX + 0x2c));');
+    }
+    return body;
+  });
+}
+patchPolygonFunction('FUN_00425018', body => {
+  // Original stack: eight 0x2a-byte vertices, reference polygon at +0x150,
+  // submitted polygon at +0x194. Separate C locals cannot preserve these layouts.
+  const fields = [];
+  body = body.replace(/^  (undefined1 \*|undefined[124] |short |ushort )((?:local_|auStack_|asStack_)[0-9a-f]+)(?: \[[0-9]+\])?;\n/gm,
+    (declaration, type, name) => {
+      const offset = parseInt(name.split('_').pop(), 16);
+      if (offset < 0x52 || offset > 0x20c) return declaration;
+      const array = declaration.includes('[');
+      fields.push([name, type.trim(), 0x20c - offset, array]);
+      return '';
+    });
+  if (fields.length !== 38) throw new Error(`Unexpected polygon scratch fields: ${fields.length}`);
+  const split = body.indexOf('  in_EAX = actor;');
+  let code = body.slice(split);
+  for (const [name, type, offset, array] of fields) {
+    const at = `geometry + 0x${offset.toString(16)}`;
+    const expr = array ? `((${type} *)(${at}))` : `(*(${type} *)(${at}))`;
+    code = code.replace(new RegExp(`\\b${name}\\b`, 'g'), expr);
+  }
+  code = code.replace('FUN_00431a7c(iVar1,1 - (DAT_0047a279 >> 0x18));',
+    'FUN_00431a7c((int)(uintptr_t)(geometry + 0x194),1 - (DAT_0047a279 >> 0x18),\n                       (int)(uintptr_t)(geometry + 0x150));');
+  code = code.replace('FUN_00431a7c(iVar1,2);',
+    'FUN_00431a7c((int)(uintptr_t)(geometry + 0x194),2,\n                       (int)(uintptr_t)(geometry + 0x150));');
+  return body.slice(0, split) +
+    '  /* Original 0x425018 stack records; vertex transforms remain separately unrecovered. */\n' +
+    '  byte geometry[0x1d8] = {0};\n\n' + code;
+});
+
+// Flat-polygon normal storage, angle lookup and local rotation destinations.
+{
+  const marker = "/* 00431a7c */";
+  if (source.split(marker).length !== 2) throw new Error("Polygon lighting marker mismatch");
+  source = source.replace(marker, "/* Scoped recovery of 0x432c64 and the 0x431f2d..0x432007 lighting path.\n * Other callers of the legacy angle/rotation wrappers still have lost inputs. */\nstatic short E2R_PolygonAngle16(short x,short z)\n{\n  static byte fine[256], coarse[256];\n  static int ready;\n  int ax = x < 0 ? -(int)x : x;\n  int az = z < 0 ? -(int)z : z;\n  int ratio, angle;\n  if (!ready) {\n    /* Original 0x414f5d..0x414fd8: atan tables, not sine/cosine.\n     * Keep private until the other users of the placeholder mapped tables\n     * have recovered arguments. Constants are at 0x471339..0x4713b1. */\n    for (int i = 0; i < 256; ++i) {\n      fine[i] = (byte)(atan(i * 0.015625) * 64.0 * 2.0 * 0.3183101550488765 + 0.5);\n      coarse[i] = (byte)(atan(i * 0.25) * 64.0 * 2.0 * 0.3183101550488765 + 0.5);\n    }\n    ready = 1;\n  }\n  /* Preserve the original zero/zero result, -0x4000. Inputs here come from\n   * a normal reduced to +/-0x4000 and its rotations, never SHRT_MIN. */\n  if (az == 0) return x > 0 ? 0x4000 : (short)-0x4000;\n  ratio = ax * 256 / az;\n  if (ratio < 0x400) angle = (int)fine[ratio >> 2] * 256;\n  else if (ratio < 0x4000) angle = (int)coarse[ratio >> 6] * 256;\n  else angle = ratio < 0x5200 ? 0x3f00 : 0x4000;\n  if (z > 0) return (short)(x > 0 ? angle : -angle);\n  return (short)(x > 0 ? -0x8000 - angle : angle - 0x8000);\n}\n\nstatic void E2R_RotatePolygonNormal(short normal[3],short angle,int axis)\n{\n  int sine = *(short *)(0x0059b590 + (uint)(ushort)angle * 2);\n  int cosine = *(short *)(0x005de590 + (uint)(ushort)angle * 2);\n  short matrix[9] = {16384,0,0,0,16384,0,0,0,16384};\n  /* Single-axis cases of 0x4228b8, used by 0x422674 (X) / 0x4226bc (Y).\n   * The original builds local matrix/output buffers and copies back. */\n  if (axis == 0) {\n    matrix[4] = matrix[8] = (short)cosine;\n    matrix[5] = (short)-sine;\n    matrix[7] = (short)sine;\n  } else {\n    matrix[0] = matrix[8] = (short)cosine;\n    matrix[2] = (short)sine;\n    matrix[6] = (short)-sine;\n  }\n  E2R_TransformVector14(normal,normal,matrix);\n}\n\nstatic void E2R_PolygonLightingIndices(int nx,int ny,int nz,int *horizontal,int *vertical)\n{\n  short normal[3] = {(short)nx,(short)ny,(short)nz};\n  short angle = E2R_PolygonAngle16(normal[0],normal[2]);\n  if (angle != 0) E2R_RotatePolygonNormal(normal,(short)-angle,1);\n  angle = E2R_PolygonAngle16((short)-normal[1],normal[2]);\n  if (angle != 0) E2R_RotatePolygonNormal(normal,(short)-angle,0);\n  /* EBX/ECX preserve the original reduced X/Y; only the divisor comes\n   * from the rotated normal at stack +4 (0x431faa..0x431fe7). */\n  int x = normal[2] == 0 ? 64 : 64 - nx * 64 / normal[2];\n  int y = normal[2] == 0 ? 64 : 64 - ny * 64 / normal[2];\n  *horizontal = x < 0 ? 0 : x > 127 ? 127 : x;\n  *vertical = y < 0 ? 0 : y > 127 ? 127 : y;\n}\n\n" + marker);
+  const before = "      sVar2 = (short)iVar3;\n      local_64 = (int)(short)iVar4;\n      iVar3 = FUN_00432c64(iVar5,sVar2);\n      uVar6 = extraout_ECX;\n      if ((short)iVar3 != 0) {\n        FUN_004226bc();\n        uVar6 = extraout_ECX_00;\n      }\n      sStack_14 = -(short)iVar5;\n      iVar3 = FUN_00432c64(uVar6,sVar2);\n      iVar5 = extraout_ECX_01;\n      if ((short)iVar3 != 0) {\n        FUN_00422674(extraout_ECX_01,-(short)iVar3);\n        iVar5 = extraout_ECX_02;\n      }\n      if (sVar2 == 0) {\n        iVar5 = 0x40;\n        iVar3 = 0x40;\n      }\n      else {\n        iVar3 = (iVar4 * -0x40) / (int)sVar2 + 0x40;\n        if (iVar3 < 0) {\n          iVar3 = 0;\n        }\n        else if (0x7f < iVar3) {\n          iVar3 = 0x7f;\n        }\n        iVar5 = (iVar5 * -0x40) / (int)sVar2 + 0x40;\n        if (iVar5 < 0) {\n          iVar5 = 0;\n        }\n        else if (0x7f < iVar5) {\n          iVar5 = 0x7f;\n        }\n      }\n";
+  const after = "      E2R_PolygonLightingIndices(iVar4,iVar5,iVar3,&iVar3,&iVar5);\n";
+  if (source.split(before).length !== 2) throw new Error("Polygon lighting block mismatch");
+  source = source.replace(before, after);
+}
+
+// Original 0x43206f / 0x43207f read mapped byte tables, not host symbol arrays.
+patchPolygonFunction('FUN_00431a7c', body => body
+  .replace('(&DAT_00507590)', '((const byte *)0x00507590)')
+  .replace('(&DAT_0050b510)', '((const byte *)0x0050b510)'));
+
 fs.writeFileSync(outSrc, source);
 
 const sortedIds = [...ids].sort();

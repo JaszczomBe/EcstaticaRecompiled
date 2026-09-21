@@ -3,7 +3,7 @@
 Status: active
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-15
+Last Updated: 2026-09-21
 
 ## Goal
 
@@ -50,6 +50,10 @@ SDL_VIDEODRIVER=dummy E2R_ACTION_INDEX_PROBE=1 timeout 140 gdb -q -batch -ex 'se
 ```
 
 GDB can exit zero after catching SIGSEGV; inspect the inferior stop reason and actual capture, not just the shell status. Current evidence: `/tmp/e2-keyframes-probe.log` and `/tmp/e2-step05-gated-asan.log`.
+
+## 2026-09-21 Follow-Up
+
+Task 02 has passed the polygon reference-pointer failure, and Task 10 subsequently recovered the flat-lighting inputs. The next minimally interrupted gated SDL stop is in framebuffer copying at `FUN_00418514`, owned by [Task 11](task-11-recover-dirty-rectangle-copy-inputs.md). Gated SDL ASan still times out in camera 1073. Default regressions pass; placement and living actors remain unproven. See the [lighting evidence](../../../../../journal/entries/polygon-lighting-2026-09-21.md).
 
 ## Review State
 

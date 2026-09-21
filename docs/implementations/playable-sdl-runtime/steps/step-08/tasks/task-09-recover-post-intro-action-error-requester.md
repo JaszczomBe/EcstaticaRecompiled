@@ -3,7 +3,7 @@
 Status: active
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-15
+Last Updated: 2026-09-21
 
 ## Goal
 
@@ -33,6 +33,14 @@ Thus ID 46 is an active blocking message, not a stale ID. The game loop is suspe
 3. Relevant Debug/ASan builds and bounded probes pass, with generator parity. Revise old static-hash/input-latch assertions if they measured the invisible modal, preserving their useful intent.
 4. Record manual F5 confirmation separately from automated surface and debugger evidence.
 
+## Manual F5 Follow-Up — 2026-09-21
+
+The user confirms that the dialog appears over camera 175 and clicking OK changes the view to the unintended camera 87 rooftops. The second screenshot still shows the action-384 error. This proves visible error presentation and advancement after OK; it does not establish a sustained return to gameplay. The screenshots alone cannot distinguish a newly opened error from retained dialog pixels.
+
+The cue status changes from **0 visible / 1 behind** at camera 175 to **0 visible / 1 offscreen** at camera 87. Neither view contains a visible Joe marker or rendered hero. These are camera-relative diagnostics, not evidence that Joe moved. The log’s `scene=0x67d0ac` agrees with camera 87; Shift and focus events confirm host input delivery, not gameplay control or manual Escape behavior.
+
+Manual dialog/OK coverage is now recorded. Escape remains verified only by the automated test; repeated-error behavior, actor rendering and scene fidelity remain open. Task 11 rectangle-copy inputs is the next source repair within Task 02, followed by action/placement validation.
+
 ## Review State
 
-Implementation: implemented; automated verification passes, manual F5 confirmation pending. Four Debug/ASan builds, four-artifact generator parity, the revised wrapper and all eight arrow rows pass. The new SDL Debug/ASan regression captures the dialog, clicks OK, reaches a game update at camera 87, and verifies Escape enters main-menu ID 0x28. Full menu navigation and playable movement are not established. The hosted font still has punctuation/spacing limitations. See the [requester journal](../../../../../journal/entries/post-intro-requester-2026-09-15.md) for commands and risks. Task 02 remains the next geometry repair.
+Implementation: implemented; automated verification passes, manual dialog presentation and advancement after OK confirmed; manual Escape confirmation remains pending. Four Debug/ASan builds, four-artifact generator parity, the revised wrapper and all eight arrow rows pass. The new SDL Debug/ASan regression captures the dialog, clicks OK, reaches a game update at camera 87, and verifies Escape enters main-menu ID 0x28. Full menu navigation and playable movement are not established. The hosted font still has punctuation/spacing limitations. See the [requester journal](../../../../../journal/entries/post-intro-requester-2026-09-15.md) for commands and risks. Task 11 is the next bounded rectangle-copy-input repair within Task 02.

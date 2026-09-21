@@ -42,6 +42,12 @@ The inspected SDL window capture shows the action error over the pedestal. Selec
 
 **OK resumes game updates at camera 87**, exposing the unresolved rooftop transition. Joe/enemy placement and playable movement remain unproven. The error can recur on another missing-action request; it is not suppressed. Action indexing stays opt-in because its SDL route reaches the existing `FUN_00431a7c` polygon-input crash. Continue [Task 02 geometry inputs](../../implementations/playable-sdl-runtime/steps/step-08/tasks/task-02-recover-joe-geometry-and-rendering.md), then Tasks 05/01 placement/actions and Task 03 children.
 
-[Task 09](../../implementations/playable-sdl-runtime/steps/step-08/tasks/task-09-recover-post-intro-action-error-requester.md) is implemented and automatically verified; manual F5 confirmation of the new dialog/OK/Escape behavior remains pending. The supplied video predates this repair.
+[Task 09](../../implementations/playable-sdl-runtime/steps/step-08/tasks/task-09-recover-post-intro-action-error-requester.md) is implemented and automatically verified; manual dialog/OK behavior was subsequently confirmed on 2026-09-21 (below); manual Escape remains unconfirmed. The earlier video predates this repair.
 
 Regression risk: shared message presentation now executes for recovered callers that previously stalled invisibly. Other message callers, keyboard-only modal interaction, typography and subsequent error/scene behavior remain incompletely recovered. No actor positions or scene selections are forced by this repair.
+
+## Manual follow-up — 2026-09-21
+
+The supplied screenshots show action error 384 over the pedestal (camera 175, one actor behind camera) and over the rooftops (camera 87, one actor offscreen). The user reports that clicking OK causes this transition, with no hero visible. The accompanying Shift/focus log reports scene pointer `0x67d0ac`, consistent with camera 87. This confirms error presentation and progress after OK, not sustained gameplay or manual Escape handling. The same error remains visible after the transition; a new modal invocation versus retained dialog pixels needs runtime tracing before claiming either explanation.
+
+The later [polygon-input repair](polygon-inputs-2026-09-21.md) passes the old reference-pointer crash but reaches another lighting/matrix-input failure. The action gate therefore stays off; these screenshots do not change the remaining actor/scene acceptance criteria.

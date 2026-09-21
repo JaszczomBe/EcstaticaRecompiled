@@ -3,7 +3,7 @@
 Status: active
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-15
+Last Updated: 2026-09-21
 
 ## Goal
 
@@ -24,7 +24,7 @@ Initialize Joe’s geometry through the recovered update path and draw the livin
 
 Geometry now blocks Task 05/01 full-route validation, so recover its bounded input failure before resuming those checks. Task 06 pose inputs and Task 08 packed metadata are implemented. Historical gate-off baseline packet: Joe actor `0xaa6bd8`, render tree `0x950d3c`, render rep id 67, reported model dword at rep `+0x22` equals `0xffffffff`, slots 17..24 are `-1,-1,384,384,384,384,384,384`. Root `rep_list=0`; sampled local/projected vertices are zero; the current-actor skip flag is clear. Treat sidecar field names as hypotheses to confirm against the original layout.
 
-The earlier Task 01 diagnostic packet advanced action 384 but ended in camera 40. Subsequent pose/matrix/event recovery has moved the current gated SDL stop into geometry: `FUN_00424dd8 → FUN_00424e44 → FUN_00433d30 → FUN_00431a7c`, reading `unaff_EBX + 4` with `unaff_EBX=1`. The argument named `actor` is `0x84b34c`, a draw node, illustrating that parameter names are still hypotheses. Recover original EAX/EBX/EDX ownership at these call boundaries before treating a mode value as a pointer. GDB evidence: `/tmp/e2-cues-final-gated.log`.
+The earlier Task 01 diagnostic packet advanced action 384 but ended in camera 40. At the 2026-09-15 checkpoint, pose/matrix/event recovery moved the gated SDL stop into geometry: `FUN_00424dd8 → FUN_00424e44 → FUN_00433d30 → FUN_00431a7c`, reading `unaff_EBX + 4` with `unaff_EBX=1`. The argument named `actor` is `0x84b34c`, a draw node, illustrating that parameter names are still hypotheses. The 2026-09-21 repair below recovers those EAX/EDX/EBX inputs. GDB evidence: `/tmp/e2-cues-final-gated.log`.
 
 Rep version 55 direct records populate fields 18..23. Generic old-version record mirroring, attaching the rep to the root node, and clearing a render-skip latch did not establish a fix; earlier attachment/latch proof edits were reverted. Use typed layouts/signatures for recovered fields where justified, mirrored through the generator.
 
@@ -33,6 +33,20 @@ Rep version 55 direct records populate fields 18..23. Generic old-version record
 A hardware watchpoint identified `FUN_00423858` rotating node `+0x136` and overwriting its attachment pointer at `+0x13a`. Original `0x423c34..0x423c6b` supplies node `+6` for all three simple-branch rotations. Those destinations are corrected and generator-mirrored; the route now reaches the polygon failure above. Recovering a stubbed node-camera call in `FUN_00424ed0` exposed a separate renderer input and was reverted. It remains incomplete, as do other no-argument vector-transform calls.
 
 Camera-projected host primitives are implemented separately in Task 07. They do not populate or prove game geometry. Default Joe remains behind camera 175; gated Joe changes position before the crash, but correct final placement and motion remain unproven. See the [projection journal](../../../../../journal/entries/actor-cues-and-projection-2026-09-15.md).
+
+## 2026-09-21 Polygon Input Repair
+
+The selector now supplies the optional reference polygon from the owner’s polygon table, and flat/textured dispatch preserves explicit polygon, mode and reference arguments across triangle and quad paths. The temporary direct caller uses contiguous vertex/polygon records and passes their real addresses. Reconstruction and prototypes are generator-mirrored.
+
+Original-machine-code routing comparison passes 576 cases; a twelve-face temporary-record fixture passes normally and under ASan. Four builds, generator parity, default wrapper, eight arrow rows and SDL Debug/ASan requester checks pass. Vertex transforms in the temporary caller and full rasterization remain incomplete.
+
+At the polygon-input checkpoint, gated SDL advanced to `FUN_00431a7c → FUN_004226bc → FUN_004228b8 → FUN_0045dd04`. [Task 10](task-10-recover-polygon-lighting-inputs.md) owns that separate lighting/matrix-input failure; its subsequent repair is recorded below. Gated SDL ASan times out in camera 1073 without reaching geometry. None of this establishes living Joe or visible movement. See the [polygon journal](../../../../../journal/entries/polygon-inputs-2026-09-21.md) for original addresses, commands and limitations.
+
+## 2026-09-21 Flat-Lighting Repair
+
+Task 10 recovers the normal/angle/local-rotation contract and mapped byte color reads in the flat leaf. Original-x86 angle, rotation and lighting-index comparisons pass normally and with ASan; builds, parity and default regressions pass again. A minimally interrupted gated run returns lighting indices 64/64 for normal 0/0/0, then fails in framebuffer copying at `FUN_00418514`. The degenerate normal does not prove valid geometry. Heavily instrumented runs can instead fail in `FUN_0042c790` action-channel handling; gated SDL ASan still times out before geometry.
+
+[Task 11](task-11-recover-dirty-rectangle-copy-inputs.md) owns the copy-input failure and is next. See the [lighting journal](../../../../../journal/entries/polygon-lighting-2026-09-21.md). Visible Joe, movement, vertex generation and complete rasterization remain open.
 
 ## Acceptance Criteria
 
@@ -48,7 +62,7 @@ Capture synchronized before/after packets with `--auto-scene175-visibility` and 
 ## Review State
 
 1. Planning state: agreed
-2. Implementation state: node matrix destination repaired; polygon-input recovery next
+2. Implementation state: node matrix destinations, polygon inputs and flat lighting repaired; Task 11 rectangle-copy inputs next
 3. Notes: Next source task; keep action indexing gated and split independent later render failures.
 
 ## Change Log

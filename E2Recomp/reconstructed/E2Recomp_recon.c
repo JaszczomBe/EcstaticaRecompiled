@@ -18437,6 +18437,7 @@ void __fastcall FUN_00424e44(int param_1,int node)
 {
   int in_EAX;
   int iVar1;
+  int reference_polygon = 0;
 
   in_EAX = node;
   if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
@@ -18445,7 +18446,10 @@ void __fastcall FUN_00424e44(int param_1,int node)
     return;
   }
   if (-1 < *(short *)(in_EAX + 0x1c)) {
-    param_1 = (*(int *)(in_EAX + 0x1a) >> 0x10) * 4;
+    /* Original 0x424e4b..0x424e68: EBX is zero or owner->polygon_table[index]. */
+    int owner = *(int *)(in_EAX + 0x22);
+    int table = *(int *)(owner + 0xdc);
+    reference_polygon = *(int *)(table + *(short *)(in_EAX + 0x1c) * 4);
   }
   if ((*(byte *)(*(int *)(in_EAX + 0x22) + 3) & 4) == 0) {
     param_1 = 1 - (DAT_0047a279 >> 0x18);
@@ -18454,7 +18458,7 @@ void __fastcall FUN_00424e44(int param_1,int node)
   else {
     iVar1 = 2;
   }
-  FUN_00433d30(in_EAX,iVar1);
+  FUN_00433d30(in_EAX,iVar1,reference_polygon);
   return;
 }
 
@@ -18521,44 +18525,6 @@ void FUN_00425018(int actor)
   uint uVar4;
   int iVar5;
   undefined8 uVar6;
-  undefined1 auStack_20c [4];
-  short local_208;
-  short local_206;
-  short local_204;
-  short local_1fc [2];
-  undefined1 local_1f8 [4];
-  short asStack_1f4 [11];
-  short local_1de;
-  short local_1dc;
-  short local_1da;
-  short local_1b4;
-  short local_1b2;
-  short local_1b0;
-  short local_18a;
-  short local_188;
-  short local_186;
-  short local_160;
-  short local_15e;
-  short local_15c;
-  short local_136;
-  short local_134;
-  short local_132;
-  short local_10c;
-  short local_10a;
-  short local_108;
-  short local_e2;
-  short local_e0;
-  short local_de;
-  undefined1 *local_b8;
-  undefined1 *local_b4;
-  undefined1 *local_b0;
-  ushort local_76;
-  undefined1 *local_74;
-  undefined1 *local_70;
-  undefined1 *local_6c;
-  undefined2 local_68;
-  undefined4 local_56;
-  undefined2 local_52;
   int local_34;
   int local_30;
   short *local_2c;
@@ -18567,45 +18533,48 @@ void FUN_00425018(int actor)
   int local_20;
   short *local_1c;
 
+  /* Original 0x425018 stack records; vertex transforms remain separately unrecovered. */
+  byte geometry[0x1d8] = {0};
+
   in_EAX = actor;
   if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
       IsBadReadPtr((void *)(uintptr_t)in_EAX,0xd2)) {
     return;
   }
-  local_76 = 0;
-  local_56 = *(undefined4 *)(in_EAX + 0x22);
-  local_68 = *(undefined2 *)(in_EAX + 0xce);
-  local_52 = *(undefined2 *)(in_EAX + 0xd0);
-  psVar3 = local_1fc;
-  local_208 = *(short *)(in_EAX + 0x68);
-  local_206 = *(short *)(in_EAX + 0x6a);
-  local_204 = *(short *)(in_EAX + 0x6c);
-  local_1de = -local_208;
-  local_1b2 = -local_206;
-  local_15c = -local_204;
+  (*(ushort *)(geometry + 0x196)) = 0;
+  (*(undefined4 *)(geometry + 0x1b6)) = *(undefined4 *)(in_EAX + 0x22);
+  (*(undefined2 *)(geometry + 0x1a4)) = *(undefined2 *)(in_EAX + 0xce);
+  (*(undefined2 *)(geometry + 0x1ba)) = *(undefined2 *)(in_EAX + 0xd0);
+  psVar3 = ((short *)(geometry + 0x10));
+  (*(short *)(geometry + 0x4)) = *(short *)(in_EAX + 0x68);
+  (*(short *)(geometry + 0x6)) = *(short *)(in_EAX + 0x6a);
+  (*(short *)(geometry + 0x8)) = *(short *)(in_EAX + 0x6c);
+  (*(short *)(geometry + 0x2e)) = -(*(short *)(geometry + 0x4));
+  (*(short *)(geometry + 0x5a)) = -(*(short *)(geometry + 0x6));
+  (*(short *)(geometry + 0xb0)) = -(*(short *)(geometry + 0x8));
   local_34 = in_EAX + 6;
   local_1c = (short *)(in_EAX + 0x80);
-  local_28 = local_1f8 + 2;
-  local_2c = &local_208;
+  local_28 = ((undefined1 *)(geometry + 0x14)) + 2;
+  local_2c = &(*(short *)(geometry + 0x4));
   local_24 = 0;
-  local_1dc = local_206;
-  local_1da = local_204;
-  local_1b4 = local_208;
-  local_1b0 = local_204;
-  local_18a = local_1de;
-  local_188 = local_1b2;
-  local_186 = local_204;
-  local_160 = local_208;
-  local_15e = local_206;
-  local_136 = local_1de;
-  local_134 = local_206;
-  local_132 = local_15c;
-  local_10c = local_208;
-  local_10a = local_1b2;
-  local_108 = local_15c;
-  local_e2 = local_1de;
-  local_e0 = local_1b2;
-  local_de = local_15c;
+  (*(short *)(geometry + 0x30)) = (*(short *)(geometry + 0x6));
+  (*(short *)(geometry + 0x32)) = (*(short *)(geometry + 0x8));
+  (*(short *)(geometry + 0x58)) = (*(short *)(geometry + 0x4));
+  (*(short *)(geometry + 0x5c)) = (*(short *)(geometry + 0x8));
+  (*(short *)(geometry + 0x82)) = (*(short *)(geometry + 0x2e));
+  (*(short *)(geometry + 0x84)) = (*(short *)(geometry + 0x5a));
+  (*(short *)(geometry + 0x86)) = (*(short *)(geometry + 0x8));
+  (*(short *)(geometry + 0xac)) = (*(short *)(geometry + 0x4));
+  (*(short *)(geometry + 0xae)) = (*(short *)(geometry + 0x6));
+  (*(short *)(geometry + 0xd6)) = (*(short *)(geometry + 0x2e));
+  (*(short *)(geometry + 0xd8)) = (*(short *)(geometry + 0x6));
+  (*(short *)(geometry + 0xda)) = (*(short *)(geometry + 0xb0));
+  (*(short *)(geometry + 0x100)) = (*(short *)(geometry + 0x4));
+  (*(short *)(geometry + 0x102)) = (*(short *)(geometry + 0x5a));
+  (*(short *)(geometry + 0x104)) = (*(short *)(geometry + 0xb0));
+  (*(short *)(geometry + 0x12a)) = (*(short *)(geometry + 0x2e));
+  (*(short *)(geometry + 0x12c)) = (*(short *)(geometry + 0x5a));
+  (*(short *)(geometry + 0x12e)) = (*(short *)(geometry + 0xb0));
   local_30 = in_EAX;
   do {
     local_20 = local_24 * 0x2a;
@@ -18619,19 +18588,19 @@ void FUN_00425018(int actor)
     iVar2 = local_20;
     if ((DAT_0047a34a != 0) && (DAT_0047a366 != 0)) {
       if (DAT_0047a34c == 0) {
-        *(short *)(local_1f8 + local_20 + 2) =
-             (short)((uint)*(undefined4 *)(local_1f8 + local_20) >> 0x10) +
+        *(short *)(((undefined1 *)(geometry + 0x14)) + local_20 + 2) =
+             (short)((uint)*(undefined4 *)(((undefined1 *)(geometry + 0x14)) + local_20) >> 0x10) +
              (((E2R_READ2(DAT_0047a37c,2) - (short)_DAT_006401c8) +
               (short)((_DAT_006401c8 + _DAT_0064020c) / 2)) - (short)(_DAT_006401ec / 2)) * -0x10;
-        *(short *)(local_1f8 + local_20 + 4) =
-             (short)((uint)*(undefined4 *)(local_1f8 + local_20 + 2) >> 0x10) +
+        *(short *)(((undefined1 *)(geometry + 0x14)) + local_20 + 4) =
+             (short)((uint)*(undefined4 *)(((undefined1 *)(geometry + 0x14)) + local_20 + 2) >> 0x10) +
              (((sRam0047a380 - (short)_DAT_006401cc) + (short)((_DAT_006401cc + _DAT_006401fc) / 2))
              - (short)(_DAT_006401d4 / 2)) * -0x10;
       }
       else {
         iVar5 = local_20 + 4;
-        *(short *)(local_1f8 + local_20 + 2) = *(short *)(local_1f8 + local_20 + 2) >> 1;
-        *(short *)(local_1f8 + iVar2 + 4) = *(short *)(local_1f8 + iVar5) >> 1;
+        *(short *)(((undefined1 *)(geometry + 0x14)) + local_20 + 2) = *(short *)(((undefined1 *)(geometry + 0x14)) + local_20 + 2) >> 1;
+        *(short *)(((undefined1 *)(geometry + 0x14)) + iVar2 + 4) = *(short *)(((undefined1 *)(geometry + 0x14)) + iVar5) >> 1;
       }
     }
     psVar3 = psVar3 + 0x15;
@@ -18651,30 +18620,32 @@ void FUN_00425018(int actor)
   iVar5 = 0;
   do {
     iVar1 = *(int *)((int)&DAT_0047a2e8 + iVar5);
-    local_74 = auStack_20c + *(int *)((int)&DAT_0047a2b8 + iVar5) * 0x2a;
-    local_70 = auStack_20c + iVar1 * 0x2a;
-    local_6c = auStack_20c + *(int *)((int)&DAT_0047a318 + iVar5) * 0x2a;
-    local_b0 = local_6c;
-    local_b8 = local_74;
-    local_b4 = local_70;
+    (*(undefined1 * *)(geometry + 0x198)) = ((undefined1 *)(geometry + 0x0)) + *(int *)((int)&DAT_0047a2b8 + iVar5) * 0x2a;
+    (*(undefined1 * *)(geometry + 0x19c)) = ((undefined1 *)(geometry + 0x0)) + iVar1 * 0x2a;
+    (*(undefined1 * *)(geometry + 0x1a0)) = ((undefined1 *)(geometry + 0x0)) + *(int *)((int)&DAT_0047a318 + iVar5) * 0x2a;
+    (*(undefined1 * *)(geometry + 0x15c)) = (*(undefined1 * *)(geometry + 0x1a0));
+    (*(undefined1 * *)(geometry + 0x154)) = (*(undefined1 * *)(geometry + 0x198));
+    (*(undefined1 * *)(geometry + 0x158)) = (*(undefined1 * *)(geometry + 0x19c));
     if ((int)uVar4 / 2 != (int)(uVar4 + 1) / 2) {
       iVar1 = *(int *)((int)&DAT_0047a2e4 + iVar5);
-      local_b0 = auStack_20c + *(int *)((int)&DAT_0047a314 + iVar5) * 0x2a;
-      local_b8 = auStack_20c + *(int *)((int)&DAT_0047a2b4 + iVar5) * 0x2a;
-      local_b4 = auStack_20c + iVar1 * 0x2a;
+      (*(undefined1 * *)(geometry + 0x15c)) = ((undefined1 *)(geometry + 0x0)) + *(int *)((int)&DAT_0047a314 + iVar5) * 0x2a;
+      (*(undefined1 * *)(geometry + 0x154)) = ((undefined1 *)(geometry + 0x0)) + *(int *)((int)&DAT_0047a2b4 + iVar5) * 0x2a;
+      (*(undefined1 * *)(geometry + 0x158)) = ((undefined1 *)(geometry + 0x0)) + iVar1 * 0x2a;
     }
     if ((uVar4 & 1) == 0) {
-      local_76 = local_76 & 0xfff7;
+      (*(ushort *)(geometry + 0x196)) = (*(ushort *)(geometry + 0x196)) & 0xfff7;
     }
     else {
-      local_76 = local_76 | 8;
+      (*(ushort *)(geometry + 0x196)) = (*(ushort *)(geometry + 0x196)) | 8;
     }
     if ((iVar2 == 0) || (DAT_0047a434 != 0)) {
       if (((*(byte *)(*(int *)(local_30 + 0x22) + 3) & 4) == 0) || (DAT_0047a34a != 0)) {
-        FUN_00431a7c(iVar1,1 - (DAT_0047a279 >> 0x18));
+        FUN_00431a7c((int)(uintptr_t)(geometry + 0x194),1 - (DAT_0047a279 >> 0x18),
+                       (int)(uintptr_t)(geometry + 0x150));
       }
       else {
-        FUN_00431a7c(iVar1,2);
+        FUN_00431a7c((int)(uintptr_t)(geometry + 0x194),2,
+                       (int)(uintptr_t)(geometry + 0x150));
       }
     }
     else {
@@ -27736,11 +27707,75 @@ undefined4 __fastcall FUN_00430fd8(undefined4 param_1,int param_2)
 
 
 
+/* Scoped recovery of 0x432c64 and the 0x431f2d..0x432007 lighting path.
+ * Other callers of the legacy angle/rotation wrappers still have lost inputs. */
+static short E2R_PolygonAngle16(short x,short z)
+{
+  static byte fine[256], coarse[256];
+  static int ready;
+  int ax = x < 0 ? -(int)x : x;
+  int az = z < 0 ? -(int)z : z;
+  int ratio, angle;
+  if (!ready) {
+    /* Original 0x414f5d..0x414fd8: atan tables, not sine/cosine.
+     * Keep private until the other users of the placeholder mapped tables
+     * have recovered arguments. Constants are at 0x471339..0x4713b1. */
+    for (int i = 0; i < 256; ++i) {
+      fine[i] = (byte)(atan(i * 0.015625) * 64.0 * 2.0 * 0.3183101550488765 + 0.5);
+      coarse[i] = (byte)(atan(i * 0.25) * 64.0 * 2.0 * 0.3183101550488765 + 0.5);
+    }
+    ready = 1;
+  }
+  /* Preserve the original zero/zero result, -0x4000. Inputs here come from
+   * a normal reduced to +/-0x4000 and its rotations, never SHRT_MIN. */
+  if (az == 0) return x > 0 ? 0x4000 : (short)-0x4000;
+  ratio = ax * 256 / az;
+  if (ratio < 0x400) angle = (int)fine[ratio >> 2] * 256;
+  else if (ratio < 0x4000) angle = (int)coarse[ratio >> 6] * 256;
+  else angle = ratio < 0x5200 ? 0x3f00 : 0x4000;
+  if (z > 0) return (short)(x > 0 ? angle : -angle);
+  return (short)(x > 0 ? -0x8000 - angle : angle - 0x8000);
+}
+
+static void E2R_RotatePolygonNormal(short normal[3],short angle,int axis)
+{
+  int sine = *(short *)(0x0059b590 + (uint)(ushort)angle * 2);
+  int cosine = *(short *)(0x005de590 + (uint)(ushort)angle * 2);
+  short matrix[9] = {16384,0,0,0,16384,0,0,0,16384};
+  /* Single-axis cases of 0x4228b8, used by 0x422674 (X) / 0x4226bc (Y).
+   * The original builds local matrix/output buffers and copies back. */
+  if (axis == 0) {
+    matrix[4] = matrix[8] = (short)cosine;
+    matrix[5] = (short)-sine;
+    matrix[7] = (short)sine;
+  } else {
+    matrix[0] = matrix[8] = (short)cosine;
+    matrix[2] = (short)sine;
+    matrix[6] = (short)-sine;
+  }
+  E2R_TransformVector14(normal,normal,matrix);
+}
+
+static void E2R_PolygonLightingIndices(int nx,int ny,int nz,int *horizontal,int *vertical)
+{
+  short normal[3] = {(short)nx,(short)ny,(short)nz};
+  short angle = E2R_PolygonAngle16(normal[0],normal[2]);
+  if (angle != 0) E2R_RotatePolygonNormal(normal,(short)-angle,1);
+  angle = E2R_PolygonAngle16((short)-normal[1],normal[2]);
+  if (angle != 0) E2R_RotatePolygonNormal(normal,(short)-angle,0);
+  /* EBX/ECX preserve the original reduced X/Y; only the divisor comes
+   * from the rotated normal at stack +4 (0x431faa..0x431fe7). */
+  int x = normal[2] == 0 ? 64 : 64 - nx * 64 / normal[2];
+  int y = normal[2] == 0 ? 64 : 64 - ny * 64 / normal[2];
+  *horizontal = x < 0 ? 0 : x > 127 ? 127 : x;
+  *vertical = y < 0 ? 0 : y > 127 ? 127 : y;
+}
+
 /* 00431a7c */
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void __fastcall FUN_00431a7c(int actor,int param_2)
+void __fastcall FUN_00431a7c(int polygon,int param_2,int reference_polygon)
 
 {
   byte bVar1;
@@ -27756,7 +27791,6 @@ void __fastcall FUN_00431a7c(int actor,int param_2)
   int extraout_ECX_02;
   int extraout_ECX_03;
   int iVar7;
-  int unaff_EBX;
   uint uVar8;
   int iVar9;
   int iVar10;
@@ -27823,8 +27857,8 @@ void __fastcall FUN_00431a7c(int actor,int param_2)
   int iStack_18;
   short sStack_14;
 
-  in_EAX = actor;
-  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
+  in_EAX = polygon;
+  if (in_EAX == 0 || (uint)in_EAX < 0x10000u ||
       IsBadReadPtr((void *)(uintptr_t)in_EAX,0x2c)) {
     return;
   }
@@ -27925,9 +27959,9 @@ void __fastcall FUN_00431a7c(int actor,int param_2)
       }
       local_e8 = local_e8 >> 0x10;
       local_100 = local_6c;
-      if (unaff_EBX != 0) {
-        iVar5 = *(int *)(unaff_EBX + 4);
-        iVar3 = *(int *)(unaff_EBX + 0xc);
+      if (reference_polygon != 0) {
+        iVar5 = *(int *)(reference_polygon + 4);
+        iVar3 = *(int *)(reference_polygon + 0xc);
         local_dc = *(int *)(iVar3 + 0x14) >> 0x10;
         local_d0 = (*(int *)(iVar5 + 0x14) >> 0x10) - local_dc;
         local_68 = *(int *)(iVar5 + 0x16) >> 0x10;
@@ -27936,7 +27970,7 @@ void __fastcall FUN_00431a7c(int actor,int param_2)
         iVar7 = *(int *)(iVar3 + 0x18) >> 0x10;
         local_d8 = local_100 - iVar7;
         local_d4 = local_68 - local_e0;
-        iVar5 = *(int *)(unaff_EBX + 8);
+        iVar5 = *(int *)(reference_polygon + 8);
         local_dc = (*(int *)(iVar5 + 0x14) >> 0x10) - local_dc;
         local_e0 = (*(int *)(iVar5 + 0x16) >> 0x10) - local_e0;
         iVar7 = (*(int *)(iVar5 + 0x18) >> 0x10) - iVar7;
@@ -27981,41 +28015,7 @@ void __fastcall FUN_00431a7c(int actor,int param_2)
           iVar5 = iVar5 >> 1;
         }
       }
-      sVar2 = (short)iVar3;
-      local_64 = (int)(short)iVar4;
-      iVar3 = FUN_00432c64(iVar5,sVar2);
-      uVar6 = extraout_ECX;
-      if ((short)iVar3 != 0) {
-        FUN_004226bc();
-        uVar6 = extraout_ECX_00;
-      }
-      sStack_14 = -(short)iVar5;
-      iVar3 = FUN_00432c64(uVar6,sVar2);
-      iVar5 = extraout_ECX_01;
-      if ((short)iVar3 != 0) {
-        FUN_00422674(extraout_ECX_01,-(short)iVar3);
-        iVar5 = extraout_ECX_02;
-      }
-      if (sVar2 == 0) {
-        iVar5 = 0x40;
-        iVar3 = 0x40;
-      }
-      else {
-        iVar3 = (iVar4 * -0x40) / (int)sVar2 + 0x40;
-        if (iVar3 < 0) {
-          iVar3 = 0;
-        }
-        else if (0x7f < iVar3) {
-          iVar3 = 0x7f;
-        }
-        iVar5 = (iVar5 * -0x40) / (int)sVar2 + 0x40;
-        if (iVar5 < 0) {
-          iVar5 = 0;
-        }
-        else if (0x7f < iVar5) {
-          iVar5 = 0x7f;
-        }
-      }
+      E2R_PolygonLightingIndices(iVar4,iVar5,iVar3,&iVar3,&iVar5);
       if (DAT_0047a3b4 == 0) {
         iVar7 = 0xbf;
         iVar4 = local_100 >> 7;
@@ -28033,12 +28033,12 @@ void __fastcall FUN_00431a7c(int actor,int param_2)
       }
       uVar8 = *(int *)(iVar3 + 0x61d02d + iVar5 * 0x80) >> 0x18 & 0x7f;
       if ((*(byte *)(in_EAX + 2) & 0x10) == 0) {
-        bVar1 = (&DAT_00507590)
+        bVar1 = ((const byte *)0x00507590)
                 [(iVar7 * (*(int *)(in_EAX + 0x24) >> 0x10) >> 0xe) * 0x80 + local_e8 * 0x4000 +
                  uVar8];
       }
       else {
-        bVar1 = (&DAT_0050b510)[uVar8 + local_e8 * 0x4000];
+        bVar1 = ((const byte *)0x0050b510)[uVar8 + local_e8 * 0x4000];
       }
       local_a8 = (uint)bVar1;
       if (iVar10 < iVar9) {
@@ -28664,7 +28664,7 @@ void FUN_00432ecc(void)
 
 /* 00433d30 */
 
-void __fastcall FUN_00433d30(int actor,int param_2)
+void __fastcall FUN_00433d30(int polygon,int param_2,int reference_polygon)
 
 {
   undefined2 uVar1;
@@ -28681,18 +28681,18 @@ void __fastcall FUN_00433d30(int actor,int param_2)
   int extraout_ECX_02;
   int iVar8;
 
-  in_EAX = actor;
+  in_EAX = polygon;
   if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
       IsBadReadPtr((void *)(uintptr_t)in_EAX,0x40)) {
     return;
   }
   if (*(int *)(in_EAX + 0x28) != 0) {
     if (((*(short *)(in_EAX + 0x2c) < 0) || (DAT_0047a3e0 != 0)) || (DAT_0047a434 != 0)) {
-      FUN_00431a7c(in_EAX,param_2);
+      FUN_00431a7c(in_EAX,param_2,reference_polygon);
       iVar8 = in_EAX;
     }
     else {
-      FUN_00437ae4(in_EAX,param_2);
+      FUN_00437ae4(in_EAX,param_2,reference_polygon);
       iVar8 = in_EAX;
     }
     uVar6 = *(undefined4 *)(iVar8 + 4);
@@ -28716,10 +28716,10 @@ void __fastcall FUN_00433d30(int actor,int param_2)
       *(byte *)(iVar8 + 3) = *(byte *)(iVar8 + 3) | 1;
     }
     if (((*(short *)(iVar8 + 0x2c) < 0) || (DAT_0047a3e0 != 0)) || (DAT_0047a434 != 0)) {
-      FUN_00431a7c(iVar8,param_2);
+      FUN_00431a7c(iVar8,param_2,reference_polygon);
     }
     else {
-      FUN_00437ae4(iVar8,param_2);
+      FUN_00437ae4(iVar8,param_2,reference_polygon);
     }
     *(undefined4 *)(iVar8 + 0xc) = uVar7;
     *(undefined4 *)(iVar8 + 4) = uVar6;
@@ -28731,10 +28731,10 @@ void __fastcall FUN_00433d30(int actor,int param_2)
     return;
   }
   if (((-1 < *(short *)(in_EAX + 0x2c)) && (DAT_0047a3e0 == 0)) && (DAT_0047a434 == 0)) {
-    FUN_00437ae4(in_EAX,param_2);
+    FUN_00437ae4(in_EAX,param_2,reference_polygon);
     return;
   }
-  FUN_00431a7c(in_EAX,param_2);
+  FUN_00431a7c(in_EAX,param_2,reference_polygon);
   return;
 }
 
@@ -30447,7 +30447,7 @@ float __fastcall FUN_0043574c(int param_1,float *param_2)
 /* WARNING: Removing unreachable block (ram,0x004380cb) */
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void __fastcall FUN_00437ae4(undefined4 param_1,int param_2)
+void __fastcall FUN_00437ae4(int polygon,int param_2,int reference_polygon)
 
 {
   short sVar1;
@@ -30465,7 +30465,6 @@ void __fastcall FUN_00437ae4(undefined4 param_1,int param_2)
   int iVar8;
   int iVar9;
   int iVar10;
-  int unaff_EBX;
   int iVar11;
   int iVar12;
   int iVar13;
@@ -30549,7 +30548,8 @@ void __fastcall FUN_00437ae4(undefined4 param_1,int param_2)
   int local_18;
   short local_14;
 
-  FUN_004525f0(param_1,param_2);
+  in_EAX = polygon;
+  FUN_004525f0(0,(int)*(short *)(in_EAX + 0x2c));
   iVar10 = *(int *)((*(int *)(in_EAX + 0x2a) >> 0x10) * 4 + 0x62b700);
   if (iVar10 != 0) {
     *(undefined4 *)(iVar10 + 0x10) = _DAT_00636588;
@@ -30641,9 +30641,9 @@ void __fastcall FUN_00437ae4(undefined4 param_1,int param_2)
         }
         local_18 = local_18 >> 0x10;
         local_28 = local_80;
-        if (unaff_EBX != 0) {
-          iVar2 = *(int *)(unaff_EBX + 4);
-          iVar7 = *(int *)(unaff_EBX + 0xc);
+        if (reference_polygon != 0) {
+          iVar2 = *(int *)(reference_polygon + 4);
+          iVar7 = *(int *)(reference_polygon + 0xc);
           local_7c = *(int *)(iVar7 + 0x14) >> 0x10;
           local_110 = (*(int *)(iVar2 + 0x14) >> 0x10) - local_7c;
           local_64 = *(int *)(iVar2 + 0x18) >> 0x10;
@@ -30651,7 +30651,7 @@ void __fastcall FUN_00437ae4(undefined4 param_1,int param_2)
           local_118 = local_64 - iVar8;
           local_120 = *(int *)(iVar7 + 0x16) >> 0x10;
           local_114 = (*(int *)(iVar2 + 0x16) >> 0x10) - local_120;
-          iVar2 = *(int *)(unaff_EBX + 8);
+          iVar2 = *(int *)(reference_polygon + 8);
           local_11c = (*(int *)(iVar2 + 0x14) >> 0x10) - local_7c;
           iVar8 = (*(int *)(iVar2 + 0x18) >> 0x10) - iVar8;
           local_120 = (*(int *)(iVar2 + 0x16) >> 0x10) - local_120;
