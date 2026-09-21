@@ -39,6 +39,8 @@ typedef signed char sbyte;
 #define false 0
 #endif
 
+void E2R_TransformVector14(short *output,const short *input,const short *matrix);
+void E2R_Perspective14(short *point,int focal,int hires);
 void E2R_InitData(void);
 void E2R_WinMainThunk(void);
 LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -241,8 +243,8 @@ void __fastcall FUN_00424e44(int param_1,int node);
 void FUN_00424ed0(void);
 void FUN_00425018(int actor);
 void FUN_00425538(int actor);
-void FUN_00426010(void);
-void FUN_00426124(void);
+void FUN_00426010(int actor);
+void FUN_00426124(int actor);
 void FUN_00426220(void);
 undefined8 __fastcall FUN_00426320(undefined4 param_1,undefined4 param_2);
 undefined8 __fastcall FUN_004263ac(undefined4 param_1,undefined4 param_2);

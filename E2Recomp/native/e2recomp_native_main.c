@@ -24,6 +24,19 @@ void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
     if (scene >= 0x67c728u && scene < 0x67c728u + 1200u * 28u &&
         (scene - 0x67c728u) % 28u == 0)
         snapshot->scene_slot = (int)((scene - 0x67c728u) / 28u);
+    short camera[3], angles[3], matrix[9] = {16384,0,0,0,16384,0,0,0,16384};
+    snapshot->view_width = (int)_DAT_006401ec;
+    snapshot->view_height = (int)_DAT_006401d4;
+    if (snapshot->scene_slot >= 0 && DAT_0047a34a == 0) {
+        /* Rebuild privately: legacy no-argument identity calls can overwrite
+         * the game's shared matrix. Reading a cue must never repair game state. */
+        memcpy(camera, (void *)scene, sizeof(camera));
+        memcpy(angles, (void *)(scene + 6), sizeof(angles));
+        if (angles[2]) FUN_00422538((uintptr_t)matrix, (uint16_t)angles[2]);
+        if (angles[0]) FUN_00422368((uintptr_t)matrix, (uint16_t)angles[0]);
+        if (angles[1]) FUN_00422460((uintptr_t)matrix, (uint16_t)angles[1]);
+        snapshot->camera_ready = 1;
+    }
     for (unsigned visited = 0; actor && visited < E2R_ACTOR_CUE_CAPACITY; ++visited) {
         uint32_t next, table_actor;
         int16_t id, position[3], home[3];
@@ -39,6 +52,28 @@ void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
                 cue->id = id;
                 cue->is_joe = id == 0;
                 cue->x = position[0]; cue->y = position[1]; cue->z = position[2];
+                if (snapshot->camera_ready) {
+                    /* Diagnostic dimensions, not recovered character bounds.
+                     * The upright follows negative Y; its length is diagnostic. */
+                    static const short offsets[6][3] = {
+                        {0,0,0}, {0,-1024,0}, {-256,0,0}, {256,0,0},
+                        {0,0,-256}, {0,0,256}
+                    };
+                    int16_t focal_word;
+                    memcpy(&focal_word, (void *)(scene + 12), 2);
+                    for (int vertex = 0; vertex < 6; ++vertex) {
+                        short relative[3], projected[3];
+                        for (int axis = 0; axis < 3; ++axis)
+                            relative[axis] = (short)(position[axis] + offsets[vertex][axis] - camera[axis]);
+                        E2R_TransformVector14(projected,relative,matrix);
+                        if (vertex == 0) cue->camera_z = projected[2];
+                        if (projected[2] < 128) projected[2] = 0;
+                        else E2R_Perspective14(projected,(int)focal_word * 4096,DAT_0047a43c != 0);
+                        cue->screen[vertex][0] = (projected[0] >> 4) + (int)_DAT_00640118;
+                        cue->screen[vertex][1] = (projected[1] >> 4) + (int)_DAT_00640114;
+                        cue->screen[vertex][2] = projected[2];
+                    }
+                }
                 if (cue->is_joe) {
                     memcpy(home, (void *)(actor + 0x9c), sizeof(home));
                     snapshot->origin_x = home[0]; snapshot->origin_z = home[2];
@@ -1211,7 +1246,7 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
 
     fprintf(out,
             "visibility_packet\n"
-            "scene_ptr=0x%lx scene_slot=%d scene_id=%d view_selector=0x%lx\n"
+            "scene_ptr=0x%lx scene_slot=%d camera_x=%d view_selector=0x%lx\n"
             "current_actor=0x%lx current_actor_id=%d action_actor=0x%lx "
             "action_slot=0x%lx action_ptr=0x%lx action_duration=%u "
             "action_progress=%u action_slot_flags=0x%x action_actor_flags=0x%x\n"
@@ -1263,10 +1298,16 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
                 readable ? e2r_frame_hash(framebuffer, bytes) : 0u);
     }
     e2r_write_actor_list_state(out);
-    fprintf(out, "scene_record_table slot=%d record=0x%lx\n",
-            scene_slot, (unsigned long)e2r_scene_record_table_entry(scene_slot));
-    e2r_write_scene_child_state(out, scene);
-    e2r_write_scene_child_state(out, e2r_scene_record_table_entry(scene_slot));
+    /* Camera slots and script scene-resource IDs are separate namespaces. */
+    uintptr_t owner_scene = 0;
+    short owner_id = -1;
+    if (action_actor) e2r_read_u32_field(action_actor + 0x132, &owner_scene);
+    e2r_read_short_field(owner_scene, &owner_id);
+    int owner_valid = owner_scene != 0 &&
+        e2r_scene_record_table_entry(owner_id) == owner_scene;
+    fprintf(out, "actor_scene_resource id=%d record=0x%lx table_match=%d\n",
+            owner_id, (unsigned long)owner_scene, owner_valid);
+    if (owner_valid) e2r_write_scene_child_state(out, owner_scene);
     const char *cues_enabled = getenv("E2R_ACTOR_CUES");
     if (cues_enabled && *cues_enabled && *cues_enabled != '0') {
         E2R_ActorCueSnapshot cues;
@@ -1277,6 +1318,9 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
             const E2R_ActorCue *cue = &cues.actors[i];
             fprintf(out, "actor_cue[%u] id=%d joe=%d live=%d,%d,%d\n",
                     i, cue->id, cue->is_joe, cue->x, cue->y, cue->z);
+            fprintf(out, "actor_cue[%u] camera_ready=%d screen=%d,%d depth=%d tip=%d,%d tip_depth=%d camera_z=%d\n",
+                    i, cues.camera_ready, cue->screen[0][0], cue->screen[0][1], cue->screen[0][2],
+                    cue->screen[1][0], cue->screen[1][1], cue->screen[1][2], cue->camera_z);
         }
     }
 }

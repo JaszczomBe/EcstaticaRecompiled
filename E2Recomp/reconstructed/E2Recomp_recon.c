@@ -9343,6 +9343,14 @@ void FUN_00414f40(void)
   int x;
   int y;
 
+  /* Original 0x415491..0x4154fb; constants at 0x471371/0x4713a1/0x471379.
+   * 0x45f556 truncates toward zero. These tables were missing entirely. */
+  for (x = 0; x < 65536; ++x) {
+    double phase = (double)x * 6.28318 / 65536.0;
+    *(short *)(0x0059b590 + x * 2) = (short)(sin(phase) * 16384.5);
+    *(short *)(0x005de590 + x * 2) = (short)(cos(phase) * 16384.5);
+  }
+
   for (x = 0; x < 256; x = x + 1) {
     double phase = ((double)x * pi) / 128.0;
     double normalized = (double)x / 255.0;
@@ -10104,6 +10112,27 @@ void FUN_00416cb4(void)
   _DAT_00636834 = 0x24;
   _DAT_00636836 = 0x24;
   _DAT_00636838 = 0x24;
+  /* Original 0x416cb4 initializes packed 16-bit priority/dispatch metadata.
+   * Keep gated with the corrected action/keyframe route while recovering it. */
+  if (E2R_ActionIndexProbeEnabled()) {
+    static const ushort metadata[] = {
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1,0x1,
+    0x0,0x0,0x0,0x0,0xffff,0xffff,0xffff,0x0,0xffff,0xffff,0xffff,0xffff,
+    0xffff,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xffff,0x0,
+    0x0,0x0,0x0,0xfffe,0x0,0x0,0x0,0x0,0xffff,0xffff,0xffff,0xffff,
+    0xffff,0xffff,0xffff,0x2,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x110,0x110,0x14,0x110,
+    0x10,0x10,0x16,0x4,0x14,0xc,0x0,0x0,0x10,0x16,0x8,0x8,
+    0x8,0x88,0x88,0x8,0xe,0x10e,0x10e,0x6,0x0,0x0,0x0,0x16,
+    0x16,0x16,0x110,0x16,0x16,0x16,0x16,0xe,0x0,0x0,0x10,0x10,
+    0x14,0x40,0xc,0x24,0x24,0x16,0x0,0x14,0x8,0x8,0xe,0x0,
+    0x0,0x0,0xe,0x16,0x16,0x16,0x16,0x16,0x16,0x16,0x16,0x8,
+    0x8,0x8,0x24,0x210,0x210,0x14,0xe,0x10,0x24,0x24,0x24,0x24,
+    0x24,0x8,
+    };
+    memcpy((void *)0x00636700,metadata,sizeof(metadata));
+  }
   return;
 }
 
@@ -15573,7 +15602,7 @@ void FUN_00420c10(void)
   FUN_00420b8c(extraout_EDX);
   if (*(int *)((undefined1 *)0x00630b60 + extraout_EDX * 4) != 0) {
     FUN_00420dcc();
-    FUN_00426010();
+    FUN_00426010(*(int *)(0x00630b60 + extraout_EDX * 4));
   }
   return;
 }
@@ -15813,6 +15842,8 @@ void __fastcall FUN_00420ec4(undefined4 param_1,short *param_2)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
+static void E2R_ApplyEulerMatrix(short *matrix,short *angles);
+
 void __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)
 
 {
@@ -15845,19 +15876,8 @@ void __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)
     psVar6 = (short *)0x0;
   }
   if (psVar6 == (short *)0x0) {
-    FUN_00422330();
-    uVar4 = extraout_ECX_01;
-    if (in_EAX[0x49] != 0) {
-      FUN_00422460(extraout_ECX_01,(int)in_EAX[0x49]);
-      uVar4 = extraout_ECX_02;
-    }
-    if (in_EAX[0x48] != 0) {
-      FUN_00422368(uVar4,(int)in_EAX[0x48]);
-      uVar4 = extraout_ECX_03;
-    }
-    if (in_EAX[0x4a] != 0) {
-      FUN_00422538(uVar4,(int)in_EAX[0x4a]);
-    }
+    /* Original 0x4210b8..0x421101: all rotations target actor + 6. */
+    E2R_ApplyEulerMatrix(in_EAX + 3,in_EAX + 0x48);
   }
   else {
     uVar4 = extraout_ECX;
@@ -16446,15 +16466,15 @@ void __fastcall FUN_00421f54(undefined4 param_1)
   int extraout_EDX_03;
   int iVar4;
   int extraout_EDX_04;
-  short local_1c;
+  short projected[3];
 
   _DAT_00640204 = 1;
   iVar2 = _DAT_0063726c;
   iVar4 = _DAT_0063726c;
   if (DAT_0047a3b4 != 0) {
     for (; iVar4 = _DAT_0063726c, iVar2 != 0; iVar2 = *(int *)(iVar2 + 0x4c)) {
-      FUN_00422fd8(param_1,iVar2 + 0x84);
-      if (local_1c < 0x2001) {
+      FUN_00422fd8((undefined4)(uintptr_t)projected,iVar2 + 0x84);
+      if (projected[2] < 0x2001) {
         *(byte *)(iVar2 + 2) = *(byte *)(iVar2 + 2) | 8;
       }
       else {
@@ -16692,29 +16712,15 @@ void FUN_00422330(void)
 void __fastcall FUN_00422368(undefined4 param_1,uint param_2)
 
 {
-  int *in_EAX;
-  int iVar1;
-  int iVar2;
-  int iVar3;
-  int iVar4;
-
-  in_EAX = (int *)(uintptr_t)param_1;
-  if (E2R_IsBadWritePtr(in_EAX,0x14) || (uintptr_t)in_EAX >= 0x70000000u) return;
-  iVar1 = *(int *)((int)in_EAX + 6) >> 0x10;
-  iVar4 = *(int *)((param_2 & 0xffff) * 2 + 0x59b58e) >> 0x10;
-  iVar3 = *(int *)((param_2 & 0xffff) * 2 + 0x5de58e) >> 0x10;
-  *(short *)((int)in_EAX + 2) =
-       (short)(iVar3 * (*in_EAX >> 0x10) + (*(int *)((int)in_EAX + 2) >> 0x10) * iVar4 >> 0xe);
-  iVar2 = -iVar4;
-  *(short *)(in_EAX + 1) =
-       (short)((*in_EAX >> 0x10) * iVar2 + iVar3 * (*(int *)((int)in_EAX + 2) >> 0x10) >> 0xe);
-  *(short *)(in_EAX + 2) = (short)(iVar1 * iVar3 + iVar4 * (in_EAX[2] >> 0x10) >> 0xe);
-  *(short *)((int)in_EAX + 10) = (short)((in_EAX[2] >> 0x10) * iVar3 + iVar1 * iVar2 >> 0xe);
-  *(short *)((int)in_EAX + 0xe) =
-       (short)(iVar4 * (*(int *)((int)in_EAX + 0xe) >> 0x10) + iVar3 * (in_EAX[3] >> 0x10) >> 0xe);
-  *(short *)(in_EAX + 4) =
-       (short)(iVar3 * (*(int *)((int)in_EAX + 0xe) >> 0x10) + iVar2 * (in_EAX[3] >> 0x10) >> 0xe);
-  return;
+  short *matrix = (short *)(uintptr_t)param_1;
+  if (E2R_IsBadWritePtr(matrix,0x12)) return;
+  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);
+  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);
+  for (int row = 0; row < 3; ++row) {
+    int a = matrix[row * 3 + 1], b = matrix[row * 3 + 2];
+    matrix[row * 3 + 1] = (short)((a * cosine + (1) * b * sine) >> 14);
+    matrix[row * 3 + 2] = (short)((b * cosine - (1) * a * sine) >> 14);
+  }
 }
 
 
@@ -16724,27 +16730,15 @@ void __fastcall FUN_00422368(undefined4 param_1,uint param_2)
 void __fastcall FUN_00422460(undefined4 param_1,uint param_2)
 
 {
-  short sVar1;
-  int iVar2;
-  int iVar3;
-  short *in_EAX;
-  int iVar4;
-  int iVar5;
-
-  in_EAX = (short *)(uintptr_t)param_1;
-  if (E2R_IsBadWritePtr(in_EAX,0x14) || (uintptr_t)in_EAX >= 0x70000000u) return;
-  iVar5 = *(int *)((param_2 & 0xffff) * 2 + 0x59b58e) >> 0x10;
-  sVar1 = *in_EAX;
-  iVar4 = *(int *)((param_2 & 0xffff) * 2 + 0x5de58e) >> 0x10;
-  *in_EAX = (short)(iVar4 * sVar1 - (*(int *)(in_EAX + 1) >> 0x10) * iVar5 >> 0xe);
-  iVar2 = *(int *)(in_EAX + 2);
-  in_EAX[2] = (short)(sVar1 * iVar5 + (*(int *)(in_EAX + 1) >> 0x10) * iVar4 >> 0xe);
-  iVar3 = *(int *)(in_EAX + 5);
-  in_EAX[5] = (short)((iVar2 >> 0x10) * iVar5 + (*(int *)(in_EAX + 4) >> 0x10) * iVar4 >> 0xe);
-  in_EAX[6] = (short)(iVar4 * (iVar3 >> 0x10) - (*(int *)(in_EAX + 7) >> 0x10) * iVar5 >> 0xe);
-  in_EAX[3] = (short)(iVar4 * (iVar2 >> 0x10) - (*(int *)(in_EAX + 4) >> 0x10) * iVar5 >> 0xe);
-  in_EAX[8] = (short)(iVar4 * (*(int *)(in_EAX + 7) >> 0x10) + iVar5 * (iVar3 >> 0x10) >> 0xe);
-  return;
+  short *matrix = (short *)(uintptr_t)param_1;
+  if (E2R_IsBadWritePtr(matrix,0x12)) return;
+  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);
+  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);
+  for (int row = 0; row < 3; ++row) {
+    int a = matrix[row * 3 + 0], b = matrix[row * 3 + 2];
+    matrix[row * 3 + 0] = (short)((a * cosine + (-1) * b * sine) >> 14);
+    matrix[row * 3 + 2] = (short)((b * cosine - (-1) * a * sine) >> 14);
+  }
 }
 
 
@@ -16754,28 +16748,15 @@ void __fastcall FUN_00422460(undefined4 param_1,uint param_2)
 void __fastcall FUN_00422538(undefined4 param_1,uint param_2)
 
 {
-  int *in_EAX;
-  int iVar1;
-  int iVar2;
-  int iVar3;
-  int iVar4;
-
-  in_EAX = (int *)(uintptr_t)param_1;
-  if (E2R_IsBadWritePtr(in_EAX,0x14) || (uintptr_t)in_EAX >= 0x70000000u) return;
-  iVar3 = *(int *)((param_2 & 0xffff) * 2 + 0x59b58e) >> 0x10;
-  iVar4 = *in_EAX;
-  iVar2 = *(int *)((param_2 & 0xffff) * 2 + 0x5de58e) >> 0x10;
-  *(short *)in_EAX = (short)(iVar2 * (short)iVar4 + (*in_EAX >> 0x10) * iVar3 >> 0xe);
-  iVar1 = -iVar3;
-  *(short *)((int)in_EAX + 2) = (short)((short)iVar4 * iVar1 + iVar2 * (*in_EAX >> 0x10) >> 0xe);
-  *(short *)((int)in_EAX + 6) =
-       (short)((in_EAX[1] >> 0x10) * iVar2 + iVar3 * (*(int *)((int)in_EAX + 6) >> 0x10) >> 0xe);
-  iVar4 = *(int *)((int)in_EAX + 10) >> 0x10;
-  *(short *)(in_EAX + 2) =
-       (short)((*(int *)((int)in_EAX + 6) >> 0x10) * iVar2 + (in_EAX[1] >> 0x10) * iVar1 >> 0xe);
-  *(short *)(in_EAX + 3) = (short)(iVar3 * (in_EAX[3] >> 0x10) + iVar2 * iVar4 >> 0xe);
-  *(short *)((int)in_EAX + 0xe) = (short)(iVar2 * (in_EAX[3] >> 0x10) + iVar1 * iVar4 >> 0xe);
-  return;
+  short *matrix = (short *)(uintptr_t)param_1;
+  if (E2R_IsBadWritePtr(matrix,0x12)) return;
+  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);
+  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);
+  for (int row = 0; row < 3; ++row) {
+    int a = matrix[row * 3 + 0], b = matrix[row * 3 + 1];
+    matrix[row * 3 + 0] = (short)((a * cosine + (1) * b * sine) >> 14);
+    matrix[row * 3 + 1] = (short)((b * cosine - (1) * a * sine) >> 14);
+  }
 }
 
 
@@ -17074,14 +17055,14 @@ void FUN_00422abc(void)
   if ((DAT_0047a34a == 0) || (DAT_0047a366 != 0)) {
     E2R_SetIdentityMatrix((undefined2 *)0x006372aa);
     uVar4 = 0x006372aa;
-    if (_DAT_006372c0 != 0) {
-      FUN_00422538(uVar4,(int)_DAT_006372c0);
+    if ((*(short *)(uintptr_t)0x006372c0) != 0) {
+      FUN_00422538(uVar4,(int)(*(short *)(uintptr_t)0x006372c0));
     }
-    if (_DAT_006372bc != 0) {
-      FUN_00422368(uVar4,(int)_DAT_006372bc);
+    if ((*(short *)(uintptr_t)0x006372bc) != 0) {
+      FUN_00422368(uVar4,(int)(*(short *)(uintptr_t)0x006372bc));
     }
-    if (_DAT_006372be != 0) {
-      FUN_00422460(uVar4,(int)_DAT_006372be);
+    if ((*(short *)(uintptr_t)0x006372be) != 0) {
+      FUN_00422460(uVar4,(int)(*(short *)(uintptr_t)0x006372be));
     }
   }
   else {
@@ -17095,25 +17076,25 @@ void FUN_00422abc(void)
     puVar7 = puVar7 + 1;
   }
   *(undefined2 *)puVar7 = *(undefined2 *)puVar6;
-  _DAT_006372d4 = _DAT_006372bc;
-  _DAT_006372d6 = _DAT_006372be;
-  _DAT_006372d8 = _DAT_006372c0;
-  _DAT_006372c8 = _DAT_006372c2;
-  _DAT_006372ca = _DAT_006372c4;
-  _DAT_006372cc = _DAT_006372c6;
+  _DAT_006372d4 = (*(short *)(uintptr_t)0x006372bc);
+  _DAT_006372d6 = (*(short *)(uintptr_t)0x006372be);
+  _DAT_006372d8 = (*(short *)(uintptr_t)0x006372c0);
+  _DAT_006372c8 = (*(short *)(uintptr_t)0x006372c2);
+  _DAT_006372ca = (*(short *)(uintptr_t)0x006372c4);
+  _DAT_006372cc = (*(short *)(uintptr_t)0x006372c6);
   if (DAT_0047a34a != 0) {
-    _DAT_006372d0 = _DAT_006372be + -0x4000;
+    _DAT_006372d0 = (*(short *)(uintptr_t)0x006372be) + -0x4000;
     if (DAT_0047a366 == 0) {
-      _DAT_006372ce = _DAT_006372bc;
-      _DAT_006372d2 = _DAT_006372c0;
+      _DAT_006372ce = (*(short *)(uintptr_t)0x006372bc);
+      _DAT_006372d2 = (*(short *)(uintptr_t)0x006372c0);
       E2R_ApplyEulerMatrix((short *)0x00637298,(short *)0x006372ce);
-      _DAT_006372da = _DAT_006372c2;
-      _DAT_006372dc = _DAT_006372c4;
-      _DAT_006372de = (undefined2)(((_DAT_006372c4 >> 0x10) << 2) / 3);
+      _DAT_006372da = (*(short *)(uintptr_t)0x006372c2);
+      _DAT_006372dc = (*(short *)(uintptr_t)0x006372c4);
+      _DAT_006372de = (undefined2)(((int)*(short *)(uintptr_t)0x006372c6 * 4) / 3);
     }
     else {
-      _DAT_006372d2 = _DAT_006372c0;
-      _DAT_006372ce = _DAT_006372bc;
+      _DAT_006372d2 = (*(short *)(uintptr_t)0x006372c0);
+      _DAT_006372ce = (*(short *)(uintptr_t)0x006372bc);
       E2R_SetIdentityMatrix((undefined2 *)0x00637298);
       uVar4 = 0x00637298;
       if (_DAT_006372d2 != 0) {
@@ -17159,18 +17140,18 @@ void FUN_00422abc(void)
       }
     }
     if (DAT_0047a366 == 0) {
-      _DAT_006372e0 = _DAT_006372bc + -0x4000;
-      _DAT_006372e2 = _DAT_006372be;
-      _DAT_006372e4 = _DAT_006372c0;
+      _DAT_006372e0 = (*(short *)(uintptr_t)0x006372bc) + -0x4000;
+      _DAT_006372e2 = (*(short *)(uintptr_t)0x006372be);
+      _DAT_006372e4 = (*(short *)(uintptr_t)0x006372c0);
       E2R_ApplyEulerMatrix((short *)0x00637274,(short *)0x006372e0);
-      _DAT_006372e6 = _DAT_006372c2;
-      _DAT_006372e8 = _DAT_006372c4;
-      _DAT_006372ea = (undefined2)(((_DAT_006372c4 >> 0x10) << 2) / 3);
+      _DAT_006372e6 = (*(short *)(uintptr_t)0x006372c2);
+      _DAT_006372e8 = (*(short *)(uintptr_t)0x006372c4);
+      _DAT_006372ea = (undefined2)(((int)*(short *)(uintptr_t)0x006372c6 * 4) / 3);
     }
     else {
-      _DAT_006372e0 = CONCAT11((char)((ushort)_DAT_006372bc >> 8) + '@',(char)_DAT_006372bc);
-      _DAT_006372e2 = _DAT_006372be;
-      _DAT_006372e4 = _DAT_006372c0;
+      _DAT_006372e0 = CONCAT11((char)((ushort)(*(short *)(uintptr_t)0x006372bc) >> 8) + '@',(char)(*(short *)(uintptr_t)0x006372bc));
+      _DAT_006372e2 = (*(short *)(uintptr_t)0x006372be);
+      _DAT_006372e4 = (*(short *)(uintptr_t)0x006372c0);
       E2R_SetIdentityMatrix((undefined2 *)0x00637274);
       uVar4 = 0x00637274;
       if (_DAT_006372e4 != 0) {
@@ -17252,88 +17233,67 @@ void FUN_00422f44(void)
 
 /* 00422fd8 */
 
+/* Original 0x45de8b: EBX=input, ESI=row-major Q14 matrix, EDI=output.
+ * Keep this explicit entry separate from callers whose register inputs are
+ * still unrecovered. Unsigned accumulation preserves x86 32-bit wraparound. */
+void E2R_TransformVector14(short *output,const short *input,const short *matrix)
+{
+  short value[3];
+  memcpy(value,input,sizeof(value));
+  for (int row = 0; row < 3; ++row) {
+    uint32_t sum = 0;
+    for (int col = 0; col < 3; ++col)
+      sum += (uint32_t)((int32_t)value[col] * matrix[row * 3 + col]);
+    output[row] = (short)((int32_t)sum >> 14);
+  }
+}
+
 void __fastcall FUN_00422fd8(undefined4 param_1,int param_2)
 
 {
-  int in_EAX;
-  int iVar1;
-  short sVar2;
-  short local_1c [4];
-
-  if ((DAT_0047a34a == 0) || (DAT_0047a366 == 1)) {
-    sVar2 = 0;
-    do {
-      iVar1 = (int)sVar2;
-      sVar2 = sVar2 + 1;
-      local_1c[iVar1] = *(short *)(param_2 + iVar1 * 2) - *(short *)((undefined1 *)0x006372c2 + iVar1 * 2);
-    } while (sVar2 < 3);
-    FUN_0045de8b();
+  short *output = (short *)(uintptr_t)param_1;
+  const short *input = (const short *)(uintptr_t)param_2;
+  const short *camera = (const short *)0x006372c2;
+  short relative[3];
+  if (DAT_0047a34a == 0 || DAT_0047a366 == 1) {
+    for (int i = 0; i < 3; ++i) relative[i] = (short)(input[i] - camera[i]);
+    E2R_TransformVector14(output,relative,(const short *)0x006372aa);
+  } else {
+    E2R_TransformVector14(output,input,(const short *)0x006372aa);
+    for (int i = 0; i < 3; ++i) output[i] = (short)(output[i] + camera[i]);
   }
-  else {
-    FUN_0045de8b();
-    sVar2 = 0;
-    do {
-      iVar1 = (int)sVar2;
-      sVar2 = sVar2 + 1;
-      *(short *)(in_EAX + iVar1 * 2) =
-           *(short *)(in_EAX + iVar1 * 2) + *(short *)((undefined1 *)0x006372c2 + iVar1 * 2);
-    } while (sVar2 < 3);
-  }
-  if (*(short *)(in_EAX + 4) < 0x80) {
-    *(undefined2 *)(in_EAX + 4) = 0;
-  }
-  else {
-    FUN_00423070((int *)(uintptr_t)in_EAX);
-  }
-  return;
+  if (output[2] < 0x80) output[2] = 0;
+  else FUN_00423070((int *)output);
 }
 
 
 
 /* 00423070 */
 
-void FUN_00423070(int *coord)
+void E2R_Perspective14(short *point,int focal,int hires)
 
 {
-  int *in_EAX;
-  int iVar1;
-  int iVar2;
-  int iVar3;
-
-  in_EAX = coord;
-  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||
-      0x70000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,6) ||
-      (*(int *)((int)in_EAX + 2) >> 0x10) == 0) {
+  int scale_x, scale_y, x, y;
+  if (point[2] == 0) return;
+  scale_x = focal / point[2];
+  scale_y = scale_x - (scale_x >> 3);
+  if (hires != 0) {
+    scale_y = scale_y * 12 / 5;
+    scale_x *= 2;
+  }
+  x = (int32_t)((uint32_t)(int32_t)point[0] * (uint32_t)scale_x) >> 10;
+  y = (int32_t)((uint32_t)(int32_t)point[1] * (uint32_t)scale_y) >> 10;
+  if (x <= -0x7fff || x >= 0x7fff || y <= -0x7fff || y >= 0x7fff) {
+    point[2] = 0;
     return;
   }
-  iVar1 = DAT_0047a2a4 / (*(int *)((int)in_EAX + 2) >> 0x10);
-  iVar2 = iVar1 - (iVar1 >> 3);
-  if (DAT_0047a43c != 0) {
-    iVar2 = (iVar2 * 0xc) / 5;
-    iVar1 = iVar1 * 2;
-  }
-  iVar3 = (short)*in_EAX * iVar1 >> 10;
-  iVar1 = iVar3;
-  if (iVar3 < 1) {
-    iVar1 = -iVar3;
-  }
-  if (iVar1 < 0x7fff) {
-    *(short *)in_EAX = (short)iVar3;
-    iVar2 = (*in_EAX >> 0x10) * iVar2 >> 10;
-    iVar1 = iVar2;
-    if (iVar2 < 1) {
-      iVar1 = -iVar2;
-    }
-    if (0x7ffe < iVar1) {
-      *(short *)(in_EAX + 1) = 0;
-      return;
-    }
-    *(short *)((int)in_EAX + 2) = (short)iVar2;
-  }
-  else {
-    *(short *)(in_EAX + 1) = 0;
-  }
-  return;
+  point[0] = (short)x;
+  point[1] = (short)y;
+}
+
+void FUN_00423070(int *coord)
+{
+  E2R_Perspective14((short *)coord,(int)DAT_0047a2a4,DAT_0047a43c != 0);
 }
 
 
@@ -17577,15 +17537,15 @@ void __fastcall FUN_00423858(undefined4 param_1,undefined4 param_2)
     if ((*(byte *)(iVar10 + 2) & 0x20) == 0) {
       if (*(int *)(iVar10 + 0x12e) == 0) {
         if (*(short *)(iVar10 + 0x28) != 0) {
-          FUN_00422460(uVar5,(int)*(short *)(iVar10 + 0x28));
+          FUN_00422460((undefined4)(uintptr_t)(iVar10 + 6),(int)*(short *)(iVar10 + 0x28));
           uVar5 = extraout_ECX_08;
         }
         if (*(short *)(iVar10 + 0x26) != 0) {
-          FUN_00422368(uVar5,(int)*(short *)(iVar10 + 0x26));
+          FUN_00422368((undefined4)(uintptr_t)(iVar10 + 6),(int)*(short *)(iVar10 + 0x26));
           uVar5 = extraout_ECX_09;
         }
         if (*(short *)(iVar10 + 0x2a) != 0) {
-          FUN_00422538(uVar5,(int)*(short *)(iVar10 + 0x2a));
+          FUN_00422538((undefined4)(uintptr_t)(iVar10 + 6),(int)*(short *)(iVar10 + 0x2a));
         }
         local_4c = (short *)(iVar10 + 0x80);
         FUN_0045de8b();
@@ -18199,7 +18159,7 @@ void FUN_004249f4(undefined4 param_1)
     E2R_actor_calc_context = 0;
     iVar6 = extraout_ECX;
     for (iVar2 = *(int *)(iVar1 + 0x11e); iVar2 != 0; iVar2 = *(int *)(iVar2 + 0x26)) {
-      FUN_00422fd8(iVar6,iVar2 + 0x10);
+      FUN_00422fd8((undefined4)(uintptr_t)(iVar2 + 0x16),iVar2 + 0x10);
       iVar4 = _DAT_006401fc;
       iVar3 = _DAT_006401d4;
       iVar6 = extraout_ECX_00;
@@ -18649,7 +18609,7 @@ void FUN_00425018(int actor)
     iVar2 = CONCAT22(extraout_var,psVar3[2]) + CONCAT22((short)((uint)local_1c >> 0x10),local_1c[2])
     ;
     psVar3[2] = (short)iVar2;
-    FUN_00422fd8(iVar2,(int)psVar3);
+    FUN_00422fd8((undefined4)(uintptr_t)(psVar3 + 3),(int)psVar3);
     iVar2 = local_20;
     if ((DAT_0047a34a != 0) && (DAT_0047a366 != 0)) {
       if (DAT_0047a34c == 0) {
@@ -18866,11 +18826,12 @@ LAB_00425799:
 
 /* 00426010 */
 
-void FUN_00426010(void)
+void FUN_00426010(int actor)
 
 {
   int iVar1;
-  int in_EAX;
+  int in_EAX = actor;
+  int entry_context = E2R_actor_calc_context;
   int iVar2;
   int iVar4;
   int iVar3;
@@ -18897,7 +18858,7 @@ void FUN_00426010(void)
     FUN_00432e08();
     FUN_00442954();
     FUN_004429e0();
-    E2R_actor_calc_context = 0;
+    E2R_actor_calc_context = entry_context;
     for (iVar3 = *(int *)(iVar1 + 0x11e); iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x26)) {
       iVar2 = iVar3;
       do {
@@ -18919,11 +18880,12 @@ void FUN_00426010(void)
 
 /* 00426124 */
 
-void FUN_00426124(void)
+void FUN_00426124(int actor)
 
 {
   int iVar1;
-  int in_EAX;
+  int in_EAX = actor;
+  int entry_context = E2R_actor_calc_context;
   int iVar2;
   int iVar4;
   int iVar3;
@@ -18948,7 +18910,7 @@ void FUN_00426124(void)
     FUN_00432e08();
     FUN_00442954();
     FUN_004429e0();
-    E2R_actor_calc_context = 0;
+    E2R_actor_calc_context = entry_context;
     for (iVar3 = *(int *)(iVar1 + 0x11e); iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x26)) {
       iVar2 = iVar3;
       do {
@@ -46054,8 +46016,9 @@ void FUN_0044d634(void)
           psVar6 = extraout_ECX_07;
         }
         if ((*(short **)(psVar6 + 3) != (short *)0x0) && (**(short **)(psVar6 + 3) == 0)) {
-          FUN_00426010();
-          psVar1[0x91] = extraout_var;
+          short saved_pose = psVar1[0x91];
+          FUN_00426010((int)(uintptr_t)psVar1);
+          psVar1[0x91] = saved_pose;
           *(undefined4 *)(psVar1 + 0x5e) = *(undefined4 *)(psVar1 + 0xf);
           psVar6 = extraout_ECX_08;
         }
@@ -49651,21 +49614,22 @@ undefined4 FUN_004523f8(undefined4 param_1)
         }
         FUN_0042d048();
         if ((*(short **)(psVar2 + 3) != (short *)0x0) && (**(short **)(psVar2 + 3) == 0)) {
+          /* Original EAX=actor, DX preserves +0x122 across pose restore. */
+          sVar5 = psVar4[0x91];
           if (DAT_00479e1c == 0) {
-            FUN_00426124();
-            sVar5 = extraout_DX;
+            FUN_00426124((int)(uintptr_t)psVar4);
           }
           else {
-            FUN_00426010();
-            sVar5 = extraout_DX_00;
+            FUN_00426010((int)(uintptr_t)psVar4);
           }
           psVar4[0x91] = sVar5;
           *(undefined4 *)(psVar4 + 0x5e) = *(undefined4 *)(psVar4 + 0xf);
-          FUN_0045fc70(6,0);
-          FUN_00422330();
+          memset(psVar4 + 0x48,0,6);
+          E2R_SetIdentityMatrix((undefined2 *)(psVar4 + 0x63));
         }
         *(short **)(psVar4 + 0x53) = psVar2 + 1;
         *(short **)(psVar4 + 0x99) = in_EAX;
+        E2R_actor_calc_context = (int)(uintptr_t)psVar4;
         FUN_00426a80();
         if ((*(int *)(psVar2 + 3) != 0) && (*(int *)(*(int *)(psVar2 + 3) + 6) != 0)) {
           *(ushort *)(*psVar4 * 2 + 0x666ff8) = *in_EAX + 1U | 0x8000;

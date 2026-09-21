@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-09-14
+Last Updated: 2026-09-15
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -29,12 +29,12 @@ The 2026-09-14 audit rebuilt commit `43ddc8a`; the same-day Step 07 continuation
 
 | Area | Verified state | Limit |
 | --- | --- | --- |
-| Builds | Default debug, ASan, and SDL debug compile | Runtime remains Linux/i386 with fixed-address assumptions |
+| Builds | X11/SDL Debug and ASan compile | Runtime remains Linux/i386 with fixed-address assumptions |
 | Controls | All four arrow rows pass in debug and ASan (8/8) | Checks establish input-state latches, not actor motion or visible gameplay |
 | Intro route | First-intro Space enters `Start_sc`; completion preserves scene 175 | Full animated intro fidelity is unresolved; Space during `Start_sc` remains wait-only |
 | Presentation | Scene 175, selected surface 3 `321e33d6`, SDL present `914159a1`, window `5cf799a1` | Static background; living Joe and enemies are absent |
 | Joe | Actor 0 has render rep 67 and a render tree | `model=0xffffffff`, root update list empty, draw vertices zero |
-| Scene children | 319/322/318 have scene/rep offsets | No actor instances |
+| Scene children | Camera and script-resource namespaces distinguished; Start_sc resource 0 traced | Pedestal enemy identities/instances unresolved; 319/322/318 belonged to an unproven resource lookup |
 | Regression wrapper | Full canonical-Up debug and ASan probes pass; all evidence/rejection assertions retained | ASan natural completion ends in scene 87; state/surface checks do not prove visible motion |
 | Generator | Syntax and all four artifact comparisons pass after diagnostic mirrors and recursive-pointer repair | Generated C/header include the focused actor/action/motion repairs; no unexplained drift |
 | Audio/save | Compatibility stubs and requester routing exist | MIDI is silent; quick-save writer is a no-op; functional save/load is unproven |
@@ -64,9 +64,9 @@ All automated Step 07 baseline checks now pass. Tasks 03–06 repaired recursive
 
 [Task 04](steps/step-08/tasks/task-04-recover-missing-scene-message-inputs.md) now supplies a live `["Can't find scene", "mtorc4", NULL]` list and eliminates the missing-scene ASan lifetime error. GDB confirms scene 40 has resource pointer 0 and archive offset -1. At Task 04 completion, both gated SDL and ASan checks exited 5 waiting for scene 175; the recovered list reaches requester code, whose visible message rendering/dismissal is not validated.
 
-[Task 05 — Recover post-intro scene selection](steps/step-08/tasks/task-05-recover-post-intro-scene-selection.md) now identifies the corrupt coordinate event and the keyframe allocator's mismatched flag addresses. Corrected mapped-pool reads produce distinct 15-byte keys, but expose an earlier missing actor input in `FUN_004523f8 → FUN_00426124`, reproduced by SDL/GDB and ASan. The pool repair shares the action-index gate; the gate-off allocator remains a known temporary compromise. Next is [Task 06 — Recover scene-activation pose inputs](steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md), then Task 05/01 validation and Joe geometry. Tasks 05 and 01 remain active. The supplied manual final image matches the gate-off static baseline; gated scene-selection fidelity remains unresolved.
+[Task 05](steps/step-08/tasks/task-05-recover-post-intro-scene-selection.md) traced corrupt coordinate events to aliased keyframe allocation. [Task 06](steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md) now supplies the pose actor/state and real output destinations. The projection continuation also repaired two matrix destinations that corrupted a scene child head and a node attachment; [Task 08](steps/step-08/tasks/task-08-recover-packed-event-metadata.md) restored packed dispatch metadata under the action-index gate. Gated SDL now changes Joe's position and reaches a polygon-input crash in `FUN_00431a7c`. Resume [Task 02 geometry](steps/step-08/tasks/task-02-recover-joe-geometry-and-rendering.md), then Task 05/01 full-route validation and Task 03 child activation. Gated headless ASan instead times out in camera 1073 without a sanitizer report. The gate remains off by default.
 
-The single VS Code launch enables a read-only host X/Z map with the SDL presets (`E2R_ACTOR_CUES=1`). Joe is a cyan square; other table-confirmed actors are amber diamonds. The current scene-175 capture has only Joe, so two hollow enemy-status icons report **not loaded**, without inventing enemy positions. This diagnostic is separate from camera-projected game rendering and does not satisfy Step 08's actor visibility criteria.
+[Task 07](steps/step-08/tasks/task-07-project-actor-cues-into-scene.md) replaces the inset with read-only scene-projected crosses/uprights (`E2R_ACTOR_CUES=1`). Recovered trigonometry, rotations, vector transforms and perspective are checked against original machine code. Default Joe's stored position is behind the pedestal camera (depth -3062), so the settled cue reports **0 VISIBLE / 1 BEHIND**; enemies remain absent. A synthetic drawing fixture verifies the primitives, not actual character placement. The new manual F5 check is pending. See the [2026-09-15 journal](../../journal/entries/actor-cues-and-projection-2026-09-15.md) for exact tests and remaining limitations.
 
 Keep action indexing opt-in during recovery. The default path has `actions=0` and reaches the static scene-175 packet. The one-shot 175-over-87 handoff guard remains a narrow stabilizer requiring later scene-transition validation.
 
@@ -92,8 +92,8 @@ Run from the repository root:
 2. `cmake --build --preset linux-clang32-debug`
 3. `cmake --build build/Debug/clang21-i386-x11-asan` (requires a configured ASan build)
 4. `cmake --build --preset linux-clang32-sdl-debug`
-5. `scripts/run-e2-control-matrix.sh`
-6. `scripts/run-e2-runtime-regressions.sh` — debug and ASan pass after Tasks 03–06.
+5. `env -u DISPLAY scripts/run-e2-control-matrix.sh`
+6. `env -u DISPLAY scripts/run-e2-runtime-regressions.sh` — isolated debug and ASan pass on the 2026-09-15 continuation.
 7. `SDL_VIDEODRIVER=dummy timeout 140 build/Debug/clang21-i386-sdl/e2recomp --auto-scene175-visibility /tmp/e2-scene175 120 7000`
 8. `git diff --check`
 
@@ -101,7 +101,7 @@ Use the [audit](../../journal/entries/runtime-audit-2026-09-14.md) for safe scra
 
 ## Manual Follow-Up — 2026-09-14
 
-The user’s 2026-09-14 screenshot matches the automated scene-175 static capture (red sky, central horned skull, stone platforms and straw); the accompanying input log reports `scene=0x67da4c`, the scene-175 slot address. Together with the earlier crash-free manual F5 report, this resolves the pending final-image comparison and completes the Step 07 baseline check. It does not establish original scene-selection fidelity or visible living actors; those remain Step 08 work. The missing cue panel was traced to the usual SDL launch leaving `E2R_ACTOR_CUES` unset; both SDL launch configurations now enable it after restarting the session.
+The user’s 2026-09-14 screenshot matches the automated scene-175 static capture (red sky, central horned skull, stone platforms and straw); the accompanying input log reports `scene=0x67da4c`, the scene-175 slot address. Together with the earlier crash-free manual F5 report, this resolves the pending final-image comparison and completes the Step 07 baseline check. It does not establish original scene-selection fidelity or visible living actors; those remain Step 08 work. The missing cue panel was traced to the usual SDL launch leaving `E2R_ACTOR_CUES` unset; the current single launch enables cues with an SDL preset after restarting the session.
 
 ## Change Log
 

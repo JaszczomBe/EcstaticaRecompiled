@@ -715,7 +715,7 @@ static int e2r_sdl_ensure_present_surface(E2R_HostWindow *window,
     return 1;
 }
 
-/* Diagnostic X/Z inset: positions are not projected onto the camera image. */
+/* Optional diagnostic primitives drawn on the RGB presentation surface. */
 static void e2r_cue_rect(SDL_Surface *s, int x, int y, int w, int h, Uint32 color)
 {
     SDL_Rect rect = {x, y, w, h};
@@ -751,77 +751,63 @@ static void e2r_cue_text(SDL_Surface *s, int x, int y, const char *text, Uint32 
     }
 }
 
+/* Bresenham lines are bounded by signed 16-bit projection, and SDL clips
+ * individual pixels at the surface edge. Never clamp a world point into view. */
+static void e2r_cue_line(SDL_Surface *surface, const int a[3], const int b[3], Uint32 color)
+{
+    if (a[2] == 0 || b[2] == 0) return;
+    int x = a[0], y = a[1], dx = abs(b[0] - x), dy = -abs(b[1] - y);
+    int sx = x < b[0] ? 1 : -1, sy = y < b[1] ? 1 : -1, error = dx + dy;
+    for (;;) {
+        e2r_cue_rect(surface, x, y, 2, 2, color);
+        if (x == b[0] && y == b[1]) break;
+        int twice = 2 * error;
+        if (twice >= dy) { error += dy; x += sx; }
+        if (twice <= dx) { error += dx; y += sy; }
+    }
+}
+
 static void e2r_sdl_actor_cues(SDL_Surface *surface)
 {
     const char *enabled = getenv("E2R_ACTOR_CUES");
     E2R_ActorCueSnapshot state;
-    char label[80];
-    int joe_index = -1;
-    if (!enabled || !*enabled || *enabled == '0' || surface->w < 260 || surface->h < 220)
-        return;
+    char label[112];
+    unsigned drawn = 0, behind = 0, outside = 0;
+    if (!enabled || !*enabled || *enabled == '0') return;
     E2R_GetActorCues(&state);
     if (state.scene_slot < 0 || state.count == 0) return;
-    Uint32 bg = SDL_MapSurfaceRGB(surface, 12, 20, 30);
-    Uint32 grid = SDL_MapSurfaceRGB(surface, 48, 65, 80);
-    Uint32 white = SDL_MapSurfaceRGB(surface, 220, 233, 240);
     Uint32 cyan = SDL_MapSurfaceRGB(surface, 56, 224, 244);
     Uint32 amber = SDL_MapSurfaceRGB(surface, 255, 180, 65);
-    int left = surface->w - 244, top = 10;
-    int cx = left + 116, cy = top + 84;
-    e2r_cue_rect(surface, left, top, 234, 196, grid);
-    e2r_cue_rect(surface, left + 1, top + 1, 232, 194, bg);
-    snprintf(label, sizeof(label), "LIVE ACTORS X/Z - SCENE %d", state.scene_slot);
-    e2r_cue_text(surface, left + 8, top + 8, label, white);
-    e2r_cue_text(surface, left + 8, top + 20, "CYAN JOE / AMBER OTHER ACTORS", white);
-    e2r_cue_rect(surface, cx - 48, cy - 48, 97, 97, grid);
-    e2r_cue_rect(surface, cx - 47, cy - 47, 95, 95, bg);
-    e2r_cue_rect(surface, cx, cy - 46, 1, 93, grid);
-    e2r_cue_rect(surface, cx - 46, cy, 93, 1, grid);
-    for (unsigned i = 0; i < state.count; ++i) {
-        const E2R_ActorCue *actor = &state.actors[i];
-        int dx = (actor->x - state.origin_x) * 44 / 8192;
-        int dz = (actor->z - state.origin_z) * 44 / 8192;
-        int clipped = dx < -44 || dx > 44 || dz < -44 || dz > 44;
-        if (dx < -44) dx = -44;
-        if (dx > 44) dx = 44;
-        if (dz < -44) dz = -44;
-        if (dz > 44) dz = 44;
-        int x = cx + dx, y = cy - dz;
-        Uint32 color = actor->is_joe ? cyan : amber;
-        if (actor->is_joe) {
-            joe_index = (int)i;
-            e2r_cue_rect(surface, x - 3, y - 3, 7, 7, color);
-            e2r_cue_text(surface, x + 5, y - 3, "J", color);
-        } else {
-            for (int d = -4; d <= 4; ++d) {
-                int half = 4 - abs(d);
-                e2r_cue_rect(surface, x - half, y + d, 2 * half + 1, 1, color);
+    Uint32 bg = SDL_MapSurfaceRGB(surface, 12, 20, 30);
+    if (state.camera_ready && state.view_width == surface->w && state.view_height == surface->h) {
+        for (unsigned i = 0; i < state.count; ++i) {
+            const E2R_ActorCue *actor = &state.actors[i];
+            const int *foot = actor->screen[0], *tip = actor->screen[1];
+            if (foot[2] == 0) {
+                if (actor->camera_z < 128) ++behind; else ++outside;
+                continue;
             }
-            snprintf(label, sizeof(label), "%d", actor->id);
-            e2r_cue_text(surface, x + 6, y - 3, label, color);
+            if (foot[0] < 0 || foot[0] >= surface->w || foot[1] < 0 || foot[1] >= surface->h) {
+                ++outside;
+                continue;
+            }
+            Uint32 color = actor->is_joe ? cyan : amber;
+            e2r_cue_line(surface,foot,tip,color);
+            e2r_cue_line(surface,actor->screen[2],actor->screen[3],color);
+            e2r_cue_line(surface,actor->screen[4],actor->screen[5],color);
+            e2r_cue_rect(surface,foot[0]-2,foot[1]-2,5,5,color);
+            if (actor->is_joe) snprintf(label,sizeof(label),"JOE");
+            else snprintf(label,sizeof(label),"ACTOR %d",actor->id);
+            e2r_cue_text(surface,foot[0]+7,foot[1]-5,label,color);
+            ++drawn;
         }
-        if (clipped) e2r_cue_text(surface, x - 2, y - 13, "+", white);
     }
-    e2r_cue_text(surface, left + 8, top + 140, "HOME +/-8192 / + AT EDGE = CLIPPED", white);
-    if (joe_index >= 0) {
-        E2R_ActorCue *joe = &state.actors[joe_index];
-        snprintf(label, sizeof(label), "JOE %d,%d,%d", joe->x, joe->y, joe->z);
-        e2r_cue_text(surface, left + 8, top + 152, label, cyan);
-    }
-    if (state.scene_slot == 175 && joe_index >= 0 && state.count == 1) {
-        /* User-reported expected enemies; these are status icons, not positions. */
-        for (int i = 0; i < 2; ++i) {
-            int x = left + 8 + i * 14;
-            e2r_cue_rect(surface, x, top + 168, 9, 9, amber);
-            e2r_cue_rect(surface, x + 1, top + 169, 7, 7, bg);
-        }
-        e2r_cue_text(surface, left + 38, top + 169, "2 ENEMIES NOT LOADED", amber);
-    } else {
-        snprintf(label, sizeof(label), "LIVE OTHER ACTORS: %u",
-                 state.count - (joe_index >= 0 ? 1u : 0u));
-        e2r_cue_text(surface, left + 8, top + 169, label, amber);
-    }
-    e2r_cue_text(surface, left + 8, top + 184, "DEBUG MAP / NOT CAMERA PROJECTION", white);
+    snprintf(label,sizeof(label),"ACTOR CUES: %u VISIBLE / %u BEHIND / %u OFFSCREEN",drawn,behind,outside);
+    e2r_cue_rect(surface,6,6, (int)strlen(label)*6+8, 22,bg);
+    e2r_cue_text(surface,10,9,label,cyan);
+    snprintf(label,sizeof(label),"SCENE %d / %u LIVE ACTORS%s",state.scene_slot,state.count,
+             state.camera_ready ? " / NO OCCLUSION" : " / CAMERA UNAVAILABLE");
+    e2r_cue_text(surface,10,19,label,amber);
 }
 
 int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,

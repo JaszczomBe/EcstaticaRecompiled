@@ -1,9 +1,9 @@
 # Recover Scene-Activation Pose Inputs
 
-Status: planned
+Status: active
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-14
+Last Updated: 2026-09-15
 
 ## Goal
 
@@ -19,13 +19,19 @@ Recover actor and output ownership in scene activation's initial-pose branch so 
 
 1. Forcing scene 175, bypassing pose restoration, adding broad pointer guards, or enabling action indexing by default.
 2. Full geometry/combat/rendering recovery; split independent next failures.
-3. Treating the host actor map as evidence that game geometry or enemies render.
+3. Treating the host actor cues as evidence that game geometry or enemies render.
 
 ## Evidence And Starting Point
 
 Task 05 fixes keyframe flag reads under `E2R_ACTION_INDEX_PROBE=1`. Four allocations now have distinct 15-byte slots. The corrected keys expose `FUN_004523f8 → FUN_00426124`; SDL/GDB reports `in_EAX=0`, and ASan reports a read at `0x1e`. This happens during scene activation before the former action-384/scene-40 endpoint, so the earlier missing-scene timeout is no longer the current gated failure.
 
 Original `0x4524f1..0x4524f4` resolves ESI from the actor table; `0x452553..0x452555` passes it in EAX to `0x426124`, and the alternate branch does the same for `0x426010` at `0x45255c..0x45255e`. The current caller already holds this actor as `psVar4`, but both helpers retain hidden-register artifacts. Original `0x452540..0x45254c` saves actor `+0x122` in DX before the call and restores it at `0x45256b`; generated `extraout_DX` is not a recovered return value. Original subsequent destinations are actor `+0x90` for the six-byte clear and `+0xc6` for `0x422330`. Confirm helper semantics and context preservation before editing.
+
+## 2026-09-15 Result
+
+Both helpers now accept the actor explicitly and restore entry context around node helpers. Activation preserves actor `+0x122`, clears the actual `+0x90` vector and initializes the actual `+0xc6` matrix. The other `FUN_00426010` callers now supply the actor too. Original `0x420c2c` resolves the actor from the table; scene-transition code already holds its actor locally. The adjacent root-matrix simple branch now targets actor `+6`, as original `0x4210b8..0x421101` requires, preventing scene child-head corruption.
+
+Gated SDL passes the former zero-actor read. Subsequent event metadata and node-matrix recovery now reach `FUN_00431a7c` with an invalid polygon input; Joe's live position has changed to `9184,3328,-17416` at that stop. This is not proof of correct placement. Gated headless ASan exits 5 waiting in camera 1073, without a sanitizer report. Default isolated Debug/ASan wrapper, four builds and generator parity pass; new manual F5 verification remains pending. See the [journal](../../../../../journal/entries/actor-cues-and-projection-2026-09-15.md). Task 02 owns the next source failure.
 
 ## Acceptance Criteria
 
@@ -48,8 +54,8 @@ GDB can exit zero after catching SIGSEGV; inspect the inferior stop reason and a
 ## Review State
 
 1. Planning state: bounded scene-activation pose-input failure split from Task 05
-2. Implementation state: not_started
-3. Notes: Next source recovery task; action indexing and the corrected pool remain opt-in.
+2. Implementation state: implemented; full-route/manual verification incomplete
+3. Notes: Pose entry now passes in gated SDL. Task 02 geometry inputs precede Task 05/01 full-route validation; action indexing remains opt-in.
 
 ## Change Log
 

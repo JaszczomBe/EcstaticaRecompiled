@@ -1584,3 +1584,9 @@ Change: rewired `FUN_004645d2` to write year/month/day/week fields through `para
 Result: the program advanced to the startup wait-loop stack corruption described above.
 
 Regression Risk: `FUN_004645d2` still contains unrecovered `in_EAX`/`unaff_EBX` inputs. It may need a fuller Ghidra-backed signature recovery when date/time behavior matters.
+
+## 2026-09-15 — Pose, transform destinations and packed event metadata
+
+Area: `FUN_00426010` / `FUN_00426124`, `FUN_00421074`, `FUN_00423858`, `FUN_00416cb4`.
+
+Explicit pose inputs, the actor/node `+6` matrix destinations and gated mapped event metadata now pass the former scene/attachment failures. The next gated SDL stop is `FUN_00431a7c`, dereferencing `unaff_EBX + 4` with `unaff_EBX=1`; headless ASan instead times out in camera 1073. Details, original addresses, watchpoints and bounded validation are in the [projection and actor-recovery entry](actor-cues-and-projection-2026-09-15.md). Keep action indexing opt-in. Scene-projected cues are implemented, but default Joe remains behind the pedestal camera and enemy instances remain unrecovered.

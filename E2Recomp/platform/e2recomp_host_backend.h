@@ -22,10 +22,14 @@ int E2R_HostDumpPresentation(E2R_HostWindow *window, const char *prefix);
 /* Read-only runtime snapshot for optional host-side actor diagnostics. */
 #define E2R_ACTOR_CUE_CAPACITY 64
 typedef struct E2R_ActorCue {
-    int id, x, y, z, is_joe;
+    int id, x, y, z, is_joe, camera_z;
+    /* Ground centre, upright tip and four ground-cross endpoints.
+     * Q4 screen coordinates converted to pixels; depth zero means clipped. */
+    int screen[6][3];
 } E2R_ActorCue;
 typedef struct E2R_ActorCueSnapshot {
     int scene_slot, origin_x, origin_z;
+    int camera_ready, view_width, view_height;
     unsigned count;
     E2R_ActorCue actors[E2R_ACTOR_CUE_CAPACITY];
 } E2R_ActorCueSnapshot;

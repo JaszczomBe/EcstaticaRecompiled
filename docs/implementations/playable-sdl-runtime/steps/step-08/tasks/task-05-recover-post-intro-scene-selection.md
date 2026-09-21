@@ -3,7 +3,7 @@
 Status: active
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-14
+Last Updated: 2026-09-15
 
 ## Goal
 
@@ -41,7 +41,7 @@ The three flag reads are normalized in C and mirrored through checked, function-
 
 With distinct keys, gated SDL/GDB and ASan now fail earlier during `FUN_004523f8` scene activation: `FUN_00426124` dereferences its uninitialized actor input (zero, read at `0x1e`). Original `0x452553..0x452555` passes the table-resolved actor in EAX. [Task 06](task-06-recover-scene-activation-pose-inputs.md) owns this separate failure family. Task 05 remains active: unique allocations are proven, but a correct final scene/position and full gated route are not.
 
-The optional actor-cue overlay is a read-only host diagnostic. It plots table-confirmed live actors on an X/Z map around Joe's home position, with a cyan Joe square and amber other-actor diamonds. The default scene-175 packet still has only Joe. Two hollow icons report the user-expected enemies as not loaded; they do not invent enemy locations or claim camera-projected character rendering.
+The original Task 05 cue was a read-only X/Z inset. On 2026-09-15, Task 07 replaced it with camera-projected ground crosses and uprights. Default Joe is behind camera 175; no enemy instances or source-consistent pedestal positions are established. The old panel hashes and rectangle below are historical verification only.
 
 ## Acceptance Criteria
 
@@ -60,11 +60,15 @@ A separate focused ASan/GDB call at the pose-entry breakpoint exercises `E2R_Get
 
 Use the Task 04 gated commands with a fresh `/tmp` prefix and a watchpoint started before the first post-intro motion/selection update. Preserve a no-input position/scene timeline and compare original call-site registers and packed record offsets. Keep action indexing opt-in until the step's remaining criteria pass.
 
+## Current Follow-Up — 2026-09-15
+
+The pose-input crash described above is historical: Task 06 now supplies the actor and explicit destinations. Camera/math and matrix-destination recovery plus Task 08 packed event metadata move gated SDL into a polygon-input crash in `FUN_00431a7c`; gated headless ASan times out in camera 1073. Resume Task 02 geometry inputs before Task 05/01 final placement/action validation. The new cue projection does not establish living actors or correct movement. Default isolated Debug/ASan regressions pass; the new manual F5 check remains pending. See the [2026-09-15 journal](../../../../../journal/entries/actor-cues-and-projection-2026-09-15.md).
+
 ## Review State
 
 1. Planning state: first corrupt event and allocator address mismatch identified
 2. Implementation state: gated allocator repair implemented; final scene validation incomplete
-3. Notes: Task 06 scene-pose recovery precedes Task 05/01 full-route validation. Joe geometry and child activation remain pending.
+3. Notes: Task 02 geometry recovery now precedes Task 05/01 full-route validation. Joe geometry and child activation remain pending.
 
 ## Change Log
 

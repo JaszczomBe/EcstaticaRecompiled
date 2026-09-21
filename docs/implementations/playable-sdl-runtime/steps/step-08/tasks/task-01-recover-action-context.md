@@ -3,7 +3,7 @@
 Status: active
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-14
+Last Updated: 2026-09-15
 
 ## Goal
 
@@ -51,11 +51,15 @@ Use the gated GDB command in the [audit](../../../../../journal/entries/runtime-
 
 Latest checks: generator syntax and all four scratch outputs match (`/tmp/e2-generator-audit-_707at8m`); default debug, ASan, and SDL debug build; default debug/ASan wrapper and all 8 arrow rows pass; default SDL packet exits zero with scene 175 and hashes `321e33d6` / `914159a1` / `5cf799a1`. At the action-owner repair, gated ASan exited 1 and plain SDL exited 5. After Task 04 both gated checks exit 5 without sanitizer errors; full-route acceptance remains open. See the [runtime journal](../../../../../journal/entries/runtime-crash-fixes.md) for commands and evidence.
 
+## Current Follow-Up — 2026-09-15
+
+The pose-input crash described above is historical: Task 06 now supplies the actor and explicit destinations. Camera/math and matrix-destination recovery plus Task 08 packed event metadata move gated SDL into a polygon-input crash in `FUN_00431a7c`; gated headless ASan times out in camera 1073. Resume Task 02 geometry inputs before Task 05/01 final placement/action validation. The new cue projection does not establish living actors or correct movement. Default isolated Debug/ASan regressions pass; the new manual F5 check remains pending. See the [2026-09-15 journal](../../../../../journal/entries/actor-cues-and-projection-2026-09-15.md).
+
 ## Review State
 
 1. Planning state: agreed
 2. Implementation state: implemented; gated validation incomplete
-3. Notes: Baseline checks pass. Task 04 is complete. Task 06 and Task 05 precede remaining gated validation; scene/position drift and geometry are still unresolved.
+3. Notes: Baseline checks pass. Task 04 is complete. Task 02 and Task 05 precede remaining gated validation; scene/position drift and geometry are still unresolved.
 
 ## Change Log
 

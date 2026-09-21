@@ -2,7 +2,7 @@
 
 Status: active
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-09-14
+Last Updated: 2026-09-15
 
 ## Goal
 
@@ -39,11 +39,13 @@ One task per failure family. Recover only the helper signatures/data layouts nee
 1. [Recover Action Context](tasks/task-01-recover-action-context.md) — active; actor/slot repair implemented, gated validation remains open.
 2. [Recover Missing-Scene Message Inputs](tasks/task-04-recover-missing-scene-message-inputs.md) — completed; missing-scene string inputs repaired, scene 40 identified.
 3. [Recover Post-Intro Scene Selection](tasks/task-05-recover-post-intro-scene-selection.md) — active; corrupt events traced to aliased keyframe allocation; corrected scan gated.
-4. [Recover Scene-Activation Pose Inputs](tasks/task-06-recover-scene-activation-pose-inputs.md) — planned; next, recover the actor/state inputs exposed by distinct keys.
-5. [Recover Joe Geometry And Rendering](tasks/task-02-recover-joe-geometry-and-rendering.md) — planned; follows action-context recovery.
+4. [Recover Scene-Activation Pose Inputs](tasks/task-06-recover-scene-activation-pose-inputs.md) — active; actor/state and output destinations implemented, full-route/manual validation incomplete.
+5. [Recover Joe Geometry And Rendering](tasks/task-02-recover-joe-geometry-and-rendering.md) — active; node matrix destinations repaired; polygon-input crash is next.
 6. [Activate Scene-Backed Children](tasks/task-03-activate-scene-backed-children.md) — planned; validate after the player path is stable.
+7. [Project Actor Cues Into The Scene](tasks/task-07-project-actor-cues-into-scene.md) — implemented; default Joe is behind camera, manual check pending.
+8. [Recover Packed Event Metadata](tasks/task-08-recover-packed-event-metadata.md) — completed for the table; full action route remains gated.
 
-Task numbers remain stable; execution order is **01 repair → 04 → 05 repair → 06 → 05/01 validation → 02 → 03**. Step 07 is now complete: the manual screenshot/log matches its static scene-175 baseline. Action ownership now survives the first callback; the message-input ASan error is fixed. The corrected keyframe pool now exposes an earlier missing actor input in scene-pose restoration (`FUN_00426124`), reproduced by SDL/GDB and ASan. Indexing and the pool repair remain opt-in; the default allocator remains a known baseline compromise.
+Task numbers remain stable. Resume **02 geometry inputs → 05/01 placement and action validation → 03 child activation**, with Task 06/07 manual checks pending. Pose inputs, trigonometry/projection, two corrupting matrix destinations and packed event metadata are recovered. Gated SDL now crashes in `FUN_00431a7c`; gated headless ASan times out in camera 1073. Action indexing and pool/event-metadata repairs remain opt-in; the default route remains static. Camera 175 must not be treated as script scene-resource 175.
 
 ## Acceptance Criteria
 
@@ -53,6 +55,8 @@ Task numbers remain stable; execution order is **01 repair → 04 → 05 repair 
 4. Debug/ASan state regressions pass, SDL presents the changed game frames, and a manual F5 pass confirms the visible scene/control result.
 
 ## Verification
+
+The 2026-09-15 isolated wrapper and all eight arrow-control rows pass; the default cue-enabled SDL packet exits 0 with unchanged indexed pixels. Generator parity and four Debug builds pass. Manual cue verification remains pending; gated SDL/ASan readiness remains unsuccessful.
 
 Use bounded task probes, synchronized visibility packets, the corrected Step 07 wrapper, and the arrow matrix. Static hashes are pre-fix references, not desired post-fix hashes. A changed hash alone is insufficient: inspect actor geometry, state changes, selected pixels, and presentation agreement.
 

@@ -3,7 +3,7 @@
 Status: planned
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-14
+Last Updated: 2026-09-15
 
 ## Goal
 
@@ -22,7 +22,7 @@ Instantiate and render scene 175’s dynamic children using their original resou
 
 ## Implementation Notes
 
-Validate after Tasks 01/02. Scene record `0xaba3a4` lists children 319/sword2cv, 322/burkrt, and 318/sword2. Their ordinary actor offsets are absent; scene/rep offsets exist:
+Validate after Tasks 01/02 and Task 05 placement. **Correction from 2026-09-15:** camera slot 175 is not script scene-resource ID 175. The historical lookup of scene record `0xaba3a4` was not sufficient to associate it with the pedestal scene. That record lists children 319/sword2cv, 322/burkrt, and 318/sword2. Their ordinary actor offsets are absent; scene/rep offsets exist:
 
 | Child | Scene offset | Rep offset |
 | --- | --- | --- |
@@ -30,7 +30,7 @@ Validate after Tasks 01/02. Scene record `0xaba3a4` lists children 319/sword2cv,
 | 322 | `0x218dc` | `0x891052` |
 | 318 | `0x215ec` | `0x890bc0` |
 
-All three have `actor=0` in the audit packet. Recover the meaning of the child and `word2` references from original scene activation; do not assume one visible enemy per listed child. Inspect `FUN_004523f8`, `FUN_00452140`, and `FUN_004533ac` with their callers. Preserve aligned archive indexing and counts (`actors=81 reps=389 scenes=1205`) unless source evidence justifies a specific change.
+All three have `actor=0` in the historical audit packet, but they are not established pedestal enemies. Activation tracing instead identifies `Start_sc` resource 0 with children 261 (`spide_w3`, hidden), 0 (Joe), and 3551 (secondary reference 695 / `wdpile2`). The settled default Joe has no scene owner at `+0x132`; the corrected sidecar reports that absence instead of inferring ownership from the camera. Establish the actual post-intro scene resource and expected enemy identities first. Recover the meaning of the child and `word2` references from original scene activation; do not assume one visible enemy per listed child. Inspect `FUN_004523f8`, `FUN_00452140`, and `FUN_004533ac` with their callers. Preserve aligned archive indexing and counts (`actors=81 reps=389 scenes=1205`) unless source evidence justifies a specific change.
 
 ## Acceptance Criteria
 

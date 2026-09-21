@@ -3,7 +3,7 @@
 Status: completed
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-14
+Last Updated: 2026-09-15
 
 ## Goal
 
@@ -59,11 +59,15 @@ Inspect logs and actual `scene_slot`; a GDB pause or logging can let the probe o
 
 Latest verification: all three builds and generator syntax pass; all four scratch outputs match (`/tmp/e2-generator-audit-hl23_86h`). The final default debug/ASan wrapper passes; all 8 arrow cases and the default SDL packet pass. Default scene 175 hashes remain `321e33d6` / `914159a1` / `5cf799a1`. See the [runtime journal](../../../../../journal/entries/runtime-crash-fixes.md) for exact evidence and bounded limitations.
 
+## Current Follow-Up — 2026-09-15
+
+The pose-input crash described above is historical: Task 06 now supplies the actor and explicit destinations. Camera/math and matrix-destination recovery plus Task 08 packed event metadata move gated SDL into a polygon-input crash in `FUN_00431a7c`; gated headless ASan times out in camera 1073. Resume Task 02 geometry inputs before Task 05/01 final placement/action validation. The new cue projection does not establish living actors or correct movement. Default isolated Debug/ASan regressions pass; the new manual F5 check remains pending. See the [2026-09-15 journal](../../../../../journal/entries/actor-cues-and-projection-2026-09-15.md).
+
 ## Review State
 
 1. Planning state: split from Task 01 under the step's one-family rule
 2. Implementation state: completed for the message-input/lifetime scope
-3. Notes: All four task criteria were checked; the required Task 01 rerun remains unsuccessful and is retained as open. Task 05 repair has since exposed Task 06; resume there before Task 05/01 validation.
+3. Notes: All four task criteria were checked; the required Task 01 rerun remains unsuccessful and is retained as open. Task 06 is now implemented; resume Task 02 geometry before Task 05/01 validation.
 
 ## Change Log
 
