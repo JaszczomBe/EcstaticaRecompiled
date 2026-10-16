@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-09-14
+Last Updated: 2026-10-14
 
 ## Goal
 
@@ -17,14 +17,14 @@ The [Linux reconstruction record](../implementations/linux-e2-reconstructed-runt
 
 The [active implementation](../implementations/playable-sdl-runtime/playable-sdl-runtime.md) owns changing statuses and commands. Existing step numbers remain stable; execute prerequisites before the remaining control/timing/audio work.
 
-1. Restore reproducible generated diagnostics and canonical-control regression checks (Step 07).
-2. Recover actor/action initialization and visible geometry, then scene-backed children (Step 08).
-3. Verify actual player movement, camera changes, modifiers, interaction, and status/menu behavior (remaining Step 03).
+1. Preserve reproducible generated diagnostics and canonical-control regression checks (Step 07, completed).
+2. Enable diagnostic gameplay with cylinder actors against original backgrounds (Step 09): narrow visual-render bypass, genuine action/control handoff, real movement and floor queries, then an adjacent-view crossing and return. Reuse required Step 08 logic repairs and bring basic Step 03 movement/camera proofs forward.
+3. Expand NPC activation, interaction and broader controls; recover original meshes and visible animation as a separate fidelity track (remaining Steps 08/03). Full original rendering and every NPC are not prerequisites for initial cylinder gameplay.
 4. Recover timing and frame-pacing ownership (Step 04).
 5. Map DirectSound/music behavior and implement the smallest justified audio boundary (Step 05).
 6. Consolidate bootstrap, developer validation, and release criteria (Step 06).
 
-Full animated intro fidelity, requester polish, and functional save/load require focused follow-up tasks before implementation. Their order may change when evidence shows they block a preceding milestone. Keep visible-actor recovery ahead of broad control classification.
+Full animated intro fidelity, requester polish, and functional save/load require focused follow-up tasks before implementation. Their order may change when evidence shows they block a preceding milestone. Diagnostic cylinders must follow actual game state; preserve action events, root motion and queries needed by gameplay even when their visual animation is omitted. Cylinder presentation, mesh/HUD omission and F5 action/script routing are implemented. Palette fades, experimental unsigned ceiling selection and hosted floor-byte decoding are repaired. The F5 prototype explicitly defers background spawning and keeps Joe in the courtyard after release. Motion/control and terminal ASan event ownership still block gameplay/traversal. NPC spawn input contracts have bounded original-x86 coverage; full activation follows the Joe-first milestone. See the [current evidence](../journal/entries/courtyard-floor-decoder-2026-10-14.md).
 
 ## Architecture Direction
 
@@ -40,8 +40,14 @@ Linux/i386 is the proving ground. Packed 32-bit pointers, legacy calling convent
 4. Debug/ASan checks and SDL captures accompany runtime repairs, with manual visual checks for user-facing changes.
 5. Temporary guards/no-ops have an explicit limitation and a source-backed replacement/removal condition.
 6. Original behavior is recovered through disassembly/Ghidra evidence; host-specific behavior stays below compatibility boundaries.
+7. Diagnostic playability and original visual fidelity have separate acceptance. A useful first playable result is genuine input-driven cylinder movement, floor/stair checks and camera traversal with continuous actor state.
 
 ## Change Log
+
+### 2026-10-14
+
+1. Prioritized the user's cylinder-based gameplay milestone over full mesh/animation recovery; added Step 09 and brought basic movement/camera proofs forward.
+2. Kept source-backed simulation and original-render fidelity requirements distinct; the proxy path still needs implementation and validation.
 
 ### 2026-07-13
 

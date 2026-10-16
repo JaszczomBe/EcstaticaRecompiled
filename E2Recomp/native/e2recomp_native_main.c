@@ -52,6 +52,15 @@ void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
                 cue->id = id;
                 cue->is_joe = id == 0;
                 cue->x = position[0]; cue->y = position[1]; cue->z = position[2];
+                int16_t rotation_y;
+                uint16_t duration, progress;
+                memcpy(&rotation_y, (void *)(actor + 0x92), 2);
+                memcpy(&cue->action, (void *)(actor + 0xa6), 4);
+                memcpy(&duration, (void *)(actor + 0xaa), 2);
+                memcpy(&progress, (void *)(actor + 0xac), 2);
+                cue->rotation_y = rotation_y;
+                cue->action_duration = duration;
+                cue->action_progress = progress;
                 if (snapshot->camera_ready) {
                     /* Diagnostic dimensions, not recovered character bounds.
                      * The upright follows negative Y; its length is diagnostic. */
@@ -61,17 +70,43 @@ void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
                     };
                     int16_t focal_word;
                     memcpy(&focal_word, (void *)(scene + 12), 2);
-                    for (int vertex = 0; vertex < 6; ++vertex) {
+                    /* An octagonal stand-in; diagonals approximate a radius
+                     * of 256. Project world points, never a screen-size icon. */
+                    static const short ring[E2R_CYLINDER_RING_POINTS][2] = {
+                        {256,0}, {181,181}, {0,256}, {-181,181},
+                        {-256,0}, {-181,-181}, {0,-256}, {181,-181}
+                    };
+                    short basis[9], local_z[3] = {0,0,512}, world_z[3];
+                    /* Original 0x4210b8..0x421101 builds actor +6 from Euler
+                     * words +90/+92/+94. +Z is an axis, not asserted forward. */
+                    memcpy(basis, (void *)(actor + 6), sizeof(basis));
+                    E2R_TransformVector14(world_z,local_z,basis);
+                    for (int vertex = 0; vertex < 6 + 2 * E2R_CYLINDER_RING_POINTS + 1; ++vertex) {
                         short relative[3], projected[3];
+                        short offset[3];
+                        int *output;
+                        if (vertex < 6) {
+                            memcpy(offset,offsets[vertex],sizeof(offset));
+                            output = cue->screen[vertex];
+                        } else if (vertex < 6 + 2 * E2R_CYLINDER_RING_POINTS) {
+                            int point = vertex - 6;
+                            offset[0] = ring[point % E2R_CYLINDER_RING_POINTS][0];
+                            offset[1] = point < E2R_CYLINDER_RING_POINTS ? 0 : -1024;
+                            offset[2] = ring[point % E2R_CYLINDER_RING_POINTS][1];
+                            output = cue->cylinder[point];
+                        } else {
+                            memcpy(offset,world_z,sizeof(offset));
+                            output = cue->local_z_tip;
+                        }
                         for (int axis = 0; axis < 3; ++axis)
-                            relative[axis] = (short)(position[axis] + offsets[vertex][axis] - camera[axis]);
+                            relative[axis] = (short)(position[axis] + offset[axis] - camera[axis]);
                         E2R_TransformVector14(projected,relative,matrix);
                         if (vertex == 0) cue->camera_z = projected[2];
                         if (projected[2] < 128) projected[2] = 0;
                         else E2R_Perspective14(projected,(int)focal_word * 4096,DAT_0047a43c != 0);
-                        cue->screen[vertex][0] = (projected[0] >> 4) + (int)_DAT_00640118;
-                        cue->screen[vertex][1] = (projected[1] >> 4) + (int)_DAT_00640114;
-                        cue->screen[vertex][2] = projected[2];
+                        output[0] = (projected[0] >> 4) + (int)_DAT_00640118;
+                        output[1] = (projected[1] >> 4) + (int)_DAT_00640114;
+                        output[2] = projected[2];
                     }
                 }
                 if (cue->is_joe) {
@@ -83,6 +118,11 @@ void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
         if (next == actor) break;
         actor = next;
     }
+    snapshot->script_wait = (unsigned)DAT_0047a76c;
+    const char *defer_spawns = getenv("E2R_DEFER_BACKGROUND_SPAWNS");
+    snapshot->background_spawns_deferred = defer_spawns && *defer_spawns && *defer_spawns != '0';
+    snapshot->requester_state = (unsigned)_DAT_00643650;
+    snapshot->requester_id = (unsigned)((DAT_0047a45e >> 16) & 0xffffu);
 #endif
 }
 
@@ -1309,11 +1349,16 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
             owner_id, (unsigned long)owner_scene, owner_valid);
     if (owner_valid) e2r_write_scene_child_state(out, owner_scene);
     const char *cues_enabled = getenv("E2R_ACTOR_CUES");
-    if (cues_enabled && *cues_enabled && *cues_enabled != '0') {
+    const char *cylinders_enabled = getenv("E2R_ACTOR_CYLINDERS");
+    if ((cues_enabled && *cues_enabled && *cues_enabled != '0') ||
+        (cylinders_enabled && *cylinders_enabled && *cylinders_enabled != '0')) {
         E2R_ActorCueSnapshot cues;
         E2R_GetActorCues(&cues);
         fprintf(out, "actor_cues scene=%d count=%u origin=%d,%d\n",
                 cues.scene_slot, cues.count, cues.origin_x, cues.origin_z);
+        if (cylinders_enabled && *cylinders_enabled && *cylinders_enabled != '0')
+            fprintf(out, "actor_cylinders control=unverified script_wait=%u modal=%u state=%u radius=256 height=1024 background_spawns_deferred=%d\n",
+                    cues.script_wait,cues.requester_id,cues.requester_state,cues.background_spawns_deferred);
         for (unsigned i = 0; i < cues.count; ++i) {
             const E2R_ActorCue *cue = &cues.actors[i];
             fprintf(out, "actor_cue[%u] id=%d joe=%d live=%d,%d,%d\n",
@@ -1321,6 +1366,14 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
             fprintf(out, "actor_cue[%u] camera_ready=%d screen=%d,%d depth=%d tip=%d,%d tip_depth=%d camera_z=%d\n",
                     i, cues.camera_ready, cue->screen[0][0], cue->screen[0][1], cue->screen[0][2],
                     cue->screen[1][0], cue->screen[1][1], cue->screen[1][2], cue->camera_z);
+            if (cylinders_enabled && *cylinders_enabled && *cylinders_enabled != '0') {
+                fprintf(out, "actor_cylinder[%u] yrot=%d action=0x%x progress=%u/%u local_z=%d,%d,%d\n",
+                        i,cue->rotation_y,cue->action,cue->action_progress,cue->action_duration,
+                        cue->local_z_tip[0],cue->local_z_tip[1],cue->local_z_tip[2]);
+                for (int point = 0; point < E2R_CYLINDER_RING_POINTS * 2; ++point)
+                    fprintf(out,"actor_cylinder[%u].point[%d]=%d,%d,%d\n",i,point,
+                            cue->cylinder[point][0],cue->cylinder[point][1],cue->cylinder[point][2]);
+            }
         }
     }
 }

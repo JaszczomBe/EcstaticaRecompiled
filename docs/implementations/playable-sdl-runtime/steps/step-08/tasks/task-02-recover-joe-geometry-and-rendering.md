@@ -17,12 +17,14 @@ Initialize Joe’s geometry through the recovered update path and draw the livin
 
 ## Out Of Scope
 
-1. Synthesizing player pixels or replacing the renderer.
+1. Replacing original geometry/rendering as this task's final result. The user-authorized diagnostic cylinders in [Step 09](../../step-09/step-09-enable-diagnostic-gameplay.md) have separate acceptance and may precede this task's completion.
 2. Full camera/combat behavior or assuming rep slots are model pointers without source confirmation.
 
 ## Implementation Notes
 
-Geometry now blocks Task 05/01 full-route validation, so recover its bounded input failure before resuming those checks. Task 06 pose inputs and Task 08 packed metadata are implemented. Historical gate-off baseline packet: Joe actor `0xaa6bd8`, render tree `0x950d3c`, render rep id 67, reported model dword at rep `+0x22` equals `0xffffffff`, slots 17..24 are `-1,-1,384,384,384,384,384,384`. Root `rep_list=0`; sampled local/projected vertices are zero; the current-actor skip flag is clear. Treat sidecar field names as hypotheses to confirm against the original layout.
+The user's 2026-10-14 priority is Step 09 diagnostic gameplay. This task remains the original-rendering owner; its full mesh recovery need not block real action/movement proofs if a narrowly audited visual bypass supports them. Preserve any root-motion/logical-pose inputs required by gameplay.
+
+On the full original-render route, geometry blocks Task 05/01 validation, so recover its bounded input failure before resuming those checks. Step 09 may reach those logic checks earlier through its audited visual bypass. Task 06 pose inputs and Task 08 packed metadata are implemented. Historical gate-off baseline packet: Joe actor `0xaa6bd8`, render tree `0x950d3c`, render rep id 67, reported model dword at rep `+0x22` equals `0xffffffff`, slots 17..24 are `-1,-1,384,384,384,384,384,384`. Root `rep_list=0`; sampled local/projected vertices are zero; the current-actor skip flag is clear. Treat sidecar field names as hypotheses to confirm against the original layout.
 
 The earlier Task 01 diagnostic packet advanced action 384 but ended in camera 40. At the 2026-09-15 checkpoint, pose/matrix/event recovery moved the gated SDL stop into geometry: `FUN_00424dd8 → FUN_00424e44 → FUN_00433d30 → FUN_00431a7c`, reading `unaff_EBX + 4` with `unaff_EBX=1`. The argument named `actor` is `0x84b34c`, a draw node, illustrating that parameter names are still hypotheses. The 2026-09-21 repair below recovers those EAX/EDX/EBX inputs. GDB evidence: `/tmp/e2-cues-final-gated.log`.
 
@@ -76,3 +78,7 @@ Capture synchronized before/after packets with `--auto-scene175-visibility` and 
 ### 2026-09-14
 
 1. Created from the runtime/documentation audit and the approved task split.
+
+## F5 Continuation — 2026-10-14
+
+[Step 09's continuous-runtime continuation](../../../../../journal/entries/f5-diagnostic-route-2026-10-14.md) supersedes the old event-0x3f diagnostic crash. F5 now selects cylinders/action indexing/mesh and HUD omission; node-removal, retained action/actor and script-input comparisons pass. Debug reaches the wait-ending script, then selects an invalid height and leaves Joe behind camera 83 without motion. Step 09 Task 02 owns that placement/query/control work. Original-render acceptance and compatibility Lock remain open; gated ASan faults in a motion query.

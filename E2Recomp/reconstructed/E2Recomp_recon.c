@@ -3143,6 +3143,9 @@ static short E2R_InternPackedName(char *input,char *table,uint capacity,short ma
       }
       memcpy(table + offset,input,input_length + 1);
       table[offset + input_length + 1] = '\0';
+      /* Original 0x446a10 clears the newly interned script's code slot. */
+      if (table == (char *)(uintptr_t)_DAT_00636698)
+        *(uint *)(0x006297c0 + (uint)(ushort)index * 4) = 0;
       return index;
     }
     offset = offset + length + 1;
@@ -3227,6 +3230,8 @@ static char *E2R_PackedNameByIndex(char *table,uint capacity,short max_names,sho
 }
 
 static short *E2R_action_dispatch_node;
+static ushort *E2R_script_node_context;
+static void E2R_DispatchScriptRecord(ushort *code,ushort *actor,ushort *other,ushort *child,ushort *node);
 static char *E2R_action_name_cache[0x4000];
 static char *E2R_action_name_cache_base;
 static int E2R_action_name_cache_ready;
@@ -3670,7 +3675,7 @@ static void E2R_InvokeActionCode(short *action)
     E2R_action_invoke_diag_count = E2R_action_invoke_diag_count + 1;
   }
   E2R_action_dispatch_node = action;
-  FUN_0044f2fc();
+  FUN_0044f2fc((undefined4)(uintptr_t)action);
   E2R_action_dispatch_node = (short *)0x0;
 }
 
@@ -16538,6 +16543,7 @@ undefined8 __fastcall FUN_00422238(undefined4 param_1,undefined4 param_2)
   int iVar1;
   int iVar2;
   undefined4 uVar3;
+  int fade_level;
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   undefined4 extraout_ECX_01;
@@ -16557,22 +16563,24 @@ undefined8 __fastcall FUN_00422238(undefined4 param_1,undefined4 param_2)
     if (DAT_0047ab30 == 0) {
       if (DAT_0047ab34 == 0) {
         uStack_14 = 0x4222a1;
-        FUN_0041af88(param_1,param_2);
+        FUN_0041af88(0x0061c730,param_2);
         param_1 = extraout_ECX_01;
         uVar3 = extraout_EDX_01;
       }
       else if (-1 < DAT_0047ab3c) {
+        fade_level = DAT_0047ab3c;
         DAT_0047ab3c = -1;
         uStack_14 = 0x422295;
-        FUN_00457a34();
+        FUN_00457a34(fade_level);
         param_1 = extraout_ECX_00;
         uVar3 = extraout_EDX_00;
       }
     }
     else if (-1 < DAT_0047ab3c) {
+      fade_level = DAT_0047ab3c;
       DAT_0047ab3c = -1;
       uStack_14 = 0x422272;
-      FUN_00457994();
+      FUN_00457994(fade_level);
       param_1 = extraout_ECX;
       uVar3 = extraout_EDX;
     }
@@ -16603,7 +16611,7 @@ undefined8 __fastcall FUN_00422238(undefined4 param_1,undefined4 param_2)
       iVar2 = iVar1;
     } while (iVar1 < 3);
     uStack_14 = 0x422309;
-    FUN_0041af88(extraout_ECX_02,iVar4);
+    FUN_0041af88(0x0061c730,iVar4);
     param_1 = extraout_ECX_03;
     uVar3 = extraout_EDX_02;
   }
@@ -18394,6 +18402,12 @@ LAB_00424e2c:
 void __fastcall FUN_00424e44(int param_1,int node)
 
 {
+  /* Diagnostic draw boundary: original 0x424e44..0x424e95 only selects
+   * polygon/mode/reference and calls the raster dispatcher. Actor updates,
+   * logical poses, camera selection and dirty/HUD copies remain active. */
+  const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");
+  if (proxy != NULL && proxy[0] != '\0' && proxy[0] != '0') return;
+
   int in_EAX;
   int iVar1;
   int reference_polygon = 0;
@@ -20096,7 +20110,7 @@ void __fastcall FUN_004273cc(undefined4 param_1)
 
 {
   byte *pbVar1;
-  short *in_EAX;
+  short *in_EAX = (short *)(uintptr_t)param_1;
   undefined4 extraout_ECX;
   undefined4 extraout_ECX_00;
   int iVar2;
@@ -20134,7 +20148,7 @@ void __fastcall FUN_004273cc(undefined4 param_1)
       FUN_0043cbd0(extraout_ECX_00);
     }
     else {
-      FUN_0044f310();
+      FUN_0044f320(*(uint *)(0x006297c0 + iVar2 * 4),(ushort *)in_EAX,NULL);
     }
   }
   return;
@@ -21106,7 +21120,7 @@ LAB_004287a9:
       break;
     case 5:
       if ((*(byte *)(local_6c + 1) & 0x40) != 0) {
-        FUN_004273cc(extraout_ECX_14);
+        FUN_004273cc((uint)(uintptr_t)local_6c);
         uVar25 = extraout_ECX_21;
         psVar15 = extraout_EDX_06;
       }
@@ -22740,7 +22754,7 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
           lVar15 = CONCAT44(uVar11,CONCAT22((short)((uint)local_34 >> 0x10),sVar6));
           if ((-1 < sVar6) &&
              (lVar15 = (ulonglong)uVar11 << 0x20, *(int *)(sVar6 * 4 + 0x6297c0) != 0)) {
-            lVar15 = FUN_0044f2fc();
+            lVar15 = FUN_0044f2fc(*(uint *)(0x006297c0 + sVar6 * 4));
             psVar10 = extraout_ECX_06;
           }
         }
@@ -22807,7 +22821,7 @@ undefined8 __fastcall FUN_0042a70c(undefined4 param_1,undefined4 param_2)
       psVar5 = local_28;
       if ((-1 < local_38[0x4d]) &&
          (psVar2 = local_38, psVar5 = local_28, *(int *)(local_38[0x4d] * 4 + 0x6297c0) != 0)) {
-        FUN_0044f2fc();
+        FUN_0044f2fc(*(uint *)(0x006297c0 + local_38[0x4d] * 4));
         psVar2 = local_38;
         psVar10 = extraout_ECX_11;
         psVar12 = extraout_EDX_00;
@@ -22905,19 +22919,19 @@ LAB_0042ae53:
         if (*(ushort *)(in_EAX + 4) < 2) {
           if (*(ushort *)(in_EAX + 4) != 0) {
             E2R_actor_calc_context = param_2;
-            FUN_0042b004();
+            FUN_0042b004(in_EAX,(short *)(uintptr_t)param_2);
             E2R_actor_calc_context = 0;
             *(undefined2 *)((int)in_EAX + 6) = 0xffff;
             *(byte *)((int)in_EAX + 0xd) = *(byte *)((int)in_EAX + 0xd) | 4;
             goto LAB_0042ae53;
           }
           E2R_actor_calc_context = param_2;
-          FUN_0042b004();
+          FUN_0042b004(in_EAX,(short *)(uintptr_t)param_2);
           E2R_actor_calc_context = 0;
         }
         else {
           E2R_actor_calc_context = param_2;
-          FUN_0042b004();
+          FUN_0042b004(in_EAX,(short *)(uintptr_t)param_2);
           E2R_actor_calc_context = 0;
           *(short *)(in_EAX + 4) = (short)in_EAX[4] + -1;
         }
@@ -22936,7 +22950,7 @@ LAB_0042ae53:
                        (unsigned long)_DAT_0073cc3c);
       E2R_MarkStartScHandoffIfNeeded((short *)(uintptr_t)param_2,in_EAX);
       E2R_actor_calc_context = param_2;
-      FUN_0042b004();
+      FUN_0042b004(in_EAX,(short *)(uintptr_t)param_2);
       E2R_actor_calc_context = 0;
       E2R_GameStateLog("42ad60.complete end actor=0x%lx slot=0x%lx action=0x%lx progress=%u duration=%u flags=0x%x scene=0x%lx",
                        (unsigned long)(uintptr_t)param_2,
@@ -23008,7 +23022,7 @@ void __fastcall FUN_0042ae80(int *action_slot,int param_2,int advance)
     {
       int prior_actor_context = E2R_actor_calc_context;
       E2R_actor_calc_context = param_2;
-      FUN_0042b004();
+      FUN_0042b004(action_slot,(short *)(uintptr_t)param_2);
       E2R_actor_calc_context = prior_actor_context;
     }
     in_EAX = action_slot;
@@ -23061,18 +23075,17 @@ LAB_0042afdb:
 
 /* 0042b004 */
 
-void FUN_0042b004(void)
+void FUN_0042b004(int *action_slot,short *actor)
 
 {
   int iVar1;
   int iVar2;
-  int *in_EAX;
-  short *in_EDX;
+  int *in_EAX = action_slot;
+  short *in_EDX = actor;
+  int entry_actor_context = E2R_actor_calc_context;
   int e2r_event_guard;
 
-  if (E2R_actor_calc_context != 0) {
-    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);
-  }
+  /* Original 0x42b00c/0x42b00e retains slot/actor in EBP/EDI. */
   if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||
       IsBadReadPtr(in_EAX,0x12) || *in_EAX == 0 ||
       IsBadReadPtr((void *)(uintptr_t)*in_EAX,0x10)) {
@@ -23096,9 +23109,9 @@ void FUN_0042b004(void)
                        (unsigned int)*(ushort *)(uintptr_t)(iVar2 + 2),
                        (unsigned long)(uintptr_t)E2R_actor_calc_context,
                        (unsigned long)_DAT_0073cc3c);
-      FUN_0042b880(*in_EAX,
-                   E2R_actor_calc_context != 0 ?
-                   (short *)(uintptr_t)E2R_actor_calc_context : in_EDX);
+      E2R_actor_calc_context = (int)(uintptr_t)in_EDX;
+      FUN_0042b880(*in_EAX,in_EDX);
+      E2R_actor_calc_context = entry_actor_context;
       E2R_GameStateLog("42b004.event end action=0x%lx event=0x%lx actor=0x%lx scene=0x%lx",
                        (unsigned long)(uintptr_t)*in_EAX,
                        (unsigned long)(uintptr_t)iVar2,
@@ -23113,7 +23126,9 @@ void FUN_0042b004(void)
   in_EAX[2] = *(int *)(*in_EAX + 4);
   *(undefined2 *)((int)in_EAX + 6) = 0;
   if ((*(byte *)(*in_EAX + 0xc) & 4) != 0) {
+    E2R_actor_calc_context = (int)(uintptr_t)in_EDX;
     FUN_0042b0f4();
+    E2R_actor_calc_context = entry_actor_context;
   }
   return;
 }
@@ -23304,7 +23319,7 @@ void __fastcall FUN_0042b338(undefined4 param_1,ushort param_2)
     return;
   }
   if (param_2 < *(ushort *)((int)in_EAX + 6)) {
-    FUN_0042b004();
+    FUN_0042b004(in_EAX,unaff_EBX);
   }
   for (e2r_key_guard = 0, puVar1 = (ushort *)in_EAX[2];
       puVar1 != (ushort *)0x0 && e2r_key_guard < 256 &&
@@ -23333,7 +23348,7 @@ void __fastcall FUN_0042b338(undefined4 param_1,ushort param_2)
     if (uVar3 != 0) {
       for (iVar2 = *(int *)(puVar1 + 3); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {
         E2R_action_event_context = iVar2;
-        FUN_0042c790(*in_EAX,uVar3);
+        FUN_0042c790(*in_EAX,uVar3,(short *)iVar2,(int)(uintptr_t)unaff_EBX);
         E2R_action_event_context = 0;
       }
       if ((*(byte *)(*in_EAX + 0xc) & 2) == 0) {
@@ -24062,7 +24077,10 @@ LAB_0042c113:
     case 0x4:
       if ((in_EAX[3] != 0) && (DAT_0047a34a == 0)) {
         if (*(int *)((*(int *)(in_EAX + 2) >> 0x10) * 4 + 0x6297bc) != 0) {
-          psVar7 = (short *)FUN_0044f320(param_1,*(ushort **)(unaff_ESI + 0x11));
+          /* Original 0x42c517..0x42c52d passes the code-table record in EAX. */
+          psVar7 = (short *)FUN_0044f320(
+              *(uint *)(0x006297bc + (int)in_EAX[3] * 4),
+              *(ushort **)(unaff_ESI + 0x11),(ushort *)unaff_ESI);
           return psVar7;
         }
         if ((*(byte *)(param_1 + 0xc) & 2) == 0) {
@@ -24203,7 +24221,8 @@ LAB_0042c113:
     } while (psVar7 != in_EAX + 3);
     break;
   case 0x3f:
-    uVar12 = FUN_0043ab74(param_1,iVar9);
+    /* Original 0x42c041 supplies the selected ESI node in EAX. */
+    uVar12 = FUN_0043ab74((undefined4)(uintptr_t)unaff_ESI,0);
     return (short *)uVar12;
   case 0x40:
     psVar7 = in_EAX;
@@ -24294,7 +24313,7 @@ LAB_0042c113:
 
 /* 0042c790 */
 
-void __fastcall FUN_0042c790(int param_1,int param_2)
+void __fastcall FUN_0042c790(int param_1,int param_2,short *event,int actor)
 
 {
   short *psVar1;
@@ -24324,25 +24343,10 @@ void __fastcall FUN_0042c790(int param_1,int param_2)
   short local_12;
   short sStack_10;
 
-  if (E2R_action_event_context != 0) {
-    in_EAX = (short *)(uintptr_t)E2R_action_event_context;
-  }
-  else {
-    in_EAX = E2R_fan_parse_record;
-  }
-  if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,10)) {
-    return;
-  }
-  if (E2R_actor_calc_context != 0 && 0x10000u <= (uintptr_t)E2R_actor_calc_context &&
-      !IsBadReadPtr((void *)(uintptr_t)E2R_actor_calc_context,0x148)) {
-    unaff_EBX = E2R_actor_calc_context;
-  }
-  else if ((uintptr_t)param_1 < 0x10000u || IsBadReadPtr((void *)(uintptr_t)param_1,0x148)) {
-    return;
-  }
-  else {
-    unaff_EBX = param_1;
-  }
+  /* Original 0x42b44e..0x42b458 passes event EAX, factor EDX,
+   * retained actor EBX and action ECX. Nested events may clear the globals. */
+  in_EAX = event;
+  unaff_EBX = actor;
   if ((DAT_0047a7e0 != 0) && ((*(byte *)((uint)(ushort)in_EAX[1] * 2 + 0x63679f) & 1) == 0)) {
     return;
   }
@@ -31742,80 +31746,65 @@ LAB_0043a8f0:
 
 /* 0043a8f8 */
 
-undefined4 FUN_0043a8f8(void)
+undefined4 FUN_0043a8f8(int node)
 
 {
-  int iVar1;
-  short *in_EAX;
-  short *extraout_ECX;
-  int extraout_EDX;
-  int extraout_EDX_00;
-  int iVar2;
-
-  *(undefined4 *)(*(int *)(*(int *)(in_EAX + 0x11) + 0x54) + *in_EAX * 4) = 0;
-  iVar1 = *(int *)(*(int *)(in_EAX + 0x11) + 0x1e);
-  iVar2 = *(int *)(iVar1 + 0x4c);
-  do {
-    if (iVar2 == 0) {
-LAB_0043a93a:
-      iVar1 = *(int *)(in_EAX + 0xf);
-      while (iVar1 != 0) {
-        FUN_0043a8f8();
-        in_EAX = extraout_ECX;
-        iVar1 = *(int *)(extraout_EDX + 0xca);
-      }
-      for (iVar1 = *(int *)(in_EAX + 0x8f); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x26)) {
-        for (iVar2 = *(int *)(*(int *)(in_EAX + 0x11) + 0xd8); iVar2 != 0;
-            iVar2 = *(int *)(iVar2 + 0x1e)) {
-          if ((((iVar1 == *(int *)(iVar2 + 4)) || (iVar1 == *(int *)(iVar2 + 8))) ||
-              (iVar1 == *(int *)(iVar2 + 0xc))) || (iVar1 == *(int *)(iVar2 + 0x28))) {
-            FUN_0043a9a8();
-            iVar2 = extraout_EDX_00;
-          }
-        }
-        FUN_0045366c();
-      }
-      FUN_00453508();
-      return;
+  /* Original 0x43a8f8..0x43a9a7 retains EAX in ECX across cleanup calls. */
+  int owner = *(int *)(node + 0x22);
+  *(int *)(*(int *)(owner + 0x54) + *(short *)node * 4) = 0;
+  int previous = *(int *)(owner + 0x1e);
+  while (*(int *)(previous + 0x4c) != 0) {
+    int next = *(int *)(previous + 0x4c);
+    if (next == node) {
+      *(int *)(previous + 0x4c) = *(int *)(next + 0x4c);
+      break;
     }
-    if (in_EAX == *(short **)(iVar1 + 0x4c)) {
-      *(undefined4 *)(iVar1 + 0x4c) = *(undefined4 *)(*(short **)(iVar1 + 0x4c) + 0x26);
-      goto LAB_0043a93a;
+    previous = next;
+  }
+  for (int child = *(int *)(node + 0x1e); child != 0;
+       child = *(int *)(child + 0xca)) {
+    FUN_0043a8f8(child);
+  }
+  for (int vertex = *(int *)(node + 0x11e); vertex != 0;
+       vertex = *(int *)(vertex + 0x26)) {
+    for (int polygon = *(int *)(owner + 0xd8); polygon != 0;
+         polygon = *(int *)(polygon + 0x1e)) {
+      if (vertex == *(int *)(polygon + 4) || vertex == *(int *)(polygon + 8) ||
+          vertex == *(int *)(polygon + 0xc) || vertex == *(int *)(polygon + 0x28)) {
+        FUN_0043a9a8(polygon);
+      }
     }
-    iVar1 = *(int *)(iVar1 + 0x4c);
-    iVar2 = *(int *)(iVar1 + 0x4c);
-  } while( true );
+    /* Original 0x45366c marks this vertex; no allocation is freed here. */
+    *(ushort *)(vertex + 2) = 1;
+  }
+  /* Original 0x453508 marks the retained node, never an extraout register. */
+  *(ushort *)(node + 4) = 0x8000;
+  return node;
 }
 
 
 
 /* 0043a9a8 */
 
-void FUN_0043a9a8(void)
+void FUN_0043a9a8(int polygon)
 
 {
-  short *psVar1;
-  int iVar2;
-  short *in_EAX;
-
-  psVar1 = *(short **)(*(int *)(in_EAX + 0x11) + 0xd8);
-  if (in_EAX == psVar1) {
-    *(undefined4 *)(*(int *)(in_EAX + 0x11) + 0xd8) = *(undefined4 *)(psVar1 + 0xf);
-  }
-  else if (psVar1 != (short *)0x0) {
-    iVar2 = *(int *)(psVar1 + 0xf);
-    while (iVar2 != 0) {
-      if (in_EAX == *(short **)(psVar1 + 0xf)) {
-        *(undefined4 *)(psVar1 + 0xf) = *(undefined4 *)(*(short **)(psVar1 + 0xf) + 0xf);
+  /* Original 0x43a9a8..0x43aa12 keeps the polygon in EDX across unlinking. */
+  int owner = *(int *)(polygon + 0x22);
+  int first = *(int *)(owner + 0xd8);
+  if (first == polygon) {
+    *(int *)(owner + 0xd8) = *(int *)(polygon + 0x1e);
+  } else {
+    for (int previous = first; previous != 0; previous = *(int *)(previous + 0x1e)) {
+      if (*(int *)(previous + 0x1e) == polygon) {
+        *(int *)(previous + 0x1e) = *(int *)(polygon + 0x1e);
         break;
       }
-      psVar1 = *(short **)(psVar1 + 0xf);
-      iVar2 = *(int *)(psVar1 + 0xf);
     }
   }
-  *(undefined4 *)(*in_EAX * 4 + *(int *)(*(int *)(in_EAX + 0x11) + 0xdc)) = 0;
-  FUN_00453264();
-  return;
+  *(int *)(*(int *)(owner + 0xdc) + *(short *)polygon * 4) = 0;
+  /* Original 0x453264 defers reclamation by marking the polygon. */
+  *(ushort *)(polygon + 2) = 0x8000;
 }
 
 
@@ -32015,7 +32004,7 @@ undefined8 __fastcall FUN_0043ab74(undefined4 param_1,undefined4 param_2)
 
 {
   int iVar1;
-  int in_EAX;
+  int in_EAX = (int)param_1;
   undefined4 uVar2;
   undefined8 uVar3;
 
@@ -32032,7 +32021,8 @@ undefined8 __fastcall FUN_0043ab74(undefined4 param_1,undefined4 param_2)
     *(byte *)(iVar1 + 2) = *(byte *)(iVar1 + 2) & 0xdf;
   }
   if ((in_EAX == 0) || (*(short *)(*(int *)(in_EAX + 0x44) + 4) == 7)) {
-    uVar3 = FUN_0043cac0(0,in_EAX);
+    /* Original 0x43ac3f/0x43ac46 selects the corresponding error text. */
+    uVar3 = FUN_0043cac0(in_EAX == 0 ? 0x4726c4 : 0x4726ac,0);
     uVar2 = (undefined4)uVar3;
   }
   else {
@@ -32052,7 +32042,7 @@ undefined8 __fastcall FUN_0043ab74(undefined4 param_1,undefined4 param_2)
         }
       }
     }
-    uVar2 = FUN_0043a8f8();
+    uVar2 = FUN_0043a8f8(in_EAX);
   }
   return CONCAT44(param_2,uVar2);
 }
@@ -34049,7 +34039,7 @@ LAB_0043d13e:
           if (9 < sStack_1c) {
             _DAT_0064353c = 0xffffffff;
             if ((DAT_0047ab30 != 0) || (DAT_0047ab34 != 0)) {
-              FUN_00457994();
+              FUN_00457994(0);
               pbVar6 = extraout_ECX_03;
               pcVar8 = extraout_EDX;
             }
@@ -36902,7 +36892,7 @@ undefined8 __fastcall FUN_00441f00(undefined4 param_1,undefined4 param_2)
 
 {
   return CONCAT44(param_2,(int)E2R_FindPackedNameIndex((char *)(uintptr_t)param_1,
-                                                       _DAT_00636698,6000,2000));
+                                                       _DAT_00636698,E2R_ActionIndexProbeEnabled() ? 24000 : 6000,2000));
 }
 
 
@@ -40863,8 +40853,14 @@ undefined8 __fastcall FUN_0044694c(undefined4 param_1,undefined4 param_2)
   short local_1c;
   undefined2 uStack_1a;
 
-  return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
-                                                       _DAT_00636698,6000,2000));
+  /* Original 0x4469c4 bounds the byte pool at base +0x5dc0 (24000).
+   * Activate that script set with the recovered action route; retain the
+   * earlier 6000-byte baseline while its graphics/script inputs remain open. */
+  short index = E2R_InternPackedName((char *)(uintptr_t)param_1,
+                                     (char *)(uintptr_t)_DAT_00636698,E2R_ActionIndexProbeEnabled() ? 24000 : 6000,2000);
+  /* Parsing appends names without reallocating the pool. */
+  E2R_action_name_cache_ready = 0;
+  return CONCAT44(param_2,(ushort)index);
 
   local_1c = 0;
   puVar5 = _DAT_00636698;
@@ -42704,7 +42700,7 @@ switchD_004487ea_caseD_1:
         if (bVar2 != 0) goto switchD_004487ea_caseD_1;
       }
       if (((bVar3) &&
-          ((int)(char)pbVar7[5] <= (-(*(int *)actor >> 0x10) >> (DAT_0047a738 & 0x1f)) + 0x84)) &&
+          ((E2R_ActionIndexProbeEnabled() ? (int)(uint)pbVar7[5] : (int)(char)pbVar7[5]) <= (-(*(int *)actor >> 0x10) >> (DAT_0047a738 & 0x1f)) + 0x84)) &&
          ((int)local_28 < (int)(uint)*pbVar7)) {
         local_28 = (uint)*pbVar7;
         local_20 = uVar5;
@@ -42805,7 +42801,7 @@ switchD_00448949_caseD_1:
         if (bVar2 != 0) goto switchD_00448949_caseD_1;
       }
       if (((bVar3) &&
-          ((int)(char)pbVar7[5] <= (-(*(int *)in_EAX >> 0x10) >> (DAT_0047a738 & 0x1f)) + 0x80)) &&
+          ((E2R_ActionIndexProbeEnabled() ? (int)(uint)pbVar7[5] : (int)(char)pbVar7[5]) <= (-(*(int *)in_EAX >> 0x10) >> (DAT_0047a738 & 0x1f)) + 0x80)) &&
          ((int)local_20 < (int)(uint)*pbVar7)) {
         local_28 = uVar5;
         local_20 = (uint)*pbVar7;
@@ -45067,7 +45063,9 @@ void __fastcall FUN_0044c224(undefined4 param_1)
   if (sVar2 < 1) {
     iVar1 = _DAT_0063726c;
     if ((DAT_0047a34a == 0) && ((DAT_0064a178 & 4) == 0)) {
-      FUN_0043a6e0(uVar3,(int)sVar2);
+      /* Original 0x44c453 passes resource 7 in EAX when no view is found.
+       * Passing the zero camera selector here restarted intro resource 0. */
+      FUN_0043a6e0(7,7);
       iVar1 = _DAT_0063726c;
     }
     goto joined_r0x0044c464;
@@ -45969,7 +45967,7 @@ void FUN_0044d634(void)
         *(int *)(psVar1 + 0x53) = iVar7;
         FUN_00426a80();
         DAT_0047a7e0 = 1;
-        FUN_0042b004();
+        FUN_0042b004((int *)(psVar1 + 0x53),psVar1);
         DAT_0047a7e0 = 0;
         psVar1[0x53] = 0;
         psVar1[0x54] = 0;
@@ -46009,7 +46007,7 @@ void FUN_0044d634(void)
         if ((uVar3 & 0x4000) == 0) {
           DAT_0047a7e0 = 1;
         }
-        FUN_0042b004();
+        FUN_0042b004((int *)(psVar1 + 0x53),psVar1);
         psVar1[0x99] = 0;
         psVar1[0x9a] = 0;
         psVar1[0x53] = 0;
@@ -46034,29 +46032,23 @@ void FUN_0044d634(void)
 undefined4 __fastcall FUN_0044db80(undefined4 param_1,undefined4 param_2)
 
 {
-  int in_EAX;
-  int iVar1;
-  int extraout_ECX;
-  int iVar2;
-  int iVar3;
-  longlong lVar4;
-
-  lVar4 = FUN_0045fc10(param_1,param_2);
-  iVar2 = (int)((ulonglong)lVar4 >> 0x20);
-  iVar3 = 0;
-  if (iVar2 != 0 && -1 < lVar4) {
-    do {
-      for (iVar1 = iVar3 + ((int)(((int)lVar4 * 2 & 0xffffU) * iVar2) >> 0x10); iVar2 <= iVar1;
-          iVar1 = iVar1 - iVar2) {
-      }
-      iVar1 = (in_EAX + iVar1) * 2;
-      if ((((undefined1 *)0x0064a178)[iVar1] & 2) == 0) {
-        ((undefined1 *)0x0064a178)[iVar1] = ((undefined1 *)0x0064a178)[iVar1] | 8;
-        FUN_00451f5c();
-        return *(undefined4 *)((undefined1 *)0x00630b60 + extraout_ECX * 4);
-      }
-      iVar3 = iVar3 + 1;
-    } while (iVar3 < iVar2);
+  int first = (int)param_1;
+  int count = (int)param_2;
+  uint random = (uint)FUN_0045fc10(param_1,param_2);
+  int initial = (int)(((random * 2u & 0xffffu) * (uint)count) >> 16);
+  for (int attempt = 0; attempt < count; ++attempt) {
+    int offset = initial + attempt;
+    while (offset >= count) offset -= count;
+    int id = first + offset;
+    if ((*(byte *)(0x0064a178 + id * 2) & 2) == 0) {
+      *(byte *)(0x0064a178 + id * 2) |= 8;
+      /* Original 0x44dbce..0x44dbd5 retains the selected actor ID in ECX. */
+      int prior_id = E2R_actor_load_id_override;
+      E2R_actor_load_id_override = id;
+      FUN_00451f5c();
+      E2R_actor_load_id_override = prior_id;
+      return *(uint *)(0x00630b60 + id * 4);
+    }
   }
   return 0;
 }
@@ -46070,292 +46062,104 @@ undefined4 __fastcall FUN_0044db80(undefined4 param_1,undefined4 param_2)
 void __fastcall FUN_0044dca4(undefined4 param_1,undefined4 param_2)
 
 {
-  short *psVar1;
-  short sVar2;
-  short *psVar3;
-  undefined2 extraout_var;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 extraout_ECX_02;
-  int extraout_ECX_03;
-  int extraout_ECX_04;
-  int extraout_ECX_05;
-  int extraout_ECX_06;
-  short *psVar4;
-  int extraout_ECX_07;
-  int iVar5;
-  uint extraout_EDX;
-  undefined4 uVar6;
-  int iVar7;
-  int extraout_EDX_00;
-  short sVar8;
-  int iVar9;
-  short sVar10;
-  undefined8 uVar11;
-  longlong lVar12;
-  short local_5c [2];
-  short local_58;
-  undefined2 uStack_56;
-  short local_52;
-  short sStack_50;
-  short local_4c;
-  short sStack_4a;
-  short local_3e;
-  undefined2 uStack_3c;
-  short local_38;
-  undefined2 uStack_36;
-  short local_34;
-  undefined2 uStack_32;
-  short local_2e;
-  short sStack_2c;
-  short local_28;
-  undefined1 auStack_26 [2];
-  short local_24;
-  undefined2 local_22;
-  short local_20;
-  undefined4 local_1c;
-
-  psVar4 = local_5c;
-  if (DAT_0047a470 == 0) {
-    return;
+  /* Original 0x44dce3..0x44dd43 retains a contiguous world vector.
+   * EAX is the coordinate pointer; the floor query's actor argument is zero. */
+  short world[3], corners[27];
+  short *spawn = NULL;
+  int terrain = 0;
+  int radius, min_height = 0x7fff, max_height = -0x8000;
+  int prior_actor = E2R_actor_calc_context;
+  static const short first_actor[44] = {
+    -1,52,55,16,13,9,19,37,31,34,58,61,-1,22,25,28,
+    68,71,74,77,80,83,86,89,92,95,98,101,104,107,110,113,
+    116,119,127,130,133,136,61,136,127,58,92,107
+  };
+  /* Explicit Joe-only prototype option. Existing actors and scripts still
+   * update; only this automatic terrain-driven population leaf is deferred. */
+  const char *defer = getenv("E2R_DEFER_BACKGROUND_SPAWNS");
+  if (defer && *defer && *defer != '0') return;
+  if (DAT_0047a470 == 0) return;
+  world[0] = *(short *)(DAT_0047a470 + 0x84) +
+    (short)(((int)((uint)FUN_0045fc10(param_1,param_2) - 0x4000u) * 10) >> 5);
+  world[2] = *(short *)(DAT_0047a470 + 0x88) +
+    (short)(((int)((uint)FUN_0045fc10(0,0) - 0x4000u) * 10) >> 5);
+  world[1] = *(short *)(DAT_0047a470 + 0x86);
+  world[1] = (short)FUN_00448a3c((uint)(uintptr_t)world,0);
+  if ((int)FUN_0044d28c((uint)(uintptr_t)world,0) == 0) {
+    int cell = (int)FUN_00448744((uint)(uintptr_t)world,NULL);
+    if (cell >= 0) terrain = *(byte *)(0x0068cd6c + cell * 12);
   }
-  uVar11 = FUN_0045fc10(param_1,param_2);
-  iVar5 = ((int)uVar11 + -0x4000) * 10 >> 5;
-  local_24 = (short)((uint)*(undefined4 *)(DAT_0047a470 + 0x82) >> 0x10) + (short)iVar5;
-  uVar11 = FUN_0045fc10(extraout_ECX,iVar5);
-  local_20 = (short)(((int)uVar11 + -0x4000) * 10 >> 5) +
-             (short)((uint)*(undefined4 *)(DAT_0047a470 + 0x86) >> 0x10);
-  local_22 = *(undefined2 *)(DAT_0047a470 + 0x86);
-  local_22 = FUN_00448a3c(extraout_ECX_00,0);
-  lVar12 = FUN_0044d28c(extraout_ECX_01,extraout_EDX);
-  if ((int)lVar12 == 0) {
-    uVar11 = FUN_00448744(extraout_ECX_02,(int)((ulonglong)lVar12 >> 0x20));
-    iVar5 = extraout_ECX_03;
-    if (-1 < (int)uVar11) {
-      iVar5 = *(int *)((undefined1 *)0x0068cd69 + (int)uVar11 * 0xc) >> 0x18;
-    }
-  }
-  else {
-    iVar5 = 0;
-  }
-  psVar3 = (short *)0x0;
-  switch((int)(uintptr_t)(iVar5)) {
-  default:
-    goto switchD_0044dd6c_caseD_0;
-  case 1:
-    uVar6 = 3;
-    break;
-  case 2:
-    uVar6 = 3;
-    break;
-  case 3:
-    uVar6 = 3;
-    break;
-  case 4:
-    uVar6 = 3;
-    break;
-  case 5:
-    uVar6 = 4;
-    break;
-  case 6:
-    uVar6 = 3;
-    break;
-  case 7:
-    uVar6 = 0xf;
-    break;
-  case 8:
-    uVar6 = 3;
-    break;
-  case 9:
-    uVar6 = 3;
-    break;
-  case 0xb:
-switchD_0044dd6c_caseD_b:
-    uVar6 = 3;
-    break;
-  case 0xc:
-    if ((DAT_0064a1f8 & 2) == 0) {
+  if (terrain == 12) {
+    if ((*(byte *)0x0064a1f8 & 2) == 0) {
+      int prior_id = E2R_actor_load_id_override;
+      E2R_actor_load_id_override = 64;
       FUN_00451f5c();
-      psVar3 = _DAT_00630c60;
+      E2R_actor_load_id_override = prior_id;
+      spawn = (short *)(uintptr_t)*(uint *)(0x00630c60);
     }
-    goto switchD_0044dd6c_caseD_0;
-  case 0xd:
-    uVar6 = 3;
-    break;
-  case 0xe:
-    uVar6 = 3;
-    break;
-  case 0xf:
-    uVar6 = 3;
-    break;
-  case 0x10:
-    uVar6 = 3;
-    break;
-  case 0x11:
-    uVar6 = 3;
-    break;
-  case 0x12:
-    uVar6 = 3;
-    break;
-  case 0x13:
-    uVar6 = 3;
-    break;
-  case 0x14:
-    uVar6 = 3;
-    break;
-  case 0x15:
-    uVar6 = 3;
-    break;
-  case 0x16:
-    uVar6 = 3;
-    break;
-  case 0x17:
-    uVar6 = 3;
-    break;
-  case 0x19:
-    uVar6 = 3;
-    break;
-  case 0x1a:
-    uVar6 = 3;
-    break;
-  case 0x1b:
-    uVar6 = 3;
-    break;
-  case 0x1c:
-    uVar6 = 3;
-    break;
-  case 0x1e:
-    uVar6 = 3;
-    break;
-  case 0x1f:
-    uVar6 = 3;
-    break;
-  case 0x20:
-    uVar6 = 3;
-    break;
-  case 0x21:
-    uVar6 = 8;
-    break;
-  case 0x23:
-    uVar6 = 3;
-    break;
-  case 0x24:
-    uVar6 = 3;
-    break;
-  case 0x26:
-    if ((DAT_00670c42 & 8) == 0) goto switchD_0044dd6c_caseD_b;
-LAB_0044dfe1:
-    uVar6 = 3;
-    break;
-  case 0x27:
-    if ((DAT_00670c42 & 8) != 0) goto LAB_0044dfe1;
-  case 0x25:
-    uVar6 = 3;
-    break;
-  case 0x28:
-    if ((DAT_00670c42 & 8) != 0) goto LAB_0044dfe1;
-  case 0x22:
-    uVar6 = 3;
-    break;
-  case 0x29:
-    if ((DAT_00670c42 & 8) != 0) goto LAB_0044dfe1;
-  case 10:
-    uVar6 = 3;
-    break;
-  case 0x2a:
-    if ((DAT_00670c42 & 8) != 0) goto LAB_0044dfe1;
-  case 0x18:
-    uVar6 = 3;
-    break;
-  case 0x2b:
-    if ((DAT_00670c42 & 8) != 0) goto LAB_0044dfe1;
-  case 0x1d:
-    uVar6 = 3;
   }
-  psVar3 = (short *)FUN_0044db80(iVar5,uVar6);
-switchD_0044dd6c_caseD_0:
-  if (psVar3 != (short *)0x0) {
-    FUN_00422aa0(local_5c,&local_24);
-    iVar5 = extraout_ECX_04;
-    do {
-      FUN_00422aa0(iVar5 + 6,&local_24);
-      iVar5 = extraout_ECX_05;
-    } while (extraout_ECX_05 != extraout_ECX_04 + 0x36);
-    sVar10 = psVar3[0x4d];
-    local_1c = CONCAT22(extraout_var,sVar10);
-    for (psVar1 = _DAT_0063726c; psVar1 != (short *)0x0; psVar1 = *(short **)(psVar1 + 0x26)) {
-      if (psVar1 != psVar3) {
-        iVar9 = (*(int *)(psVar1 + 0x4c) >> 0x10) + (*(int *)(psVar3 + 0x4c) >> 0x10);
-        iVar5 = (*(int *)(psVar1 + 0x41) >> 0x10) - (*(int *)(psVar3 + 0x41) >> 0x10);
-        iVar7 = (*(int *)(psVar1 + 0x43) >> 0x10) - (*(int *)(psVar3 + 0x43) >> 0x10);
-        if (iVar5 < 1) {
-          iVar5 = -iVar5;
-        }
-        if (iVar5 < iVar9) {
-          if (iVar7 < 1) {
-            iVar7 = -iVar7;
-          }
-          if (iVar7 < iVar9) {
-            FUN_00426ca4();
-            ((undefined1 *)0x0064a178)[*psVar3 * 2] = ((undefined1 *)0x0064a178)[*psVar3 * 2] & 0xfd;
-            return;
-          }
-        }
-      }
-    }
-    local_52 = local_52 - sVar10;
-    sStack_50 = sStack_50 + sVar10;
-    local_5c[0] = local_5c[0] - sVar10;
-    local_58 = CONCAT22(uStack_56,(short)local_58 - sVar10);
-    local_4c = local_4c - sVar10;
-    sStack_4a = sStack_4a - sVar10;
-    local_3e = CONCAT22(uStack_3c,(short)local_3e + sVar10);
-    local_38 = CONCAT22(uStack_36,(short)local_38 - sVar10);
-    local_2e = local_2e + sVar10;
-    sStack_2c = sStack_2c + sVar10;
-    local_34 = CONCAT22(uStack_32,(short)local_34 + sVar10);
-    local_28 = CONCAT22(auStack_26,(short)local_28 + sVar10);
-    sVar10 = 0x7fff;
-    sVar8 = -0x8000;
-    do {
-      sVar2 = FUN_00448a3c(psVar4,0);
-      if (sVar2 < sVar10) {
-        sVar10 = sVar2;
-      }
-      if (sVar8 < sVar2) {
-        sVar8 = sVar2;
-      }
-      psVar4 = (short *)(extraout_ECX_06 + 6);
-    } while (psVar4 != (short *)auStack_26);
-    iVar7 = (int)*psVar3;
-    iVar5 = iVar7 * 2;
-    if (sVar10 == sVar8) {
-      *(ushort *)((undefined1 *)0x0064a178 + iVar5) =
-           *(ushort *)((undefined1 *)0x0064a178 + iVar5) & 0x20 | *(ushort *)((undefined1 *)0x0064a178 + iVar5) & 0x10 | 8
-           | *(ushort *)((undefined1 *)0x0064a178 + iVar5) & 0x40;
-      *(undefined2 *)(iVar5 + 0x671fc0) = 0xfffe;
-      *(undefined1 *)(iVar7 + 0x64c950) = 0;
-      *(undefined2 *)(iVar5 + 0x647a68) = 0;
-      iVar5 = iVar7 * 6;
-      do {
-        iVar9 = iVar5 + 2;
-        *(undefined2 *)(iVar5 + 0x669708) = 0;
-        *(undefined2 *)(iVar5 + 0x658980) = 0;
-        iVar5 = iVar9;
-      } while (iVar9 != iVar7 * 6 + 6);
-      *(undefined2 *)(iVar7 * 2 + 0x6648e8) = 0xffff;
-      *(undefined2 *)(iVar7 * 2 + 0x65feb0) = 0xffff;
-      *(undefined2 *)(iVar7 * 2 + 0x666ff8) = 0;
-      FUN_00420dcc();
-      ((undefined1 *)0x0064a178)[extraout_ECX_07 * 2] = ((undefined1 *)0x0064a178)[extraout_ECX_07 * 2] | 2;
-      FUN_00426c3c();
+  else if ((uint)terrain < 44 && first_actor[terrain] >= 0) {
+    int first = first_actor[terrain];
+    if (terrain >= 38 && (*(byte *)0x00670c42 & 8) != 0) first = 65;
+    int count = terrain == 5 ? 4 : terrain == 7 ? 15 : terrain == 33 ? 8 : 3;
+    spawn = (short *)(uintptr_t)FUN_0044db80(first,count);
+  }
+  if (spawn == NULL) return;
+  memcpy(spawn + 0x42,world,sizeof(world));
+  for (int i = 0; i < 9; ++i) memcpy(corners + i * 3,world,sizeof(world));
+  radius = spawn[0x4d];
+  /* Original overlap test uses actor radius +0x9a and live X/Z. */
+  for (short *actor = (short *)(uintptr_t)_DAT_0063726c;
+       actor != NULL; actor = *(short **)(actor + 0x26)) {
+    if (actor == spawn) continue;
+    int extent = actor[0x4d] + radius;
+    int dx = actor[0x42] - spawn[0x42], dz = actor[0x44] - spawn[0x44];
+    if (dx < 0) dx = -dx;
+    if (dz < 0) dz = -dz;
+    if (dx < extent && dz < extent) {
+      E2R_actor_calc_context = (int)(uintptr_t)spawn;
+      FUN_00426ca4();
+      E2R_actor_calc_context = prior_actor;
+      *(byte *)(0x0064a178 + *spawn * 2) &= 0xfd;
       return;
     }
-    FUN_00426ca4();
-    ((undefined1 *)0x0064a178)[extraout_EDX_00] = ((undefined1 *)0x0064a178)[extraout_EDX_00] & 0xfd;
   }
-  return;
+  /* The original stack has nine X/Z samples, not independent C locals. */
+  static const byte lower[] = {0,2,5,8,9,18};
+  static const byte upper[] = {6,15,20,23,24,26};
+  for (int i = 0; i < 6; ++i) {
+    corners[lower[i]] -= radius;
+    corners[upper[i]] += radius;
+  }
+  for (int i = 0; i < 9; ++i) {
+    short height = (short)FUN_00448a3c((uint)(uintptr_t)(corners + i * 3),0);
+    if (height < min_height) min_height = height;
+    if (height > max_height) max_height = height;
+  }
+  int id = *spawn;
+  if (min_height != max_height) {
+    E2R_actor_calc_context = (int)(uintptr_t)spawn;
+    FUN_00426ca4();
+    E2R_actor_calc_context = prior_actor;
+    *(byte *)(0x0064a178 + id * 2) &= 0xfd;
+    return;
+  }
+  *(ushort *)(0x0064a178 + id * 2) =
+    (*(ushort *)(0x0064a178 + id * 2) & 0x70) | 8;
+  *(short *)(0x00671fc0 + id * 2) = -2;
+  *(byte *)(0x0064c950 + id) = 0;
+  *(short *)(0x00647a68 + id * 2) = 0;
+  memset((void *)(uintptr_t)(0x00669708 + id * 6),0,6);
+  memset((void *)(uintptr_t)(0x00658980 + id * 6),0,6);
+  *(short *)(0x006648e8 + id * 2) = -1;
+  *(short *)(0x0065feb0 + id * 2) = -1;
+  *(short *)(0x00666ff8 + id * 2) = 0;
+  E2R_actor_calc_context = (int)(uintptr_t)spawn;
+  FUN_00420dcc();
+  *(byte *)(0x0064a178 + id * 2) |= 2;
+  E2R_actor_calc_context = (int)(uintptr_t)spawn;
+  FUN_00426c3c();
+  E2R_actor_calc_context = prior_actor;
 }
 
 
@@ -46549,12 +46353,12 @@ void FUN_0044e5b0(void)
 
 /* 0044e74c */
 
-void FUN_0044e74c(void)
+void FUN_0044e74c(int *cursor)
 
 {
   short sVar1;
   short *psVar2;
-  int *in_EAX;
+  int *in_EAX = cursor;
 
   while( true ) {
     psVar2 = (short *)*in_EAX;
@@ -46562,7 +46366,7 @@ void FUN_0044e74c(void)
     if (sVar1 == 6) break;
     if (sVar1 == 3) {
       *in_EAX = (int)(psVar2 + 1);
-      FUN_0044e74c();
+      FUN_0044e74c(in_EAX);
       *in_EAX = *in_EAX + 2;
     }
     else if (((int)sVar1 & 0xf000U) == 0xe000) {
@@ -46579,12 +46383,12 @@ void FUN_0044e74c(void)
 
 /* 0044e7a4 */
 
-void FUN_0044e7a4(void)
+void FUN_0044e7a4(int *cursor)
 
 {
   short sVar1;
   short *psVar2;
-  int *in_EAX;
+  int *in_EAX = cursor;
   int *extraout_ECX;
 
   while( true ) {
@@ -46593,9 +46397,8 @@ void FUN_0044e7a4(void)
     if (((sVar1 == 5) || (sVar1 == 4)) || (sVar1 == 6)) break;
     if (sVar1 == 3) {
       *in_EAX = (int)(psVar2 + 1);
-      FUN_0044e74c();
-      *extraout_ECX = *extraout_ECX + 2;
-      in_EAX = extraout_ECX;
+      FUN_0044e74c(in_EAX);
+      *in_EAX = *in_EAX + 2;
     }
     else if (((int)sVar1 & 0xf000U) == 0xe000) {
       *in_EAX = (int)(psVar2 + (int)(((int)sVar1 & 0xffff0fffU) + 1) / 2 + 1);
@@ -46613,7 +46416,7 @@ void FUN_0044e7a4(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-uint __fastcall FUN_0044e810(ushort *param_1,int param_2,ushort *param_3,int param_4)
+uint __fastcall FUN_0044e810(ushort *param_1,int param_2,ushort *param_3,int param_4,int *cursor,ushort *node)
 
 {
   byte bVar1;
@@ -46622,7 +46425,7 @@ uint __fastcall FUN_0044e810(ushort *param_1,int param_2,ushort *param_3,int par
   int iVar4;
   ushort *puVar5;
   ushort uVar6;
-  int *in_EAX;
+  int *in_EAX = cursor;
   uint uVar7;
   int iVar8;
   short sVar9;
@@ -46632,7 +46435,7 @@ uint __fastcall FUN_0044e810(ushort *param_1,int param_2,ushort *param_3,int par
   ushort *puVar11;
   uint uVar12;
   short sVar13;
-  ushort *unaff_EBX;
+  ushort *unaff_EBX = node;
   uint unaff_EDI;
   uint uVar14;
   bool bVar15;
@@ -47179,11 +46982,18 @@ LAB_0044e947:
 
 /* 0044f2fc */
 
-undefined4 FUN_0044f2fc(void)
+undefined4 FUN_0044f2fc(undefined4 action)
 
 {
+  /* Original 0x44f2fc retains EAX while clearing script actor arguments. */
+  short *entry_dispatch = E2R_action_dispatch_node;
+  ushort *entry_node = E2R_script_node_context;
+  E2R_script_node_context = NULL;
+  E2R_action_dispatch_node = (short *)(uintptr_t)action;
   FUN_0044f508((ushort *)0x0,(ushort *)0x0,(ushort *)0x0);
-  return;
+  E2R_action_dispatch_node = entry_dispatch;
+  E2R_script_node_context = entry_node;
+  return 0;
 }
 
 
@@ -47203,11 +47013,19 @@ void FUN_0044f310(void)
 
 /* 0044f320 */
 
-undefined4 __fastcall FUN_0044f320(undefined4 param_1,ushort *param_2)
+undefined4 __fastcall FUN_0044f320(undefined4 param_1,ushort *param_2,ushort *node)
 
 {
+  /* Original wrapper preserves the code record in EAX and forwards its actor
+   * in EDX/ECX. Retain dispatch ownership across nested script calls. */
+  short *entry_dispatch = E2R_action_dispatch_node;
+  ushort *entry_node = E2R_script_node_context;
+  E2R_script_node_context = node;
+  E2R_action_dispatch_node = (short *)(uintptr_t)param_1;
   FUN_0044f508(param_2,param_2,(ushort *)0x0);
-  return;
+  E2R_action_dispatch_node = entry_dispatch;
+  E2R_script_node_context = entry_node;
+  return 0;
 }
 
 
@@ -47374,7 +47192,7 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
   undefined4 extraout_EDX_39;
   undefined4 extraout_EDX_40;
   ushort *extraout_EDX_41;
-  int unaff_EBX;
+  int unaff_EBX = (int)(uintptr_t)E2R_script_node_context;
   int iVar22;
   int iVar23;
   undefined8 uVar24;
@@ -47436,21 +47254,21 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
       switch((int)(uintptr_t)((short)*local_2c)) {
       case 3:
         local_2c = (int *)((int)local_2c + 2);
-        uVar19 = FUN_0044e810(param_1,(int)param_2,param_3,local_34);
+        uVar19 = FUN_0044e810(param_1,(int)param_2,param_3,local_34,&local_2c,E2R_script_node_context);
         uVar25 = CONCAT44(extraout_EDX,_DAT_00ac4a54);
         puVar13 = extraout_ECX;
         if (uVar19 == 0) {
-          FUN_0044e7a4();
+          FUN_0044e7a4(&local_2c);
           sVar9 = *(short *)local_2c;
           puVar13 = extraout_ECX_00;
           puVar18 = extraout_EDX_00;
           while (sVar9 == 5) {
             local_2c = (int *)((int)local_2c + 2);
-            uVar19 = FUN_0044e810(param_1,(int)param_2,param_3,local_34);
+            uVar19 = FUN_0044e810(param_1,(int)param_2,param_3,local_34,&local_2c,E2R_script_node_context);
             puVar13 = extraout_ECX_01;
             puVar18 = extraout_EDX_01;
             if (uVar19 != 0) break;
-            FUN_0044e7a4();
+            FUN_0044e7a4(&local_2c);
             puVar13 = extraout_ECX_02;
             puVar18 = extraout_EDX_02;
             sVar9 = *(short *)local_2c;
@@ -47461,7 +47279,7 @@ void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3)
         break;
       case 4:
       case 5:
-        FUN_0044e74c();
+        FUN_0044e74c(&local_2c);
         puVar13 = extraout_ECX_78;
         puVar18 = extraout_EDX_41;
       case 6:
@@ -47781,6 +47599,18 @@ LAB_0044f7a9:
         }
         goto switchD_0044f573_caseD_6;
       case 0x27:
+        /* Diagnostic graphics omission retains the original operand span.
+         * 0x450a95/0x450b36/0x450bca decode signed string lengths;
+         * graphic slot/name preparation has no actor or control effects. */
+        {
+          const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");
+          if (proxy != NULL && proxy[0] != '\0' && proxy[0] != '0') {
+            ushort token = *(ushort *)((byte *)local_2c + 6);
+            short length = (short)((token & 0x800) ? token | 0xf000 : token & 0xfff);
+            local_2c = (int *)((byte *)local_2c + 8 + ((length + 1) / 2) * 2);
+            break;
+          }
+        }
         if ((*local_2c >> 0x10 & 0xf000U) != 0xf000) {
           uVar24 = FUN_0043cac0(puVar13,puVar18);
           puVar18 = (ushort *)((ulonglong)uVar24 >> 0x20);
@@ -47822,6 +47652,18 @@ LAB_0044f7a9:
         local_2c = (int *)((int)local_2c + (((short)uVar8 + 1) / 2) * 2 + 8);
         break;
       case 0x29:
+        /* Diagnostic graphics omission retains the original operand span.
+         * 0x450a95/0x450b36/0x450bca decode signed string lengths;
+         * graphic slot/name preparation has no actor or control effects. */
+        {
+          const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");
+          if (proxy != NULL && proxy[0] != '\0' && proxy[0] != '0') {
+            ushort token = *(ushort *)((byte *)local_2c + 2);
+            short length = (short)((token & 0x800) ? token | 0xf000 : token & 0xfff);
+            local_2c = (int *)((byte *)local_2c + 4 + ((length + 1) / 2) * 2);
+            break;
+          }
+        }
         if ((*local_2c >> 0x10 & 0xf000U) != 0xe000) {
           uVar24 = FUN_0043cac0(puVar13,puVar18);
           puVar18 = (ushort *)((ulonglong)uVar24 >> 0x20);
@@ -47846,6 +47688,18 @@ LAB_0044f7a9:
         uVar25 = CONCAT44(local_2c,_DAT_00ac4a54);
         break;
       case 0x2a:
+        /* Diagnostic graphics omission retains the original operand span.
+         * 0x450a95/0x450b36/0x450bca decode signed string lengths;
+         * graphic slot/name preparation has no actor or control effects. */
+        {
+          const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");
+          if (proxy != NULL && proxy[0] != '\0' && proxy[0] != '0') {
+            ushort token = *(ushort *)((byte *)local_2c + 2);
+            short length = (short)((token & 0x800) ? token | 0xf000 : token & 0xfff);
+            local_2c = (int *)((byte *)local_2c + 4 + ((length + 1) / 2) * 2);
+            break;
+          }
+        }
         if ((*local_2c >> 0x10 & 0xf000U) != 0xe000) {
           uVar24 = FUN_0043cac0(puVar13,puVar18);
           puVar18 = (ushort *)((ulonglong)uVar24 >> 0x20);
@@ -47937,7 +47791,7 @@ LAB_0044f7a9:
       case 0x3a:
         uVar7 = *(ushort *)((int)local_2c + 2) & 0xfff;
         if ((uVar7 < 5000) && (*(int *)((undefined1 *)0x00630b60 + (short)uVar7 * 4) != 0)) {
-          FUN_004273cc(puVar13);
+          FUN_004273cc(*(uint *)(0x00630b60 + uVar7 * 4));
           puVar13 = extraout_ECX_30;
           puVar18 = extraout_EDX_16;
         }
@@ -47956,7 +47810,8 @@ LAB_0044f7a9:
           param_2[0x76] = param_2[0x76] + uVar7;
           if ((-1 < (short)param_2[0x9b]) &&
              (*(int *)((*(int *)(param_2 + 0x9a) >> 0x10) * 4 + 0x6297c0) != 0)) {
-            FUN_0044f508(param_2,param_2,(ushort *)0x0);
+            E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)param_2[0x9b] * 4),
+                                     param_2,param_2,NULL,NULL);
             puVar13 = extraout_ECX_49;
             puVar18 = extraout_EDX_25;
           }
@@ -48003,7 +47858,8 @@ LAB_0044f7a9:
       case 0x3e:
         uVar7 = *(ushort *)((int)local_2c + 2) & 0xfff;
         if ((uVar7 < 2000) && (*(int *)((short)uVar7 * 4 + 0x6297c0) != 0)) {
-          FUN_0044f508(param_1,param_2,param_3);
+          E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + uVar7 * 4),
+                                   param_1,param_2,param_3,E2R_script_node_context);
           puVar13 = extraout_ECX_03;
           puVar18 = extraout_EDX_03;
         }
@@ -48027,7 +47883,8 @@ LAB_0044f7a9:
         if (((param_2 != (ushort *)0x0) && (*(int *)(param_2 + 0x75) >> 0x10 != uVar19)) &&
            ((param_2[0x76] = (ushort)uVar19, -1 < (short)param_2[0x9b] &&
             (*(int *)((*(int *)(param_2 + 0x9a) >> 0x10) * 4 + 0x6297c0) != 0)))) {
-          FUN_0044f508(param_2,param_2,(ushort *)0x0);
+          E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)param_2[0x9b] * 4),
+                                   param_2,param_2,NULL,NULL);
           puVar13 = extraout_ECX_53;
           uVar19 = extraout_EDX_29;
         }
@@ -48058,7 +47915,9 @@ LAB_0044f7a9:
              (puVar18 = *(ushort **)((undefined1 *)0x00630b60 + (short)(ushort)puVar18 * 4),
              puVar18 != (ushort *)0x0)) && ((*(ushort *)(local_2c + 1) & 0xfff) < 2000)) &&
            (*(int *)((short)(*(ushort *)(local_2c + 1) & 0xfff) * 4 + 0x6297c0) != 0)) {
-          FUN_0044f508(puVar18,puVar18,(ushort *)0x0);
+          E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 +
+                                     (*(ushort *)(local_2c + 1) & 0xfff) * 4),
+                                   puVar18,puVar18,NULL,NULL);
           puVar13 = extraout_ECX_04;
           puVar18 = extraout_EDX_04;
         }
@@ -48067,7 +47926,7 @@ LAB_0044f7a9:
         break;
       case 0x4a:
         if (param_2 != (ushort *)0x0) {
-          FUN_004273cc(puVar13);
+          FUN_004273cc((uint)(uintptr_t)param_2);
           puVar13 = extraout_ECX_31;
           puVar18 = extraout_EDX_17;
         }
@@ -48663,6 +48522,18 @@ switchD_0044f573_caseD_6:
 }
 
 
+
+/* Original nested script calls pass the selected code record in EAX. */
+static void E2R_DispatchScriptRecord(ushort *code,ushort *actor,ushort *other,ushort *child,ushort *node)
+{
+  short *entry_dispatch = E2R_action_dispatch_node;
+  ushort *entry_node = E2R_script_node_context;
+  E2R_action_dispatch_node = (short *)code;
+  E2R_script_node_context = node;
+  FUN_0044f508(actor,other,child);
+  E2R_action_dispatch_node = entry_dispatch;
+  E2R_script_node_context = entry_node;
+}
 
 /* 0045186c */
 
@@ -49279,7 +49150,8 @@ void FUN_00451f5c(void)
       psVar2[0x76] = psVar2[0x77];
       if ((-1 < psVar2[0x9d]) &&
          (*(int *)((*(int *)(psVar2 + 0x9c) >> 0x10) * 4 + 0x6297c0) != 0)) {
-        FUN_0044f508(psVar2,psVar2,(ushort *)0x0);
+        E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)psVar2[0x9d] * 4),
+                                 (ushort *)psVar2,(ushort *)psVar2,NULL,NULL);
       }
     }
   }
@@ -49431,7 +49303,8 @@ void __fastcall FUN_00452140(undefined4 param_1)
             psVar4[0x76] = psVar4[0x77];
             if ((-1 < psVar4[0x9d]) &&
                (*(int *)((*(int *)(psVar4 + 0x9c) >> 0x10) * 4 + 0x6297c0) != 0)) {
-              FUN_0044f508(psVar4,psVar4,(ushort *)0x0);
+              E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)psVar4[0x9d] * 4),
+                                       (ushort *)psVar4,(ushort *)psVar4,NULL,NULL);
               param_1 = extraout_ECX_12;
             }
           }
@@ -52330,6 +52203,12 @@ LAB_004555a2:
 int __fastcall FUN_004555b0(int param_1,undefined4 param_2)
 
 {
+  /* Diagnostic cylinders omit 2D graphic registration/drawing as well as
+   * mesh polygons. Original 0x4555b0 owns graphic slots/coordinates, not
+   * actor motion or script progression; the HUD control flag stays live. */
+  const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");
+  if (proxy != NULL && proxy[0] != '\0' && proxy[0] != '0') return 0;
+
   char cVar1;
   short sVar2;
   short sVar3;
@@ -53871,75 +53750,26 @@ void __fastcall FUN_00457780(undefined4 param_1,undefined4 param_2)
 void __fastcall FUN_00457818(undefined4 param_1,undefined4 param_2)
 
 {
-  int iVar1;
-  int iVar2;
-  int iVar3;
-  int extraout_ECX;
-  int extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 extraout_ECX_02;
-  undefined4 extraout_ECX_03;
-  undefined4 extraout_ECX_04;
-  undefined4 extraout_ECX_05;
-  int extraout_ECX_06;
-  undefined8 uVar4;
-
-  if ((DAT_0047ab30 != 0) || (iVar2 = _DAT_00ac4ae4, DAT_0047ab34 != 0)) {
-    uVar4 = FUN_0041cf5c(param_1,param_2);
-    iVar1 = DAT_0047ab30;
-    iVar2 = (int)uVar4;
-    if (iVar2 != _DAT_00ac4ae4) {
-      iVar3 = iVar2 - _DAT_00ac4a54;
-      if (DAT_0047ab38 == 0) {
-        if (DAT_0047ab30 != 0) {
-          if (iVar3 < _DAT_00ac4a58) {
-            FUN_00457994();
-            _DAT_00ac4ae4 = extraout_ECX_04;
-            return;
-          }
-          FUN_00457994();
-          _DAT_00ac4ae4 = extraout_ECX_03;
-          return;
-        }
-        if (DAT_0047ab34 != 0) {
-          if (_DAT_00ac4a58 <= iVar3) {
-            FUN_00457a34();
-            _DAT_00ac4ae4 = extraout_ECX_05;
-            return;
-          }
-          FUN_00457a34();
-          iVar2 = extraout_ECX_06;
-        }
-      }
-      else {
-        if (DAT_0047ab30 == 0) {
-          if (iVar3 < _DAT_00ac4a58) {
-            FUN_00457a34();
-            _DAT_00ac4ae4 = extraout_ECX_02;
-            return;
-          }
-          FUN_00457a34();
-          DAT_0047ab38 = iVar1;
-          DAT_0047ab34 = iVar1;
-          DAT_0047ab30 = iVar1;
-          _DAT_00ac4ae4 = extraout_ECX_01;
-          return;
-        }
-        if (iVar3 < _DAT_00ac4a58) {
-          FUN_00457994();
-          iVar2 = extraout_ECX_00;
-        }
-        else {
-          FUN_00457994();
-          DAT_0047ab38 = 0;
-          DAT_0047ab34 = 0;
-          DAT_0047ab30 = 0;
-          iVar2 = extraout_ECX;
-        }
-      }
-    }
+  /* Original 0x457849..0x457982 computes elapsed * 100 / duration,
+   * retains the current tick in ECX across palette helpers, and passes
+   * the resulting intensity in EAX. Reverse completion clears its flags. */
+  int tick, elapsed, level;
+  if (DAT_0047ab30 == 0 && DAT_0047ab34 == 0) return;
+  tick = (int)FUN_0041cf5c(param_1,param_2);
+  if (tick == _DAT_00ac4ae4) return;
+  elapsed = (int)((uint)tick - (uint)_DAT_00ac4a54);
+  if (elapsed < (int)_DAT_00ac4a58)
+    level = (int)((uint)elapsed * 100u) / (int)_DAT_00ac4a58;
+  else level = 100;
+  if (DAT_0047ab38 != 0) level = 100 - level;
+  if (DAT_0047ab30 != 0) FUN_00457994(level);
+  else FUN_00457a34(level);
+  if (DAT_0047ab38 != 0 && elapsed >= (int)_DAT_00ac4a58) {
+    DAT_0047ab38 = 0;
+    DAT_0047ab34 = 0;
+    DAT_0047ab30 = 0;
   }
-  _DAT_00ac4ae4 = iVar2;
+  _DAT_00ac4ae4 = tick;
   return;
 }
 
@@ -53947,10 +53777,10 @@ void __fastcall FUN_00457818(undefined4 param_1,undefined4 param_2)
 
 /* 00457994 */
 
-void FUN_00457994(void)
+void FUN_00457994(int level)
 
 {
-  int in_EAX;
+  int in_EAX = level;
   int iVar1;
   int iVar2;
   int iVar3;
@@ -53986,11 +53816,11 @@ void FUN_00457994(void)
 
 /* 00457a34 */
 
-void FUN_00457a34(void)
+void FUN_00457a34(int level)
 
 {
   byte bVar1;
-  int in_EAX;
+  int in_EAX = level;
   int iVar2;
   int iVar3;
   int iVar4;
@@ -58826,12 +58656,21 @@ undefined8 __fastcall FUN_0045f38a(undefined4 param_1,undefined4 param_2)
 
   (void)param_1;
   stream = (undefined4 *)(uintptr_t)param_2;
-  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||
+  if ((uintptr_t)stream < 0x10000 ||
+      (!E2R_ActionIndexProbeEnabled() && (uintptr_t)stream >= 0x70000000u) ||
       IsBadReadPtr(stream,0x1c)) {
     return CONCAT44(param_2,0xffffffff);
   }
   if (stream[6] == E2R_STREAM_MAGIC) {
     return CONCAT44(param_2,E2R_ReadHostedStreamByte(stream));
+  }
+  /* Hosted i386 streams can live above 0x70000000. Validate their readable
+   * header before applying the legacy-address guard; otherwise embedded CR
+   * and 0x1a bytes never advance the FAN floor decoder's cursor. Corrected
+   * reads stay with the recovered-action route while default placement and
+   * actor-spawn contracts remain incomplete. */
+  if ((uintptr_t)stream >= 0x70000000u) {
+    return CONCAT44(param_2,0xffffffff);
   }
   (*(code *)PTR_FUN_0047d3a0)();
   if ((*(byte *)(extraout_EDX + 3) & 1) == 0) {

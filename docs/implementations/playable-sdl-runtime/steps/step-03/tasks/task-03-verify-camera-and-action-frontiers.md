@@ -1,13 +1,13 @@
 # Verify Camera And Action Frontiers
 
-Status: deferred
+Status: partially deferred; basic movement/camera proofs planned with Step 09
 Parent Step: [Expand Gameplay Control And Camera Proofs](../step-03-expand-gameplay-control-and-camera-proofs.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-14
+Last Updated: 2026-10-14
 
 ## Goal
 
-Classify action, modifier, status, and camera behavior after the player and scene actors are visible.
+Classify movement, action, modifier, status, and camera behavior after genuine player control readiness, using visible diagnostic proxies where needed.
 
 ## Scope
 
@@ -17,7 +17,7 @@ Classify action, modifier, status, and camera behavior after the player and scen
 
 ## Dependencies
 
-Complete [Step 07](../../step-07/step-07-restore-reproducible-runtime-baseline.md), then [Step 08](../../step-08/step-08-recover-scene-175-actors.md). Action 384/context recovery, Joe geometry, and scene-backed child activation now have separate owners in Step 08. Do not close this task just because those prerequisites complete.
+[Step 07](../../step-07/step-07-restore-reproducible-runtime-baseline.md) is complete. Necessary action/context, placement and motion recovery remains owned by [Step 08](../../step-08/step-08-recover-scene-175-actors.md). Basic arrow locomotion and camera-boundary proofs now join [Step 09](../../step-09/step-09-enable-diagnostic-gameplay.md), without waiting for original Joe geometry or all scene-backed children. Broader controls need their owning actor/action state; do not close this task on prerequisite or proxy-render completion alone.
 
 ## Out Of Scope
 
@@ -51,7 +51,7 @@ Historical intro-menu proofs use mouse clicks: Settings (`320,225`) opens reques
 ## Acceptance Criteria
 
 1. Each accepted control names its owner, state delta, and visible result where applicable.
-2. Player/camera behavior is measured after completed sub-intro and visible-actor readiness.
+2. Player/camera behavior is measured after genuine control readiness with real position/orientation changes and visible response; identify diagnostic-cylinder evidence separately from original rendering.
 3. Default/SDL comparisons and manual visual results are recorded.
 4. Unknown controls or independent failures have explicit follow-up scope; key delivery alone is not marked as implemented gameplay.
 
@@ -65,9 +65,13 @@ Historical intro-menu proofs use mouse clicks: Settings (`320,225`) opens reques
 
 1. Planning state: agreed
 2. Implementation state: in_progress
-3. Notes: Deferred with historical input/menu evidence retained. Resume after Step 08; actor recovery itself is owned there.
+3. Notes: Basic movement/camera slice planned with Step 09; broader controls deferred until readiness. Historical input/menu evidence retained; actor recovery itself remains owned by Step 08.
 
 ## Change Log
+
+### 2026-10-14
+
+1. Removed full geometry/NPC completion as a prerequisite for basic movement/camera proofs; use Step 09's cylinder presentation with recovered gameplay state.
 
 ### 2026-07-28
 

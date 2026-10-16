@@ -1,8 +1,8 @@
 # Expand Gameplay Control And Camera Proofs
 
-Status: deferred
+Status: partially deferred; basic movement/camera proofs planned with Step 09
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-09-14
+Last Updated: 2026-10-14
 
 ## Goal
 
@@ -10,12 +10,12 @@ Classify gameplay controls and camera behavior using both recovered state and vi
 
 ## Why This Step Exists
 
-The canonical arrow-key mapping and bounded input latches are proven. The investigation also exposed action/context, geometry, and child-instantiation failures, which now belong to [Step 08](../step-08/step-08-recover-scene-175-actors.md). Remaining control classification resumes after that step and the [Step 07 baseline repairs](../step-07/step-07-restore-reproducible-runtime-baseline.md).
+The canonical arrow-key mapping and bounded input latches are proven. The investigation also exposed action/context, geometry, and child-instantiation failures, which now belong to [Step 08](../step-08/step-08-recover-scene-175-actors.md). The [Step 07 baseline repairs](../step-07/step-07-restore-reproducible-runtime-baseline.md) are complete. At the user's 2026-10-14 request, basic movement/camera proofs join [Step 09's cylinder gameplay route](../step-09/step-09-enable-diagnostic-gameplay.md); they do not wait for full meshes or all NPCs. Broader control classification still needs genuine player readiness.
 
 ## Scope
 
 1. Preserve the completed input-state map and four-arrow matrix.
-2. Classify modifier/action/status/interaction owners after actors render.
+2. Classify modifier/action/status/interaction owners after genuine control readiness, using diagnostic cylinders where needed.
 3. Record source-backed movement/camera changes and relevant backend comparisons.
 
 ## Out Of Scope
@@ -31,13 +31,13 @@ Keep each control proof bounded. Split any new parser, renderer, or actor crash 
 ## Temporary Sacrifices
 
 1. Existing probes prove state delivery while visible gameplay is incomplete.
-2. Resume behavioral assertions only after the actor recovery prerequisites pass.
+2. Resume behavioral assertions after the necessary action/placement/motion prerequisites pass. Diagnostic proxies can supply visible response; original mesh recovery remains separate.
 
 ## Tasks
 
 1. [Map Gameplay Input State](tasks/task-01-map-gameplay-input-state.md) — completed historical mapping.
 2. [Add Control Probe Matrix](tasks/task-02-add-control-probe-matrix.md) — completed; 8/8 debug/ASan arrow rows reverified 2026-09-14.
-3. [Verify Camera And Action Frontiers](tasks/task-03-verify-camera-and-action-frontiers.md) — deferred behind Step 08; not completed by the task split.
+3. [Verify Camera And Action Frontiers](tasks/task-03-verify-camera-and-action-frontiers.md) — basic movement/camera proofs planned with Step 09; broader controls deferred until readiness, task not complete.
 
 ## Current Findings
 
@@ -51,7 +51,7 @@ Keep each control proof bounded. Split any new parser, renderer, or actor crash 
 
 1. Preserve the completed input mapping and arrow-state evidence.
 2. Record the owner and observable result of each accepted action/modifier/status control, or link a narrowly scoped unresolved task.
-3. Demonstrate input-driven player/camera changes after actual sub-intro completion on the recovered visible-actor path.
+3. Demonstrate input-driven player/camera changes after actual control readiness, measuring real actor state and visible response. Label diagnostic-cylinder results separately from original mesh fidelity.
 4. Record default/SDL differences and a manual visual check before closing remaining Task 03.
 
 ## Verification
@@ -66,6 +66,10 @@ Keep each control proof bounded. Split any new parser, renderer, or actor crash 
 See the [2026-09-14 audit](../../../../journal/entries/runtime-audit-2026-09-14.md) for reverified evidence. The dated entries below describe investigation history; their earlier blocker descriptions do not override the current task/dependency map.
 
 ## Change Log
+
+### 2026-10-14
+
+1. Brought basic locomotion and camera proofs forward with Step 09's diagnostic cylinders. Necessary game logic still needs recovery; original meshes and all NPCs are no longer blanket prerequisites.
 
 ### 2026-07-28
 

@@ -18,6 +18,10 @@ Step 03's input investigation exposed independent action-context, geometry, and 
 2. Initialize Joe's rep/model geometry and prove visible movement.
 3. Recover scene-backed child instantiation and drawing.
 
+## Execution Priority — 2026-10-14
+
+The user prioritizes controllable gameplay with cylindrical actors over original meshes and visible animation. [Step 09](../step-09/step-09-enable-diagnostic-gameplay.md) now implements cylinder presentation and a partial polygon bypass. Node removal and required action/script inputs now advance Debug to the wait-ending script; post-intro placement and motion-query recovery are next before real movement and camera traversal. Full geometry and all scene children need not finish first. This step's original-render acceptance remains open. Task 12 is a known full-render blocker; the proxy-render audit must establish whether it also blocks that route.
+
 ## Out Of Scope
 
 1. Broad combat/inventory, requester polish, or full animated intro fidelity.
@@ -51,9 +55,9 @@ One task per failure family. Recover only the helper signatures/data layouts nee
 
 11. [Recover Dirty-Rectangle Copy Inputs](tasks/task-11-recover-dirty-rectangle-copy-inputs.md) — implemented; original-x86 copy/caller comparisons pass; full-route verification depends on Task 12.
 
-12. [Recover DirectDraw Surface Lock](tasks/task-12-recover-directdraw-surface-lock.md) — planned; next bounded compatibility task, replacing the generic Lock success with valid storage/pitch and ownership.
+12. [Recover DirectDraw Surface Lock](tasks/task-12-recover-directdraw-surface-lock.md) — planned; next bounded compatibility task for original rendering, replacing the generic Lock success with valid storage/pitch and ownership.
 
-Task numbers remain stable. Resume **12 compatibility Lock / 02 geometry → 05/01 placement and action validation → 03 child activation**, with Task 11 full-route, Task 06 full-route and Task 09 manual Escape checks pending. Pose inputs, trigonometry/projection, two corrupting matrix destinations, packed event metadata, polygon/lighting and copy contracts are recovered. The 2026-10-14 continuation verifies copy arguments and bytes, then identifies generic DirectDraw Lock returning destination base/pitch 0/0 as the current provider failure in `FUN_00418514`. The first proven lighting normal is degenerate, so valid geometry remains unproven. Action indexing and pool/event-metadata repairs remain opt-in; the default route exposes the action-384 error after the intro; clicking OK resumes updates at camera 87. Camera 175 must not be treated as script scene-resource 175.
+Task numbers remain stable. The full-render route resumes **12 compatibility Lock / 02 geometry → 05/01 placement and action validation → 03 child activation**, with Task 11 full-route, Task 06 full-route and Task 09 manual Escape checks pending. Pose inputs, trigonometry/projection, two corrupting matrix destinations, packed event metadata, polygon/lighting and copy contracts are recovered. The 2026-10-14 continuation verifies copy arguments and bytes, then identifies generic DirectDraw Lock returning destination base/pitch 0/0 as the current provider failure in `FUN_00418514`. The first proven lighting normal is degenerate, so valid geometry remains unproven. Action indexing and pool/event-metadata repairs remain opt-in; the default route exposes the action-384 error after the intro; clicking OK resumes updates at camera 87. Camera 175 must not be treated as script scene-resource 175.
 
 ## Acceptance Criteria
 
@@ -72,7 +76,7 @@ The subsequent [lighting checks](../../../../journal/entries/polygon-lighting-20
 
 Use bounded task probes, synchronized visibility packets, the corrected Step 07 wrapper, and the arrow matrix. Static hashes are pre-fix references, not desired post-fix hashes. A changed hash alone is insufficient: inspect actor geometry, state changes, selected pixels, and presentation agreement.
 
-The [2026-10-14 rectangle-copy continuation](../../../../journal/entries/rectangle-copy-2026-10-14.md) adds 2,048 original-x86 copy/ownership cases and 256 dirty-list caller cases, passing normally and with ASan. Real gated execution remains unsuccessful because compatibility Lock provides no storage/pitch. Task 12 is the next failure family; the fixture's mock COM surfaces do not prove the host provider.
+The [2026-10-14 rectangle-copy continuation](../../../../journal/entries/rectangle-copy-2026-10-14.md) adds 2,048 original-x86 copy/ownership cases and 256 dirty-list caller cases, passing normally and with ASan. Real gated execution remains unsuccessful because compatibility Lock provides no storage/pitch. Task 12 is the next full-render failure family; the fixture's mock COM surfaces do not prove the host provider.
 
 ## Original-Game Reference Capture
 
@@ -99,7 +103,7 @@ These captures support Tasks 02/05/03 and the later control proofs. They are use
 
 ## Notes
 
-See the [audit](../../../../journal/entries/runtime-audit-2026-09-14.md) and [runtime journal](../../../../journal/entries/runtime-crash-fixes.md) for the evidence and reverted latch/root-attachment experiments. After this step, resume [Step 03 Task 03](../step-03/tasks/task-03-verify-camera-and-action-frontiers.md).
+See the [audit](../../../../journal/entries/runtime-audit-2026-09-14.md) and [runtime journal](../../../../journal/entries/runtime-crash-fixes.md) for the evidence and reverted latch/root-attachment experiments. Basic [Step 03 Task 03](../step-03/tasks/task-03-verify-camera-and-action-frontiers.md) movement/camera proofs now join Step 09; broader controls follow genuine player readiness.
 
 ## Change Log
 
@@ -108,6 +112,7 @@ See the [audit](../../../../journal/entries/runtime-audit-2026-09-14.md) and [ru
 1. Confirmed the documented frontier against `4fb151a`; expanded Task 11's implementation/verification plan and recorded original-game capture requirements. Bounded comparisons and generator parity pass again; full runtime and manual checks were not repeated.
 2. Added the supplied original-game reference and event-based actor/release/HUD comparison targets. These do not complete reconstructed-runtime acceptance.
 3. Recorded the user's logo/horseback skip clarification, implemented Task 11's copy contract and split generic DirectDraw Lock storage into Task 12. Full gated scene readiness and actor rendering remain unresolved.
+4. Linked Step 09's cylinder-first priority; full meshes/children no longer block initial diagnostic locomotion and traversal. Original-render acceptance remains unchanged.
 
 ### 2026-09-14
 

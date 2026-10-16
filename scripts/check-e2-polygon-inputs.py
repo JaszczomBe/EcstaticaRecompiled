@@ -131,6 +131,7 @@ for i, (start, end) in enumerate(((0x424e44, 0x424e96), (0x433d30, 0x433e9b))):
 harness += '\n'.join(functions)
 harness += r'''
 int main(void) {
+    unsetenv("E2R_PROXY_MESH_BYPASS");
     map(0x420000,0x20000,1); map(0x47a000,0x1000,0); map(0x900000,0x1000,0);
     memcpy((void*)0x424e44,original_0,sizeof original_0);
     memcpy((void*)0x433d30,original_1,sizeof original_1);
@@ -176,6 +177,12 @@ int main(void) {
         }
         cases++;
     }
+    byte polygon_before[0x40]; memcpy(polygon_before,p,sizeof polygon_before);
+    setenv("E2R_PROXY_MESH_BYPASS","1",1);
+    count=0; FUN_00424e44(0,(int)p);
+    if(count || memcmp(polygon_before,p,sizeof polygon_before)) abort();
+    unsetenv("E2R_PROXY_MESH_BYPASS");
+    puts("PASS: opt-in polygon bypass omits raster dispatch without changing the polygon");
     memcpy((void*)0x47a2b8,face_indices,sizeof face_indices);
     byte *box=(byte*)0x900500;
     *(uint32_t*)(box+0x22)=(uintptr_t)owner;

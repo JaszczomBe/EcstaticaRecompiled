@@ -573,7 +573,8 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
             UINT vk = e2r_virtual_key_from_sdl(event.key.key);
             if (e2r_sdl_input_diag_enabled() && key_diag_count < 512u) {
                 fprintf(stderr, "host input keyup: sdl=0x%x vk=0x%x window=%u\n",
-                        (unsigned)event.key.key, (unsigned)vk);
+                        (unsigned)event.key.key, (unsigned)vk,
+                        (unsigned)event.key.windowID);
                 key_diag_count++;
             }
             if (vk != 0) {
@@ -767,15 +768,60 @@ static void e2r_cue_line(SDL_Surface *surface, const int a[3], const int b[3], U
     }
 }
 
+/* Clip a projected segment before rasterizing. This bounds drawing cost for
+ * offscreen actors while retaining cylinders whose centre lies outside view.
+ * Near-plane/overflow-rejected endpoints are omitted, never moved into view. */
+static int e2r_cylinder_line(SDL_Surface *surface, const int a[3], const int b[3], Uint32 color)
+{
+    if (a[2] <= 0 || b[2] <= 0) return 0;
+    double dx = (double)b[0] - a[0], dy = (double)b[1] - a[1];
+    double p[4] = {-dx, dx, -dy, dy};
+    double q[4] = {a[0], (double)surface->w - 1 - a[0],
+                   a[1], (double)surface->h - 1 - a[1]};
+    double first = 0, last = 1;
+    for (int edge = 0; edge < 4; ++edge) {
+        if (p[edge] == 0) {
+            if (q[edge] < 0) return 0;
+        } else {
+            double t = q[edge] / p[edge];
+            if (p[edge] < 0) { if (t > first) first = t; }
+            else { if (t < last) last = t; }
+            if (first > last) return 0;
+        }
+    }
+    int start[3] = {(int)(a[0] + first * dx), (int)(a[1] + first * dy), 1};
+    int end[3] = {(int)(a[0] + last * dx), (int)(a[1] + last * dy), 1};
+    e2r_cue_line(surface,start,end,color);
+    return 1;
+}
+
+static int e2r_cue_cylinder(SDL_Surface *surface, const E2R_ActorCue *actor, Uint32 color)
+{
+    int drawn = 0;
+    for (int i = 0; i < E2R_CYLINDER_RING_POINTS; ++i) {
+        int next = (i + 1) % E2R_CYLINDER_RING_POINTS;
+        drawn |= e2r_cylinder_line(surface,actor->cylinder[i],actor->cylinder[next],color);
+        drawn |= e2r_cylinder_line(surface,actor->cylinder[i + E2R_CYLINDER_RING_POINTS],
+                                  actor->cylinder[next + E2R_CYLINDER_RING_POINTS],color);
+        if ((i & 1) == 0)
+            drawn |= e2r_cylinder_line(surface,actor->cylinder[i],
+                                      actor->cylinder[i + E2R_CYLINDER_RING_POINTS],color);
+    }
+    if (drawn) e2r_cylinder_line(surface,actor->screen[0],actor->local_z_tip,color);
+    return drawn;
+}
+
 static void e2r_sdl_actor_cues(SDL_Surface *surface)
 {
     const char *enabled = getenv("E2R_ACTOR_CUES");
+    const char *cylinder_env = getenv("E2R_ACTOR_CYLINDERS");
+    int cylinders = cylinder_env && *cylinder_env && *cylinder_env != '0';
     E2R_ActorCueSnapshot state;
     char label[112];
     unsigned drawn = 0, behind = 0, outside = 0;
-    if (!enabled || !*enabled || *enabled == '0') return;
+    if (!cylinders && (!enabled || !*enabled || *enabled == '0')) return;
     E2R_GetActorCues(&state);
-    if (state.scene_slot < 0 || state.count == 0) return;
+    if (!cylinders && (state.scene_slot < 0 || state.count == 0)) return;
     Uint32 cyan = SDL_MapSurfaceRGB(surface, 56, 224, 244);
     Uint32 amber = SDL_MapSurfaceRGB(surface, 255, 180, 65);
     Uint32 bg = SDL_MapSurfaceRGB(surface, 12, 20, 30);
@@ -783,6 +829,19 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
         for (unsigned i = 0; i < state.count; ++i) {
             const E2R_ActorCue *actor = &state.actors[i];
             const int *foot = actor->screen[0], *tip = actor->screen[1];
+            Uint32 color = actor->is_joe ? cyan : amber;
+            if (cylinders) {
+                if (e2r_cue_cylinder(surface,actor,color)) {
+                    ++drawn;
+                    if (foot[2] > 0 && foot[0] >= 0 && foot[0] < surface->w &&
+                        foot[1] >= 0 && foot[1] < surface->h) {
+                        snprintf(label,sizeof(label),"%s %d / LOCAL +Z",actor->is_joe ? "JOE" : "ACTOR",actor->id);
+                        e2r_cue_text(surface,foot[0]+7,foot[1]-5,label,color);
+                    }
+                } else if (actor->camera_z < 128) ++behind;
+                else ++outside;
+                continue;
+            }
             if (foot[2] == 0) {
                 if (actor->camera_z < 128) ++behind; else ++outside;
                 continue;
@@ -791,7 +850,6 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
                 ++outside;
                 continue;
             }
-            Uint32 color = actor->is_joe ? cyan : amber;
             e2r_cue_line(surface,foot,tip,color);
             e2r_cue_line(surface,actor->screen[2],actor->screen[3],color);
             e2r_cue_line(surface,actor->screen[4],actor->screen[5],color);
@@ -802,12 +860,35 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
             ++drawn;
         }
     }
-    snprintf(label,sizeof(label),"ACTOR CUES: %u VISIBLE / %u BEHIND / %u OFFSCREEN",drawn,behind,outside);
-    e2r_cue_rect(surface,6,6, (int)strlen(label)*6+8, 22,bg);
+    snprintf(label,sizeof(label),"%s: %u VISIBLE / %u BEHIND / %u OFFSCREEN",
+             cylinders ? "CYLINDERS" : "ACTOR CUES",drawn,behind,outside);
+    e2r_cue_rect(surface,6,6, cylinders ? surface->w - 12 : (int)strlen(label)*6+8,
+                 cylinders ? 62 : 22,bg);
     e2r_cue_text(surface,10,9,label,cyan);
-    snprintf(label,sizeof(label),"SCENE %d / %u LIVE ACTORS%s",state.scene_slot,state.count,
+    snprintf(label,sizeof(label),"%s %d / %u LIVE ACTORS%s",cylinders ? "CAMERA" : "SCENE",state.scene_slot,state.count,
              state.camera_ready ? " / NO OCCLUSION" : " / CAMERA UNAVAILABLE");
     e2r_cue_text(surface,10,19,label,amber);
+    if (cylinders) {
+        const char *bypass = getenv("E2R_PROXY_MESH_BYPASS");
+        snprintf(label,sizeof(label),"SCRIPT WAIT %u / MODAL %u / STATE %u / CONTROL UNVERIFIED",
+                 state.script_wait,state.requester_id,state.requester_state);
+        e2r_cue_text(surface,10,29,label,cyan);
+        for (unsigned i = 0; i < state.count; ++i) {
+            const E2R_ActorCue *joe = &state.actors[i];
+            if (!joe->is_joe) continue;
+            snprintf(label,sizeof(label),"JOE %d,%d,%d / YROT %d / DEPTH %d",
+                     joe->x,joe->y,joe->z,joe->rotation_y,joe->camera_z);
+            e2r_cue_text(surface,10,39,label,cyan);
+            snprintf(label,sizeof(label),"ACTION %08X / %u/%u / APPROX RADIUS 256 HEIGHT 1024",
+                     joe->action,joe->action_progress,joe->action_duration);
+            e2r_cue_text(surface,10,49,label,amber);
+            break;
+        }
+        e2r_cue_text(surface,10,59,bypass && *bypass && *bypass != '0' ?
+                     (state.background_spawns_deferred ? "PROXY / MESH, HUD AND BACKGROUND SPAWNS OMITTED" :
+                      "PROXY DRAW / MESH AND HUD GRAPHICS OMITTED") :
+                     "PRESENTATION ONLY / ORIGINAL RENDER WORK ACTIVE",amber);
+    }
 }
 
 int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,

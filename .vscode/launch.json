@@ -13,7 +13,19 @@
       "cwd": "${command:cmake.getLaunchTargetDirectory}",
       "environment": [
         {
-          "name": "E2R_ACTOR_CUES",
+          "name": "E2R_ACTOR_CYLINDERS",
+          "value": "1"
+        },
+        {
+          "name": "E2R_ACTION_INDEX_PROBE",
+          "value": "1"
+        },
+        {
+          "name": "E2R_PROXY_MESH_BYPASS",
+          "value": "1"
+        },
+        {
+          "name": "E2R_DEFER_BACKGROUND_SPAWNS",
           "value": "1"
         }
       ],

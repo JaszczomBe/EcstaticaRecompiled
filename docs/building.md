@@ -1,6 +1,6 @@
 # Build And Debug The Developer Runtime
 
-The everyday configuration is **Debug · Clang 21 · i386 · SDL**, selected through CMake presets. The single VS Code launch **Ecstatica Recompiled** follows the selected CMake executable and enables actor cues. The runtime remains experimental; a successful build or static capture does not prove playable behavior.
+The everyday configuration is **Debug · Clang 21 · i386 · SDL**, selected through CMake presets. The single VS Code launch **Ecstatica Recompiled** follows the selected CMake executable and enables the experimental cylinder/action route. The runtime remains experimental; a successful build or static capture does not prove playable behavior.
 
 ## Requirements
 
@@ -18,10 +18,14 @@ git submodule update --init --recursive dep/SDL
 export ECSTATICA2_DATA_DIR=/path/to/Ecstatica2
 cmake --preset linux-clang32-sdl-debug
 cmake --build --preset linux-clang32-sdl-debug
-E2R_ACTOR_CUES=1 ./build/Debug/clang21-i386-sdl/e2recomp --run-recon
+E2R_ACTOR_CYLINDERS=1 E2R_ACTION_INDEX_PROBE=1 E2R_PROXY_MESH_BYPASS=1 \
+  E2R_DEFER_BACKGROUND_SPAWNS=1 \
+  ./build/Debug/clang21-i386-sdl/e2recomp --run-recon
 ```
 
 There is no committed personal data path. CMake reads `ECSTATICA2_DATA_DIR` from the environment on first configuration and stores it in that build's cache. An explicit `-DECSTATICA2_DATA_DIR=...` overrides the cache. Existing valid caches continue to work without exporting the variable; each fresh build directory needs a data path. CMake creates the build-local `Ecstatica2` symlink.
+
+F5 supplies projected cylinders, recovered action indexing/expanded script names, diagnostic mesh/HUD omission and explicit background-spawn deferral. Add `E2R_DEFER_BACKGROUND_SPAWNS=1` to a matching terminal run. The floor decoder now keeps Joe in the courtyard after release with the palette restored; movement remains unverified. The panel states that background spawning is omitted. Existing actors, scripts and player floor/view queries remain active. See [current captures and exact limits](journal/entries/courtyard-floor-decoder-2026-10-14.md). Flags default off outside this launch; `E2R_ACTOR_CUES=1` retains the earlier crosses for baseline investigation.
 
 For persistent personal overrides, use the ignored `CMakeUserPresets.json`, for example:
 
@@ -92,14 +96,14 @@ The former `linux-clang32-asan` and `linux-clang32-sdl-asan` preset names are re
 
 1. After initial configuration, run **CMake: Select Configure Preset** and choose **Debug · Clang 21 · i386 · SDL**. Existing VS Code selections may still point to an older/native preset; make this selection once.
 2. Select the matching build preset if prompted, and select the `e2recomp` launch target.
-3. Press F5 using **Ecstatica Recompiled**. CMake Tools builds the selected target, resolves its executable and working directory, and launches GDB with `--run-recon` and `E2R_ACTOR_CUES=1`.
+3. Press F5 using **Ecstatica Recompiled**. CMake Tools builds the selected target, resolves its executable and working directory, and launches GDB with `--run-recon` and `E2R_ACTOR_CYLINDERS=1 E2R_ACTION_INDEX_PROBE=1 E2R_PROXY_MESH_BYPASS=1 E2R_DEFER_BACKGROUND_SPAWNS=1`.
 4. Ctrl+Shift+B uses the single CMake build task for the active build preset. There are no shell configure/build launch wrappers or duplicate SDL/X11 launch entries.
 
 Changing the selected preset changes F5's executable. CMake Tools must have successfully configured that preset before its target commands can resolve. F5 uses its build-before-run integration; no additional pre-launch build task is attached.
 
 Workspace settings show the configure preset, Build, and launch target in the status bar. Other controls remain in the CMake Tools sidebar/Command Palette. The kit/Debug-selector pair in undertone belongs to its non-preset VS Code mode; this workspace deliberately stays in preset mode. IntelliSense uses CMake Tools' selected configuration and compile commands.
 
-Actor cues are host diagnostics: camera-projected ground crosses and uprights, cyan for Joe and amber for other live actors. The former inset grid and hollow enemy-status icons have been removed. The settled default pedestal view reports **0 VISIBLE / 1 BEHIND** because Joe's stored position projects behind the camera; expected enemy instances remain unresolved. Cues do not establish actual character rendering. They are enabled by F5; terminal launches remain opt-in.
+Cylinders are host diagnostics tied to validated actor coordinates; cyan marks Joe, amber other actors. They have approximate dimensions and no background occlusion. The state panel labels control **unverified** even when script wait becomes zero. Debug now shows Joe after release in the courtyard with valid floor/view data and the palette restored. Up latches without displacement. With background spawning deferred, experimental ASan passes the former NPC query failure but faults in a terminal action-event link. Spawn-on runtime activation remains unrecovered. Restart F5 after rebuilding; do not use the old missing-action dialog's OK button as a gameplay transition.
 
 ## Verification
 

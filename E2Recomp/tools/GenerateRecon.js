@@ -4189,7 +4189,7 @@ const fanNameInternSpecs = [
   ["00446874", "_DAT_006366bc", "20000", "0x9c4",
    "FUN_00446874(iVar12,(int)(short)iVar12)",
    "FUN_00446874((undefined4)(uintptr_t)(acStack_81 + 1),e2r_table_indices[3])"],
-  ["0044694c", "_DAT_00636698", "6000", "2000",
+  ["0044694c", "_DAT_00636698", "24000", "2000",
    "FUN_0044694c(iVar12,uVar11 & 0xffffff00)",
    "FUN_0044694c((undefined4)(uintptr_t)(acStack_81 + 1),e2r_table_indices[5])"],
   ["00446a24", "_DAT_0063668c", "1000", "500",
@@ -4224,7 +4224,7 @@ const fanNameLookupSpecs = [
   ["00441a10", "_DAT_0063668c", "1000", "500"],
   ["00441ac8", "_DAT_006366b8", "0x1117", "2000"],
   ["00441ea4", "_DAT_006366bc", "20000", "0x9c4"],
-  ["00441f00", "_DAT_00636698", "6000", "2000"],
+  ["00441f00", "_DAT_00636698", "24000", "2000"],
 ];
 for (const [name, table, capacity, maxNames] of fanNameLookupSpecs) {
   source = source.replace(
@@ -6715,7 +6715,7 @@ patchPolygonFunction('FUN_00431a7c', body => body
 
 // Original dirty-rectangle ABI: EAX surface, EDX x, EBX y, ECX width, stack height.
 function patchRectangleFunction(name, edit) {
-  const match = new RegExp(`^(?:void|undefined[2468]) (?:__fastcall )?${name}\\([^\\n]*\\)`, 'm').exec(source);
+  const match = new RegExp(`^(?:void|uint|undefined[2468]) (?:__fastcall )?${name}\\([^\\n]*\\)`, 'm').exec(source);
   if (!match) throw new Error(`Missing rectangle function ${name}`);
   const start = match.index;
   const end = source.indexOf('\n}', start) + 2;
@@ -6815,6 +6815,414 @@ for (const name of ['FUN_00418484', 'FUN_00418514']) {
   if (at < 0) throw new Error('Missing planar-mask prototype');
   prototypes[at] = 'undefined6 FUN_0045cf10(byte mask);';
 }
+
+// Explicit diagnostic raster bypass; retain all simulation and copy callers.
+patchPolygonFunction('FUN_00424e44', body => replaceRectangleInput(body,
+  'void __fastcall FUN_00424e44(int param_1,int node)\n\n{\n',
+  'void __fastcall FUN_00424e44(int param_1,int node)\n\n{\n' +
+  '  /* Diagnostic draw boundary: original 0x424e44..0x424e95 only selects\n' +
+  '   * polygon/mode/reference and calls the raster dispatcher. Actor updates,\n' +
+  '   * logical poses, camera selection and dirty/HUD copies remain active. */\n' +
+  '  const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");\n' +
+  "  if (proxy != NULL && proxy[0] != '\\0' && proxy[0] != '0') return;\n\n"));
+
+// Original action event 0x3f node input and retained cleanup ownership.
+patchRectangleFunction('FUN_0043a8f8', () => `undefined4 FUN_0043a8f8(int node)
+
+{
+  /* Original 0x43a8f8..0x43a9a7 retains EAX in ECX across cleanup calls. */
+  int owner = *(int *)(node + 0x22);
+  *(int *)(*(int *)(owner + 0x54) + *(short *)node * 4) = 0;
+  int previous = *(int *)(owner + 0x1e);
+  while (*(int *)(previous + 0x4c) != 0) {
+    int next = *(int *)(previous + 0x4c);
+    if (next == node) {
+      *(int *)(previous + 0x4c) = *(int *)(next + 0x4c);
+      break;
+    }
+    previous = next;
+  }
+  for (int child = *(int *)(node + 0x1e); child != 0;
+       child = *(int *)(child + 0xca)) {
+    FUN_0043a8f8(child);
+  }
+  for (int vertex = *(int *)(node + 0x11e); vertex != 0;
+       vertex = *(int *)(vertex + 0x26)) {
+    for (int polygon = *(int *)(owner + 0xd8); polygon != 0;
+         polygon = *(int *)(polygon + 0x1e)) {
+      if (vertex == *(int *)(polygon + 4) || vertex == *(int *)(polygon + 8) ||
+          vertex == *(int *)(polygon + 0xc) || vertex == *(int *)(polygon + 0x28)) {
+        FUN_0043a9a8(polygon);
+      }
+    }
+    /* Original 0x45366c marks this vertex; no allocation is freed here. */
+    *(ushort *)(vertex + 2) = 1;
+  }
+  /* Original 0x453508 marks the retained node, never an extraout register. */
+  *(ushort *)(node + 4) = 0x8000;
+  return node;
+}`);
+patchRectangleFunction('FUN_0043a9a8', () => `void FUN_0043a9a8(int polygon)
+
+{
+  /* Original 0x43a9a8..0x43aa12 keeps the polygon in EDX across unlinking. */
+  int owner = *(int *)(polygon + 0x22);
+  int first = *(int *)(owner + 0xd8);
+  if (first == polygon) {
+    *(int *)(owner + 0xd8) = *(int *)(polygon + 0x1e);
+  } else {
+    for (int previous = first; previous != 0; previous = *(int *)(previous + 0x1e)) {
+      if (*(int *)(previous + 0x1e) == polygon) {
+        *(int *)(previous + 0x1e) = *(int *)(polygon + 0x1e);
+        break;
+      }
+    }
+  }
+  *(int *)(*(int *)(owner + 0xdc) + *(short *)polygon * 4) = 0;
+  /* Original 0x453264 defers reclamation by marking the polygon. */
+  *(ushort *)(polygon + 2) = 0x8000;
+}`);
+source = replaceRectangleInput(source,
+  '    uVar12 = FUN_0043ab74(param_1,iVar9);',
+  '    /* Original 0x42c041 supplies the selected ESI node in EAX. */\n' +
+  '    uVar12 = FUN_0043ab74((undefined4)(uintptr_t)unaff_ESI,0);');
+patchRectangleFunction('FUN_0043ab74', body => {
+  body = replaceRectangleInput(body,'  int in_EAX;','  int in_EAX = (int)param_1;');
+  body = replaceRectangleInput(body,'FUN_0043a8f8();','FUN_0043a8f8(in_EAX);');
+  return replaceRectangleInput(body,'    uVar3 = FUN_0043cac0(0,in_EAX);',
+    '    /* Original 0x43ac3f/0x43ac46 selects the corresponding error text. */\n' +
+    '    uVar3 = FUN_0043cac0(in_EAX == 0 ? 0x4726c4 : 0x4726ac,0);');
+});
+for (const [name, declaration] of [
+  ['FUN_0043a8f8','undefined4 FUN_0043a8f8(int node);'],
+  ['FUN_0043a9a8','void FUN_0043a9a8(int polygon);']
+]) {
+  const at = prototypes.findIndex(p => p.includes(`${name}(`));
+  if (at < 0) throw new Error(`Missing node cleanup prototype ${name}`);
+  prototypes[at] = declaration;
+}
+
+// Original action reset retains its explicit slot and actor across every event.
+for (const [name, call] of [
+  ['FUN_0042ad60','FUN_0042b004(in_EAX,(short *)(uintptr_t)param_2);'],
+  ['FUN_0042ae80','FUN_0042b004(action_slot,(short *)(uintptr_t)param_2);'],
+  ['FUN_0042b338','FUN_0042b004(in_EAX,unaff_EBX);'],
+  ['FUN_0044d634','FUN_0042b004((int *)(psVar1 + 0x53),psVar1);']
+]) patchRectangleFunction(name, body => body.replaceAll('FUN_0042b004();',call));
+patchRectangleFunction('FUN_0042b004', body => {
+  body = replaceRectangleInput(body,'void FUN_0042b004(void)',
+    'void FUN_0042b004(int *action_slot,short *actor)');
+  body = replaceRectangleInput(body,'  int *in_EAX;\n  short *in_EDX;',
+    '  int *in_EAX = action_slot;\n  short *in_EDX = actor;\n  int entry_actor_context = E2R_actor_calc_context;');
+  body = replaceRectangleInput(body,
+    '  if (E2R_actor_calc_context != 0) {\n    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);\n  }\n',
+    '  /* Original 0x42b00c/0x42b00e retains slot/actor in EBP/EDI. */\n');
+  body = replaceRectangleInput(body,
+    '      FUN_0042b880(*in_EAX,\n                   E2R_actor_calc_context != 0 ?\n                   (short *)(uintptr_t)E2R_actor_calc_context : in_EDX);',
+    '      E2R_actor_calc_context = (int)(uintptr_t)in_EDX;\n      FUN_0042b880(*in_EAX,in_EDX);\n      E2R_actor_calc_context = entry_actor_context;');
+  return replaceRectangleInput(body,'    FUN_0042b0f4();',
+    '    E2R_actor_calc_context = (int)(uintptr_t)in_EDX;\n    FUN_0042b0f4();\n    E2R_actor_calc_context = entry_actor_context;');
+});
+{
+  const at = prototypes.findIndex(p => p.includes('FUN_0042b004('));
+  if (at < 0) throw new Error('Missing action-reset prototype');
+  prototypes[at] = 'void FUN_0042b004(int *action_slot,short *actor);';
+}
+
+// Original event 0x2e/4 invokes a script code record, not its parent action.
+source = replaceRectangleInput(source,"psVar7 = (short *)FUN_0044f320(param_1,*(ushort **)(unaff_ESI + 0x11));","/* Original 0x42c517..0x42c52d passes the code-table record in EAX. */\n          psVar7 = (short *)FUN_0044f320(\n              *(uint *)(0x006297bc + (int)in_EAX[3] * 4),\n              *(ushort **)(unaff_ESI + 0x11));");
+patchRectangleFunction('FUN_0044f320', () => `undefined4 __fastcall FUN_0044f320(undefined4 param_1,ushort *param_2)
+
+{
+  /* Original wrapper preserves the code record in EAX and forwards its actor
+   * in EDX/ECX. Retain dispatch ownership across nested script calls. */
+  short *entry_dispatch = E2R_action_dispatch_node;
+  E2R_action_dispatch_node = (short *)(uintptr_t)param_1;
+  FUN_0044f508(param_2,param_2,(ushort *)0x0);
+  E2R_action_dispatch_node = entry_dispatch;
+  return 0;
+}`);
+
+// Original script-name byte capacity and mutable-pool cache ownership.
+source = replaceRectangleInput(source,"  return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,\n                                                       _DAT_00636698,24000,2000));","  /* Original 0x4469c4 bounds the byte pool at base +0x5dc0 (24000). */\n  short index = E2R_InternPackedName((char *)(uintptr_t)param_1,\n                                     (char *)(uintptr_t)_DAT_00636698,24000,2000);\n  /* Parsing appends names without reallocating the pool. */\n  E2R_action_name_cache_ready = 0;\n  return CONCAT44(param_2,(ushort)index);");
+
+// Original scene completion/start script wrappers retain their code record.
+source = replaceRectangleInput(source,"  FUN_0044f2fc();\n  E2R_action_dispatch_node = (short *)0x0;","  FUN_0044f2fc((undefined4)(uintptr_t)action);\n  E2R_action_dispatch_node = (short *)0x0;");
+source = replaceRectangleInput(source,"            lVar15 = FUN_0044f2fc();","            lVar15 = FUN_0044f2fc(*(uint *)(0x006297c0 + sVar6 * 4));");
+source = replaceRectangleInput(source,"        FUN_0044f2fc();\n        psVar2 = local_38;","        FUN_0044f2fc(*(uint *)(0x006297c0 + local_38[0x4d] * 4));\n        psVar2 = local_38;");
+patchRectangleFunction('FUN_0044f2fc', () => `undefined4 FUN_0044f2fc(undefined4 action)
+
+{
+  /* Original 0x44f2fc retains EAX while clearing script actor arguments. */
+  short *entry_dispatch = E2R_action_dispatch_node;
+  E2R_action_dispatch_node = (short *)(uintptr_t)action;
+  FUN_0044f508((ushort *)0x0,(ushort *)0x0,(ushort *)0x0);
+  E2R_action_dispatch_node = entry_dispatch;
+  return 0;
+}`);
+{
+  const at = prototypes.findIndex(p => p.includes('FUN_0044f2fc('));
+  if (at < 0) throw new Error('Missing script-entry prototype');
+  prototypes[at] = 'undefined4 FUN_0044f2fc(undefined4 action);';
+}
+
+// Retained original script cursor and EBX node across condition/skip helpers.
+source = replaceRectangleInput(source,"      table[offset + input_length + 1] = '\\0';\n      return index;","      table[offset + input_length + 1] = '\\0';\n      /* Original 0x446a10 clears the newly interned script's code slot. */\n      if (table == (char *)(uintptr_t)_DAT_00636698)\n        *(uint *)(0x006297c0 + (uint)(ushort)index * 4) = 0;\n      return index;");
+source = replaceRectangleInput(source,'static short *E2R_action_dispatch_node;',
+  'static short *E2R_action_dispatch_node;\nstatic ushort *E2R_script_node_context;');
+patchRectangleFunction('FUN_0044e74c', body => body.replace('(void)','(int *cursor)')
+  .replace('  int *in_EAX;','  int *in_EAX = cursor;')
+  .replace('FUN_0044e74c();','FUN_0044e74c(in_EAX);')
+  .replace('      *extraout_ECX = *extraout_ECX + 2;\n      in_EAX = extraout_ECX;','      *in_EAX = *in_EAX + 2;'));
+patchRectangleFunction('FUN_0044e7a4', body => body.replace('(void)','(int *cursor)')
+  .replace('  int *in_EAX;','  int *in_EAX = cursor;')
+  .replace('FUN_0044e74c();','FUN_0044e74c(in_EAX);')
+  .replace('      *extraout_ECX = *extraout_ECX + 2;\n      in_EAX = extraout_ECX;','      *in_EAX = *in_EAX + 2;'));
+patchRectangleFunction('FUN_0044e810', body => body
+  .replace('int param_4)','int param_4,int *cursor,ushort *node)')
+  .replace('  int *in_EAX;','  int *in_EAX = cursor;')
+  .replace('  ushort *unaff_EBX;','  ushort *unaff_EBX = node;'));
+patchRectangleFunction('FUN_0044f508', body => body
+  .replace('  int unaff_EBX;','  int unaff_EBX = (int)(uintptr_t)E2R_script_node_context;')
+  .replaceAll('FUN_0044e810(param_1,(int)param_2,param_3,local_34)',
+    'FUN_0044e810(param_1,(int)param_2,param_3,local_34,&local_2c,E2R_script_node_context)')
+  .replaceAll('FUN_0044e7a4();','FUN_0044e7a4(&local_2c);')
+  .replaceAll('FUN_0044e74c();','FUN_0044e74c(&local_2c);'));
+for (const [name, node] of [['FUN_0044f2fc','NULL'],['FUN_0044f320','node']]) {
+  patchRectangleFunction(name, body => body
+    .replace('  short *entry_dispatch = E2R_action_dispatch_node;',
+      '  short *entry_dispatch = E2R_action_dispatch_node;\n  ushort *entry_node = E2R_script_node_context;\n  E2R_script_node_context = ' + node + ';')
+    .replace('  E2R_action_dispatch_node = entry_dispatch;',
+      '  E2R_action_dispatch_node = entry_dispatch;\n  E2R_script_node_context = entry_node;')
+    .replace('ushort *param_2)','ushort *param_2,ushort *node)'));
+}
+source = replaceRectangleInput(source,'              *(ushort **)(unaff_ESI + 0x11));',
+  '              *(ushort **)(unaff_ESI + 0x11),(ushort *)unaff_ESI);');
+for (const [name, declaration] of [["FUN_0044e74c", "void FUN_0044e74c(int *cursor);"], ["FUN_0044e7a4", "void FUN_0044e7a4(int *cursor);"], ["FUN_0044e810", "uint __fastcall FUN_0044e810(ushort *param_1,int param_2,ushort *param_3,int param_4,int *cursor,ushort *node);"], ["FUN_0044f320", "undefined4 __fastcall FUN_0044f320(undefined4 param_1,ushort *param_2,ushort *node);"]]) {
+  const at = prototypes.findIndex(p => p.includes(`${name}(`));
+  if (at < 0) throw new Error(`Missing script prototype ${name}`);
+  prototypes[at] = declaration;
+}
+
+// Original nested script calls retain a distinct selected code record.
+source = replaceRectangleInput(source,"static short *E2R_action_dispatch_node;\nstatic ushort *E2R_script_node_context;","static short *E2R_action_dispatch_node;\nstatic ushort *E2R_script_node_context;\nstatic void E2R_DispatchScriptRecord(ushort *code,ushort *actor,ushort *other,ushort *child,ushort *node);");
+source = replaceRectangleInput(source,"          FUN_0044f508(param_1,param_2,param_3);","          E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + uVar7 * 4),\n                                   param_1,param_2,param_3,E2R_script_node_context);");
+source = replaceRectangleInput(source,"            FUN_0044f508(param_2,param_2,(ushort *)0x0);","            E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)param_2[0x9b] * 4),\n                                     param_2,param_2,NULL,NULL);");
+source = replaceRectangleInput(source,"          FUN_0044f508(param_2,param_2,(ushort *)0x0);","          E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)param_2[0x9b] * 4),\n                                   param_2,param_2,NULL,NULL);");
+source = replaceRectangleInput(source,"          FUN_0044f508(puVar18,puVar18,(ushort *)0x0);","          E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 +\n                                     (*(ushort *)(local_2c + 1) & 0xfff) * 4),\n                                   puVar18,puVar18,NULL,NULL);");
+source = replaceRectangleInput(source,"        FUN_0044f508(psVar2,psVar2,(ushort *)0x0);","        E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)psVar2[0x9d] * 4),\n                                 (ushort *)psVar2,(ushort *)psVar2,NULL,NULL);");
+source = replaceRectangleInput(source,"              FUN_0044f508(psVar4,psVar4,(ushort *)0x0);","              E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)psVar4[0x9d] * 4),\n                                       (ushort *)psVar4,(ushort *)psVar4,NULL,NULL);");
+source = replaceRectangleInput(source,"/* 0045186c */","/* Original nested script calls pass the selected code record in EAX. */\nstatic void E2R_DispatchScriptRecord(ushort *code,ushort *actor,ushort *other,ushort *child,ushort *node)\n{\n  short *entry_dispatch = E2R_action_dispatch_node;\n  ushort *entry_node = E2R_script_node_context;\n  E2R_action_dispatch_node = (short *)code;\n  E2R_script_node_context = node;\n  FUN_0044f508(actor,other,child);\n  E2R_action_dispatch_node = entry_dispatch;\n  E2R_script_node_context = entry_node;\n}\n\n/* 0045186c */");
+
+// Diagnostic display omits the original 2D graphic draw provider.
+source = replaceRectangleInput(source,"int __fastcall FUN_004555b0(int param_1,undefined4 param_2)\n\n{\n","int __fastcall FUN_004555b0(int param_1,undefined4 param_2)\n\n{\n  /* Diagnostic cylinders omit 2D graphic registration/drawing as well as\n   * mesh polygons. Original 0x4555b0 owns graphic slots/coordinates, not\n   * actor motion or script progression; the HUD control flag stays live. */\n  const char *proxy = getenv(\"E2R_PROXY_MESH_BYPASS\");\n  if (proxy != NULL && proxy[0] != '\\0' && proxy[0] != '0') return 0;\n\n");
+
+// Diagnostic graphic opcodes retain encoded operand spans before omitting visual leaves.
+patchRectangleFunction('FUN_0044f508', body => {
+  body = replaceRectangleInput(body,"      case 0x27:\n","      case 0x27:\n        /* Diagnostic graphics omission retains the original operand span.\n         * 0x450a95/0x450b36/0x450bca decode signed string lengths;\n         * graphic slot/name preparation has no actor or control effects. */\n        {\n          const char *proxy = getenv(\"E2R_PROXY_MESH_BYPASS\");\n          if (proxy != NULL && proxy[0] != '\\0' && proxy[0] != '0') {\n            ushort token = *(ushort *)((byte *)local_2c + 6);\n            short length = (short)((token & 0x800) ? token | 0xf000 : token & 0xfff);\n            local_2c = (int *)((byte *)local_2c + 8 + ((length + 1) / 2) * 2);\n            break;\n          }\n        }\n");
+  body = replaceRectangleInput(body,"      case 0x29:\n","      case 0x29:\n        /* Diagnostic graphics omission retains the original operand span.\n         * 0x450a95/0x450b36/0x450bca decode signed string lengths;\n         * graphic slot/name preparation has no actor or control effects. */\n        {\n          const char *proxy = getenv(\"E2R_PROXY_MESH_BYPASS\");\n          if (proxy != NULL && proxy[0] != '\\0' && proxy[0] != '0') {\n            ushort token = *(ushort *)((byte *)local_2c + 2);\n            short length = (short)((token & 0x800) ? token | 0xf000 : token & 0xfff);\n            local_2c = (int *)((byte *)local_2c + 4 + ((length + 1) / 2) * 2);\n            break;\n          }\n        }\n");
+  body = replaceRectangleInput(body,"      case 0x2a:\n","      case 0x2a:\n        /* Diagnostic graphics omission retains the original operand span.\n         * 0x450a95/0x450b36/0x450bca decode signed string lengths;\n         * graphic slot/name preparation has no actor or control effects. */\n        {\n          const char *proxy = getenv(\"E2R_PROXY_MESH_BYPASS\");\n          if (proxy != NULL && proxy[0] != '\\0' && proxy[0] != '0') {\n            ushort token = *(ushort *)((byte *)local_2c + 2);\n            short length = (short)((token & 0x800) ? token | 0xf000 : token & 0xfff);\n            local_2c = (int *)((byte *)local_2c + 4 + ((length + 1) / 2) * 2);\n            break;\n          }\n        }\n");
+  return body;
+});
+
+// Interpolated action events retain their actor independently of nested globals.
+patchRectangleFunction('FUN_0042c790', body => body
+  .replace("FUN_0042c790(int param_1,int param_2)","FUN_0042c790(int param_1,int param_2,short *event,int actor)")
+  .replace("  if (E2R_action_event_context != 0) {\n    in_EAX = (short *)(uintptr_t)E2R_action_event_context;\n  }\n  else {\n    in_EAX = E2R_fan_parse_record;\n  }\n  if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,10)) {\n    return;\n  }\n  if (E2R_actor_calc_context != 0 && 0x10000u <= (uintptr_t)E2R_actor_calc_context &&\n      !IsBadReadPtr((void *)(uintptr_t)E2R_actor_calc_context,0x148)) {\n    unaff_EBX = E2R_actor_calc_context;\n  }\n  else if ((uintptr_t)param_1 < 0x10000u || IsBadReadPtr((void *)(uintptr_t)param_1,0x148)) {\n    return;\n  }\n  else {\n    unaff_EBX = param_1;\n  }\n","  /* Original 0x42b44e..0x42b458 passes event EAX, factor EDX,\n   * retained actor EBX and action ECX. Nested events may clear the globals. */\n  in_EAX = event;\n  unaff_EBX = actor;\n"));
+source = replaceRectangleInput(source,"        FUN_0042c790(*in_EAX,uVar3);","        FUN_0042c790(*in_EAX,uVar3,(short *)iVar2,(int)(uintptr_t)unaff_EBX);");
+{
+  const at = prototypes.findIndex(p => p.includes("FUN_0042c790("));
+  if (at < 0) throw new Error("Missing interpolated event prototype");
+  prototypes[at] = "void __fastcall FUN_0042c790(int param_1,int param_2,short *event,int actor);";
+}
+
+// The expanded script set belongs to the explicit recovered-action experiment.
+for (const name of ["FUN_0044694c", "FUN_00441f00"])
+  patchRectangleFunction(name, body => replaceRectangleInput(body,"_DAT_00636698,24000,2000","_DAT_00636698,E2R_ActionIndexProbeEnabled() ? 24000 : 6000,2000"));
+source = replaceRectangleInput(source,"/* Original 0x4469c4 bounds the byte pool at base +0x5dc0 (24000). */","/* Original 0x4469c4 bounds the byte pool at base +0x5dc0 (24000).\n   * Activate that script set with the recovered action route; retain the\n   * earlier 6000-byte baseline while its graphics/script inputs remain open. */");
+
+// Source-backed palette fade intensity, timing and frame palette ownership.
+for (const name of ["FUN_00457994", "FUN_00457a34"]) {
+  patchRectangleFunction(name, body => body
+    .replace(`${name}(void)`,`${name}(int level)`)
+    .replace("  int in_EAX;","  int in_EAX = level;"));
+}
+patchRectangleFunction("FUN_00457818", () => "void __fastcall FUN_00457818(undefined4 param_1,undefined4 param_2)\n\n{\n  /* Original 0x457849..0x457982 computes elapsed * 100 / duration,\n   * retains the current tick in ECX across palette helpers, and passes\n   * the resulting intensity in EAX. Reverse completion clears its flags. */\n  int tick, elapsed, level;\n  if (DAT_0047ab30 == 0 && DAT_0047ab34 == 0) return;\n  tick = (int)FUN_0041cf5c(param_1,param_2);\n  if (tick == _DAT_00ac4ae4) return;\n  elapsed = (int)((uint)tick - (uint)_DAT_00ac4a54);\n  if (elapsed < (int)_DAT_00ac4a58)\n    level = (int)((uint)elapsed * 100u) / (int)_DAT_00ac4a58;\n  else level = 100;\n  if (DAT_0047ab38 != 0) level = 100 - level;\n  if (DAT_0047ab30 != 0) FUN_00457994(level);\n  else FUN_00457a34(level);\n  if (DAT_0047ab38 != 0 && elapsed >= (int)_DAT_00ac4a58) {\n    DAT_0047ab38 = 0;\n    DAT_0047ab34 = 0;\n    DAT_0047ab30 = 0;\n  }\n  _DAT_00ac4ae4 = tick;\n  return;\n}");
+patchRectangleFunction("FUN_00422238", body => {
+  body = replaceRectangleInput(body,"  undefined4 uVar3;","  undefined4 uVar3;\n  int fade_level;");
+  const saves = /^([ ]*)DAT_0047ab3c = -1;$/gm;
+  if ((body.match(saves) || []).length !== 2) throw new Error("Missing frame fade-level saves");
+  body = body.replace(saves,"$1fade_level = DAT_0047ab3c;\n$1DAT_0047ab3c = -1;");
+  body = replaceRectangleInput(body,"FUN_00457a34();","FUN_00457a34(fade_level);");
+  body = replaceRectangleInput(body,"FUN_00457994();","FUN_00457994(fade_level);");
+  body = replaceRectangleInput(body,"FUN_0041af88(param_1,param_2);","FUN_0041af88(0x0061c730,param_2);");
+  body = replaceRectangleInput(body,"FUN_0041af88(extraout_ECX_02,iVar4);","FUN_0041af88(0x0061c730,iVar4);");
+  return body;
+});
+source = replaceRectangleInput(source,"              FUN_00457994();","              FUN_00457994(0);");
+for (const name of ["FUN_00457994", "FUN_00457a34"]) {
+  const at = prototypes.findIndex(p => p.includes(`${name}(`));
+  if (at < 0) throw new Error(`Missing fade prototype ${name}`);
+  prototypes[at] = `void ${name}(int level);`;
+}
+
+// Original 0x44884b/0x4489a2 zero-extend the descriptor ceiling byte.
+// Couple corrected selection to the recovered action route until its no-scene
+// resource handoff is valid; keep the earlier bare terminal/modal baseline.
+for (const name of ["FUN_00448744", "FUN_004488a4"])
+  patchRectangleFunction(name, body => replaceRectangleInput(body,"(int)(char)pbVar7[5]","(E2R_ActionIndexProbeEnabled() ? (int)(uint)pbVar7[5] : (int)(char)pbVar7[5])"));
+
+// Preserve the original no-view fallback resource independently of camera id zero.
+source = replaceRectangleInput(source,"      FUN_0043a6e0(uVar3,(int)sVar2);","      /* Original 0x44c453 passes resource 7 in EAX when no view is found.\n       * Passing the zero camera selector here restarted intro resource 0. */\n      FUN_0043a6e0(7,7);");
+
+// Original actor deactivation receives the selected actor in EAX.
+patchRectangleFunction("FUN_004273cc", body => body
+  .replace("  short *in_EAX;","  short *in_EAX = (short *)(uintptr_t)param_1;")
+  .replace("      FUN_0044f310();","      FUN_0044f320(*(uint *)(0x006297c0 + iVar2 * 4),(ushort *)in_EAX,NULL);"));
+patchRectangleFunction("FUN_0044f508", body => {
+  const at = body.indexOf("      case 0x4a:");
+  if (at < 0) throw new Error("Missing deactivation script case");
+  return replaceRectangleInput(body.slice(0,at),"          FUN_004273cc(puVar13);","          FUN_004273cc(*(uint *)(0x00630b60 + uVar7 * 4));") +
+    replaceRectangleInput(body.slice(at),"          FUN_004273cc(puVar13);","          FUN_004273cc((uint)(uintptr_t)param_2);");
+});
+source = replaceRectangleInput(source,"        FUN_004273cc(extraout_ECX_14);","        FUN_004273cc((uint)(uintptr_t)local_6c);");
+
+// Permit valid hosted streams above the original engine's low address range.
+patchRectangleFunction("FUN_0045f38a", body => {
+  body = replaceRectangleInput(body,
+    "  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||",
+    "  if ((uintptr_t)stream < 0x10000 ||\n      (!E2R_ActionIndexProbeEnabled() && (uintptr_t)stream >= 0x70000000u) ||");
+  return replaceRectangleInput(body,
+    "    return CONCAT44(param_2,E2R_ReadHostedStreamByte(stream));\n  }",
+    "    return CONCAT44(param_2,E2R_ReadHostedStreamByte(stream));\n  }\n  /* Hosted i386 streams can live above 0x70000000. Validate their readable\n   * header before applying the legacy-address guard; otherwise embedded CR\n   * and 0x1a bytes never advance the FAN floor decoder's cursor. Corrected\n   * reads stay with the recovered-action route while default placement and\n   * actor-spawn contracts remain incomplete. */\n  if ((uintptr_t)stream >= 0x70000000u) {\n    return CONCAT44(param_2,0xffffffff);\n  }");
+});
+
+// Original NPC spawn range, world vector, nine samples and activation ownership.
+patchRectangleFunction("FUN_0044db80", () => `undefined4 __fastcall FUN_0044db80(undefined4 param_1,undefined4 param_2)
+
+{
+  int first = (int)param_1;
+  int count = (int)param_2;
+  uint random = (uint)FUN_0045fc10(param_1,param_2);
+  int initial = (int)(((random * 2u & 0xffffu) * (uint)count) >> 16);
+  for (int attempt = 0; attempt < count; ++attempt) {
+    int offset = initial + attempt;
+    while (offset >= count) offset -= count;
+    int id = first + offset;
+    if ((*(byte *)(0x0064a178 + id * 2) & 2) == 0) {
+      *(byte *)(0x0064a178 + id * 2) |= 8;
+      /* Original 0x44dbce..0x44dbd5 retains the selected actor ID in ECX. */
+      int prior_id = E2R_actor_load_id_override;
+      E2R_actor_load_id_override = id;
+      FUN_00451f5c();
+      E2R_actor_load_id_override = prior_id;
+      return *(uint *)(0x00630b60 + id * 4);
+    }
+  }
+  return 0;
+}`);
+patchRectangleFunction("FUN_0044dca4", () => `void __fastcall FUN_0044dca4(undefined4 param_1,undefined4 param_2)
+
+{
+  /* Original 0x44dce3..0x44dd43 retains a contiguous world vector.
+   * EAX is the coordinate pointer; the floor query's actor argument is zero. */
+  short world[3], corners[27];
+  short *spawn = NULL;
+  int terrain = 0;
+  int radius, min_height = 0x7fff, max_height = -0x8000;
+  int prior_actor = E2R_actor_calc_context;
+  static const short first_actor[44] = {
+    -1,52,55,16,13,9,19,37,31,34,58,61,-1,22,25,28,
+    68,71,74,77,80,83,86,89,92,95,98,101,104,107,110,113,
+    116,119,127,130,133,136,61,136,127,58,92,107
+  };
+  /* Explicit Joe-only prototype option. Existing actors and scripts still
+   * update; only this automatic terrain-driven population leaf is deferred. */
+  const char *defer = getenv("E2R_DEFER_BACKGROUND_SPAWNS");
+  if (defer && *defer && *defer != '0') return;
+  if (DAT_0047a470 == 0) return;
+  world[0] = *(short *)(DAT_0047a470 + 0x84) +
+    (short)(((int)((uint)FUN_0045fc10(param_1,param_2) - 0x4000u) * 10) >> 5);
+  world[2] = *(short *)(DAT_0047a470 + 0x88) +
+    (short)(((int)((uint)FUN_0045fc10(0,0) - 0x4000u) * 10) >> 5);
+  world[1] = *(short *)(DAT_0047a470 + 0x86);
+  world[1] = (short)FUN_00448a3c((uint)(uintptr_t)world,0);
+  if ((int)FUN_0044d28c((uint)(uintptr_t)world,0) == 0) {
+    int cell = (int)FUN_00448744((uint)(uintptr_t)world,NULL);
+    if (cell >= 0) terrain = *(byte *)(0x0068cd6c + cell * 12);
+  }
+  if (terrain == 12) {
+    if ((*(byte *)0x0064a1f8 & 2) == 0) {
+      int prior_id = E2R_actor_load_id_override;
+      E2R_actor_load_id_override = 64;
+      FUN_00451f5c();
+      E2R_actor_load_id_override = prior_id;
+      spawn = (short *)(uintptr_t)*(uint *)(0x00630c60);
+    }
+  }
+  else if ((uint)terrain < 44 && first_actor[terrain] >= 0) {
+    int first = first_actor[terrain];
+    if (terrain >= 38 && (*(byte *)0x00670c42 & 8) != 0) first = 65;
+    int count = terrain == 5 ? 4 : terrain == 7 ? 15 : terrain == 33 ? 8 : 3;
+    spawn = (short *)(uintptr_t)FUN_0044db80(first,count);
+  }
+  if (spawn == NULL) return;
+  memcpy(spawn + 0x42,world,sizeof(world));
+  for (int i = 0; i < 9; ++i) memcpy(corners + i * 3,world,sizeof(world));
+  radius = spawn[0x4d];
+  /* Original overlap test uses actor radius +0x9a and live X/Z. */
+  for (short *actor = (short *)(uintptr_t)_DAT_0063726c;
+       actor != NULL; actor = *(short **)(actor + 0x26)) {
+    if (actor == spawn) continue;
+    int extent = actor[0x4d] + radius;
+    int dx = actor[0x42] - spawn[0x42], dz = actor[0x44] - spawn[0x44];
+    if (dx < 0) dx = -dx;
+    if (dz < 0) dz = -dz;
+    if (dx < extent && dz < extent) {
+      E2R_actor_calc_context = (int)(uintptr_t)spawn;
+      FUN_00426ca4();
+      E2R_actor_calc_context = prior_actor;
+      *(byte *)(0x0064a178 + *spawn * 2) &= 0xfd;
+      return;
+    }
+  }
+  /* The original stack has nine X/Z samples, not independent C locals. */
+  static const byte lower[] = {0,2,5,8,9,18};
+  static const byte upper[] = {6,15,20,23,24,26};
+  for (int i = 0; i < 6; ++i) {
+    corners[lower[i]] -= radius;
+    corners[upper[i]] += radius;
+  }
+  for (int i = 0; i < 9; ++i) {
+    short height = (short)FUN_00448a3c((uint)(uintptr_t)(corners + i * 3),0);
+    if (height < min_height) min_height = height;
+    if (height > max_height) max_height = height;
+  }
+  int id = *spawn;
+  if (min_height != max_height) {
+    E2R_actor_calc_context = (int)(uintptr_t)spawn;
+    FUN_00426ca4();
+    E2R_actor_calc_context = prior_actor;
+    *(byte *)(0x0064a178 + id * 2) &= 0xfd;
+    return;
+  }
+  *(ushort *)(0x0064a178 + id * 2) =
+    (*(ushort *)(0x0064a178 + id * 2) & 0x70) | 8;
+  *(short *)(0x00671fc0 + id * 2) = -2;
+  *(byte *)(0x0064c950 + id) = 0;
+  *(short *)(0x00647a68 + id * 2) = 0;
+  memset((void *)(uintptr_t)(0x00669708 + id * 6),0,6);
+  memset((void *)(uintptr_t)(0x00658980 + id * 6),0,6);
+  *(short *)(0x006648e8 + id * 2) = -1;
+  *(short *)(0x0065feb0 + id * 2) = -1;
+  *(short *)(0x00666ff8 + id * 2) = 0;
+  E2R_actor_calc_context = (int)(uintptr_t)spawn;
+  FUN_00420dcc();
+  *(byte *)(0x0064a178 + id * 2) |= 2;
+  E2R_actor_calc_context = (int)(uintptr_t)spawn;
+  FUN_00426c3c();
+  E2R_actor_calc_context = prior_actor;
+}`);
 
 fs.writeFileSync(outSrc, source);
 

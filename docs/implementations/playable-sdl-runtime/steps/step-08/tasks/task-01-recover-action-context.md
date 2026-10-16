@@ -71,6 +71,8 @@ Task 11 now recovers copy/page/descriptor inputs and passes 2,048 original-x86 c
 
 ## Review State
 
+The [Step 09 continuation](../../step-09/step-09-enable-diagnostic-gameplay.md) now reaches action event `0x3f → FUN_0043ab74` with a visible projected Joe and script wait still set. [Step 09 Task 01](../../step-09/tasks/task-01-recover-action-event-node-removal.md) owns the newly exposed node-input/unlink contract. Original geometry and surface-copy acceptance remain separate; they no longer have to complete before that diagnostic action repair.
+
 1. Planning state: agreed
 2. Implementation state: implemented; gated validation incomplete
 3. Notes: Baseline checks pass. Task 04 is complete. Task 02 and Task 05 precede remaining gated validation; scene/position drift and geometry are still unresolved.
@@ -82,3 +84,7 @@ Task 11 now recovers copy/page/descriptor inputs and passes 2,048 original-x86 c
 1. Created from the runtime/documentation audit and the approved task split.
 
 2. Restored loader actor ownership and direct action-helper inputs; recorded bounded progress and split the missing-scene message failure without closing gated acceptance.
+
+## F5 Continuation — 2026-10-14
+
+[Step 09's continuous-runtime continuation](../../../../../journal/entries/f5-diagnostic-route-2026-10-14.md) supersedes the old event-0x3f diagnostic crash. F5 now selects cylinders/action indexing/mesh and HUD omission; node-removal, retained action/actor and script-input comparisons pass. Debug reaches the wait-ending script, then selects an invalid height and leaves Joe behind camera 83 without motion. Step 09 Task 02 owns that placement/query/control work. Original-render acceptance and compatibility Lock remain open; gated ASan faults in a motion query.
