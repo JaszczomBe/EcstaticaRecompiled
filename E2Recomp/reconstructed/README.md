@@ -44,10 +44,10 @@ Ecstatica II CD data directory. Override it with:
 cmake --preset linux-clang-debug -DECSTATICA2_DATA_DIR=/path/to/Ecstatica2
 ```
 
-For a fresh Debian Trixie install, the expected packages are:
+For the documented Debian setup, install the host tools:
 
 ```sh
-sudo apt install cmake ninja-build clang gdb
+sudo apt install cmake ninja-build gdb
 ```
 
 For the 32-bit preset on Debian Trixie, install the i386 development runtime:
@@ -55,6 +55,8 @@ For the 32-bit preset on Debian Trixie, install the i386 development runtime:
 ```sh
 sudo apt install libc6-dev-i386 gcc-multilib
 ```
+
+Install Clang 21 separately if needed: shared presets require `clang-21` on PATH and reject other major versions. ASan presets also need the matching Clang sanitizer runtime with i386 support. See the [requirements and compiler override workflow](../../docs/building.md#requirements).
 
 The Linux target is a native compile/link scaffold with Win32 compatibility
 stubs. It initializes the recovered data tables by default. Pass `--run-recon`
@@ -92,4 +94,4 @@ The regression scripts configure and build the standard Debug and ASan presets u
 
 The new `python3 scripts/check-e2-postintro-requester.py build/Debug/clang21-i386-sdl/e2recomp` check captures the actual SDL dialog, clicks OK and verifies resumed updates plus Escape main-menu entry. It also passes against `build/Debug/clang21-i386-sdl-asan/e2recomp`. It requires GDB/ptrace and original data; only LeakSanitizer is disabled under ptrace. See the [requester evidence and limits](../../docs/journal/entries/post-intro-requester-2026-09-15.md).
 
-Generator syntax and scratch regeneration of all four artifacts match the working reconstruction. Follow the [audit's scratch comparison](../../docs/journal/entries/runtime-audit-2026-09-14.md) for future generator changes. The next source task is [Step 08 Task 11 rectangle-copy inputs](../../docs/implementations/playable-sdl-runtime/steps/step-08/tasks/task-11-recover-dirty-rectangle-copy-inputs.md), within Task 02 geometry recovery; Tasks 05 and 01 retain incomplete gated validation. The supplied video confirms cue replacement; the 2026-09-21 screenshots confirm dialog presentation and the camera-87 transition after OK, with the error still visible and Joe absent. Manual Escape confirmation remains pending. Build commands do not require Ghidra export or regeneration.
+Generator syntax and scratch regeneration of all four artifacts match the working reconstruction. Follow the [audit's scratch comparison](../../docs/journal/entries/runtime-audit-2026-09-14.md) for future generator changes. The 2026-10-14 rectangle-copy repair passes 2,048 original-x86 copy/ownership cases and 256 dirty-list dispatch cases, normally and with ASan. Four builds, parity, default regressions, eight arrow rows and both requester checks pass again. The actual gated copy still faults because DirectDraw Lock is a generic no-output stub returning base/pitch 0/0. The next task is [Step 08 Task 12 compatibility Lock](../../docs/implementations/playable-sdl-runtime/steps/step-08/tasks/task-12-recover-directdraw-surface-lock.md), within Task 02 geometry recovery; Tasks 05 and 01 retain incomplete gated validation. The earlier reconstruction recording confirms cue replacement; the 2026-09-21 screenshots confirm dialog presentation and the camera-87 transition after OK, with the error still visible and Joe absent. Manual Escape confirmation remains pending. Build commands do not require Ghidra export or regeneration.

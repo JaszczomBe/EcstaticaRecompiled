@@ -4,6 +4,9 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Dirty-rectangle copy inputs — 2026-10-14](entries/rectangle-copy-2026-10-14.md): explicit copy inputs/page selection, mapped lock descriptor and unlock ownership; original-x86 comparisons and regressions pass; generic DirectDraw Lock supplies no destination storage/pitch.
+- [Original-game video reference — 2026-10-14](entries/original-game-reference-2026-10-14.md): timestamped screen/actor log and contact sheet, stocks/release/HUD checkpoints, executable provenance, code correlations and missing reconstructed behavior.
+- [Documentation review — 2026-10-14](entries/documentation-review-2026-10-14.md): checked latest source/handoff, corrected setup guidance, reverified generator and polygon/lighting comparisons, and scoped rectangle-copy recovery plus original-game captures.
 - [Flat-polygon lighting — 2026-09-21](entries/polygon-lighting-2026-09-21.md): recovered normal/angle/rotation inputs and mapped byte reads; original-x86 comparisons pass; gated SDL now reaches framebuffer-copy failure.
 - [Polygon inputs — 2026-09-21](entries/polygon-inputs-2026-09-21.md): explicit polygon/mode/reference arguments, temporary record storage, original-x86 routing comparisons and the next lighting/matrix failure.
 

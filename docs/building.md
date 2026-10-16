@@ -99,7 +99,7 @@ Changing the selected preset changes F5's executable. CMake Tools must have succ
 
 Workspace settings show the configure preset, Build, and launch target in the status bar. Other controls remain in the CMake Tools sidebar/Command Palette. The kit/Debug-selector pair in undertone belongs to its non-preset VS Code mode; this workspace deliberately stays in preset mode. IntelliSense uses CMake Tools' selected configuration and compile commands.
 
-The cue map is a host diagnostic: cyan Joe, amber other live actors. Two hollow enemy-status icons mean the expected enemies are not instantiated. They do not establish enemy positions or actual character rendering. Cues are enabled by F5; terminal launches remain opt-in.
+Actor cues are host diagnostics: camera-projected ground crosses and uprights, cyan for Joe and amber for other live actors. The former inset grid and hollow enemy-status icons have been removed. The settled default pedestal view reports **0 VISIBLE / 1 BEHIND** because Joe's stored position projects behind the camera; expected enemy instances remain unresolved. Cues do not establish actual character rendering. They are enabled by F5; terminal launches remain opt-in.
 
 ## Verification
 

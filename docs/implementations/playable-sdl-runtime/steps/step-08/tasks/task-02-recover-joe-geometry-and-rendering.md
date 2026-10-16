@@ -3,7 +3,7 @@
 Status: active
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-21
+Last Updated: 2026-10-14
 
 ## Goal
 
@@ -46,7 +46,7 @@ At the polygon-input checkpoint, gated SDL advanced to `FUN_00431a7c → FUN_004
 
 Task 10 recovers the normal/angle/local-rotation contract and mapped byte color reads in the flat leaf. Original-x86 angle, rotation and lighting-index comparisons pass normally and with ASan; builds, parity and default regressions pass again. A minimally interrupted gated run returns lighting indices 64/64 for normal 0/0/0, then fails in framebuffer copying at `FUN_00418514`. The degenerate normal does not prove valid geometry. Heavily instrumented runs can instead fail in `FUN_0042c790` action-channel handling; gated SDL ASan still times out before geometry.
 
-[Task 11](task-11-recover-dirty-rectangle-copy-inputs.md) owns the copy-input failure and is next. See the [lighting journal](../../../../../journal/entries/polygon-lighting-2026-09-21.md). Visible Joe, movement, vertex generation and complete rasterization remain open.
+At this checkpoint [Task 11](task-11-recover-dirty-rectangle-copy-inputs.md) owned the copy-input failure. Its 2026-10-14 repair now passes original-x86 copy/caller comparisons; real DirectDraw Lock still provides base/pitch 0/0. [Task 12](task-12-recover-directdraw-surface-lock.md) owns the next compatibility failure before actual runtime copying/geometry can be verified. See the [lighting journal](../../../../../journal/entries/polygon-lighting-2026-09-21.md). Visible Joe, movement, vertex generation and complete rasterization remain open.
 
 ## Acceptance Criteria
 
@@ -55,6 +55,12 @@ Task 10 recovers the normal/angle/local-rotation contract and mapped byte color 
 3. A delayed arrow after sub-intro completion changes actor position/orientation and visible output as appropriate.
 4. Bounded debug/ASan checks pass; manual SDL confirms the player is visible.
 
+## Original-Game Visual Target — 2026-10-14
+
+The [reference log/contact sheet](../../../../../journal/entries/original-game-reference-2026-10-14.md) identifies Joe in the **rear stocks**, then opening restraint, release/jump/landing, standing free and movement toward the left stairs. Compare changing actor silhouettes, pose and overlap with the stock boards/platform at those separate events. The blue foreground body-like form remains fixed while Joe moves independently; it cannot satisfy living-player rendering acceptance. Two green creatures also remain visible/moving through the sequence. The source of the user-described lightning effect and the exact action assigned to each phase still need tracing.
+
+The recorded initial HUD/gameplay view remains the pedestal courtyard. Do not use the reconstructed rooftop/error outcome as the desired reference or substitute a projected host cue for rendered Joe. Task 11's implemented copy contract and Task 12's required surface provider precede this full geometry/animation verification.
+
 ## Verification
 
 Capture synchronized before/after packets with `--auto-scene175-visibility` and the existing delayed key-sequence probes. Extend a probe only if needed to wait for actual sub-intro completion and sample position/geometry. Use `scripts/e2r_visibility_sheet.py` and visual inspection; a changed hash alone is not acceptance. Preserve generator parity and run baseline regressions.
@@ -62,7 +68,7 @@ Capture synchronized before/after packets with `--auto-scene175-visibility` and 
 ## Review State
 
 1. Planning state: agreed
-2. Implementation state: node matrix destinations, polygon inputs and flat lighting repaired; Task 11 rectangle-copy inputs next
+2. Implementation state: matrix destinations, polygon/lighting and copy inputs repaired; Task 12 DirectDraw Lock storage next
 3. Notes: Next source task; keep action indexing gated and split independent later render failures.
 
 ## Change Log

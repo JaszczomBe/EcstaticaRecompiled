@@ -3,7 +3,7 @@
 Status: active
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-21
+Last Updated: 2026-10-14
 
 ## Goal
 
@@ -54,6 +54,10 @@ GDB can exit zero after catching SIGSEGV; inspect the inferior stop reason and a
 ## 2026-09-21 Follow-Up
 
 Task 02 has passed the polygon reference-pointer failure, and Task 10 subsequently recovered the flat-lighting inputs. The next minimally interrupted gated SDL stop is in framebuffer copying at `FUN_00418514`, owned by [Task 11](task-11-recover-dirty-rectangle-copy-inputs.md). Gated SDL ASan still times out in camera 1073. Default regressions pass; placement and living actors remain unproven. See the [lighting evidence](../../../../../journal/entries/polygon-lighting-2026-09-21.md).
+
+## 2026-10-14 Copy Follow-Up
+
+Task 11 now recovers copy/page/descriptor inputs and passes 2,048 original-x86 copy/ownership plus 256 dirty-list dispatch cases, normally and with ASan. The real gated copy still faults because DirectDraw Lock returns base/pitch 0/0 from a generic compatibility stub. [Task 12](task-12-recover-directdraw-surface-lock.md) owns the next provider failure; Task 02/05/01 full-route validation remains incomplete. Default regressions pass, and gated SDL ASan still times out in camera 1073. See the [rectangle journal](../../../../../journal/entries/rectangle-copy-2026-10-14.md).
 
 ## Review State
 

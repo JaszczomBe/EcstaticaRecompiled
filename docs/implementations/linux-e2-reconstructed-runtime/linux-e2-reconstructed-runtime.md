@@ -150,10 +150,12 @@ The active implementation step has a hard limit of 5% weekly usage burn per day.
 
 ## Verification
 
+These are current commands for rechecking the historical proof; follow [build setup](../../building.md) for fresh configuration and the active implementation for present acceptance limits.
+
 1. `cmake --build --preset linux-clang32-debug`
-2. `cmake --build build/linux-clang32-asan`
+2. `cmake --build --preset linux-clang32-debug-asan`
 3. `scripts/run-e2-runtime-regressions.sh`
-4. GDB run from `build/linux-clang32-debug`: `./e2recomp --run-recon`
+4. GDB run from `build/Debug/clang21-i386-x11`: `./e2recomp --run-recon`
 5. Journal the next crash frontier after each successful repair.
 
 ## Change Log

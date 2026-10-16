@@ -6713,6 +6713,109 @@ patchPolygonFunction('FUN_00431a7c', body => body
   .replace('(&DAT_00507590)', '((const byte *)0x00507590)')
   .replace('(&DAT_0050b510)', '((const byte *)0x0050b510)'));
 
+// Original dirty-rectangle ABI: EAX surface, EDX x, EBX y, ECX width, stack height.
+function patchRectangleFunction(name, edit) {
+  const match = new RegExp(`^(?:void|undefined[2468]) (?:__fastcall )?${name}\\([^\\n]*\\)`, 'm').exec(source);
+  if (!match) throw new Error(`Missing rectangle function ${name}`);
+  const start = match.index;
+  const end = source.indexOf('\n}', start) + 2;
+  if (end <= start) throw new Error(`Missing rectangle function end ${name}`);
+  source = source.slice(0, start) + edit(source.slice(start, end)) + source.slice(end);
+}
+function replaceRectangleInput(body, before, after) {
+  if (body.split(before).length !== 2) throw new Error('Rectangle input anchor mismatch: ' + before);
+  return body.replace(before, after);
+}
+patchRectangleFunction('FUN_00418484', () => `void __fastcall FUN_00418484(int surface,int x,int y,int width,int height)
+
+{
+  if (DAT_0047a43c != 0) {
+    FUN_00418514(surface,x,y,width,height);
+  }
+  else {
+    /* Original planar branch rounds the horizontal span to four-pixel groups. */
+    int column = x >> 2;
+    int row_bytes = ((x + width + 3) >> 2) - column;
+    byte *src = (byte *)(uintptr_t)(_DAT_00636158 + y * 0x50 + column);
+    byte *dst = (byte *)(uintptr_t)
+      (*(uint *)((byte *)0x00636150 + surface * 4) + y * 0x50 + column);
+    FUN_0045cf10(0xf);
+    for (int row = 0; row < height; ++row) {
+      /* Keep the original forward byte-copy order, including overlapping spans. */
+      for (int col = 0; col < row_bytes; ++col) dst[col] = src[col];
+      src += 0x50;
+      dst += 0x50;
+    }
+    FUN_0045cf23();
+  }
+}`);
+patchRectangleFunction('FUN_00418514', () => `void __fastcall FUN_00418514(int surface,int x,int y,int width,int height)
+
+{
+  undefined4 dst_pitch;
+  undefined4 dst_base = FUN_00418a04((undefined4)surface,&dst_pitch);
+  byte *src = (byte *)(uintptr_t)(_DAT_00636158 + y * DAT_00477060 + x);
+  byte *dst = (byte *)(uintptr_t)(dst_base + y * dst_pitch + x);
+
+  /* Original EAX surface, EDX x, EBX y, ECX width and stack height. */
+  for (int row = 0; row < height; ++row) {
+    for (int col = 0; col < width; ++col) dst[col] = src[col];
+    src += DAT_00477060;
+    dst += dst_pitch;
+  }
+  FUN_00418b00((undefined4)surface,dst_base);
+}`);
+patchRectangleFunction('FUN_00418a04', body => {
+  body = replaceRectangleInput(body, "  }\n  FUN_0045f8d0(in_EAX,0);\n  _DAT_00636864 = 0x6c;\n  if (extraout_ECX == DAT_0047a279 >> 0x18) {\n    iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 100))(DAT_0047d0cc,0,&DAT_00636864,1,0);\n    if (iVar1 == -0x7789fe3e) {\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 0x6c))(DAT_0047d0cc);\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 100))(DAT_0047d0cc,0,&DAT_00636864,1,0);\n      goto LAB_00418ade;\n",
+    "  }\n  /* Original 0x418a07..0x418a38 preserves the selector across descriptor clear. */\n  extraout_ECX = in_EAX;\n  memset((void *)0x00636864,0,0x6c);\n  *(uint *)0x00636864 = 0x6c;\n  if (extraout_ECX == DAT_0047a279 >> 0x18) {\n    iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 100))(DAT_0047d0cc,0,(void *)0x00636864,1,0);\n    if (iVar1 == -0x7789fe3e) {\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 0x6c))(DAT_0047d0cc);\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 100))(DAT_0047d0cc,0,(void *)0x00636864,1,0);\n      goto LAB_00418ade;\n");
+  body = replaceRectangleInput(body, "  else {\n    iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 100))(DAT_0047d0d0,0,&DAT_00636864,1,0);\n    if (iVar1 == -0x7789fe3e) {\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 0x6c))(DAT_0047d0d0);\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 100))(DAT_0047d0d0,0,&DAT_00636864,1,0);\n      *param_2 = _DAT_00636874;\n      return _DAT_00636888;\n    }\n",
+    "  else {\n    iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 100))(DAT_0047d0d0,0,(void *)0x00636864,1,0);\n    if (iVar1 == -0x7789fe3e) {\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 0x6c))(DAT_0047d0d0);\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 100))(DAT_0047d0d0,0,(void *)0x00636864,1,0);\n      *param_2 = *(uint *)0x00636874;\n      return *(uint *)0x00636888;\n    }\n");
+  body = replaceRectangleInput(body, "LAB_00418ade:\n  *param_2 = _DAT_00636874;\n  return _DAT_00636888;\n}",
+    "LAB_00418ade:\n  *param_2 = *(uint *)0x00636874;\n  return *(uint *)0x00636888;\n}");
+  return body;
+});
+patchRectangleFunction('FUN_00418b00', body => {
+  body = replaceRectangleInput(body, "\n  if (in_EAX < 2) {\n",
+    "\n  in_EAX = (int)param_1;\n  if (in_EAX < 2) {\n");
+  body = replaceRectangleInput(body, "    else {\n      iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 0x80))(DAT_0047d0d0,param_2,param_1);\n      if (iVar1 == -0x7789fe3e) {\n",
+    "    else {\n      iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 0x80))(DAT_0047d0d0,param_2);\n      if (iVar1 == -0x7789fe3e) {\n");
+  return body;
+});
+patchRectangleFunction('FUN_00421a14', body => {
+  body = replaceRectangleInput(body, "          if (DAT_0047a34a == 0) {\n            FUN_00418484(((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,(int)(short)*piVar3,\n                         ((piVar3[1] >> 0x10) + 1) - (*(int *)((int)piVar3 + 2) >> 0x10));\n          }\n",
+    "          if (DAT_0047a34a == 0) {\n            FUN_00418484(1 - (DAT_0047a279 >> 0x18),(int)(short)*piVar3,\n                         (int)(short)piVar3[1],((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,\n                         ((piVar3[1] >> 0x10) + 1) - (int)(short)piVar3[1]);\n          }\n");
+  body = replaceRectangleInput(body, "        *(short *)((undefined1 *)0x00ac49ba + iVar9) = extraout_CX + sVar7 + 9;\n        FUN_00418484((iVar5 >> 0x10) * 6 + 2,*(int *)((int)&DAT_0047aaae + iVar10) >> 0x10,10);\n        FUN_0041868c(local_24 + iVar4,0,(*(int *)((int)&DAT_0047aa86 + iVar10) >> 0x10) * 6 + 2,10);\n",
+    "        *(short *)((undefined1 *)0x00ac49ba + iVar9) = extraout_CX + sVar7 + 9;\n        FUN_00418484(1 - (DAT_0047a279 >> 0x18),\n                     *(int *)((int)&DAT_0047aaae + iVar10) >> 0x10,\n                     local_24 + iVar4,(iVar5 >> 0x10) * 6 + 2,10);\n        FUN_0041868c(local_24 + iVar4,0,(*(int *)((int)&DAT_0047aa86 + iVar10) >> 0x10) * 6 + 2,10);\n");
+  return body;
+});
+patchRectangleFunction('FUN_00424bd8', body => {
+  body = replaceRectangleInput(body, "        iVar5 = *(int *)(iVar1 + 0x6368de) >> 0x10;\n        FUN_00418484(((*(int *)(iVar1 + 0x6368e0) >> 0x10) + 1) - iVar5,iVar5,\n                     ((*(int *)(iVar1 + 0x6368e4) >> 0x10) + 1) -\n",
+    "        iVar5 = *(int *)(iVar1 + 0x6368de) >> 0x10;\n        FUN_00418484(1 - (DAT_0047a279 >> 0x18),iVar5,\n                     *(int *)(iVar1 + 0x6368e2) >> 0x10,\n                     ((*(int *)(iVar1 + 0x6368e0) >> 0x10) + 1) - iVar5,\n                     ((*(int *)(iVar1 + 0x6368e4) >> 0x10) + 1) -\n");
+  return body;
+});
+patchRectangleFunction('FUN_00455294', body => {
+  body = replaceRectangleInput(body, "      FUN_0041760c(2,uVar10,uVar10,iVar12,(undefined1 *)(iVar5 + 1),iVar6 + 1);\n      FUN_00418484(iVar5 + 1,uVar10,iVar6 + 1);\n      FUN_0041868c(iVar12,0,iVar5,iVar6);\n",
+    "      FUN_0041760c(2,uVar10,uVar10,iVar12,(undefined1 *)(iVar5 + 1),iVar6 + 1);\n      FUN_00418484(1 - (DAT_0047a279 >> 0x18),uVar10,iVar12,iVar5 + 1,iVar6 + 1);\n      FUN_0041868c(iVar12,0,iVar5,iVar6);\n");
+  return body;
+});
+patchRectangleFunction('FUN_0045cf10', body => {
+  body = replaceRectangleInput(body, "undefined6 FUN_0045cf10(void)\n\n{\n  byte in_AL;\n\n",
+    "undefined6 FUN_0045cf10(byte mask)\n\n{\n  byte in_AL = mask;\n\n");
+  return body;
+});
+source = replaceRectangleInput(source,
+  '          FUN_0045cf10();', '          FUN_0045cf10(0xf);');
+for (const name of ['FUN_00418484', 'FUN_00418514']) {
+  const at = prototypes.findIndex(p => p.includes(`${name}(`));
+  if (at < 0) throw new Error(`Missing rectangle prototype ${name}`);
+  prototypes[at] = `void __fastcall ${name}(int surface,int x,int y,int width,int height);`;
+}
+{
+  const at = prototypes.findIndex(p => p.includes('FUN_0045cf10('));
+  if (at < 0) throw new Error('Missing planar-mask prototype');
+  prototypes[at] = 'undefined6 FUN_0045cf10(byte mask);';
+}
+
 fs.writeFileSync(outSrc, source);
 
 const sortedIds = [...ids].sort();

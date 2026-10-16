@@ -3,7 +3,7 @@
 Status: completed (bounded flat-polygon lighting inputs)
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-21
+Last Updated: 2026-10-14
 
 ## Goal
 
@@ -38,4 +38,4 @@ Implemented and generator-mirrored: contiguous normal storage, recovered atan ta
 
 Original-x86 comparisons pass 10,240 angle cases, 16,384 rotations and 8,192 lighting-index cases, both normally and with ASan. Four builds, generator parity, default regressions, eight arrow rows and both SDL requester checks pass. A minimal gated probe returns indices 64/64 from a degenerate normal 0/0/0, then crashes in `FUN_00418514` framebuffer copying. This is execution past lighting, not valid geometry or a visible player. Gated SDL ASan still times out before geometry.
 
-See the [lighting journal](../../../../../journal/entries/polygon-lighting-2026-09-21.md). Resume [Task 11 copy inputs](task-11-recover-dirty-rectangle-copy-inputs.md) within active Task 02; action indexing remains opt-in.
+See the [lighting journal](../../../../../journal/entries/polygon-lighting-2026-09-21.md). [Task 11 copy inputs](task-11-recover-dirty-rectangle-copy-inputs.md) are subsequently implemented and verified. Resume [Task 12 compatibility Lock](task-12-recover-directdraw-surface-lock.md) within active Task 02; the real provider returns base/pitch 0/0, and action indexing remains opt-in.

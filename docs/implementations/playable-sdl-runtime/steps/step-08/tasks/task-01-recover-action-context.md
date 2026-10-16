@@ -3,7 +3,7 @@
 Status: active
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-21
+Last Updated: 2026-10-14
 
 ## Goal
 
@@ -58,6 +58,16 @@ The pose-input crash described above is historical: Task 06 now supplies the act
 ## 2026-09-21 Follow-Up
 
 Task 02 has passed the polygon reference-pointer failure, and Task 10 subsequently recovered the flat-lighting inputs. The next minimally interrupted gated SDL stop is in framebuffer copying at `FUN_00418514`, owned by [Task 11](task-11-recover-dirty-rectangle-copy-inputs.md). Gated SDL ASan still times out in camera 1073. Default regressions pass; placement and living actors remain unproven. See the [lighting evidence](../../../../../journal/entries/polygon-lighting-2026-09-21.md).
+
+## Original-Game Action/HUD Checkpoints — 2026-10-14
+
+The [reference sequence](../../../../../journal/entries/original-game-reference-2026-10-14.md) progresses from restraint opening/release to free standing Joe, then HUD and visible movement in the same courtyard without an action-error dialog. Compare action ownership/advancement and key/event ownership at each phase. Do not assign the whole release sequence to action 384 from `dav:heropick`'s name alone.
+
+`FUN_0044f508` case `0x75` clears `DAT_0047a76c` and calls `FUN_004559bc`, whose HUD path checks that flag and actor 0. Trace actual script completion/flag state and rendered HUD with actor progress; input latches or `Start_sc` reaching 1102/1102 do not satisfy the observed handoff. Task 12/02 still precede full-route acceptance.
+
+## 2026-10-14 Copy Follow-Up
+
+Task 11 now recovers copy/page/descriptor inputs and passes 2,048 original-x86 copy/ownership plus 256 dirty-list dispatch cases, normally and with ASan. The real gated copy still faults because DirectDraw Lock returns base/pitch 0/0 from a generic compatibility stub. [Task 12](task-12-recover-directdraw-surface-lock.md) owns the next provider failure; Task 02/05/01 full-route validation remains incomplete. Default regressions pass, and gated SDL ASan still times out in camera 1073. See the [rectangle journal](../../../../../journal/entries/rectangle-copy-2026-10-14.md).
 
 ## Review State
 

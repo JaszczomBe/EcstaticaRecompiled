@@ -3,7 +3,7 @@
 Status: planned
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-15
+Last Updated: 2026-10-14
 
 ## Goal
 
@@ -38,6 +38,12 @@ All three have `actor=0` in the historical audit packet, but they are not establ
 2. Expected instances enter appropriate update/draw lists and appear in the selected framebuffer.
 3. Manual reference comparison accounts for expected living enemies/objects and any legitimate hidden children.
 4. Joe remains visible/controllable; generated parity and relevant debug/ASan/SDL regressions pass.
+
+## Original-Game Instance Evidence — 2026-10-14
+
+The [recording/contact sheet](../../../../../journal/entries/original-game-reference-2026-10-14.md) shows **two green creatures** on opposite sides of the pedestal while Joe is restrained. They change pose and move at the stairs/foreground, continue through release, and remain present after HUD entry. This establishes expected visible non-player instances for the recorded sequence; their exact species, resource IDs, scripted/AI ownership and instantiation triggers remain unproven. Do not equate them with 319/322/318 or with the currently traced `Start_sc` child IDs without source evidence.
+
+Trace both instances before and after the cinematic handoff, rather than only checking whether children appear after gameplay starts. Use their side/foreground positions and movement as visual targets once Joe/action/placement prerequisites are stable. This reference does not change the task's planned status.
 
 ## Verification
 

@@ -3,7 +3,7 @@
 Status: active
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-09-21
+Last Updated: 2026-10-14
 
 ## Goal
 
@@ -67,6 +67,16 @@ The pose-input crash described above is historical: Task 06 now supplies the act
 ## 2026-09-21 Follow-Up
 
 Task 02 has passed the polygon reference-pointer failure, and Task 10 subsequently recovered the flat-lighting inputs. The next minimally interrupted gated SDL stop is in framebuffer copying at `FUN_00418514`, owned by [Task 11](task-11-recover-dirty-rectangle-copy-inputs.md). Gated SDL ASan still times out in camera 1073. Default regressions pass; placement and living actors remain unproven. See the [lighting evidence](../../../../../journal/entries/polygon-lighting-2026-09-21.md).
+
+## Original-Game Handoff Target — 2026-10-14
+
+The [original-game recording](../../../../../journal/entries/original-game-reference-2026-10-14.md) retains the pedestal courtyard through restraint opening, Joe's release, HUD appearance and the first visible movement toward the left stairs. It supports the known camera-175 backdrop as the **initial** gameplay target; the default reconstructed action-error/OK-to-rooftop route does not match this interval. It does not prove script resource 175, internal coordinates, a permanent camera lock or later camera-transition rules.
+
+Recover source-consistent action/position/query inputs and compare them at restrained, release, free-before-HUD and HUD/movement checkpoints. Keep the one-shot 175-over-87 guard classified as a temporary stabilizer; visual agreement alone does not establish its original semantics. The clip's duplicate instances and unknown key times do not justify changing scene selection or assigning a fixed transition delay.
+
+## 2026-10-14 Copy Follow-Up
+
+Task 11 now recovers copy/page/descriptor inputs and passes 2,048 original-x86 copy/ownership plus 256 dirty-list dispatch cases, normally and with ASan. The real gated copy still faults because DirectDraw Lock returns base/pitch 0/0 from a generic compatibility stub. [Task 12](task-12-recover-directdraw-surface-lock.md) owns the next provider failure; Task 02/05/01 full-route validation remains incomplete. Default regressions pass, and gated SDL ASan still times out in camera 1073. See the [rectangle journal](../../../../../journal/entries/rectangle-copy-2026-10-14.md).
 
 ## Review State
 

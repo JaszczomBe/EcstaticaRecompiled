@@ -65,13 +65,16 @@ When touching generated reconstruction behavior:
 - Repository branch used for this effort: `linux-e2-reconstructed-runtime`
 - Original game data: `/home/rgrabowski/Games/Ecstatica2/`
 - Build-tree data link name: `Ecstatica2`
-- Debug build: `cmake --build --preset linux-clang32-debug`
-- ASan build: `cmake --build build/linux-clang32-asan`
+- Everyday SDL Debug build: `cmake --build --preset linux-clang32-sdl-debug`
+- SDL Debug ASan build: `cmake --build --preset linux-clang32-sdl-debug-asan`
+- X11 regression builds: `cmake --build --preset linux-clang32-debug` and `cmake --build --preset linux-clang32-debug-asan`
+- Current build directories and first-time configuration: [Build and editor setup](building.md). Presets use `build/Debug/clang21-i386-{sdl,x11}[-asan]`; old `build/linux-clang*` paths are historical.
 - Reconstructed runtime entry: `./e2recomp --run-recon` from a build directory
 - Generator syntax check: `node --check E2Recomp/tools/GenerateRecon.js`
 
 ## Documentation Map
 
+- [Build and editor setup](building.md)
 - [Implementation workflow](templates/implementation-workflow.template.md)
 - [Playable SDL Runtime](implementations/playable-sdl-runtime/playable-sdl-runtime.md)
 - [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md)

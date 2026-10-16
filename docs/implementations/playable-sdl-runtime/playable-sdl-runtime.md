@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-09-15
+Last Updated: 2026-10-14
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -31,15 +31,17 @@ The 2026-09-14 audit rebuilt commit `43ddc8a`; the same-day Step 07 continuation
 | --- | --- | --- |
 | Builds | X11/SDL Debug and ASan compile | Runtime remains Linux/i386 with fixed-address assumptions |
 | Controls | All four arrow rows pass in debug and ASan (8/8) | Checks establish input-state latches, not actor motion or visible gameplay |
-| Intro route | First-intro Space enters `Start_sc`; completion reaches action-error requester 0x2e | OK resumes updates at camera 87; final scene selection and intro fidelity remain unresolved |
+| Intro route | First-intro Space enters `Start_sc`; completion reaches action-error requester 0x2e | OK resumes updates at camera 87; original reference instead shows release/HUD in the pedestal courtyard; actor/query inputs remain unresolved |
 | Presentation | Action error visible over camera 175; selected surface `c2a56a11`, cue-enabled SDL present/window `fd124785` / `ef9e0785` | Static actor position; hosted dialog typography remains rough |
 | Joe | Actor 0 has render rep 67 and a render tree | `model=0xffffffff`, root update list empty, draw vertices zero |
-| Scene children | Camera and script-resource namespaces distinguished; Start_sc resource 0 traced | Pedestal enemy identities/instances unresolved; 319/322/318 belonged to an unproven resource lookup |
+| Scene children | Camera and script-resource namespaces distinguished; Start_sc resource 0 traced | Original video confirms two green creatures; their resource identities/activation remain unresolved; 319/322/318 belonged to an unproven lookup |
 | Regression wrapper | Debug/early ASan canonical-Up latches and long-delay ASan error-modal checks pass; arrow matrix 8/8 | State/surface checks do not prove actor motion; separate SDL test covers OK and Escape menu entry |
-| Generator | Syntax and all four artifact comparisons pass after diagnostic mirrors and recursive-pointer repair | Generated C/header include the focused actor/action/motion repairs; no unexplained drift |
+| Generator | Syntax and all four artifact comparisons pass, including polygon/lighting/copy mirrors | Scoped repairs reproduce; broader helper inputs and behavior remain incomplete |
 | Audio/save | Compatibility stubs and requester routing exist | MIDI is silent; quick-save writer is a no-op; functional save/load is unproven |
 
-SDL 3.4.12 is vendored in `dep/SDL`. The host backend presents 640x480 frames centered in the 640x640 window and owns window/input/presentation services. X11 remains the default backend; VS Code offers one `Ecstatica Recompiled` launch following the selected CMake preset; select SDL/i386 Debug for everyday use. The audit used dummy SDL and did not repeat manual F5 or all menu/modifier probes.
+SDL 3.4.12 is vendored in `dep/SDL`. The host backend presents 640x480 frames centered in the 640x640 window and owns window/input/presentation services. X11 remains the default backend; VS Code offers one `Ecstatica Recompiled` launch following the selected CMake preset; select SDL/i386 Debug for everyday use. The September audit used dummy SDL; subsequent manual evidence is recorded below.
+
+The 2026-10-14 [documentation review](../../journal/entries/documentation-review-2026-10-14.md) checked the latest commit `4fb151a` against source and setup. Generator syntax, four-artifact scratch parity, and polygon/lighting original-x86 comparisons pass again, normally and under ASan. Full-runtime checks and manual F5 were not repeated in that initial review. The subsequent Task 11 continuation rebuilds all four Debug configurations and reruns the wrapper, eight arrow rows and both SDL requester checks successfully; manual F5, living actors and gameplay remain unproven.
 
 ## Step Roadmap
 
@@ -50,7 +52,7 @@ Step numbers are stable identifiers, not execution order. Resume order is **07 �
 | [01 — Interactive SDL stability](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) | completed | Historical bounded startup/F5 investigation |
 | [02 — DirectDraw page and palette semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) | completed | Recovered front source, palette, aspect-fit presentation |
 | [07 — Restore reproducible baseline](steps/step-07/step-07-restore-reproducible-runtime-baseline.md) | completed | Automated checks pass; manual screenshot/log confirms scene-175 baseline |
-| [08 — Recover scene-175 actors](steps/step-08/step-08-recover-scene-175-actors.md) | active | Action/message inputs repaired; gated validation awaits position/scene-selection recovery |
+| [08 — Recover scene-175 actors](steps/step-08/step-08-recover-scene-175-actors.md) | active | Polygon/lighting/copy contracts repaired; generic DirectDraw Lock storage is next, followed by geometry/placement/action and children |
 | [03 — Gameplay control and camera proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) | deferred | Input mapping/matrix complete; Task 03 resumes after 08 |
 | [04 — Timing and frame pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) | planned | Recover game timing ownership after visible control proofs |
 | [05 — DirectSound compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) | planned | Map sound calls before implementing an audio boundary |
@@ -64,17 +66,25 @@ At Step 07 completion, all automated baseline checks passed. Tasks 03–06 repai
 
 [Task 04](steps/step-08/tasks/task-04-recover-missing-scene-message-inputs.md) now supplies a live `["Can't find scene", "mtorc4", NULL]` list and eliminates the missing-scene ASan lifetime error. GDB confirms scene 40 has resource pointer 0 and archive offset -1. At Task 04 completion, both gated SDL and ASan checks exited 5 waiting for scene 175; the recovered list reaches requester code, whose visible message rendering/dismissal is not validated.
 
-[Task 05](steps/step-08/tasks/task-05-recover-post-intro-scene-selection.md) traced corrupt coordinate events to aliased keyframe allocation. [Task 06](steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md) now supplies the pose actor/state and real output destinations. The projection continuation also repaired two matrix destinations that corrupted a scene child head and a node attachment; [Task 08](steps/step-08/tasks/task-08-recover-packed-event-metadata.md) restored packed dispatch metadata under the action-index gate. Task 02’s 2026-09-21 continuation restores polygon/mode/reference arguments, quad dispatch and temporary record storage, with generator mirrors. The original-x86 comparison passes 576 routing cases plus twelve temporary-record checks, normally and under ASan. Task 10 subsequently recovers the flat-lighting normal, angle and rotation contract plus mapped byte color reads. Its original-x86 comparisons pass 10,240 angles, 16,384 rotations and 8,192 lighting-index cases normally and under ASan. Gated SDL returns from lighting with a degenerate normal, then stops in framebuffer copying at `FUN_00418514`; this does not prove valid geometry. Resume [Task 11 rectangle-copy inputs](steps/step-08/tasks/task-11-recover-dirty-rectangle-copy-inputs.md) within [Task 02 geometry](steps/step-08/tasks/task-02-recover-joe-geometry-and-rendering.md), then Task 05/01 full-route validation and Task 03 child activation. Gated SDL ASan instead times out in camera 1073 without reaching geometry. Four builds, parity, default wrapper, eight arrow rows and both SDL requester checks pass; see the [lighting evidence](../../journal/entries/polygon-lighting-2026-09-21.md). The gate remains off by default.
+[Task 05](steps/step-08/tasks/task-05-recover-post-intro-scene-selection.md) traced corrupt coordinate events to aliased keyframe allocation. [Task 06](steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md) now supplies the pose actor/state and real output destinations. The projection continuation also repaired two matrix destinations that corrupted a scene child head and a node attachment; [Task 08](steps/step-08/tasks/task-08-recover-packed-event-metadata.md) restored packed dispatch metadata under the action-index gate. Task 02’s 2026-09-21 continuation restores polygon/mode/reference arguments, quad dispatch and temporary record storage, with generator mirrors. The original-x86 comparison passes 576 routing cases plus twelve temporary-record checks, normally and under ASan. Task 10 subsequently recovers the flat-lighting normal, angle and rotation contract plus mapped byte color reads. Its original-x86 comparisons pass 10,240 angles, 16,384 rotations and 8,192 lighting-index cases normally and under ASan. Gated SDL returns from lighting with a degenerate normal, then stops in framebuffer copying at `FUN_00418514`; this does not prove valid geometry. That checkpoint led to [Task 11 rectangle-copy inputs](steps/step-08/tasks/task-11-recover-dirty-rectangle-copy-inputs.md); its later result is recorded below within [Task 02 geometry](steps/step-08/tasks/task-02-recover-joe-geometry-and-rendering.md). Gated SDL ASan instead times out in camera 1073 without reaching geometry. Four builds, parity, default wrapper, eight arrow rows and both SDL requester checks pass; see the [lighting evidence](../../journal/entries/polygon-lighting-2026-09-21.md). The gate remains off by default.
 
 [Task 07](steps/step-08/tasks/task-07-project-actor-cues-into-scene.md) replaces the inset with read-only scene-projected crosses/uprights (`E2R_ACTOR_CUES=1`). Recovered trigonometry, rotations, vector transforms and perspective are checked against original machine code. Default Joe's stored position is behind the pedestal camera (depth -3062), so the settled cue reports **0 VISIBLE / 1 BEHIND**; enemies remain absent. A synthetic drawing fixture verifies the primitives, not actual character placement. The supplied 35-second recording confirms grid replacement and bounded default-route survival, completing the cue check. It does not establish character placement. See the [2026-09-15 journal](../../journal/entries/actor-cues-and-projection-2026-09-15.md) for exact tests and remaining limitations.
 
 [Task 09](steps/step-08/tasks/task-09-recover-post-intro-action-error-requester.md) diagnoses the video’s apparent freeze: `Start_sc` completes at 1102/1102, then missing action 384 (`dav:heropick`) opens an invisible modal. The repair restores its live message list, mapped record/text/items and OK routing. SDL Debug and ASan capture the visible error, dismiss it, resume a game update at camera 87, and verify Escape enters the main menu. The revised wrapper retains early ASan input-latch coverage and explicitly checks the later modal. The 2026-09-21 manual result confirms dialog presentation and advancement to camera 87 after OK, with the error still visible and Joe absent. Manual Escape confirmation remains pending; see the [requester journal](../../journal/entries/post-intro-requester-2026-09-15.md).
 
-Keep action indexing opt-in during recovery. The default path has `actions=0`; dismissing the error does not recover actions or prove gameplay. The one-shot 175-over-87 handoff guard remains a narrow stabilizer requiring later scene-transition validation. Resume Task 11 rectangle-copy inputs within Task 02, then placement/action validation and children.
+[Task 11](steps/step-08/tasks/task-11-recover-dirty-rectangle-copy-inputs.md) now supplies surface/X/Y/width/height across four callers, preserves opposite-page selection and recovers mapped lock-descriptor/unlock ownership. Original-x86 comparisons pass 2,048 copy/ownership cases and 256 dirty-list dispatch cases normally and under ASan. Four builds, generator parity, the default wrapper, eight arrow rows and both requester checks pass. Gated Debug still stops in `FUN_00418514`, now because compatibility DirectDraw Lock returns destination base/pitch **0/0**; its vtable slot is a generic no-op. [Task 12](steps/step-08/tasks/task-12-recover-directdraw-surface-lock.md) owns this provider failure. Gated SDL ASan exits 5 in camera 1073 without reaching the copy. Full-route and living-actor acceptance remain open; see the [rectangle evidence](../../journal/entries/rectangle-copy-2026-10-14.md).
+
+Keep action indexing opt-in during recovery. The default path has `actions=0`; dismissing the error does not recover actions or prove gameplay. The one-shot 175-over-87 handoff guard remains a narrow stabilizer requiring later scene-transition validation. Resume Task 12 compatibility Lock within Task 02, then geometry/placement/action validation and children.
+
+## Original-Game Reference — 2026-10-14
+
+The supplied original-game recording now has a [timestamped observation log, contact sheet and code correlations](../../journal/entries/original-game-reference-2026-10-14.md). Joe is restrained in the rear wooden stocks, the restraint opens around 31.4 seconds, Joe leaves/lands/stands, and the HUD appears around 33.4–33.5 seconds. Two green creatures animate before and after that handoff. The first visible gameplay stays in the pedestal courtyard; the reconstructed action-error/rooftop route does not match this reference. The persistent blue foreground form is not evidence of a rendered living Joe. The user's lightning/power-surge explanation is retained separately from directly isolated visual events.
+
+Use restrained, release, free-before-HUD and HUD-with-movement checkpoints during Tasks 02/05/01/03. This reference supplies visual targets, not new reconstructed-runtime acceptance or exact internal scene/resource IDs. Task 12 compatibility Lock is the next implementation. The user confirms skip taps advance all three logos and shorten the horseback intro; probes must separate those stages and wait for pedestal/action/HUD state. Duplicate instances/foreground switches still limit timing comparisons, and the recording has no audio stream or explicit key timings.
 
 ## Deferred Fidelity Work
 
-The original reference sequence is three logos, the 30–40 second horseback/castle intro (Space-skippable), the roughly 10 second pedestal/lightning sub-intro (wait-only), then gameplay. Recovered transitions are proven; full character animation/procession is not.
+Earlier reference reports describe three logos, a 30–40 second horseback/castle intro (Space-skippable), then a pedestal/lightning sub-intro (wait-only) and gameplay. The 2026-10-14 clip shows about 16 seconds from the pedestal fade-in to the full HUD, so the older roughly 10-second sub-intro estimate is not an acceptance deadline. Full animation/procession, effects and source-consistent handoff remain incomplete; route/timer progression alone is insufficient.
 
 Historical menu probes show readable Esc contents, mouse-only intro-menu routing to Settings/Load, Music toggling, Settings OK, and Quit confirmation. Load title/slot overlap, a black slot-area rectangle, modal artifacts, and font/color/layout remain unresolved. Task 09 repairs the shared message-copy/requester-pointer defects and verifies the default action-error dialog. Other message callers, keyboard-only modal interaction and typography remain incomplete; the historical gated missing-scene route has not been revalidated through dismissal. These are follow-ups after actor recovery unless they block a specific proof. Full save/load implementation needs a separate task before it is attempted.
 
@@ -92,23 +102,30 @@ Run from the repository root:
 
 1. `node --check E2Recomp/tools/GenerateRecon.js`
 2. `cmake --build --preset linux-clang32-debug`
-3. `cmake --build build/Debug/clang21-i386-x11-asan` (requires a configured ASan build)
-4. `cmake --build --preset linux-clang32-sdl-debug`
+3. `cmake --build --preset linux-clang32-debug-asan`
+4. `cmake --build --preset linux-clang32-sdl-debug` and `cmake --build --preset linux-clang32-sdl-debug-asan`
 5. `env -u DISPLAY scripts/run-e2-control-matrix.sh`
-6. `env -u DISPLAY scripts/run-e2-runtime-regressions.sh` — isolated debug and ASan pass on the 2026-09-15 continuation.
+6. `env -u DISPLAY scripts/run-e2-runtime-regressions.sh` — isolated debug and ASan pass in the 2026-10-14 verification.
 7. `SDL_VIDEODRIVER=dummy timeout 140 build/Debug/clang21-i386-sdl/e2recomp --auto-scene175-visibility /tmp/e2-scene175 120 7000`
 8. `python3 scripts/check-e2-postintro-requester.py build/Debug/clang21-i386-sdl/e2recomp` — repeat with the SDL ASan executable; requires GDB/ptrace.
 9. `python3 scripts/check-e2-polygon-inputs.py /path/to/E2WIN95.EXE` — repeat with `--asan`; routing/storage checks, not rasterization.
 10. `python3 scripts/check-e2-polygon-lighting.py /path/to/E2WIN95.EXE` — repeat with `--asan`; original-x86 angle/rotation/lighting indices, not rendered actors.
-11. `git diff --check`
+11. `python3 scripts/check-e2-rectangle-copy.py /path/to/E2WIN95.EXE` — repeat with `--asan`; copy/ownership and dirty-list dispatch checks with mock COM surfaces.
+12. `git diff --check`
 
-Use the [audit](../../journal/entries/runtime-audit-2026-09-14.md) for safe scratch regeneration and the gated GDB repro. Manual F5 remains a separate visual check when runtime behavior changes.
+Configure each fresh build with its matching preset and game-data path; see [build setup](../../building.md). Use the [audit](../../journal/entries/runtime-audit-2026-09-14.md) for safe scratch regeneration and the gated GDB repro. Manual F5 remains a separate visual check when runtime behavior changes.
 
 ## Manual Follow-Up — 2026-09-14
 
 The user’s 2026-09-14 screenshot matches the automated scene-175 static capture (red sky, central horned skull, stone platforms and straw); the accompanying input log reports `scene=0x67da4c`, the scene-175 slot address. Together with the earlier crash-free manual F5 report, this resolves the pending final-image comparison and completes the Step 07 baseline check. It does not establish original scene-selection fidelity or visible living actors; those remain Step 08 work. The missing cue panel was traced to the usual SDL launch leaving `E2R_ACTOR_CUES` unset; the current single launch enables cues with an SDL preset after restarting the session.
 
 ## Change Log
+
+### 2026-10-14 — Documentation Review
+
+Checked `4fb151a`, corrected build/cue guidance and stale summaries, reverified generator parity and bounded polygon/lighting comparisons, and expanded Task 11's source-backed plan. Original-game capture requirements are recorded in [Step 08](steps/step-08/step-08-recover-scene-175-actors.md#original-game-reference-capture). No runtime implementation or full-route acceptance changed.
+
+Analyzed the subsequently supplied original-game clip and recorded the screen/actor timeline, release/HUD checkpoints, two visible creatures, initial courtyard continuity and code connections. Linked those targets into the actor/action/placement tasks; the reference analysis itself did not change runtime behavior. The subsequent authorized Task 11 repair restores copy/lock inputs and passes original-x86 comparisons and regressions; real surface Lock storage is split into Task 12. Logo/horseback skip taps are recorded explicitly for future probes.
 
 ### 2026-07-28
 
