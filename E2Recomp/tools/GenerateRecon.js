@@ -6929,6 +6929,20 @@ patchRectangleFunction('FUN_0042b004', body => {
   prototypes[at] = 'void FUN_0042b004(int *action_slot,short *actor);';
 }
 
+// Root-pose matrix and previous-position destinations, original 0x42b143..0x42b32c.
+// The terminal event link is adjacent to a stale ECX destination in ASan.
+patchRectangleFunction('FUN_0042b0f4', body => {
+  body = replaceRectangleInput(body,"    FUN_00422330();\n    uVar4 = extraout_ECX;\n    if (*(short *)(in_EAX + 0x92) != 0) {\n      FUN_00422460(extraout_ECX,(int)*(short *)(in_EAX + 0x92));\n      uVar4 = extraout_ECX_00;\n    }\n    if (*(short *)(in_EAX + 0x90) != 0) {\n      FUN_00422368(uVar4,(int)*(short *)(in_EAX + 0x90));\n      uVar4 = extraout_ECX_01;\n    }\n    if (*(short *)(in_EAX + 0x94) != 0) {\n      FUN_00422538(uVar4,(int)*(short *)(in_EAX + 0x94));\n    }\n",
+    "    E2R_ApplyEulerMatrix((short *)(in_EAX + 6),(short *)(in_EAX + 0x90));\n");
+  body = replaceRectangleInput(body,"    FUN_00422aa0((uint)uVar1,(undefined2 *)(in_EAX + 0x84));\n",
+    "    FUN_00422aa0((undefined4)(in_EAX + 0x8a),(undefined2 *)(in_EAX + 0x84));\n");
+  body = replaceRectangleInput(body,"    FUN_00422330();\n    uVar4 = extraout_ECX_02;\n    if (*(short *)(iVar3 + 0x92) != 0) {\n      FUN_00422460(extraout_ECX_02,(int)*(short *)(iVar3 + 0x92));\n      uVar4 = extraout_ECX_03;\n    }\n    if (*(short *)(iVar3 + 0x90) != 0) {\n      FUN_00422368(uVar4,(int)*(short *)(iVar3 + 0x90));\n      uVar4 = extraout_ECX_04;\n    }\n    if (*(short *)(iVar3 + 0x94) != 0) {\n      FUN_00422538(uVar4,(int)*(short *)(iVar3 + 0x94));\n    }\n",
+    "    E2R_ApplyEulerMatrix((short *)(iVar3 + 6),(short *)(iVar3 + 0x90));\n");
+  body = replaceRectangleInput(body,"    FUN_00422aa0((uint)uVar1,(undefined2 *)(iVar3 + 0x84));\n",
+    "    FUN_00422aa0((undefined4)(iVar3 + 0x8a),(undefined2 *)(iVar3 + 0x84));\n");
+  return body;
+});
+
 // Original event 0x2e/4 invokes a script code record, not its parent action.
 source = replaceRectangleInput(source,"psVar7 = (short *)FUN_0044f320(param_1,*(ushort **)(unaff_ESI + 0x11));","/* Original 0x42c517..0x42c52d passes the code-table record in EAX. */\n          psVar7 = (short *)FUN_0044f320(\n              *(uint *)(0x006297bc + (int)in_EAX[3] * 4),\n              *(ushort **)(unaff_ESI + 0x11));");
 patchRectangleFunction('FUN_0044f320', () => `undefined4 __fastcall FUN_0044f320(undefined4 param_1,ushort *param_2)

@@ -4,6 +4,8 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Terminal root-pose ownership — 2026-10-16](entries/terminal-root-pose-2026-10-16.md): fixes the watched ASan event-link writer, compares original root-pose destinations, and records matching Debug/ASan terminal chains; motion remains unresolved with representation 67 bound.
+
 - [Courtyard floor decoding — 2026-10-14](entries/courtyard-floor-decoder-2026-10-14.md): valid hosted byte reads restore the release view; NPC query/range inputs have original-x86 coverage; F5 explicitly defers background spawning while movement and terminal ASan events remain open.
 
 - [Palette regression and release handoff — 2026-10-14](entries/palette-and-release-handoff-2026-10-14.md): restores fade inputs/colors, excludes the incorrectly signed ground descriptor, recovers the original no-view fallback and records the remaining death/menu handoff.

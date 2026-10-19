@@ -23205,19 +23205,7 @@ undefined4 FUN_0042b0f4(void)
       *(undefined2 *)(iVar3 + 0x136) = 0;
       *(byte *)(iVar3 + 3) = *(byte *)(iVar3 + 3) & 0xfe;
     }
-    FUN_00422330();
-    uVar4 = extraout_ECX;
-    if (*(short *)(in_EAX + 0x92) != 0) {
-      FUN_00422460(extraout_ECX,(int)*(short *)(in_EAX + 0x92));
-      uVar4 = extraout_ECX_00;
-    }
-    if (*(short *)(in_EAX + 0x90) != 0) {
-      FUN_00422368(uVar4,(int)*(short *)(in_EAX + 0x90));
-      uVar4 = extraout_ECX_01;
-    }
-    if (*(short *)(in_EAX + 0x94) != 0) {
-      FUN_00422538(uVar4,(int)*(short *)(in_EAX + 0x94));
-    }
+    E2R_ApplyEulerMatrix((short *)(in_EAX + 6),(short *)(in_EAX + 0x90));
     puVar6 = (ushort *)(in_EAX + 6);
     puVar7 = (ushort *)(in_EAX + 0xc6);
     for (iVar3 = 4; iVar3 != 0; iVar3 = iVar3 + -1) {
@@ -23239,7 +23227,7 @@ undefined4 FUN_0042b0f4(void)
       *(undefined2 *)(in_EAX + 0x86) = 0;
       *(undefined2 *)(in_EAX + 0x84) = 0;
     }
-    FUN_00422aa0((uint)uVar1,(undefined2 *)(in_EAX + 0x84));
+    FUN_00422aa0((undefined4)(in_EAX + 0x8a),(undefined2 *)(in_EAX + 0x84));
   }
   if ((*(int *)(in_EAX + 0xf2) != 0) &&
      (iVar3 = *(int *)(*(int *)(in_EAX + 0xf2) + 0x22), (*(byte *)(iVar3 + 0x146) & 1) != 0)) {
@@ -23253,19 +23241,7 @@ undefined4 FUN_0042b0f4(void)
       *(ushort *)(iVar5 + 0x138) = *(ushort *)(iVar5 + 0x138) | uVar1;
       *(byte *)(iVar5 + 3) = *(byte *)(iVar5 + 3) & 0xfe;
     }
-    FUN_00422330();
-    uVar4 = extraout_ECX_02;
-    if (*(short *)(iVar3 + 0x92) != 0) {
-      FUN_00422460(extraout_ECX_02,(int)*(short *)(iVar3 + 0x92));
-      uVar4 = extraout_ECX_03;
-    }
-    if (*(short *)(iVar3 + 0x90) != 0) {
-      FUN_00422368(uVar4,(int)*(short *)(iVar3 + 0x90));
-      uVar4 = extraout_ECX_04;
-    }
-    if (*(short *)(iVar3 + 0x94) != 0) {
-      FUN_00422538(uVar4,(int)*(short *)(iVar3 + 0x94));
-    }
+    E2R_ApplyEulerMatrix((short *)(iVar3 + 6),(short *)(iVar3 + 0x90));
     puVar6 = (ushort *)(iVar3 + 6);
     puVar7 = (ushort *)(iVar3 + 0xc6);
     for (iVar5 = 4; iVar5 != 0; iVar5 = iVar5 + -1) {
@@ -23287,7 +23263,7 @@ undefined4 FUN_0042b0f4(void)
       *(undefined2 *)(iVar3 + 0x86) = 0;
       *(undefined2 *)(iVar3 + 0x84) = 0;
     }
-    FUN_00422aa0((uint)uVar1,(undefined2 *)(iVar3 + 0x84));
+    FUN_00422aa0((undefined4)(iVar3 + 0x8a),(undefined2 *)(iVar3 + 0x84));
   }
   return;
 }
