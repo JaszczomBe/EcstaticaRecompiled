@@ -1,8 +1,8 @@
 # Enable Diagnostic Gameplay With Cylinder Actors
 
-Status: active; terminal event corruption repaired, background spawning deferred, motion/control unresolved
+Status: active; SDL releases and clock wait recovered; motion-query steering and traversal remain open
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-10-16
+Last Updated: 2026-10-19
 
 ## Goal
 
@@ -35,7 +35,13 @@ There is useful reusable code: `E2R_GetActorCues` supplies validated live actors
 | G6 — Other actors and minimum interaction | Render cylinders for actual instantiated NPCs/objects and recover activation needed on the traversal route; then one relevant interaction. | Start with Joe alone if NPC recovery does not block the route. Add the two reference creatures when their identities/lifetimes are recovered; do not manufacture instances from the video. Full combat/AI/inventory can follow. |
 | G7 — Repeatable manual and automated loop | A documented launch, input/release traces, phase-aware startup and bounded traversal captures, plus an existing restart/menu route where usable. | Manual SDL run and corresponding state/presentation packets; Debug and ASan exercise the relevant path. A timeout before the path or a key latch is insufficient. |
 
-G1 is implemented and [Task 01](tasks/task-01-recover-action-event-node-removal.md) closes the event-0x3f family. [Task 03](tasks/task-03-recover-hosted-floor-byte-reads.md) restores floor decoding: Debug reaches wait zero and keeps Joe visible in the courtyard. [Task 04](tasks/task-04-recover-npc-spawn-query-inputs.md) implements bounded NPC input recovery; full activation is deferred with an explicit F5 option. G3/G4 still lack demonstrated player readiness, displacement and turning. The [terminal root-pose repair](../../../../journal/entries/terminal-root-pose-2026-10-16.md) restores the event-link writer; Debug/ASan now complete matching terminal chains in bounded probes, while full runtime sanitizer acceptance remains open. [Task 02](tasks/task-02-recover-post-intro-placement-and-motion-queries.md) remains next, ahead of full meshes/NPC fidelity.
+G1 is implemented and [Task 01](tasks/task-01-recover-action-event-node-removal.md) closes event-node removal. [Task 03](tasks/task-03-recover-hosted-floor-byte-reads.md) restores courtyard floor decoding; [Task 04](tasks/task-04-recover-npc-spawn-query-inputs.md) implements bounded NPC inputs with full activation deferred. The terminal root-pose repair restores the event-link writer and matching Debug/ASan release chains. [Task 02](tasks/task-02-recover-post-intro-placement-and-motion-queries.md) still owns complete motion/control acceptance, ahead of meshes/NPC fidelity.
+
+The [player-input continuation](../../../../journal/entries/player-motion-inputs-2026-10-16.md) supplies representation 12 and live keyboard reads. [Task 05](tasks/task-05-recover-player-motion-vector-ownership.md) now recovers action vectors and world queries with original-code comparisons. The corrected extended-arrow probe demonstrates Debug Up displacement, Left/Right turning and release stopping; Down displacement remains unverified. ASan reaches Up displacement, then gravity writes height -16000 after release. [Task 06](tasks/task-06-recover-release-gravity-query-ownership.md) is next. See the [motion-query evidence](../../../../journal/entries/player-motion-query-2026-10-16.md); full sanitizer/traversal acceptance remains open.
+
+The [2026-10-19 idle-action repair](../../../../journal/entries/player-idle-action-2026-10-19.md) closes Task 06's observed ASan height failure. A release caller passed the representation pointer as an action ID and loaded a FAN that replaced the floor grid; the caller now reads the original queued action word at +0x162. Debug/ASan complete all arrow phases and both combined turn/Up probes at height 3328/camera 175. Up release executes a queued action with further displacement, superseding the earlier immediate-stop result. Task 02 now owns settled stopping, Down displacement and real-map collision/traversal. No 60-second or full experimental sanitizer acceptance is claimed.
+
+The [SDL release/clock/target-facing continuation](../../../../journal/entries/player-release-and-spin-2026-10-19.md) follows the user's manual spinning/crash report. Actual SDL key-up now clears the same held table as key-down, the simulation again waits for a clock change, and `0x42ed6c` retains its original actor/time/range inputs. Original-code and bridge fixtures pass normally/ASan. Actual SDL turn-release-then-move probes complete in both builds; turn release stops turning at rest, and longer Down presses now displace. Up/Down still produce motion-query steering with Left/Right clear. [Task 07](tasks/task-07-recover-motion-query-steering.md) owns the remaining motion-query steering; Task 02 retains real-map traversal/full sanitizer acceptance; do not call the circling report fully resolved yet. Four final builds, generator parity and baseline wrapper/eight-arrow/SDL requester checks pass.
 
 ## Implemented Slice — 2026-10-14
 
@@ -51,7 +57,7 @@ E2R_ACTION_INDEX_PROBE=1 E2R_ACTOR_CYLINDERS=1 E2R_PROXY_MESH_BYPASS=1 \
 
 Select the SDL i386 Debug preset and restart F5. Its launch now includes these flags; previously it enabled crosses only. Bare terminal launches keep flags off and can still reach the action-384 modal. The expanded 24,000-byte script-name set is gated with the recovered action route to retain the earlier baseline during recovery.
 
-The [current continuous packet](../../../../journal/entries/courtyard-floor-decoder-2026-10-14.md) shows Joe `9988,3328,-17408`, depth 4739, camera 175, wait 0/modal 0, after release. Restored palette and floor data remove the forest fallback. The panel reports deferred background spawning. Up latches without coordinate changes. The later [root-pose continuation](../../../../journal/entries/terminal-root-pose-2026-10-16.md) repairs the ASan terminal link corruption and verifies matching 30-event Debug/ASan release chains. Representation 67 is now retained at `+0x11e`; Up/Left press/release still leaves position/facing unchanged. No locomotion, traversal or full runtime sanitizer acceptance is claimed. Earlier fault captures remain historical evidence.
+The [2026-10-14 continuous packet](../../../../journal/entries/courtyard-floor-decoder-2026-10-14.md) shows Joe `9988,3328,-17408`, depth 4739, camera 175, wait 0/modal 0 after release. Restored palette/floor data remove the initial forest fallback; the panel reports deferred background spawning. The subsequent root-pose/input/query continuations above supersede that packet's immobile representation-67 result. No traversal or full runtime sanitizer acceptance is claimed.
 
 ## Implementation Evidence And Pitfalls
 
@@ -60,7 +66,7 @@ The [current continuous packet](../../../../journal/entries/courtyard-floor-deco
 - `FUN_00424e44` is now gated at a source-audited terminal polygon boundary. Earlier mesh transforms, other render leaves and dirty restoration remain active. Full background/restore and surface dependency auditing continues as the route reaches those calls. Fresh RGB conversion prevents host-cylinder trails without driving gameplay from draw bookkeeping.
 - **Do not skip all of `FUN_004211c8`.** It also calls camera selection `FUN_0044c224`, actor updates and other shared stages before dirty copying. Classify effects of the bypass at an earlier/later narrow boundary with state comparisons.
 - Root motion, action timing/events, logical pose transforms or attachment data can affect gameplay even when no animated mesh is shown. Recover the minimal required subset; "no visible animation" is not evidence that all animation/action evaluation can be disabled.
-- The bare baseline Joe has camera depth -3062. The current diagnostic route keeps Joe visible in the courtyard after release; actual locomotion remains unverified. Do not clamp the marker into the viewport or infer coordinates from the reference pixels.
+- The bare baseline Joe has camera depth -3062. The current diagnostic route keeps Joe visible in the courtyard after release; bounded Debug/ASan locomotion survives release, with settled stopping and full traversal still open. Do not clamp the marker into the viewport or infer coordinates from the reference pixels.
 - Task 12 is a precise known failure for the full-render route. It is not yet proven mandatory for every possible proxy renderer. Keep the independent compatibility task rather than making all DirectDraw/blit/flip fidelity a blanket prerequisite.
 
 ## Lowest-Hanging Fruit
@@ -93,7 +99,7 @@ The action-to-motion handoff, correct floor/collision results and scene/resource
 
 ## Verification
 
-Use actor state and synchronized selected-game/SDL/window packets to distinguish raw-frame content from the proxy presentation. Record camera slot, resource owner, action slot/progress, control flag, position/orientation, queries and input release. `scripts/check-e2-actor-cylinders.py` now verifies real projection/snapshot/backend code with synthetic actors, normally and under ASan. Polygon checks verify bypass-off original routing and bypass-on omission without polygon mutation. A real locomotion/traversal probe still needs implementation; extend the existing latch matrix with separate behavioral assertions rather than relabeling its passes.
+Use actor state and synchronized selected-game/SDL/window packets to distinguish raw-frame content from the proxy presentation. Record camera slot, resource owner, action slot/progress, control flag, position/orientation, queries and input release. `scripts/check-e2-actor-cylinders.py` now verifies real projection/snapshot/backend code with synthetic actors, normally and under ASan. Polygon checks verify bypass-off original routing and bypass-on omission without polygon mutation. `scripts/probe-e2-player-motion.py` now captures real press/release state and presentation, with correct extended-arrow metadata. Its completion is separate from behavioral acceptance. Traversal and sustained-time assertions still need implementation; keep these separate from the latch matrix.
 
 Startup automation must model separate logo taps and horseback skip, release those taps, then wait through pedestal/action readiness. The user skipped all three logos and shortened the horseback intro in the reference recording. A diagnostic zero-logo-delay route is useful for crash probes but does not validate key-driven skipping or natural timings.
 
@@ -103,11 +109,23 @@ After diagnostic locomotion/traversal: required NPC activation and interaction; 
 
 ## Usage Budget
 
-Implement one bounded slice/failure family at a time. Preserve the existing baseline and split newly exposed action/query/compatibility errors. The cylinder and F5/script slices are implemented; Task 01 closes node removal. Task 03 closes hosted floor-byte decoding; Task 04 splits NPC input recovery/full activation. Task 02 now owns player motion/control; its terminal root-pose corruption is repaired with bounded Debug/ASan coverage. Automatic background spawning is explicitly deferred for the Joe-first prototype. Do not expand into every remaining graphics/helper family at once.
+Implement one bounded slice/failure family at a time. Preserve the existing baseline and split newly exposed action/query/compatibility errors. The cylinder and F5/script slices are implemented; Task 01 closes node removal. Task 03 closes hosted floor-byte decoding; Task 04 splits NPC input recovery/full activation. Task 02 owns player motion/control. Task 05 recovers action vectors and world queries with original-code coverage; Task 06 closes the observed release-height failure at its upstream queued-action caller. Task 02 retains motion-query steering, straight forward/backward control, collision and traversal acceptance. Automatic background spawning is explicitly deferred for the Joe-first prototype. Do not expand into every remaining graphics/helper family at once.
 
 ## Change Log
 
+### 2026-10-19
+
+Recovered SDL key-release table selection, removed the clock poll-count escape that caused zero-time turning, and restored target-facing actor/time/range and angle inputs at the user's reported crash. New fixtures and actual SDL replay pass in Debug/ASan; no-input turn release settles, Down displacement is now observed, and remaining motion-query steering stays open. See the [release/spin journal](../../../../journal/entries/player-release-and-spin-2026-10-19.md).
+
+Recovered the queued idle-action ID from original +0x162, preventing a wrong FAN load from replacing the live floor grid on release. The 1,440-case caller fixture passes normally/ASan; both arrow probes and all four combined-input probes retain valid height. Four builds, baseline checks and generator parity pass. Up release has additional queued-action displacement; stopping, Down, collision, traversal and full experimental ASan acceptance remain open. See the [idle-action journal](../../../../journal/entries/player-idle-action-2026-10-19.md).
+
 ### 2026-10-16
+
+Reproduced the user's Up-after-rotation crash and repaired two forward/turn callers passing direction byte 1 as the actor. Original-code comparisons and Debug combined-input movement/release pass; ASan passes the repaired calls then retains its separate bad-height release frontier. See the [turn-caller journal](../../../../journal/entries/player-turn-callers-2026-10-16.md).
+
+Recovered action motion/vector/query ownership and compared original code. The corrected extended-arrow probe shows Debug Up displacement, Left/Right turning and release stopping; ASan reaches Up, then gravity writes height -16000 on release. [Task 06](tasks/task-06-recover-release-gravity-query-ownership.md) splits that frontier. Down displacement/traversal/full ASan remain open. See the [motion-query journal](../../../../journal/entries/player-motion-query-2026-10-16.md). Baseline checks and generator parity pass.
+
+Recovered Joe's representation selector and live scan-code reads with 10,368/256 original-code comparison cases. Both runtimes now enter the movement query after Up and expose lost vector/output ownership in `0x4272a8`; split Task 05. Baseline checks pass; actual motion remains unproven.
 
 Recovered root-pose matrix and previous-position destinations from the watched ASan event-link writer. Original-code comparisons, matching Debug/ASan release chains, four builds, parity, wrapper, arrow and SDL modal checks pass. Motion remains unresolved with representation 67 bound; full runtime sanitizer/traversal acceptance stays open.
 

@@ -2149,12 +2149,12 @@ source = source.replace(
   "  int iVar9;\n  int next_actor;\n  uint actor_loop_guard;\n  undefined4 extraout_ECX;"
 );
 source = source.replace(
-  "  int next_actor;\n  uint actor_loop_guard;\n  undefined4 extraout_ECX;",
-  "  int next_actor;\n  uint actor_loop_guard;\n  uint timing_loop_guard;\n  undefined4 extraout_ECX;"
+  "  uVar13 = extraout_ECX;\n  uVar4 = _DAT_00640194;\n  while (_DAT_00640194 = uVar4, _DAT_0063737c == iVar7) {",
+  "  E2R_TraceFrameStage(\"42a70c.entry\");\n  uVar13 = 0;\n  uVar4 = _DAT_00640194;\n  while (_DAT_00640194 = uVar4, _DAT_0063737c == iVar7) {"
 );
 source = source.replace(
-  "  uVar13 = extraout_ECX;\n  uVar4 = _DAT_00640194;\n  while (_DAT_00640194 = uVar4, _DAT_0063737c == iVar7) {",
-  "  E2R_TraceFrameStage(\"42a70c.entry\");\n  uVar13 = extraout_ECX;\n  uVar4 = _DAT_00640194;\n  timing_loop_guard = 0;\n  while (_DAT_00640194 = uVar4, _DAT_0063737c == iVar7) {\n    if (0x10000 <= timing_loop_guard) {\n      E2R_TraceFrameStage(\"42a70c.timer-loop-break\");\n      break;\n    }\n    timing_loop_guard = timing_loop_guard + 1;"
+  "    _DAT_0063737c = (int)uVar14;\n    uVar14 = FUN_0041cf5c(uVar13,(int)((ulonglong)uVar14 >> 0x20));\n    uVar13 = extraout_ECX_00;",
+  "    /* Original 0x42a73e..0x42a74e waits for an actual clock change.\n     * A poll-count escape runs motion/turn logic with stale distance at dt=0. */\n    uVar14 = FUN_0041cf5c(0,0);"
 );
 source = source.replace(
   "  iVar7 = _DAT_0063737c - iVar7;\n  if ((_DAT_006365a4 != 0) && (iVar7 = iVar7 / 3, iVar7 == 0)) {",
@@ -6273,6 +6273,16 @@ if (actionAdvancePrototype < 0) {
 }
 prototypes[actionAdvancePrototype] = recoveredActionAdvanceSignature + ";";
 
+// Original 0x429bcc..0x429bd5 loads the queued action word at actor +0x162.
+// The stale representation pointer here could load an unrelated FAN and replace
+// the live floor grid before the release gravity query.
+const queuedIdleActionCall = "      FUN_00451880(uVar25,iVar7);\n      iVar17 = *(int *)((undefined1 *)0x0062ba20 + (*(int *)(local_6c + 0xb0) >> 0x10) * 4);";
+if (source.split(queuedIdleActionCall).length !== 2) {
+  throw new Error("Expected one queued idle-action caller");
+}
+source = source.replace(queuedIdleActionCall,
+  "      FUN_00451880(0,(int)local_6c[0xb1]);\n      iVar17 = *(int *)((undefined1 *)0x0062ba20 + (*(int *)(local_6c + 0xb0) >> 0x10) * 4);");
+
 // Motion-query register recovery: actor ECX survives 0x4495e0/0x449680.
 // Query EAX is position +0x84 (or the packed candidate at ESP); EBX is an
 // optional output, null at all direct callers except 0x449529 (local_58).
@@ -7237,6 +7247,352 @@ patchRectangleFunction("FUN_0044dca4", () => `void __fastcall FUN_0044dca4(undef
   FUN_00426c3c();
   E2R_actor_calc_context = prior_actor;
 }`);
+
+// Original 0x429005..0x42904c reads the live packed scan-code table.
+// Generated label objects are independent and contain stale image seeds.
+patchRectangleFunction('FUN_00427584', body => {
+  body = replaceRectangleInput(body,
+    '        iVar7 = CONCAT22(_DAT_004c3ada,CONCAT11(uRam004c3ad9,(DAT_004c3ad5 >> 0x18)));\n        iVar17 = CONCAT13((undefined1)DAT_004c3add,CONCAT12(uRam004c3adc,_DAT_004c3ada));\n        local_38 = DAT_004c3add >> 0x18;\n        iVar9 = DAT_004c3ad5;',
+    '        iVar7 = *(int *)0x004c3ad8;\n        iVar17 = *(int *)0x004c3ada;\n        local_38 = *(int *)0x004c3add >> 0x18;\n        iVar9 = *(int *)0x004c3ad5;');
+  body = replaceRectangleInput(body,"(DAT_004c3ac8 != '\\0')", "(*(byte *)0x004c3ac8 != 0)");
+  return replaceRectangleInput(body,"(DAT_004c3bba != '\\0')", "(*(byte *)0x004c3bba != 0)");
+});
+
+// Recovered player selection is part of the action-index route. The bare
+// baseline has no valid held-node table at its earlier startup call.
+patchRectangleFunction('FUN_004575c4', body => {
+  const selector = `static void E2R_SelectPlayerRepresentation(void)
+
+{
+  /* Original 0x4575ce..0x45777e retains the actor in EDX. Actor fields
+   * are packed words; the actor ID must not include its flag bytes. */
+  short *actor = (short *)(uintptr_t)DAT_0047a470;
+  int held_node;
+  int held_actor = 0;
+  int representation;
+  int action_id;
+  int action;
+  int swimming;
+
+  if (actor == NULL || *actor != 0) return;
+  held_node = *(int *)(*(int *)(actor + 0x2a) + 0x20);
+  if (held_node != 0) held_actor = *(int *)(held_node + 0x13a);
+  swimming = DAT_0047a7ec == 7 &&
+             (0x28 << (DAT_0047a738 & 0x1f)) <= (int)actor[0x43];
+  if (held_actor == 0) {
+    representation = swimming ? 0xd : actor[0xc2] == 0 ? 0xc : 0xe;
+  }
+  else if ((*(byte *)(held_actor + 2) & 0x10) == 0 ||
+           *(short *)(held_actor + 0x184) < 1) {
+    representation = swimming ? 10 : actor[0xc2] == 0 ? 9 : 0xb;
+  }
+  else {
+    representation = swimming ? 10 : actor[0xc2] == 0 ? 0xf : 0x10;
+  }
+  actor[0x91] = (short)representation;
+  if (representation != 10 && representation != 0xd && (DAT_00670c44 & 8) != 0) {
+    action_id = 4;
+  }
+  else if ((representation == 10 || representation == 0xd) && (DAT_00670c44 & 8) == 0) {
+    action_id = 3;
+  }
+  else return;
+  FUN_00451880(0,action_id);
+  action = *(int *)(0x0062ba20 + action_id * 4);
+  if (action != 0 && action != *(int *)(actor + 0x53)) {
+    *(int *)(actor + 0x93) = action;
+  }
+  return;
+}`;
+  return selector + '\n\n' + replaceRectangleInput(body,
+    'void FUN_004575c4(void)\n\n{',
+    'void FUN_004575c4(void)\n\n{\n  if (E2R_ActionIndexProbeEnabled()) {\n    E2R_SelectPlayerRepresentation();\n    return;\n  }\n');
+});
+
+
+// Recover original action motion and world-query register/stack ownership.
+source = replaceRectangleInput(source,"/* 00448c1c */",`/* Original 0x4272a8: EAX/EDX outputs, EBX=X, ECX=Z. Only recovered
+ * motion callers use this entry; legacy register-only callers stay separate. */
+static short E2R_PolygonAngle16(short x,short z);
+static void E2R_MotionPolar(short *angle,short *distance,int x,int z)
+{
+  int scaled = 0;
+  while (abs(x) > 0x4000) { scaled = 1; x >>= 1; z >>= 1; }
+  while (abs(z) > 0x4000) { scaled = 1; x >>= 1; z >>= 1; }
+  *angle = E2R_PolygonAngle16((short)x,(short)z);
+  if (scaled) { *distance = 0x4000; return; }
+  if (x == 0 && z == 0) { *distance = 0; return; }
+  int component = abs(z) > abs(x) ? z : x;
+  int table = abs(z) > abs(x) ? 0x005de590 : 0x0059b590;
+  int divisor = *(short *)(table + (uint)(ushort)*angle * 2);
+  short value = divisor == 0 ? 0 : (short)(component * 16384 / divisor);
+  *distance = value > 0 ? value : (short)-value;
+}
+
+/* Original 0x427214 uses the opposite angle convention: X=cos, Z=sin. */
+static void E2R_MotionPolar16(short *angle,short *distance,short x,short z)
+{
+  *angle = E2R_PolygonAngle16(z,x);
+  if (x == 0 && z == 0) { *distance = 0; return; }
+  int component = abs((int)x) > abs((int)z) ? x : z;
+  int table = abs((int)x) > abs((int)z) ? 0x005de590 : 0x0059b590;
+  int divisor = *(short *)(table + (uint)(ushort)*angle * 2);
+  *distance = (short)(component * 16384 / divisor);
+}
+
+/* 00448c1c */`);
+
+patchRectangleFunction("FUN_00448c1c", () => `void __fastcall FUN_00448c1c(undefined4 param_1,int *param_2)
+{
+  /* Original 0x448c21 retains EAX in EBX across both recursive calls.
+   * Odd components deliberately lose their low bit in two identical halves. */
+  const short *vector = (const short *)param_2;
+  if (abs((int)vector[0]) <= 64 && abs((int)vector[1]) <= 64 &&
+      abs((int)vector[2]) <= 64) {
+    FUN_00448cb4(param_1,(short *)vector);
+    return;
+  }
+  short half[3];
+  for (int i = 0; i < 3; ++i) half[i] = (short)(vector[i] >> 1);
+  FUN_00448c1c(param_1,(int *)half);
+  FUN_00448c1c(param_1,(int *)half);
+}`);
+
+patchRectangleFunction("FUN_00448cb4", () => `void __fastcall FUN_00448cb4(undefined4 param_1,short *param_2)
+{
+  /* Original 0x448cb4..0x4495dd: retain actor/vector, packed angle and
+   * distance outputs, two contiguous floor-query vectors and obstacle list. */
+  int actor = (int)param_1;
+  short angle, distance;
+  E2R_MotionPolar(&angle,(short *)(actor + 0x170),param_2[0],param_2[2]);
+  if (DAT_0047a34a != 0 && DAT_0047a366 == 0 && DAT_0047a368 != 0) {
+    for (int i = 0; i < 3; ++i)
+      *(short *)(actor + 0x8a + i * 2) -= param_2[i];
+    return;
+  }
+  if (DAT_0047a72c != 0 || DAT_0047a34a != 0 || DAT_0047a366 != 0) {
+    for (int i = 0; i < 3; ++i)
+      *(short *)(actor + 0x84 + i * 2) += param_2[i];
+    *(byte *)(actor + 0x146) &= 0xfb;
+    return;
+  }
+  int x = *(short *)(actor + 0x84), y = *(short *)(actor + 0x86);
+  int z = *(short *)(actor + 0x88), radius = *(short *)(actor + 0x9a);
+  int dx = param_2[0], dz = param_2[2];
+  short obstacles[50];
+  int count = 0;
+  for (int other = _DAT_0063726c; other != 0; other = *(int *)(other + 0x4c)) {
+    if (other == actor || (*(byte *)(other + 3) & 0x10) == 0 ||
+        *(short *)(other + 0x82) == 0xb) continue;
+    int attached = *(int *)(other + 0xf2);
+    if (attached != 0 && *(int *)(attached + 0x22) == actor) continue;
+    int ox = *(short *)(other + 0x84) - x;
+    int oy = *(short *)(other + 0x86) - y;
+    int oz = *(short *)(other + 0x88) - z;
+    int range = ((*(short *)(other + 0x9a) + radius) * 3) >> 2;
+    if (abs(ox) >= range || abs(oy) >= range || abs(oz) >= range) continue;
+    E2R_MotionPolar16(&angle,&distance,(short)ox,(short)oz);
+    if (distance < range && count < 50) obstacles[count++] = angle;
+  }
+  E2R_MotionPolar16(&angle,&distance,(short)dx,(short)dz);
+  int forward_drop = 0;
+  static const int offsets[5] = {0,0x1000,-0x1000,0x3000,-0x3000};
+  for (int i = 0; i < 5; ++i) {
+    short sample_angle = (short)(angle + offsets[i]);
+    int cosine = *(short *)(0x005de590 + (uint)(ushort)sample_angle * 2);
+    int sine = *(short *)(0x0059b590 + (uint)(ushort)sample_angle * 2);
+    short sample[3] = {(short)(x + ((cosine * radius) >> 14)),(short)y,
+                       (short)(z + ((sine * radius) >> 14))};
+    int floor = FUN_00448a48((uint)(uintptr_t)sample,actor,0);
+    int difference = y - floor;
+    if (i == 0 || i >= 3) difference = (short)difference;
+    if (i == 0 && difference < -256) forward_drop = 1;
+    if ((difference > 256 || (i >= 3 && difference < -256 && !forward_drop)) &&
+        count < 50) obstacles[count++] = sample_angle;
+  }
+  short desired = E2R_PolygonAngle16((short)dz,(short)dx);
+  short closest = 0, blocked_angle = 0;
+  int found = 0, blocked = 0;
+  for (int i = 0; i < count; ++i) {
+    short difference = (short)(desired - obstacles[i]);
+    if (difference > 0x4000 || difference < -0x4000) continue;
+    if (found) {
+      if ((difference < 0 && closest >= 0) || (difference >= 0 && closest < 0)) {
+        blocked = 1;
+        continue;
+      }
+      if (abs((int)difference) >= abs((int)closest)) continue;
+    }
+    found = 1;
+    closest = difference;
+    blocked_angle = obstacles[i];
+  }
+  int mx = dx, mz = dz;
+  if (blocked) {
+    mx = mz = 0;
+    *(byte *)(actor + 0x146) |= 4;
+  }
+  else if (found) {
+    short tangent = (short)(blocked_angle + (closest < 0 ? -0x4000 : 0x4000));
+    int cosine = *(short *)(0x005de590 + (uint)(ushort)tangent * 2);
+    int sine = *(short *)(0x0059b590 + (uint)(ushort)tangent * 2);
+    short projection = (short)((dx * cosine + dz * sine) >> 14);
+    int magnitude = abs((int)projection);
+    mx = (cosine * magnitude) >> 14;
+    mz = (sine * magnitude) >> 14;
+    short slot = *(short *)(actor + 0x96);
+    if ((*(byte *)(actor + 0x146) & 2) == 0 &&
+        (slot == 1 || slot == 7 || slot == 180 || slot == 183)) {
+      short turn = (short)(desired - tangent);
+      int amount = (int)_DAT_00637378 * 512;
+      /* Original 0x4494aa reloads EDX with the frame turn limit. */
+      int delta = abs((int)turn) < amount ? turn : turn < 0 ? -amount : amount;
+      FUN_0042b074(param_1,(short)delta);
+    }
+  }
+  short target[3] = {(short)(x + mx),(short)y,(short)(z + mz)};
+  target[1] = (short)FUN_00448a48((uint)(uintptr_t)target,0,0);
+  int terrain;
+  target[1] = (short)FUN_00448a48((uint)(uintptr_t)target,0,&terrain);
+  short state = *(short *)(actor + 0x82);
+  if (terrain == 7 && (*(byte *)(actor + 3) & 1) == 0 &&
+      state != 8 && state != 5 && state != 0xb) {
+    *(short *)(actor + 0x82) = 8;
+    *(short *)(actor + 0x166) = 3;
+    *(short *)(actor + 0xec) = -100;
+  }
+  if (y - target[1] <= 256) {
+    *(short *)(actor + 0x84) = target[0];
+    *(short *)(actor + 0x88) = target[2];
+    if (*(short *)(actor + 0x5a) == 0 && y - target[1] >= -256)
+      *(short *)(actor + 0x86) = target[1];
+  }
+}`);
+source = replaceRectangleInput(source,"/* 0042b880 */",`/* Shared original terminal/interpolated event 0x13 contract. */
+static undefined4 E2R_ApplyActionMotion13(int actor,const short *event,int factor,int interpolate)
+{
+  int attached = *(int *)(actor + 0xf2);
+  if (attached != 0) {
+    int owner = *(int *)(attached + 0x22);
+    if ((*(byte *)(owner + 0x146) & 1) != 0) actor = owner;
+  }
+  if ((*(byte *)(actor + 0x146) & 0x20) != 0) {
+    int entry_actor = E2R_actor_calc_context;
+    E2R_actor_calc_context = actor;
+    FUN_0042b0f4();
+    E2R_actor_calc_context = entry_actor;
+    *(byte *)(actor + 0x146) &= 0xdf;
+  }
+  short local[3],world[3];
+  for (int i = 0; i < 3; ++i) {
+    short *previous = (short *)(actor + 0x2c + i * 2);
+    int difference = (int)event[i + 2] - *previous;
+    local[i] = interpolate ? (short)((int32_t)((uint32_t)difference * (uint32_t)factor) >> 14)
+                           : (short)difference;
+    *previous = interpolate ? (short)(*previous + local[i]) : event[i + 2];
+  }
+  E2R_TransformVector14(world,local,(const short *)(actor + 0xc6));
+  FUN_00448c1c((uint)actor,(int *)world);
+  return FUN_0044d2b4((uint)actor);
+}
+
+/* 0042b880 */`);
+source = replaceRectangleInput(source,`  case 0x13:
+    if ((*(int *)(param_2 + 0x79) != 0) &&
+       (psVar7 = *(short **)(*(int *)(param_2 + 0x79) + 0x22), (*(byte *)(psVar7 + 0xa3) & 1) != 0))
+    {
+      param_2 = psVar7;
+    }
+    if ((*(byte *)(param_2 + 0xa3) & 0x20) != 0) {
+      FUN_0042b0f4();
+      *(byte *)(param_2 + 0xa3) = *(byte *)(param_2 + 0xa3) & 0xdf;
+    }
+    iVar9 = 0;
+    do {
+      local_28[iVar9] = in_EAX[2] - param_2[0x16];
+      iVar9 = iVar9 + 1;
+      param_2[0x16] = in_EAX[2];
+      param_2 = param_2 + 1;
+      in_EAX = in_EAX + 1;
+    } while (iVar9 < 3);
+    FUN_0045de8b();
+    FUN_00448c1c(extraout_ECX,local_20);
+    psVar7 = (short *)FUN_0044d2b4(extraout_ECX_00);
+    return psVar7;
+`,"  case 0x13:\n    return (short *)(uintptr_t)E2R_ApplyActionMotion13((int)(uintptr_t)param_2,in_EAX,0x4000,0);\n");
+patchRectangleFunction("FUN_0042c790", body => replaceRectangleInput(body,`    if (uVar2 == 0x13) {
+      if ((*(int *)(unaff_EBX + 0xf2) != 0) &&
+         (iVar6 = *(int *)(*(int *)(unaff_EBX + 0xf2) + 0x22), (*(byte *)(iVar6 + 0x146) & 1) != 0))
+      {
+        unaff_EBX = iVar6;
+      }
+      if ((*(byte *)(unaff_EBX + 0x146) & 0x20) != 0) {
+        FUN_0042b0f4();
+        *(byte *)(unaff_EBX + 0x146) = *(byte *)(unaff_EBX + 0x146) & 0xdf;
+        param_2 = extraout_EDX_00;
+      }
+      sVar5 = 0;
+      do {
+        iVar3 = (int)sVar5;
+        local_1c = *(int *)(in_EAX + iVar3 + 1) >> 0x10;
+        iVar6 = iVar3 * 2 + unaff_EBX;
+        sStack_14 = (short)((uint)*(undefined4 *)(iVar6 + 0x2a) >> 0x10);
+        iVar4 = (local_1c - sStack_14) * param_2;
+        sStack_14 = (short)(iVar4 >> 0xe);
+        local_12 = (short)(iVar4 >> 0x1e);
+        local_24[iVar3] = sStack_14;
+        sVar5 = sVar5 + 1;
+        *(short *)(iVar6 + 0x2c) = *(short *)(iVar6 + 0x2c) + sStack_14;
+      } while (sVar5 < 3);
+      FUN_0045de8b();
+      FUN_00448c1c(extraout_ECX,aiStack_2c);
+      FUN_0044d2b4(extraout_ECX_00);
+      return;
+    }
+`,"    if (uVar2 == 0x13) {\n      E2R_ApplyActionMotion13(unaff_EBX,in_EAX,param_2,1);\n      return;\n    }\n"));
+
+patchRectangleFunction("FUN_0042b074", () => `void __fastcall FUN_0042b074(undefined4 param_1,short param_2)
+{
+  /* Original 0x42b074 retains EAX actor; rotations target actor +0xc6. */
+  int actor = (int)param_1;
+  *(short *)(actor + 0x92) += param_2;
+  *(byte *)(actor + 0x146) |= 2;
+  E2R_ApplyEulerMatrix((short *)(actor + 0xc6),(short *)(actor + 0x90));
+}`);
+
+// Original 0x44d2b4 receives the retained event actor in EAX.
+patchRectangleFunction('FUN_0044d2b4', body => replaceRectangleInput(body,
+  '  uint in_EAX;', '  uint in_EAX = param_1;'));
+
+// Original 0x429653/0x429687 reloads the actor before a forward/turn call.
+patchRectangleFunction('FUN_00427584', body => {
+  body = replaceRectangleInput(body,"FUN_0042b074(uVar25,(short)((*(int *)(local_6c + 0xb7) >> 0x10) << 4));","FUN_0042b074((undefined4)(uintptr_t)local_6c,(short)((*(int *)(local_6c + 0xb7) >> 0x10) << 4));");
+  body = replaceRectangleInput(body,"FUN_0042b074(uVar25,(short)((uint)*(undefined4 *)(local_6c + 0xb7) >> 0x10) *\n                                      -0x10);","FUN_0042b074((undefined4)(uintptr_t)local_6c,(short)((uint)*(undefined4 *)(local_6c + 0xb7) >> 0x10) *\n                                      -0x10);");
+  return body;
+});
+
+// Original 0x429b1f..0x429b2a passes EBX range, EAX actor and EDX time.
+// 0x42ed73/0x42ed79 retains actor/range; 0x432c64 preserves delta X in ECX.
+patchRectangleFunction('FUN_00427584', body => replaceRectangleInput(body,
+  'FUN_0042ed6c(uVar25,local_64);',
+  'FUN_0042ed6c((undefined4)(uintptr_t)local_6c,local_64,0x500);'));
+patchRectangleFunction('FUN_0042ed6c', body => {
+  body = replaceRectangleInput(body,
+    'FUN_0042ed6c(undefined4 param_1,int param_2)',
+    'FUN_0042ed6c(undefined4 param_1,int param_2,int max_distance)');
+  body = replaceRectangleInput(body,'  short *in_EAX;',
+    '  short *in_EAX = (short *)(uintptr_t)param_1;');
+  body = replaceRectangleInput(body,'  int unaff_EBX;',
+    '  int unaff_EBX = max_distance;');
+  body = replaceRectangleInput(body,'          uVar8 = FUN_00432c64(iVar5,(short)iVar7);',
+    '          uVar8 = (ushort)E2R_PolygonAngle16((short)iVar5,(short)iVar7);\n          extraout_ECX = iVar5;');
+  return 'static short E2R_PolygonAngle16(short x,short z);\n\n' + body;
+});
+{
+  const at = prototypes.indexOf('void __fastcall FUN_0042ed6c(undefined4 param_1,int param_2);');
+  if (at < 0) throw new Error('Missing target steering prototype');
+  prototypes[at] = 'void __fastcall FUN_0042ed6c(undefined4 param_1,int param_2,int max_distance);';
+}
 
 fs.writeFileSync(outSrc, source);
 

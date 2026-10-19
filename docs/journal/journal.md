@@ -4,6 +4,16 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [SDL arrow release, frame clock and target facing — 2026-10-19](entries/player-release-and-spin-2026-10-19.md): reproduces the actual SDL stuck-arrow release, restores real-tick waiting and the reported target-facing crash inputs; final fixtures/baselines pass, with motion-query steering still open.
+
+- [Queued idle-action and floor-map ownership — 2026-10-19](entries/player-idle-action-2026-10-19.md): repairs a representation-pointer-as-action-ID caller that replaced the live floor grid on release; bounded Debug/ASan arrows and combined inputs retain valid height, with stopping and traversal still open.
+
+- [Forward/turn caller actor ownership — 2026-10-16](entries/player-turn-callers-2026-10-16.md): reproduces the reported Up-after-rotation stack, repairs two direction-byte-as-actor calls, and verifies combined input while retaining the separate ASan gravity failure.
+
+- [Player motion vectors and world query — 2026-10-16](entries/player-motion-query-2026-10-16.md): original-code recovery lets Up displace in both runtimes; corrected Debug arrows turn and release, while ASan exposes a watched release gravity-height failure.
+
+- [Player representation and live keyboard inputs — 2026-10-16](entries/player-motion-inputs-2026-10-16.md): original-code selector/scan-table recovery lets Up reach movement event 0x13; Debug/ASan expose the next world-motion output/actor failure, with displacement still unproven.
+
 - [Terminal root-pose ownership — 2026-10-16](entries/terminal-root-pose-2026-10-16.md): fixes the watched ASan event-link writer, compares original root-pose destinations, and records matching Debug/ASan terminal chains; motion remains unresolved with representation 67 bound.
 
 - [Courtyard floor decoding — 2026-10-14](entries/courtyard-floor-decoder-2026-10-14.md): valid hosted byte reads restore the release view; NPC query/range inputs have original-x86 coverage; F5 explicitly defers background spawning while movement and terminal ASan events remain open.

@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-10-16
+Last Updated: 2026-10-19
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -52,7 +52,7 @@ Step numbers are stable identifiers, not execution order. Step 07 is complete. T
 | [01 — Interactive SDL stability](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) | completed | Historical bounded startup/F5 investigation |
 | [02 — DirectDraw page and palette semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) | completed | Recovered front source, palette, aspect-fit presentation |
 | [07 — Restore reproducible baseline](steps/step-07/step-07-restore-reproducible-runtime-baseline.md) | completed | Automated checks pass; manual screenshot/log confirms scene-175 baseline |
-| [09 — Diagnostic gameplay with cylinders](steps/step-09/step-09-enable-diagnostic-gameplay.md) | active | Floor decoder restores courtyard release; background spawning explicitly deferred; player motion and terminal ASan events block control/traversal |
+| [09 — Diagnostic gameplay with cylinders](steps/step-09/step-09-enable-diagnostic-gameplay.md) | active | SDL release/clock and target-facing inputs recovered; motion-query steering and traversal remain open; background spawning explicitly deferred |
 | [08 — Recover scene-175 actors](steps/step-08/step-08-recover-scene-175-actors.md) | active | Logic repairs feed 09; full-render route needs DirectDraw Lock, then geometry/placement/action and children |
 | [03 — Gameplay control and camera proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) | partially deferred | Input mapping/matrix complete; basic locomotion/camera proofs join 09, broader controls follow readiness |
 | [04 — Timing and frame pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) | planned | Recover game timing ownership after visible control proofs |
@@ -76,6 +76,15 @@ At Step 07 completion, all automated baseline checks passed. Tasks 03–06 repai
 [Task 11](steps/step-08/tasks/task-11-recover-dirty-rectangle-copy-inputs.md) now supplies surface/X/Y/width/height across four callers, preserves opposite-page selection and recovers mapped lock-descriptor/unlock ownership. Original-x86 comparisons pass 2,048 copy/ownership cases and 256 dirty-list dispatch cases normally and under ASan. Four builds, generator parity, the default wrapper, eight arrow rows and both requester checks pass. Gated Debug still stops in `FUN_00418514`, now because compatibility DirectDraw Lock returns destination base/pitch **0/0**; its vtable slot is a generic no-op. [Task 12](steps/step-08/tasks/task-12-recover-directdraw-surface-lock.md) owns this provider failure. Gated SDL ASan exits 5 in camera 1073 without reaching the copy. Full-route and living-actor acceptance remain open; see the [rectangle evidence](../../journal/entries/rectangle-copy-2026-10-14.md).
 
 Keep action indexing/expanded scripts opt-in during recovery; the single F5 configuration now opts in together with cylinders and mesh/HUD omission. Bare baseline actions remain unavailable, so dismissing its error cannot prove gameplay. [Step 09](steps/step-09/step-09-enable-diagnostic-gameplay.md) and [Task 01](steps/step-09/tasks/task-01-recover-action-event-node-removal.md) recover node removal plus required action/script inputs. Continuous Debug execution shows Joe on the pedestal without the action-384 modal and reaches opcode `0x75`, wait 0/modal 0. The [floor-decoder continuation](../../journal/entries/courtyard-floor-decoder-2026-10-14.md) restores high-address hosted byte reads with bounded original-x86 comparisons, removing the forest fallback. It also recovers NPC spawn query/range/placement inputs; full activation/loading remains open. F5 adds `E2R_DEFER_BACKGROUND_SPAWNS=1`, with on-screen status, to keep the first prototype focused on Joe. Existing actors/scripts and player queries remain active. Continuous Debug keeps Joe `9988,3328,-17408` visible in camera 175 after wait zero, but Up produces no displacement. The [2026-10-16 root-pose repair](../../journal/entries/terminal-root-pose-2026-10-16.md) fixes the watched terminal event-link writer. Debug/ASan execute matching 30-event chains and retain representation 67 at `+0x11e`, but Up/Left press/release still leaves Joe immobile. Full experimental ASan runtime acceptance remains open. [Task 02](steps/step-09/tasks/task-02-recover-post-intro-placement-and-motion-queries.md) owns motion/control and required event recovery; [Task 04](steps/step-09/tasks/task-04-recover-npc-spawn-query-inputs.md) records implemented spawn contracts and deferred full activation. Decoder/spawn fixtures, four builds, generator parity and default wrapper/SDL modal regressions pass; runtime playability remains open. Original DirectDraw Lock remains Step 08 Task 12; other rendering/copies remain active. No gameplay/traversal acceptance is claimed.
+
+The [player-input continuation](../../journal/entries/player-motion-inputs-2026-10-16.md) supersedes the retained-representation frontier: Joe receives representation 12, and live keyboard reads remove a false modifier action. Debug/ASan now reach movement event `0x13` after Up, then fail in `0x4272a8` through the world-motion query. [Step 09 Task 05](steps/step-09/tasks/task-05-recover-player-motion-vector-ownership.md) owns explicit actor/vector/output inputs. New original-code comparisons and final baseline checks pass; movement/traversal and full experimental ASan remain open.
+
+The [motion-query continuation](../../journal/entries/player-motion-query-2026-10-16.md) supersedes that first-query failure. Task 05 recovers event/vector/output ownership with original-code comparisons. A corrected Debug probe demonstrates Up displacement, Left/Right turning and release stopping; Down displacement remains unproven. ASan reaches Up, then a watched gravity write changes height to -16000 after release. [Step 09 Task 06](steps/step-09/tasks/task-06-recover-release-gravity-query-ownership.md) owns that first producer before subsequent fallback/action teardown. Full experimental ASan, real-map collision/traversal and 60-second acceptance remain open; baseline regressions and four-artifact parity pass.
+
+The [2026-10-19 idle-action continuation](../../journal/entries/player-idle-action-2026-10-19.md) resolves that observed height failure at its upstream caller. The queued action ID comes from actor +0x162; passing the representation pointer instead loaded an unrelated FAN and replaced Joe's floor cell. Both Debug/ASan arrow probes and four combined turn/Up probes now retain height 3328/camera 175. Up release has further queued-action displacement, so stopping acceptance must be re-established. Task 02 retains settled stopping, Down, collision, traversal and sustained-time proof; full experimental ASan acceptance remains open. The new original-code caller fixture, four builds, generator parity and baseline checks pass.
+
+The [manual spinning/input continuation](../../journal/entries/player-release-and-spin-2026-10-19.md) repairs actual SDL key-up table selection, restores the original frame-clock wait and recovers the target-facing crash's actor/time/range/angle inputs. Original-code/bridge fixtures and actual SDL Debug/ASan replays pass; releasing turn keys settles facing at rest and longer Down presses displace. Motion queries still steer during Up/Down with turn keys clear, so straight controls and the circling report remain open alongside collision/traversal and full experimental ASan acceptance. Final four builds, generator parity and baseline checks pass.
+
 
 ## Original-Game Reference — 2026-10-14
 
@@ -121,6 +130,16 @@ Configure each fresh build with its matching preset and game-data path; see [bui
 The user’s 2026-09-14 screenshot matches the automated scene-175 static capture (red sky, central horned skull, stone platforms and straw); the accompanying input log reports `scene=0x67da4c`, the scene-175 slot address. Together with the earlier crash-free manual F5 report, this resolves the pending final-image comparison and completes the Step 07 baseline check. It does not establish original scene-selection fidelity or visible living actors; those remain Step 08 work. The missing cue panel was traced to the usual SDL launch leaving `E2R_ACTOR_CUES` unset; the launch at that time enabled cues with an SDL preset after restarting the session. The 2026-10-14 F5 correction below now selects the diagnostic cylinder/action route.
 
 ## Change Log
+
+### 2026-10-19
+
+Recovered actual SDL release handling, the original clock wait and target-facing inputs after the user's spinning/crash report. Both runtimes pass SDL release/movement replays and all final baseline checks; motion-query steering remains the next gameplay boundary. See [Step 09](steps/step-09/step-09-enable-diagnostic-gameplay.md) and the [journal](../../journal/entries/player-release-and-spin-2026-10-19.md).
+
+Recovered the queued idle-action ID and traced its wrong FAN load as the source of the ASan release-height failure. Bounded Debug/ASan arrow and combined-input probes now survive with valid height; full controls/traversal acceptance stays open. See [Step 09](steps/step-09/step-09-enable-diagnostic-gameplay.md) and the [journal](../../journal/entries/player-idle-action-2026-10-19.md).
+
+### 2026-10-16 — Player Motion Inputs
+
+Recovered packed player representation selection and live scan-code reads, with original-i386 comparisons and a release-checkpoint press/release probe. Up now reaches an unrecovered world-motion query rather than a false modifier action; Task 05 owns its actor/vector/output contract. Final builds, parity and baseline regressions pass. See the [input journal](../../journal/entries/player-motion-inputs-2026-10-16.md).
 
 ### 2026-10-16 — Terminal Root-Pose Ownership
 

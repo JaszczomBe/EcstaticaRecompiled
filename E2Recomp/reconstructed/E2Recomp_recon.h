@@ -310,7 +310,7 @@ undefined4 FUN_0042deb8(void);
 undefined8 __fastcall FUN_0042e684(undefined4 param_1,undefined4 param_2);
 undefined8 __fastcall FUN_0042e7dc(undefined4 param_1,undefined4 param_2);
 int __fastcall FUN_0042ea00(undefined4 param_1,int param_2);
-void __fastcall FUN_0042ed6c(undefined4 param_1,int param_2);
+void __fastcall FUN_0042ed6c(undefined4 param_1,int param_2,int max_distance);
 void FUN_0042efdc(void);
 undefined8 __fastcall FUN_0042f49c(undefined4 param_1,undefined4 param_2);
 undefined8 __fastcall FUN_0042f85c(undefined4 param_1,undefined4 param_2);

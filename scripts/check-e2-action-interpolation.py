@@ -45,6 +45,9 @@ typedef uint16_t ushort,undefined2;
 typedef uint8_t byte,undefined1;
 #define __fastcall
 static uint32_t DAT_0047a7e0,DAT_0047a34a,DAT_0047a366;
+static void E2R_ApplyActionMotion13(int actor,const short *event,int factor,int interpolate) {
+    assert(!"motion transform belongs to check-e2-action-motion.py");
+}
 """
 match = re.search(r'^void __fastcall FUN_0042c790\([^\n]*\)\s*\{.*?\n\}', source, re.M | re.S)
 assert match

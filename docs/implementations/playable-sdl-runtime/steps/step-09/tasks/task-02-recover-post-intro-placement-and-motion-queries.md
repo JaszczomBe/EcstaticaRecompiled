@@ -1,8 +1,8 @@
 # Recover Post-Intro Placement And Motion Queries
 
-Status: active; terminal root-pose corruption repaired, player movement/turning next
+Status: active; actual SDL release recovered; motion-query steering and traversal remain open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
-Last Updated: 2026-10-16
+Last Updated: 2026-10-19
 
 ## Goal
 
@@ -12,17 +12,23 @@ Keep Joe at the recovered courtyard placement after the pedestal action, make th
 
 The [floor-decoder continuation](../../../../../journal/entries/courtyard-floor-decoder-2026-10-14.md) restores courtyard release. The [terminal root-pose repair](../../../../../journal/entries/terminal-root-pose-2026-10-16.md) now makes Debug and ASan execute the same 30 terminal events, clear the script wait and retain Joe `9988,3328,-17408` in camera 175. A hardware watch identified the invalid next link's writer: a rotation in `FUN_0042b0f4` used the event as its matrix. Actor-matrix and saved-position destinations now match original instructions, with 1,152 original-code fixture cases normally and under ASan. Child conversion through `0x42d860` remains outside that repair.
 
-The repaired post-release route binds **representation 67 at actor `+0x11e`** and retains it. The earlier zero-reference observation is superseded on this route; the packet's separate zero attachment is `+0xf2`. Up/Left synthetic press/release still produces no displacement or facing change. Up selects slot 39 before the final representation-slot gate (previous 1000, state 4). The retained action is `0xac263c`, duration 40; its `FUN_0042ae80` progress is normalized Q16, so 63882/65520 is not evidence of duration overrun. Follow selected-slot metadata/events and actual root-motion/query inputs next.
+The [player-input continuation](../../../../../journal/entries/player-motion-inputs-2026-10-16.md) recovers `0x4575c4`'s packed actor fields and retained owner, then replaces stale generated keyboard labels with live scan-code reads. Joe now binds representation **12**, rests in slot 1000/idle action 871, and Up reaches movement event `0x13`. The former slot 39/action 338 selection was driven by a stale nonzero modifier, not proof of walking. Selector and keyboard-load comparisons pass 10,368/256 original-code cases normally and under ASan.
 
-NPC query/range/placement inputs have original-x86 comparisons. Full activation/loading remains open in [Task 04](task-04-recover-npc-spawn-query-inputs.md); F5 defers only automatic background spawning. Existing actors, scripts and player queries still run. The bounded ASan release probe now completes without the prior fault; full experimental runtime, 60 seconds after genuine control readiness and traversal remain unproven.
+The [motion-query continuation](../../../../../journal/entries/player-motion-query-2026-10-16.md) implements [Task 05](task-05-recover-player-motion-vector-ownership.md): actor/vector transforms, recursive splitting, dual polar outputs, obstacle/slide/height arguments and turn matrices. Debug now completes a corrected press/release probe with Up displacement and Left/Right turning; release stops those changes. Down selects its action but shows no displacement in 60 update entries. ASan reaches Up displacement, then fails after release. A watch identifies `FUN_00449680` writing floor result -16000 to Joe's height before fallback/action teardown; [Task 06](task-06-recover-release-gravity-query-ownership.md) owns the next bounded family. Full experimental ASan, real-map collision/traversal and 60 seconds after control readiness remain unproven.
+
+The [queued idle-action repair](../../../../../journal/entries/player-idle-action-2026-10-19.md) closes Task 06's observed bad-height producer: the idle caller passed a representation pointer as an action ID and loaded a FAN that replaced the floor grid. Original +0x162 queue ownership is restored in C and the generator. Both Debug/ASan arrow probes complete at height 3328/camera 175. Up release has additional displacement during its queued action; the earlier immediate-stop result is superseded. Settled stopping, Down displacement, collision and traversal remain open.
+
+The [manual-input continuation](../../../../../journal/entries/player-release-and-spin-2026-10-19.md) reproduces actual SDL Left release leaving its held byte set, then repairs release symmetry in the compatibility bridge. It restores the original clock wait after observing 173 zero-time facing changes and recovers `0x42ed6c` actor/time/range and angle ownership from the reported crash. New comparisons and actual SDL Debug/ASan replays pass. Turn release settles facing at rest; longer Down input displaces. Up/Down still change facing with both turn bytes clear, so [Task 07](task-07-recover-motion-query-steering.md) owns the next bounded investigation. Straight controls, collisions, camera traversal and sustained full-runtime ASan acceptance remain open.
+
+NPC query/range/placement inputs have original-x86 comparisons. Full activation/loading remains open in [Task 04](task-04-recover-npc-spawn-query-inputs.md); F5 defers only automatic background spawning. Existing actors, scripts and player queries still run.
 
 The earlier wrong-height/rooftop and forest results are historical in the [F5 journal](../../../../../journal/entries/f5-diagnostic-route-2026-10-14.md) and [palette continuation](../../../../../journal/entries/palette-and-release-handoff-2026-10-14.md). The final position event executes with actual action data, and the scene owner has no end callback. The corrected grid contains courtyard descriptors and selects 175; an additional teleport/camera lock is not needed.
 
 ## Next Bounded Action
 
 1. Preserve the recovered terminal root-pose destinations and matching Debug/ASan event chain. If a required child conversion reaches `0x42d860`, split its explicit node/matrix/vector inputs rather than broadening the root fixture claim.
-2. Trace keyboard state through selected slot 39, representation 67's action metadata and event/motion evaluation. Explain why the selected action advances without displacement despite a bound `+0x11e`. Recover necessary motion inputs without requiring a full model renderer or adding host-driven movement.
-3. Audit `0x448c1c/0x448cb4` actor/vector/mode inputs, retaining actual contiguous vectors. Compare required query branches with original instructions, including floor/stair/blocked-boundary cases.
+2. Preserve [Task 06](task-06-recover-release-gravity-query-ownership.md)'s queued action-ID repair and floor-map ownership evidence. Retain the actual SDL release and clock repairs; trace remaining ±512 motion-query turns with Left/Right clear before asserting straight locomotion.
+3. Preserve Task 05's original-code vector/query fixtures and corrected extended-key probe. Actual SDL releases survive in both builds and Down displaces in longer runs; establish direction/steering fidelity and real-map floor/stair/blocked-boundary behavior. The [turn-caller repair](../../../../../journal/entries/player-turn-callers-2026-10-16.md) restores both simultaneous-input actor arguments with original-code and Debug/ASan call-boundary proof; the repaired idle caller now removes the observed ASan bad-height failure.
 4. Original `0x42ad87` completes only when progress is greater than duration and retains the EAX-selected slot; current `0x42ad60` uses greater-or-equal and substitutes the actor slot. These remain candidates requiring bounded proof; they were not changed by the floor repair.
 5. Once movement is coherent, test arrow press/release displacement and turning, then cross a real view boundary and return. Wait zero alone does not prove player readiness.
 

@@ -404,6 +404,12 @@ static void E2R_feed_legacy_keyup(WPARAM key, LPARAM lParam) {
     if (scan == 0) {
         scan = E2R_virtual_key_to_scan(key);
     }
+    /* Host backends send virtual keys without Win32 scan metadata. Select
+     * the same held table as keydown, including extended arrows/right Alt. */
+    if (key == VK_RMENU || key == VK_LEFT || key == VK_UP ||
+        key == VK_RIGHT || key == VK_DOWN) {
+        is_extended = 1;
+    }
     if (scan == 0) {
         return;
     }
@@ -412,6 +418,9 @@ static void E2R_feed_legacy_keyup(WPARAM key, LPARAM lParam) {
     }
     else {
         E2R_legacy_queue(0x004c3b90)[scan] = 0;
+    }
+    if (key >= 0x61 && key <= 0x69) {
+        E2R_legacy_queue(0x004c3a90)[scan] = 0;
     }
 }
 
