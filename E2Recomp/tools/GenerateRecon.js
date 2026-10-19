@@ -3678,6 +3678,10 @@ source = source.replaceAll(
   "FUN_00448744((undefined4)(uintptr_t)(DAT_0047a470 + 0x84),DAT_0047a470)"
 );
 source = source.replace(
+  "      uVar3 = CONCAT22(extraout_var,DAT_0047a778);",
+  "      /* Original 0x44c2a6 reads the low word of the cached dword. */\n      uVar3 = CONCAT22(extraout_var,(ushort)_DAT_0047a778);"
+);
+source = source.replace(
   "      FUN_0043a6e0(uVar3,(int)sVar2);",
   "      FUN_0043a6e0(uVar3,(int)sVar2);"
 );
@@ -3689,10 +3693,8 @@ source = source.replace(
   "  sVar2 = (short)uVar3;\n  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {",
   "  sVar2 = (short)uVar3;\n  if (E2R_scene_select_diag_count < 64 && (E2R_RuntimeDiagEnabled() || sVar2 < 1)) {\n    E2R_scene_select_diag_count = E2R_scene_select_diag_count + 1;\n    fprintf(stderr,\n            \"scene select 4c224 compact: lookup=%d scene_id=%d uVar3=0x%x current=0x%lx scene=0x%lx \"\n            \"pos=%d,%d,%d last_scene_hint=%lu\\n\",\n            (int)uVar7,(int)sVar2,(unsigned int)uVar3,\n            (unsigned long)DAT_0047a470,(unsigned long)_DAT_0073cc3c,\n            DAT_0047a470 != 0 && !IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,0x8a) ?\n            (int)*(short *)(DAT_0047a470 + 0x84) : 0,\n            DAT_0047a470 != 0 && !IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,0x8a) ?\n            (int)*(short *)(DAT_0047a470 + 0x86) : 0,\n            DAT_0047a470 != 0 && !IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,0x8a) ?\n            (int)*(short *)(DAT_0047a470 + 0x88) : 0,\n            (unsigned long)_DAT_0047a778);\n  }\n  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {"
 );
-source = source.replace(
-  "  FUN_0044c6bc();\n  lVar8 = FUN_00449b4c(extraout_ECX,extraout_EDX);",
-  "  FUN_0044c6bc();\n  E2R_ActivateSelectedSceneRecord(sVar2);\n  lVar8 = FUN_00449b4c(extraout_ECX,extraout_EDX);"
-);
+// Original 0x44c2f8..0x44c302 installs the camera, then loads its background.
+// Camera slots are not script-resource IDs: do not activate a FAN by this ID.
 source = source.replace(
   "    FUN_004575c4();\n    FUN_00457780(extraout_ECX_00,extraout_EDX);",
   "    E2R_TraceFrameStage(\"211c8.before-575c4\");\n    FUN_004575c4();\n    E2R_TraceFrameStage(\"211c8.after-575c4\");\n    FUN_00457780(extraout_ECX_00,extraout_EDX);\n    E2R_TraceFrameStage(\"211c8.after-57780\");"
@@ -7099,6 +7101,10 @@ for (const name of ["FUN_00448744", "FUN_004488a4"])
 // Preserve the original no-view fallback resource independently of camera id zero.
 source = replaceRectangleInput(source,"      FUN_0043a6e0(uVar3,(int)sVar2);","      /* Original 0x44c453 passes resource 7 in EAX when no view is found.\n       * Passing the zero camera selector here restarted intro resource 0. */\n      FUN_0043a6e0(7,7);");
 
+// Original terrain-trigger entry retains the code record and current actor.
+patchRectangleFunction("FUN_0044c164", body => replaceRectangleInput(body,
+  "      FUN_0044f310();",
+  "      /* Original 0x44c210..0x44c218: grid code record and current actor. */\n      FUN_0044f320(*(uint *)((iVar1 - 1) * 4 + 0x6297c0),\n                   (ushort *)DAT_0047a470,NULL);"));
 // Original actor deactivation receives the selected actor in EAX.
 patchRectangleFunction("FUN_004273cc", body => body
   .replace("  short *in_EAX;","  short *in_EAX = (short *)(uintptr_t)param_1;")

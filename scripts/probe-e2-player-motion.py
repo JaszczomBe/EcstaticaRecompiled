@@ -25,9 +25,13 @@ parser.add_argument('--release-turn-first', action='store_true',
                     help='Release the turn key before pressing the movement key')
 parser.add_argument('--sdl-events', action='store_true',
                     help='Send SDL keyboard events through the real backend pump')
+parser.add_argument('--camera-round-trip', action='store_true',
+                    help='Try SDL Up, then Down if needed, to cross into camera 166 and reverse to the pedestal')
 args = parser.parse_args()
 if args.frames < 1 or args.timeout < 1:
     parser.error('frames and timeout must be positive')
+if args.camera_round_trip and args.turn_forward:
+    parser.error('--camera-round-trip and --turn-forward are separate routes')
 prefix = str(args.output.resolve())
 Path(prefix).parent.mkdir(parents=True, exist_ok=True)
 env = os.environ.copy()
@@ -44,6 +48,7 @@ import gdb,json
 prefix=PREFIX
 frames=FRAMES
 use_sdl=SDL_EVENTS
+camera_route=CAMERA_ROUTE
 value=lambda expression:int(gdb.parse_and_eval(expression))
 def require(condition,message):
     if not condition:raise gdb.GdbError(message)
@@ -106,6 +111,14 @@ def key(vk,pressed):
     require(value(f'*(unsigned char*)({0x4c3a90}+{scan})')==int(pressed),
             'WndProc did not update the requested held-key byte')
 states=[]
+camera_samples=[]
+def observe_camera():
+    require(value('DAT_0047a470')==actor,'Traversal changed the current actor')
+    require(value('_DAT_00643650')==0,'Traversal opened a requester')
+    require(value('DAT_0047a76c')==0,'Traversal restored the script wait')
+    camera=(value('_DAT_0073cc3c')-0x67c728)//28
+    camera_samples.append(dict(camera=camera,position=[field(0x84+i*2) for i in range(3)]))
+    return camera
 def checkpoint(label):
     states.append(snapshot(label))
     # Retain completed phases even when a later input exposes a runtime fault.
@@ -113,11 +126,38 @@ def checkpoint(label):
         json.dump(dict(probe_complete=False,frames_per_phase=frames,states=states,
                        combined_turn=TURN_FORWARD,turn_calls=globals().get('turn_calls',[]),
                        sdl_events=use_sdl,release_turn_first=RELEASE_TURN,move_key=MOVE_KEY,
+                       camera_round_trip=camera_route,camera_samples=camera_samples,
                        gameplay_acceptance=False),out,indent=2)
 advance(3)
 checkpoint('before')
 turn_calls=[]
-if TURN_FORWARD:
+if camera_route:
+    require(observe_camera()==175,'Missing pedestal camera at readiness')
+    # Debug and ASan can take different obstacle-steering paths. Record the
+    # actual input route; never alter Joe's coordinates, facing or camera.
+    for outward_vk,limit in [(0x26,4),(0x28,24)]:
+        key(outward_vk,True)
+        for i in range(limit):
+            advance(30)
+            if observe_camera()!=175:break
+        crossed=camera_samples[-1]['camera']!=175
+        checkpoint('courtyard-held' if crossed else 'outward-attempt')
+        key(outward_vk,False);advance(90)
+        if crossed:break
+    require(camera_samples[-1]['camera']==166,'Movement did not reach the adjacent courtyard camera')
+    checkpoint('courtyard-released')
+    return_vk=0x28 if outward_vk==0x26 else 0x26
+    key(return_vk,True)
+    for i in range(24):
+        advance(30)
+        if observe_camera()==175 and field(0x86)==3328:break
+    require(camera_samples[-1]['camera']==175 and field(0x86)==3328,
+            'Reverse input did not return to pedestal camera and floor level')
+    checkpoint('pedestal-held')
+    key(return_vk,False);advance(90);checkpoint('pedestal-released')
+    require(observe_camera()==175,'Camera changed after releasing movement')
+    require(all(held==0 for held in states[-1]['held_keys'].values()),'Traversal left a key held')
+elif TURN_FORWARD:
     class TurnGuard(gdb.Breakpoint):
         def stop(self):
             actual=value('param_1')
@@ -145,6 +185,7 @@ else:
 report=dict(probe_complete=True,frames_per_phase=frames,states=states,
             combined_turn=TURN_FORWARD,move_key=MOVE_KEY,turn_calls=turn_calls,
             sdl_events=use_sdl,release_turn_first=RELEASE_TURN,
+            camera_round_trip=camera_route,camera_samples=camera_samples,
             position_changed=any(s['position']!=states[0]['position'] for s in states[1:]),
             facing_changed=any(s['facing']!=states[0]['facing'] for s in states[1:]),
             gameplay_acceptance=False)
@@ -155,8 +196,8 @@ end
 quit
 '''.replace('PREFIX', json.dumps(prefix)).replace('FRAMES', str(args.frames)).replace(
     'PROCESS_SECONDS', str(args.timeout + 10)).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
-    'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events)).replace(
-    'RELEASE_TURN',repr(args.release_turn_first))
+    'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip)).replace(
+    'RELEASE_TURN',repr(args.release_turn_first)).replace('CAMERA_ROUTE',repr(args.camera_round_trip))
 with tempfile.TemporaryDirectory(prefix='e2-player-motion-') as tmp:
     script = Path(tmp) / 'probe.gdb'
     script.write_text(commands)

@@ -16,6 +16,8 @@ Up/Down still change facing while their turn-key bytes remain zero. The final AS
 
 The query's `found` branch projects motion onto a blocker tangent and calls `0x42b074` with a limit of elapsed ticks × 512 for slots 1/7/180/183. Existing 92,160 original-code query comparisons include synthetic obstacles and intercepted floor services, but do not prove the actual courtyard obstacle/floor inputs or expected physical steering. The current evidence does not establish that these real-map rotations are erroneous, nor that the user's circling report is fully resolved.
 
+The user subsequently confirms input works and prioritizes exploration. [Task 08](task-08-recover-courtyard-camera-transitions.md) now demonstrates actual SDL **175 → 166 → 175** camera round trips in both runtimes. The same initial Up input produces different Debug/ASan routes: Debug reaches the courtyard directly; ASan initially circles within 175 and reaches 166 after reversing to Down. Both return to 175 with released keys, but at different positions. The [camera journal](../../../../../journal/entries/courtyard-camera-traversal-2026-10-19.md) records those limits; this task retains steering fidelity rather than blocking the now recovered camera transitions.
+
 ## Next Bounded Action
 
 1. At the first unexpected query turn, capture Joe's radius +0x9a, motion vector/angle, flags, prior slot, candidate actors and attachment exclusions. Record all five perimeter sample coordinates, floor results and descriptor chains, selected blockers, tangent and projected motion.

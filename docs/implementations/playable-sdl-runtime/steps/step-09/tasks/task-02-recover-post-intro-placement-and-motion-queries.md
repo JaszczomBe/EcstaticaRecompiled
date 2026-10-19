@@ -24,13 +24,15 @@ NPC query/range/placement inputs have original-x86 comparisons. Full activation/
 
 The earlier wrong-height/rooftop and forest results are historical in the [F5 journal](../../../../../journal/entries/f5-diagnostic-route-2026-10-14.md) and [palette continuation](../../../../../journal/entries/palette-and-release-handoff-2026-10-14.md). The final position event executes with actual action data, and the scene owner has no end callback. The corrected grid contains courtyard descriptors and selects 175; an additional teleport/camera lock is not needed.
 
+The user now reports input works and prioritizes missing scene changes. The [camera-traversal continuation](../../../../../journal/entries/courtyard-camera-traversal-2026-10-19.md) completes [Task 08](task-08-recover-courtyard-camera-transitions.md): actual SDL Debug/ASan camera **175 → 166 → 175** round trips retain Joe, wait/modal zero and released keys. It removes the wrong camera-slot-to-script-resource activation, fixes cached-camera storage and supplies terrain-script code/actor inputs. ASan follows a different movement route and returns elsewhere within camera 175. Broader steering/collision and sustained/full experimental ASan acceptance remain open; bounded traversal is now demonstrated.
+
 ## Next Bounded Action
 
 1. Preserve the recovered terminal root-pose destinations and matching Debug/ASan event chain. If a required child conversion reaches `0x42d860`, split its explicit node/matrix/vector inputs rather than broadening the root fixture claim.
 2. Preserve [Task 06](task-06-recover-release-gravity-query-ownership.md)'s queued action-ID repair and floor-map ownership evidence. Retain the actual SDL release and clock repairs; trace remaining ±512 motion-query turns with Left/Right clear before asserting straight locomotion.
 3. Preserve Task 05's original-code vector/query fixtures and corrected extended-key probe. Actual SDL releases survive in both builds and Down displaces in longer runs; establish direction/steering fidelity and real-map floor/stair/blocked-boundary behavior. The [turn-caller repair](../../../../../journal/entries/player-turn-callers-2026-10-16.md) restores both simultaneous-input actor arguments with original-code and Debug/ASan call-boundary proof; the repaired idle caller now removes the observed ASan bad-height failure.
 4. Original `0x42ad87` completes only when progress is greater than duration and retains the EAX-selected slot; current `0x42ad60` uses greater-or-equal and substitutes the actor slot. These remain candidates requiring bounded proof; they were not changed by the floor repair.
-5. Once movement is coherent, test arrow press/release displacement and turning, then cross a real view boundary and return. Wait zero alone does not prove player readiness.
+5. Preserve Task 08's demonstrated camera crossings/return and repeatable `--camera-round-trip` probe. Broaden exploration only from real input, trace Debug/ASan steering differences and establish complete collisions plus sustained control readiness. Wait zero alone does not prove player readiness.
 
 ## Boundaries And Verification
 

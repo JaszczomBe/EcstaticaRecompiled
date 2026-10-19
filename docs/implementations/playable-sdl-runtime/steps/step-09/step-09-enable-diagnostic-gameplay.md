@@ -1,6 +1,6 @@
 # Enable Diagnostic Gameplay With Cylinder Actors
 
-Status: active; SDL releases and clock wait recovered; motion-query steering and traversal remain open
+Status: active; bounded courtyard camera round trips pass; motion-query fidelity and sustained acceptance remain open
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-10-19
 
@@ -42,6 +42,8 @@ The [player-input continuation](../../../../journal/entries/player-motion-inputs
 The [2026-10-19 idle-action repair](../../../../journal/entries/player-idle-action-2026-10-19.md) closes Task 06's observed ASan height failure. A release caller passed the representation pointer as an action ID and loaded a FAN that replaced the floor grid; the caller now reads the original queued action word at +0x162. Debug/ASan complete all arrow phases and both combined turn/Up probes at height 3328/camera 175. Up release executes a queued action with further displacement, superseding the earlier immediate-stop result. Task 02 now owns settled stopping, Down displacement and real-map collision/traversal. No 60-second or full experimental sanitizer acceptance is claimed.
 
 The [SDL release/clock/target-facing continuation](../../../../journal/entries/player-release-and-spin-2026-10-19.md) follows the user's manual spinning/crash report. Actual SDL key-up now clears the same held table as key-down, the simulation again waits for a clock change, and `0x42ed6c` retains its original actor/time/range inputs. Original-code and bridge fixtures pass normally/ASan. Actual SDL turn-release-then-move probes complete in both builds; turn release stops turning at rest, and longer Down presses now displace. Up/Down still produce motion-query steering with Left/Right clear. [Task 07](tasks/task-07-recover-motion-query-steering.md) owns the remaining motion-query steering; Task 02 retains real-map traversal/full sanitizer acceptance; do not call the circling report fully resolved yet. Four final builds, generator parity and baseline wrapper/eight-arrow/SDL requester checks pass.
+
+The [courtyard-camera continuation](../../../../journal/entries/courtyard-camera-traversal-2026-10-19.md) implements [Task 08](tasks/task-08-recover-courtyard-camera-transitions.md). Ordinary camera changes no longer treat a camera slot as a script-resource ID, the cached-camera word reads its real dword, and terrain scripts receive their code record/current actor. Original-code comparisons pass normally/ASan. Actual SDL Debug and ASan both complete **175 → 166 → 175**, retain Joe and wait/modal zero, release all keys and load the new background. Debug also explores camera 167. ASan takes a different movement route and returns to another location in camera 175; identical steering, exact retracing, complete collisions and 60-second/full experimental ASan acceptance remain open under Tasks 02/07. The user reports input now works and prioritizes exploration. Four builds, generator parity and baseline regressions pass.
 
 ## Implemented Slice — 2026-10-14
 

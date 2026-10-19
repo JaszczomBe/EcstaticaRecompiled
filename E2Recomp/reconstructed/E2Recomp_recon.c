@@ -44699,7 +44699,9 @@ void __fastcall FUN_0044c164(undefined4 param_1)
       iVar1 = (int)(short)(*(ushort *)((undefined1 *)0x0068cd6a + iVar1) & 0x3fff);
     }
     if (((iVar1 != 0) && (-1 < iVar1 + -1)) && (*(int *)((iVar1 + -1) * 4 + 0x6297c0) != 0)) {
-      FUN_0044f310();
+      /* Original 0x44c210..0x44c218: grid code record and current actor. */
+      FUN_0044f320(*(uint *)((iVar1 - 1) * 4 + 0x6297c0),
+                   (ushort *)DAT_0047a470,NULL);
     }
   }
   return;
@@ -44751,7 +44753,8 @@ void __fastcall FUN_0044c224(undefined4 param_1)
       uVar3 = CONCAT22(extraout_var,*(undefined2 *)((undefined1 *)0x0068cd70 + iVar1));
     }
     else {
-      uVar3 = CONCAT22(extraout_var,DAT_0047a778);
+      /* Original 0x44c2a6 reads the low word of the cached dword. */
+      uVar3 = CONCAT22(extraout_var,(ushort)_DAT_0047a778);
     }
   }
   sVar2 = (short)uVar3;
@@ -44812,7 +44815,6 @@ void __fastcall FUN_0044c224(undefined4 param_1)
   _DAT_0073ccba = sVar2;
   E2R_SyncSceneViewId();
   FUN_0044c6bc();
-  E2R_ActivateSelectedSceneRecord(sVar2);
   lVar8 = FUN_00449b4c(extraout_ECX,extraout_EDX);
   if ((int)lVar8 != 0) {
     if (DAT_0047a43c != 0) {

@@ -52,7 +52,7 @@ Step numbers are stable identifiers, not execution order. Step 07 is complete. T
 | [01 — Interactive SDL stability](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) | completed | Historical bounded startup/F5 investigation |
 | [02 — DirectDraw page and palette semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) | completed | Recovered front source, palette, aspect-fit presentation |
 | [07 — Restore reproducible baseline](steps/step-07/step-07-restore-reproducible-runtime-baseline.md) | completed | Automated checks pass; manual screenshot/log confirms scene-175 baseline |
-| [09 — Diagnostic gameplay with cylinders](steps/step-09/step-09-enable-diagnostic-gameplay.md) | active | SDL release/clock and target-facing inputs recovered; motion-query steering and traversal remain open; background spawning explicitly deferred |
+| [09 — Diagnostic gameplay with cylinders](steps/step-09/step-09-enable-diagnostic-gameplay.md) | active | Debug/ASan camera 175 → 166 → 175 round trips pass; motion-query fidelity and sustained acceptance remain open; background spawning explicitly deferred |
 | [08 — Recover scene-175 actors](steps/step-08/step-08-recover-scene-175-actors.md) | active | Logic repairs feed 09; full-render route needs DirectDraw Lock, then geometry/placement/action and children |
 | [03 — Gameplay control and camera proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) | partially deferred | Input mapping/matrix complete; basic locomotion/camera proofs join 09, broader controls follow readiness |
 | [04 — Timing and frame pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) | planned | Recover game timing ownership after visible control proofs |
@@ -85,6 +85,8 @@ The [2026-10-19 idle-action continuation](../../journal/entries/player-idle-acti
 
 The [manual spinning/input continuation](../../journal/entries/player-release-and-spin-2026-10-19.md) repairs actual SDL key-up table selection, restores the original frame-clock wait and recovers the target-facing crash's actor/time/range/angle inputs. Original-code/bridge fixtures and actual SDL Debug/ASan replays pass; releasing turn keys settles facing at rest and longer Down presses displace. Motion queries still steer during Up/Down with turn keys clear, so straight controls and the circling report remain open alongside collision/traversal and full experimental ASan acceptance. Final four builds, generator parity and baseline checks pass.
 
+
+The [courtyard-camera continuation](../../journal/entries/courtyard-camera-traversal-2026-10-19.md) removes an unsupported camera-slot-to-script-resource activation, recovers the cached camera hint and supplies the terrain trigger's code/actor inputs. [Step 09 Task 08](steps/step-09/tasks/task-08-recover-courtyard-camera-transitions.md) completes bounded actual-SDL **175 → 166 → 175** traversal in Debug and ASan, with Joe retained, wait/modal zero and all keys released. Debug also reaches 167. ASan follows a different route, so identical steering, exact retracing, complete collision behavior and sustained/full experimental ASan acceptance remain open. Original-code fixtures, all four builds, generator parity and baseline regressions pass; the user now confirms practical input and prioritizes further exploration.
 
 ## Original-Game Reference — 2026-10-14
 
