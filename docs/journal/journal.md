@@ -4,6 +4,14 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [General population and direction audit — 2026-10-19](entries/general-population-and-direction-audit-2026-10-19.md): enables original generic population in F5 after spawn/pose/queued-action recovery; populated Debug/ASan traversal passes, while the new physical direction/arrow report remains unresolved.
+
+- [Intro skip FAN ownership — 2026-10-19](entries/intro-skip-fan-ownership-2026-10-19.md): repairs nested FAN/action selection, scene argument ownership and out-of-actor finalizer writes after the reported Space-skip crash; exact runtime reproduction remains unconfirmed.
+
+- [Pedestal guard activation — 2026-10-19](entries/pedestal-guard-activation-2026-10-19.md): corrects the terrain-population overclaim; identifies original `St_gobsc` tracks `gob3`/`gob3b`, restores their cylinder activation and records remaining combat/model/sanitizer limits.
+
+- [Scene population recovery — 2026-10-19](entries/scene-population-recovery-2026-10-19.md): restores bounded original actor loading, wandering inputs and lifetime ownership; keeps F5 deferral while attachment-event inputs and population traversal/interaction remain open.
+
 - [SDL arrow release, frame clock and target facing — 2026-10-19](entries/player-release-and-spin-2026-10-19.md): reproduces the actual SDL stuck-arrow release, restores real-tick waiting and the reported target-facing crash inputs; final fixtures/baselines pass, with motion-query steering still open.
 
 - [Queued idle-action and floor-map ownership — 2026-10-19](entries/player-idle-action-2026-10-19.md): repairs a representation-pointer-as-action-ID caller that replaced the live floor grid on release; bounded Debug/ASan arrows and combined inputs retain valid height, with stopping and traversal still open.

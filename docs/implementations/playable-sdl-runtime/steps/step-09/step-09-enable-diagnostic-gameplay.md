@@ -1,6 +1,6 @@
 # Enable Diagnostic Gameplay With Cylinder Actors
 
-Status: active; manual castle locomotion/collision confirmed; scene population and interaction are next
+Status: active; generic population enabled; new direction report and object interactions remain open
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-10-19
 
@@ -18,7 +18,7 @@ There is useful reusable code: `E2R_GetActorCues` supplies validated live actors
 
 ## Scope And Boundaries
 
-1. `E2R_ACTOR_CYLINDERS=1` now selects cylinder presentation. `E2R_PROXY_MESH_BYPASS=1` omits the `FUN_00424e44` polygon dispatcher and original 2D graphics/HUD leaves; graphic script operand spans are preserved. Other render/restore paths remain active. F5 supplies both flags plus `E2R_ACTION_INDEX_PROBE=1` and `E2R_DEFER_BACKGROUND_SPAWNS=1`. The latter explicitly defers only automatic terrain-driven population creation; it is a Joe-first prototype limit, reported on screen. Existing actors, scripts, action events and player physics/view queries still run. This is an implemented diagnostic slice, not a working gameplay switch.
+1. `E2R_ACTOR_CYLINDERS=1` now selects cylinder presentation. `E2R_PROXY_MESH_BYPASS=1` omits the `FUN_00424e44` polygon dispatcher and original 2D graphics/HUD leaves; graphic script operand spans are preserved. Other render/restore paths remain active. F5 supplies both flags plus `E2R_ACTION_INDEX_PROBE=1` and `E2R_DEFER_BACKGROUND_SPAWNS=0`. Original terrain-driven population is now active through scoped archive loading; setting the latter flag to 1 remains an explicit diagnostic deferral. Existing actors, scripts, action events and player physics/view queries still run. This is an implemented diagnostic slice, not a working gameplay switch.
 2. Preserve input, scripts/actions, actor position/orientation, timing needed for motion, height/collision queries, camera selection, resource activation and scene changes. Automatic background spawning may be deferred only through the explicit prototype flag; full NPC activation remains separate acceptance. A visual stand-in does not authorize replacing these with guessed movement or teleportation.
 3. Keep SDL and drawing primitives in the host backend. Read world state through the snapshot boundary; mirror any reconstructed control-flow repairs or mode gates in `GenerateRecon.js`.
 4. Reuse Step 08 Tasks 01/05/06 for action/pose/placement inputs and remaining Step 03 for actual movement/camera proofs. Pull basic locomotion and view-boundary tests forward; do not wait for every NPC, combat control or original mesh.
@@ -113,6 +113,12 @@ Startup automation must model separate logo taps and horseback skip, release tho
 
 After diagnostic locomotion/traversal: required NPC activation and interaction; additional scene/resource variants and combat/inventory state; stable runtime cadence; original model/animation/rendering fidelity; sound/music; functional save/load; broader control/menu polish; optimized-build recovery, packaging and portability. Reorder only when one of these blocks the current playable milestone. The 64-bit and optimized runtimes are not current prerequisites.
 
+## Population Recovery Continuation — 2026-10-19
+
+[Task 09](tasks/task-09-recover-scene-population-and-interaction.md) now restores the two actual pedestal guard tracks (`St_gobsc`, actors 284/293), visible as orange cylinders before and after Joe frees himself. This corrects the earlier terrain-population overclaim. Debug crosses 175→166→175 with both guards initially active; cylinder mode retains roots/motion/scripts and omits articulated child bones/IK and meshes. Terrain spawning remains deferred in F5. Combat, articulated collision, objects/interactions and full experimental ASan remain open. See the [guard journal](../../../../journal/entries/pedestal-guard-activation-2026-10-19.md).
+
+The user subsequently reports a Space-skip crash in `0x444330` during a nested `PlayScene` actor load. The [parser continuation](../../../../journal/entries/intro-skip-fan-ownership-2026-10-19.md) restores explicit FAN/action ownership, scene input and original byte/short actor-finalizer writes. Checkpoint-based SDL Space probes and focused original-code comparisons cover the repair; exact physical F5 reproduction remains unconfirmed.
+
 ## Usage Budget
 
 Implement one bounded slice/failure family at a time. Preserve the existing baseline and split newly exposed action/query/compatibility errors. The cylinder and F5/script slices are implemented; Task 01 closes node removal. Task 03 closes hosted floor-byte decoding; Task 04 splits NPC input recovery/full activation. Task 02 owns player motion/control. Task 05 recovers action vectors and world queries with original-code coverage; Task 06 closes the observed release-height failure at its upstream queued-action caller. Task 07 closes the captured first-turn replay without changing original steering. Task 02 retains complete physical control/collision and wider active exploration acceptance. Automatic background spawning is explicitly deferred for the Joe-first prototype. Do not expand into every remaining graphics/helper family at once.
@@ -145,3 +151,9 @@ Recovered root-pose matrix and previous-position destinations from the watched A
 4. Restored palette fades/frame caller inputs; recovered experimental unsigned descriptor selection, no-view resource 7 and actor deactivation. Original-x86 comparisons and baseline checks pass; split the remaining no-floor release/menu and ASan query inputs into Task 02.
 
 5. Restored hosted floor reads and source-backed NPC query/range/placement contracts; added explicit background-spawn deferral with on-screen status. Debug remains in the courtyard after release; movement and terminal ASan event ownership stay open.
+
+## General Population And New Direction Report — 2026-10-19
+
+[Task 09's continuation](../../../../journal/entries/general-population-and-direction-audit-2026-10-19.md) recovers original spawn-event node/actor/action ownership, required root/FK transforms and queued-action consumption. Generic spawning is enabled in F5 with no enemy whitelist. Populated Debug and ASan camera round trips now pass; original-code fixtures and baseline checks pass. This supersedes the earlier F5-deferral/F9c0 failure statements above.
+
+The user confirms the fixed pedestal pair wanders, but reports Joe moving away from the arrow and simultaneous Up+Left freezing it immediately after release. Frame-stepped and normal-speed replays do not reproduce that failure. Keep it open; do not reuse earlier manual locomotion acceptance to dismiss it. Scripted-object interactions, wider NPC actions/combat, articulated collision and full experimental ASan remain unaccepted.

@@ -109,7 +109,10 @@ assert match
 harness+=match.group().replace('FUN_00448744(param_1,param_2)',
     'FUN_00448744(param_1,(ushort *)(uintptr_t)param_2)').replace(
     'psVar6 != DAT_0047a470','(uintptr_t)psVar6 != (uintptr_t)DAT_0047a470')+'\n'
-floor_code=original(0x448a48,0x448bdd)
+match=re.search(r'^undefined4 __fastcall FUN_00448a3c\([^\n]*\)\s*\{.*?\n\}',source,re.M|re.S)
+assert match
+harness+=match.group()+'\n'
+floor_code=original(0x448a3c,0x448bdd)
 harness+='static unsigned char floor_code[]={'+','.join(map(str,floor_code))+'};\n'
 at=source.index('  if (sVar2 < 1) {',source.index('void __fastcall FUN_0044c224('))
 end=source.index('  DAT_0047a788 = 1;',at)
@@ -260,7 +263,7 @@ int main(void) {
     }
     assert(triggered>1000);
     memcpy((void*)0x44872c,original_code,sizeof original_code);
-    memcpy((void*)0x448a48,floor_code,sizeof floor_code);
+    memcpy((void*)0x448a3c,floor_code,sizeof floor_code);
     memset((void*)0x684d68,0xff,0x8000);
     WORLD_REPLAY
     printf("PASS: %u original-x86 scene-grid selection cases (%u high ceiling descriptors); %u camera/hint cases; 1199 camera/background dispatch cases; %u grid-script cases (%u dispatched); 4 no-view fallback routing cases; %u recorded floor cases\n",cases,high,cameras,triggers,triggered,WORLD_COUNT);
@@ -290,6 +293,8 @@ for floor in world:
     world_code.append('surface=-123;\n')
     world_code.append(f'int actual=FUN_00448a48((uintptr_t)coord,{owner},{surface});assert(actual==expected);\n')
     if floor['terrain']:world_code.append(f'assert(surface=={floor["surface"]});\n')
+    world_code.append(f'assert((int)run_original(0x448a3c,(uintptr_t)coord,{owner})==expected);\n')
+    world_code.append(f'assert((int)FUN_00448a3c((uintptr_t)coord,{owner})==expected);\n')
     world_code.append(f'*(ushort*){cell_addr}=0xffff;\n}}\n')
 harness=harness.replace('WORLD_REPLAY',''.join(world_code)).replace('WORLD_COUNT',str(len(world)))
 with tempfile.TemporaryDirectory(prefix='e2-grid-') as tmp:

@@ -32,6 +32,10 @@ Validate after Tasks 01/02 and Task 05 placement. **Correction from 2026-09-15:*
 
 All three have `actor=0` in the historical audit packet, but they are not established pedestal enemies. Activation tracing instead identifies `Start_sc` resource 0 with children 261 (`spide_w3`, hidden), 0 (Joe), and 3551 (secondary reference 695 / `wdpile2`). The settled default Joe has no scene owner at `+0x132`; the corrected sidecar reports that absence instead of inferring ownership from the camera. Establish the actual post-intro scene resource and expected enemy identities first. Recover the meaning of the child and `word2` references from original scene activation; do not assume one visible enemy per listed child. Inspect `FUN_004523f8`, `FUN_00452140`, and `FUN_004533ac` with their callers. Preserve aligned archive indexing and counts (`actors=81 reps=389 scenes=1205`) unless source evidence justifies a specific change.
 
+## 2026-10-19 Pedestal Identity Correction
+
+The actual pair is established by original `St_gobsc` resource 101, view 175: `gob3` (284) and `gob3b` (293). Step 09 now loads their original tracks and presents cylinders before/after Joe's release. Original global names also identify Start_sc child 261 as `stok1`; the historical `spide_w3` label came from a malformed hosted actor-name pool. The earlier 319/322/318 association remains unproven. See the [guard evidence](../../../../../journal/entries/pedestal-guard-activation-2026-10-19.md). This resolves the pair's identity/diagnostic presence; original articulated-model rendering and full acceptance of this task remain open.
+
 ## Acceptance Criteria
 
 1. Source evidence establishes child resource roles and instantiation/lifetime rules.
