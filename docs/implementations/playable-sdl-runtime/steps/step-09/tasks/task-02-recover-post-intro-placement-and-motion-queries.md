@@ -1,6 +1,6 @@
 # Recover Post-Intro Placement And Motion Queries
 
-Status: active; actual SDL release recovered; motion-query steering and traversal remain open
+Status: basic control/traversal/collision manually confirmed; broader automated physics and full runtime acceptance remain open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 Last Updated: 2026-10-19
 
@@ -26,10 +26,14 @@ The earlier wrong-height/rooftop and forest results are historical in the [F5 jo
 
 The user now reports input works and prioritizes missing scene changes. The [camera-traversal continuation](../../../../../journal/entries/courtyard-camera-traversal-2026-10-19.md) completes [Task 08](task-08-recover-courtyard-camera-transitions.md): actual SDL Debug/ASan camera **175 → 166 → 175** round trips retain Joe, wait/modal zero and released keys. It removes the wrong camera-slot-to-script-resource activation, fixes cached-camera storage and supplies terrain-script code/actor inputs. ASan follows a different movement route and returns elsewhere within camera 175. Broader steering/collision and sustained/full experimental ASan acceptance remain open; bounded traversal is now demonstrated.
 
+The [steering audit](../../../../../journal/entries/courtyard-steering-audit-2026-10-19.md) closes Task 07's first-turn family: 128 complete query replays and 896 real floor responses match original code, including the observed opposite/zero-vector turns. Different time/vector inputs precede differing paths; no gameplay patch is justified by the captured samples. Debug/ASan both complete the round trip plus another 60 seconds with released input and stable Joe state. This proves bounded post-traversal idle stability, not continuous active play or every collision path. Next priority is explicit stair/wall/blocked-boundary behavior and wider exploration.
+
 ## Next Bounded Action
 
+The [manual castle report](../../../../../journal/entries/manual-castle-exploration-2026-10-19.md) confirms stairs, angled ledges, collisions and extended free exploration. Basic control is now practically validated. Prioritize [Task 09 population/interaction](task-09-recover-scene-population-and-interaction.md) next; retain the investigations below for a newly observed movement failure or later broader acceptance rather than blocking object recovery on additional locomotion work. Exact manual duration/build and exhaustive collision/falling behavior remain unspecified.
+
 1. Preserve the recovered terminal root-pose destinations and matching Debug/ASan event chain. If a required child conversion reaches `0x42d860`, split its explicit node/matrix/vector inputs rather than broadening the root fixture claim.
-2. Preserve [Task 06](task-06-recover-release-gravity-query-ownership.md)'s queued action-ID repair and floor-map ownership evidence. Retain the actual SDL release and clock repairs; trace remaining ±512 motion-query turns with Left/Right clear before asserting straight locomotion.
+2. Preserve [Task 06](task-06-recover-release-gravity-query-ownership.md)'s queued action-ID repair and floor-map ownership evidence. Retain the release/clock repairs and Task 07's verified original obstacle steering; use captured inputs to investigate any new deviation rather than suppressing query-driven turns.
 3. Preserve Task 05's original-code vector/query fixtures and corrected extended-key probe. Actual SDL releases survive in both builds and Down displaces in longer runs; establish direction/steering fidelity and real-map floor/stair/blocked-boundary behavior. The [turn-caller repair](../../../../../journal/entries/player-turn-callers-2026-10-16.md) restores both simultaneous-input actor arguments with original-code and Debug/ASan call-boundary proof; the repaired idle caller now removes the observed ASan bad-height failure.
 4. Original `0x42ad87` completes only when progress is greater than duration and retains the EAX-selected slot; current `0x42ad60` uses greater-or-equal and substitutes the actor slot. These remain candidates requiring bounded proof; they were not changed by the floor repair.
 5. Preserve Task 08's demonstrated camera crossings/return and repeatable `--camera-round-trip` probe. Broaden exploration only from real input, trace Debug/ASan steering differences and establish complete collisions plus sustained control readiness. Wait zero alone does not prove player readiness.

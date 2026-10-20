@@ -5,6 +5,7 @@ Includes high ceiling bytes, linked descriptors, shape masks, grid boundaries,
 cached camera hints, background dispatch and the terrain script's code/actor.
 """
 import argparse
+import json
 from pathlib import Path
 import re
 import struct
@@ -16,7 +17,22 @@ parser.add_argument('exe', type=Path)
 parser.add_argument('--cc', default='clang-21')
 parser.add_argument('--asan', action='store_true')
 parser.add_argument('--keep-harness', type=Path, help='Retain fixture source/executable for debugger inspection')
+parser.add_argument('--replay', type=Path, action='append', default=[],
+                    help='Compare recorded terrain chains/floors (default: saved courtyard samples)')
 args = parser.parse_args()
+if not args.replay:
+    args.replay=[Path(__file__).with_name('fixtures')/'e2-courtyard-steering.json']
+world=[]
+for path in args.replay:
+    for query in json.loads(path.read_text()):
+        for floor in query['floors']:
+            chain=floor['descriptors'];selected=floor['selected']
+            if selected!=0xffffffff:
+                desc=chain[selected-floor['cell']]
+                assert not floor['actor'] or ((desc[2]|desc[3]<<8)&0x3fff)==0, 'Scripted floor requires code-pool capture'
+            world.append(floor)
+def c_array(value):
+    return '{'+','.join(c_array(v) if isinstance(v,list) else str(v) for v in value)+'}'
 pe = args.exe.read_bytes()
 header = struct.unpack_from('<I', pe, 0x3c)[0]
 count = struct.unpack_from('<H', pe, header + 6)[0]
@@ -43,7 +59,7 @@ harness=r"""
 typedef uint32_t uint,undefined4;
 typedef uint16_t ushort,undefined2;
 typedef uint8_t byte,undefined1,bool;
-typedef uint64_t undefined8;
+typedef uint64_t undefined8,ulonglong;
 #define __fastcall
 #define true 1
 #define false 0
@@ -54,6 +70,7 @@ static int _DAT_0047a778,DAT_0047a778;
 static int DAT_0047a788,_DAT_0073ccba,resource_calls;
 static volatile int transition_order __attribute__((used));
 static int DAT_0047a438,DAT_0047a7ec;
+static uintptr_t _DAT_006366a0;
 static volatile int trigger_lookup __attribute__((used));
 static volatile uint trigger_code __attribute__((used)),trigger_actor __attribute__((used)),trigger_calls __attribute__((used));
 static uint64_t fixture_lookup(uint coord,uintptr_t actor) { return (uint)trigger_lookup; }
@@ -87,6 +104,13 @@ static void E2R_LogSceneGridProbe(const char *s,int x,int z) { }
 for name in ('FUN_00448744','FUN_004488a4'):
     match=re.search(r'^undefined8 __fastcall '+name+r'\([^\n]*\)\s*\{.*?\n\}',source,re.M|re.S)
     assert match,name;harness+=match.group()+'\n'
+match=re.search(r'^int __fastcall FUN_00448a48\([^\n]*\)\s*\{.*?\n\}',source,re.M|re.S)
+assert match
+harness+=match.group().replace('FUN_00448744(param_1,param_2)',
+    'FUN_00448744(param_1,(ushort *)(uintptr_t)param_2)').replace(
+    'psVar6 != DAT_0047a470','(uintptr_t)psVar6 != (uintptr_t)DAT_0047a470')+'\n'
+floor_code=original(0x448a48,0x448bdd)
+harness+='static unsigned char floor_code[]={'+','.join(map(str,floor_code))+'};\n'
 at=source.index('  if (sVar2 < 1) {',source.index('void __fastcall FUN_0044c224('))
 end=source.index('  DAT_0047a788 = 1;',at)
 branch=source[at:end]
@@ -134,8 +158,14 @@ static void transition_original(short id) {
     __asm__ volatile("call *%%edi" : "=a"(a),"=b"(b),"+c"(c),"=d"(d)
                      : "D"(0x44c2e5) : "memory","cc");
 }
+static int floor_original(uint coord,uint actor,int *surface) {
+    uint scratch;
+    __asm__ volatile("call *%%edi" : "+a"(coord),"+d"(actor),"+b"(surface),"=c"(scratch)
+                     : "D"(0x448a48) : "memory","cc");
+    return (int)coord;
+}
 int main(void) {
-    map(0x430000,0x20000);map(0x470000,0x10000);map(0x680000,0x10000);map(0x640000,0x10000);map(0x620000,0x20000);map(0x730000,0x10000);map(0x900000,0x1000);
+    map(0x430000,0x20000);map(0x470000,0x10000);map(0x680000,0xb0000);map(0x640000,0x10000);map(0x620000,0x20000);map(0x730000,0x10000);map(0x900000,0x1000);
     memcpy((void*)0x44872c,original_code,sizeof original_code);
     memcpy((void*)0x44c243,camera_code,sizeof camera_code);*(byte*)0x44c2ba=0xc3;
     memcpy((void*)0x44c2e5,transition_code,sizeof transition_code);*(byte*)0x44c302=0xc3;
@@ -229,13 +259,43 @@ int main(void) {
         triggers++;triggered+=trigger_calls;
     }
     assert(triggered>1000);
-    printf("PASS: %u original-x86 scene-grid selection cases (%u high ceiling descriptors); %u camera/hint cases; 1199 camera/background dispatch cases; %u grid-script cases (%u dispatched); 4 no-view fallback routing cases\n",cases,high,cameras,triggers,triggered);
+    memcpy((void*)0x44872c,original_code,sizeof original_code);
+    memcpy((void*)0x448a48,floor_code,sizeof floor_code);
+    memset((void*)0x684d68,0xff,0x8000);
+    WORLD_REPLAY
+    printf("PASS: %u original-x86 scene-grid selection cases (%u high ceiling descriptors); %u camera/hint cases; 1199 camera/background dispatch cases; %u grid-script cases (%u dispatched); 4 no-view fallback routing cases; %u recorded floor cases\n",cases,high,cameras,triggers,triggered,WORLD_COUNT);
 }
 """
+world_code=[]
+for floor in world:
+    p=floor['coord'];chain=floor['descriptors'];cell=floor['cell'];shift=floor['shift']
+    world_code.append('{\nshort coord[3]='+c_array(p)+';\n')
+    world_code.append(f'DAT_0047a738=*(int*)0x47a738={shift};\n')
+    world_code.append('DAT_0047a470=*(int*)0x47a470=0x900100;\n')
+    cell_addr=0x684d68+((p[0]>>9)+64)*2+((p[2]>>9)+64)*256
+    world_code.append(f'*(ushort*){cell_addr}={cell};\n')
+    if chain:
+        world_code.append('const byte chain[]='+c_array([b for d in chain for b in d])+';\n')
+        world_code.append(f'memcpy((void*){0x68cd68+cell*12},chain,sizeof chain);\n')
+    if floor['selected']!=0xffffffff:
+        desc=chain[floor['selected']-cell];terrain=desc[6] if desc[6]<128 else desc[6]-256
+        world_code.append(f'*(byte*){0x636624+terrain*2}={floor["terrain_flags"]};\n')
+    owner='0x900100' if floor['actor'] else '0'
+    surface='&surface' if floor['terrain'] else 'NULL'
+    world_code.append(f'undefined8 lookup=run_original(0x448744,(uintptr_t)coord,{owner});\n')
+    world_code.append(f'assert((uint)lookup=={floor["selected"]}u && lookup==FUN_00448744((uintptr_t)coord,(ushort*){owner}));\n')
+    world_code.append(f'int surface=-123;int expected=floor_original((uintptr_t)coord,{owner},{surface});\n')
+    world_code.append(f'assert(expected=={floor["floor"]});\n')
+    if floor['terrain']:world_code.append(f'assert(surface=={floor["surface"]});\n')
+    world_code.append('surface=-123;\n')
+    world_code.append(f'int actual=FUN_00448a48((uintptr_t)coord,{owner},{surface});assert(actual==expected);\n')
+    if floor['terrain']:world_code.append(f'assert(surface=={floor["surface"]});\n')
+    world_code.append(f'*(ushort*){cell_addr}=0xffff;\n}}\n')
+harness=harness.replace('WORLD_REPLAY',''.join(world_code)).replace('WORLD_COUNT',str(len(world)))
 with tempfile.TemporaryDirectory(prefix='e2-grid-') as tmp:
     c=Path(tmp)/'check.c';exe=Path(tmp)/'check';c.write_text(harness)
     flags=['-fsanitize=address','-fno-omit-frame-pointer'] if args.asan else []
-    subprocess.run([args.cc,'-m32','-O1','-fno-pie','-no-pie',*flags,str(c),'-o',str(exe)],check=True)
+    subprocess.run([args.cc,'-m32','-O1','-fno-pie','-no-pie','-Wno-shift-op-parentheses',*flags,str(c),'-o',str(exe)],check=True)
     if args.keep_harness:
         import shutil
         shutil.copyfile(c,args.keep_harness.with_suffix('.c'));shutil.copy2(exe,args.keep_harness)

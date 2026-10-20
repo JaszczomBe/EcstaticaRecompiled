@@ -1,8 +1,8 @@
 # Recover NPC Spawn Query Inputs
 
-Status: bounded query/range/placement inputs implemented; full activation/loading deferred behind Joe control
+Status: bounded query/range/placement inputs implemented; full activation/loading feeds the next population priority
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
-Last Updated: 2026-10-14
+Last Updated: 2026-10-19
 
 ## Goal
 
@@ -21,6 +21,8 @@ Original `0x44dd24/0x44dd32/0x44dd3f` pass one contiguous local XYZ vector to th
 Full spawn-on loading/activation is not accepted: an intermediate live run reaches an invalid requester rather than a proven NPC instance. `E2R_DEFER_BACKGROUND_SPAWNS=1` now explicitly defers this automatic population leaf for the Joe-first F5 prototype and reports it on screen. Existing script actors and player queries still update. Resume full spawn-on verification after [Task 02 control](task-02-recover-post-intro-placement-and-motion-queries.md).
 
 ## Remaining Action And Verification
+
+The user now confirms practical castle movement, stairs/angled ledges and collisions, while objects/NPCs remain absent. [Task 09](task-09-recover-scene-population-and-interaction.md) coordinates the next bounded population/interaction slice. The Joe-control prerequisite is practically satisfied. Start with the first full spawn-on loading/activation failure, preserving current F5 deferral until the path is proven; scripted switches/doors/pickups require independent resource evidence.
 
 1. Recover the three query calls with a real contiguous vector, retaining updated Y. Compare against original instruction blocks with intercepted query services, including no-floor/no-spawn branches.
 2. Recover `0x44db80`'s actor range, selection and activation identity; prove active-slot skipping and table/flag changes against original instructions. Audit `0x451f5c` and placement/cleanup inputs only when reached.

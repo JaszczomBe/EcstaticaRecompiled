@@ -6,6 +6,7 @@ slide/turn arithmetic, height acceptance and output writes are real production C
 This is bounded query evidence, not real-map collision or gameplay acceptance.
 """
 import argparse
+import json
 from pathlib import Path
 import re
 import struct
@@ -17,7 +18,24 @@ parser.add_argument('exe', type=Path)
 parser.add_argument('--cc', default='clang-21')
 parser.add_argument('--asan', action='store_true')
 parser.add_argument('--keep-harness', type=Path)
+parser.add_argument('--replay', type=Path, action='append', default=[],
+                    help='Replay captured single-actor queries (default: saved courtyard samples)')
 args = parser.parse_args()
+if not args.replay:
+    args.replay=[Path(__file__).with_name('fixtures')/'e2-courtyard-steering.json']
+live=[]
+for path in args.replay:
+    for q in json.loads(path.read_text()):
+        assert q['actor_next']==0 and q['actor_head']==q['floors'][0]['actor'],path
+        assert len(q['floors'])==7 and 'after' in q,path
+        live.append(q)
+live_inputs=[q['position']+[q['facing'],q['radius'],q['slot'],q['flags'],q['ticks'],
+             q['state'],q['gravity'],q['actor_flags']]+q['angles']+q['vector'] for q in live]
+live_floors=[[[*f['coord'],int(bool(f['actor'])),int(f['terrain']),f['floor'],f['surface']]
+              for f in q['floors']] for q in live]
+live_after=[q['after']+[q['after_facing']] for q in live]
+def c_array(value):
+    return '{'+','.join(c_array(v) if isinstance(v,list) else str(v) for v in value)+'}'
 pe = args.exe.read_bytes()
 header = struct.unpack_from('<I', pe, 60)[0]
 sections = struct.unpack_from('<H', pe, header + 6)[0]
@@ -52,6 +70,8 @@ static int IsBadReadPtr(const void *p,unsigned n) { return !p || !n; }
 static int E2R_IsBadWritePtr(void *p,unsigned n) { return !p || !n; }
 static short DAT_0047a34a,DAT_0047a366,DAT_0047a368,DAT_0047a72c;
 static uintptr_t _DAT_0063726c,_DAT_00637378;
+static int replay_mode,replay_index;
+LIVE_ARRAYS
 struct Query { short coord[3]; int actor,terrain; };
 static struct Query trace[8192],expected_trace[8192];
 static int queries,pattern;
@@ -60,6 +80,14 @@ __attribute__((used,noinline)) static int FUN_00448a48(uint coord,int actor,int 
     short *p=(short*)coord;
     struct Query *q=&trace[queries++];
     memcpy(q->coord,p,6);q->actor=actor;q->terrain=terrain!=0;
+    if(replay_mode) {
+        assert(queries<=7);
+        const int *record=live_floors[replay_index][queries-1];
+        for(int i=0;i<3;i++)assert(p[i]==record[i]);
+        assert(actor==(record[3]?0x900000:0) && (terrain!=0)==record[4]);
+        if(terrain)*terrain=record[6];
+        return record[5];
+    }
     if(terrain) *terrain=pattern==7?7:0;
     int i=(queries-1)%7;
     // Perimeter samples cover either side of +/-256 and opposing blockers.
@@ -133,6 +161,19 @@ static void setup(int mode,int seed,int v,int collision) {
     for(int i=0;i<3;i++) *(short*)(0x90008a+i*2)=30000-i;
     memcpy((void*)0x906000,vectors[v],6);
 }
+static void setup_live(int index) {
+    setup(0,0,0,0);
+    const int *p=live_inputs[index];
+    for(int i=0;i<3;i++)*(short*)(0x900084+i*2)=p[i];
+    *(short*)0x900092=p[3];*(short*)0x90009a=p[4];*(short*)0x900096=p[5];
+    *(byte*)0x900146=p[6];_DAT_00637378=*(int*)0x637378=p[7];
+    *(short*)0x900082=p[8];*(short*)0x90005a=p[9];*(byte*)0x900003=p[10];
+    *(short*)0x900090=p[11];*(short*)0x900094=p[12];
+    for(int i=0;i<3;i++)*(short*)(0x906000+i*2)=p[13+i];
+    _DAT_0063726c=*(int*)0x63726c=0x900000;*(int*)0x90004c=0;
+    E2R_ApplyEulerMatrix((short*)0x9000c6,(short*)0x900090);
+    replay_index=index;
+}
 int main(void) {
     map(0x420000,0x10000);map(0x430000,0x10000);map(0x440000,0x10000);
     map(0x470000,0x10000);map(0x590000,0x80000);map(0x630000,0x10000);map(0x900000,0x10000);
@@ -182,9 +223,23 @@ harness += r'''
         }
         query_cases++;
     }
-    printf("PASS: %u original-i386 polar output cases and %u split/query actor/height/obstacle cases (floor service intercepted)\n",polar_cases,query_cases);
+    replay_mode=1;
+    for(int i=0;i<LIVE_COUNT;i++) {
+        setup_live(i);original_query(0x448cb4);
+        assert(queries==7);
+        for(int j=0;j<3;j++)assert(*(short*)(0x900084+j*2)==live_after[i][j]);
+        assert(*(short*)0x900092==live_after[i][3]);
+        memcpy(expected,(void*)0x900000,sizeof expected);
+        setup_live(i);FUN_00448cb4(0x900000,(short*)0x906000);
+        assert(queries==7 && !memcmp(expected,(void*)0x900000,sizeof expected));
+    }
+    printf("PASS: %u original-i386 polar output cases and %u split/query actor/height/obstacle cases; %u recorded courtyard replays (floor service intercepted)\n",polar_cases,query_cases,LIVE_COUNT);
 }
 '''
+harness=harness.replace('LIVE_ARRAYS',
+    'static const int live_inputs[][16]='+c_array(live_inputs or [[0]*16])+';\n'+
+    'static const int live_floors[][7][7]='+c_array(live_floors or [[[0]*7]*7])+';\n'+
+    'static const int live_after[][4]='+c_array(live_after or [[0]*4])+';\n').replace('LIVE_COUNT',str(len(live)))
 with tempfile.TemporaryDirectory(prefix='e2-motion-query-') as tmp:
     c=Path(tmp)/'check.c';exe=Path(tmp)/'check';c.write_text(harness)
     if args.keep_harness:args.keep_harness.write_text(harness)

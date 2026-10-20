@@ -27,11 +27,17 @@ parser.add_argument('--sdl-events', action='store_true',
                     help='Send SDL keyboard events through the real backend pump')
 parser.add_argument('--camera-round-trip', action='store_true',
                     help='Try SDL Up, then Down if needed, to cross into camera 166 and reverse to the pedestal')
+parser.add_argument('--trace-queries', type=int, default=0,
+                    help='Record this many motion queries with real floor/descriptor inputs for original-code replay')
+parser.add_argument('--observe-seconds', type=int, default=0,
+                    help='Observe released input for this many seconds after completing the route')
 args = parser.parse_args()
 if args.frames < 1 or args.timeout < 1:
     parser.error('frames and timeout must be positive')
 if args.camera_round_trip and args.turn_forward:
     parser.error('--camera-round-trip and --turn-forward are separate routes')
+if args.trace_queries < 0 or args.observe_seconds < 0:
+    parser.error('query count and observation seconds must be nonnegative')
 prefix = str(args.output.resolve())
 Path(prefix).parent.mkdir(parents=True, exist_ok=True)
 env = os.environ.copy()
@@ -44,11 +50,13 @@ commands = r'''
 set pagination off
 set confirm off
 python
-import gdb,json
+import gdb,json,time
 prefix=PREFIX
 frames=FRAMES
 use_sdl=SDL_EVENTS
 camera_route=CAMERA_ROUTE
+query_limit=QUERY_LIMIT
+observe_seconds=OBSERVE_SECONDS
 value=lambda expression:int(gdb.parse_and_eval(expression))
 def require(condition,message):
     if not condition:raise gdb.GdbError(message)
@@ -131,6 +139,63 @@ def checkpoint(label):
 advance(3)
 checkpoint('before')
 turn_calls=[]
+queries=[]
+active_query=None
+class QueryEnd(gdb.FinishBreakpoint):
+    def __init__(self,entry):
+        super().__init__(internal=True);self.entry=entry
+    def stop(self):
+        global active_query
+        self.entry['after']=[field(0x84+i*2) for i in range(3)]
+        self.entry['after_facing']=field(0x92)
+        active_query=None
+        with open(prefix+'-queries.json','w') as out:json.dump(queries,out,indent=2)
+        return False
+class QueryStart(gdb.Breakpoint):
+    def stop(self):
+        global active_query
+        if len(queries)>=query_limit or value('param_1')!=actor:return False
+        vector=value('param_2')
+        active_query=dict(position=[field(0x84+i*2) for i in range(3)],facing=field(0x92),
+                          radius=field(0x9a),slot=field(0x96),flags=field(0x146,'unsigned char'),
+                          vector=[value(f'*(short*)({vector}+{i*2})') for i in range(3)],
+                          ticks=value('_DAT_00637378'),state=field(0x82),gravity=field(0x5a),
+                          actor_flags=field(3,'unsigned char'),angles=[field(0x90),field(0x94)],
+                          actor_head=value('_DAT_0063726c'),actor_next=field(0x4c,'unsigned int'),floors=[])
+        queries.append(active_query);QueryEnd(active_query)
+        return False
+class FloorEnd(gdb.FinishBreakpoint):
+    def __init__(self,entry,surface):
+        super().__init__(internal=True);self.entry=entry;self.surface=surface
+    def stop(self):
+        self.entry['floor']=int(self.return_value)
+        self.entry['surface']=value(f'*(int*){self.surface}') if self.surface else -1
+        return False
+class FloorStart(gdb.Breakpoint):
+    def stop(self):
+        if active_query is None:return False
+        coord=value('param_1');owner=value('param_2');surface=value('surface_id')
+        position=[value(f'*(short*)({coord}+{i*2})') for i in range(3)]
+        cell=value(f'*(unsigned short*)({0x684d68}+{((position[0]>>9)+64)*2+((position[2]>>9)+64)*256})')
+        chain=[]
+        if cell!=0xffff:
+            for i in range(256):
+                record=list(bytes(gdb.selected_inferior().read_memory(0x68cd68+(cell+i)*12,12)))
+                chain.append(record)
+                if record[3]&0x80:break
+            else:raise gdb.GdbError('Unterminated terrain descriptor chain')
+        selected=value(f'(unsigned int)FUN_00448744({coord},(ushort*){owner})')
+        terrain_flags=0
+        if selected!=0xffffffff:
+            terrain=value(f'*(signed char*)({0x68cd68}+{selected}*12+6)')
+            terrain_flags=value(f'*(unsigned char*)({0x636624}+{terrain}*2)')
+        entry=dict(coord=position,actor=owner,terrain=bool(surface),cell=cell,descriptors=chain,
+                   shift=value('DAT_0047a738'),terrain_flags=terrain_flags,selected=selected)
+        active_query['floors'].append(entry);FloorEnd(entry,surface)
+        return False
+if query_limit:
+    query_bp=QueryStart('FUN_00448cb4',internal=True)
+    floor_bp=FloorStart('FUN_00448a48',internal=True)
 if camera_route:
     require(observe_camera()==175,'Missing pedestal camera at readiness')
     # Debug and ASan can take different obstacle-steering paths. Record the
@@ -182,10 +247,23 @@ else:
     for name,vk in [('up',0x26),('down',0x28),('left',0x25),('right',0x27)]:
         key(vk,True);advance(frames);checkpoint(name+'-pressed')
         key(vk,False);advance(frames);checkpoint(name+'-released')
+if query_limit:
+    query_bp.delete();floor_bp.delete()
+    require(len(queries)>0,'No motion queries were recorded')
+observed_seconds=0
+if observe_seconds:
+    started=time.monotonic()
+    while time.monotonic()-started<observe_seconds:
+        advance(30)
+        observe_camera()
+    observed_seconds=time.monotonic()-started
+    checkpoint('observed-released')
+    require(all(held==0 for held in states[-1]['held_keys'].values()),'Observation left a key held')
 report=dict(probe_complete=True,frames_per_phase=frames,states=states,
             combined_turn=TURN_FORWARD,move_key=MOVE_KEY,turn_calls=turn_calls,
             sdl_events=use_sdl,release_turn_first=RELEASE_TURN,
             camera_round_trip=camera_route,camera_samples=camera_samples,
+            recorded_queries=len(queries),observed_seconds=observed_seconds,
             position_changed=any(s['position']!=states[0]['position'] for s in states[1:]),
             facing_changed=any(s['facing']!=states[0]['facing'] for s in states[1:]),
             gameplay_acceptance=False)
@@ -197,7 +275,8 @@ quit
 '''.replace('PREFIX', json.dumps(prefix)).replace('FRAMES', str(args.frames)).replace(
     'PROCESS_SECONDS', str(args.timeout + 10)).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
     'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip)).replace(
-    'RELEASE_TURN',repr(args.release_turn_first)).replace('CAMERA_ROUTE',repr(args.camera_round_trip))
+    'RELEASE_TURN',repr(args.release_turn_first)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(
+    'QUERY_LIMIT',str(args.trace_queries)).replace('OBSERVE_SECONDS',str(args.observe_seconds))
 with tempfile.TemporaryDirectory(prefix='e2-player-motion-') as tmp:
     script = Path(tmp) / 'probe.gdb'
     script.write_text(commands)
@@ -221,4 +300,8 @@ with tempfile.TemporaryDirectory(prefix='e2-player-motion-') as tmp:
               f"progress={state['progress']} slot={state['previous_slot']}")
     print(f"Probe complete: position_changed={report['position_changed']} "
           f"facing_changed={report['facing_changed']}; gameplay acceptance remains open")
+    if report['recorded_queries']:
+        print(f"Recorded motion queries: {report['recorded_queries']} ({prefix}-queries.json)")
+    if report['observed_seconds']:
+        print(f"Released-input observation after route: {report['observed_seconds']:.2f} seconds")
     print(f'Evidence: {prefix}.json, {prefix}.log and per-phase visibility packets')
