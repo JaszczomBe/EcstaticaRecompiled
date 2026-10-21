@@ -3,7 +3,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-10-19
+Last Updated: 2026-10-20
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -97,6 +97,14 @@ The [manual castle exploration report](../../journal/entries/manual-castle-explo
 The [intro-skip parser continuation](../../journal/entries/intro-skip-fan-ownership-2026-10-19.md) repairs FAN record selection during action callbacks, scene argument ownership and actor finalizer write widths. Space skips at distinct horseback action checkpoints retain both guards and reach release in Debug/ASan. The exact user-reported launch crash has not reproduced in local runtime comparisons; the ownership failure and corrected writes have original-code fixture coverage.
 
 The [general-population continuation](../../journal/entries/general-population-and-direction-audit-2026-10-19.md) supersedes the retained F5 deferral and spawn-event failure: F5 now sets `E2R_DEFER_BACKGROUND_SPAWNS=0`. Original scheduler/event loads scope global archive identity without enabling the old population probe at startup. Generic NPCs and a secondary splash resource activate; populated Debug/ASan camera round trips and released-input observations pass. The user confirms pedestal guard wandering but reports a new immediate post-release direction/arrow regression. Local combined-input replays do not reproduce it; that report remains open alongside general object interaction, combat, articulated collision and full experimental ASan acceptance.
+
+The [2026-10-20 direction continuation](../../journal/entries/direction-modifier-release-2026-10-20.md) reproduces a matching Up+Left/YROT freeze after released Shift/Alt flags remain set in the compatibility bridge. Modifier release now clears those flags; deterministic Debug/ASan and native Wayland ASan replays turn, and the user reports no freezes anymore. A longer native Debug run later fails in the NPC pose-event path `0x42faf8 → 0x424318`. That event handoff, broader interactions and full experimental ASan remain open. F12 packets now retain yaw, matrices and held-arrow bytes for physical reports.
+
+The [early-Space population continuation](../../journal/entries/early-intro-skip-population-2026-10-20.md) reproduces why F5 can still show only the pedestal pair: an early skip omitted `dav:skipsc`'s population-enable opcode. The recovered skip now dispatches that original script, restoring extra actors at release with the existing launch flags. Bounded ASan population passes; Debug later fails in the IK node-pose path `0x42f9c0 → 0x424318 → 0x423674`. Stable early-skip populated Debug exploration and full experimental ASan remain open.
+
+The [NPC pose continuation](../../journal/entries/npc-pose-chain-recovery-2026-10-20.md) closes the early-Space endpoint/IK failure and recovers event-node/pose-owner handoffs. Original-code pose/table fixtures, four builds, independent generator parity and baselines pass. Populated Debug/ASan round trips plus 60-second observations pass, with continuing NPC activity. Native scripted camera steering retains a route limit. [Task 09](steps/step-09/tasks/task-09-recover-scene-population-and-interaction.md) next owns one original object interaction; full experimental ASan and broader combat/model fidelity remain unaccepted.
+
+The [stables crash continuation](../../journal/entries/stables-node-hit-query-2026-10-20.md) repairs missing X/Z and distinct output pointers in `0x42efdc → 0x427160`, plus its adjacent facing vector. Original-code contact/filter fixtures pass normally/ASan; the recorded courtyard checks do not replace manual camera-177 re-entry. Horse presence, scripted/weapon contacts and full experimental ASan remain open.
 
 ## Original-Game Reference — 2026-10-14
 

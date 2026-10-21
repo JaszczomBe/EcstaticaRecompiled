@@ -1,8 +1,8 @@
 # Enable Diagnostic Gameplay With Cylinder Actors
 
-Status: active; generic population enabled; new direction report and object interactions remain open
+Status: active; stables hit-query inputs repaired; manual stable re-entry and object interactions remain open
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-10-19
+Last Updated: 2026-10-20
 
 ## Goal
 
@@ -48,6 +48,10 @@ The [courtyard-camera continuation](../../../../journal/entries/courtyard-camera
 The [live steering audit](../../../../journal/entries/courtyard-steering-audit-2026-10-19.md) closes Task 07's captured first-turn family without a gameplay change. Original code reproduces 128 query outcomes and 896 real floor responses; the different Debug/ASan time/vector inputs explain their different captured obstacle turns. Saved samples make this repeatable. Both builds complete a camera round trip and another 60 seconds of released-input observation with stable Joe state and no sanitizer error. Task 02 retains explicit stairs/walls/blocked-boundary behavior, wider active exploration and full experimental ASan acceptance. This does not establish 60 seconds of continuous walking.
 
 The subsequent [manual castle report](../../../../journal/entries/manual-castle-exploration-2026-10-19.md) confirms several stairs, angled ledges, collisions and extended free exploration without problems. The user reports no switches, doors, traps, enemies or pickups. [Task 09](tasks/task-09-recover-scene-population-and-interaction.md) now prioritizes original population and interaction, drawing on Task 04's spawn contracts and Step 08's scene-child activation work. F5 still explicitly defers automatic population; that does not explain every missing scripted object. Keep cylinders and recover one original instance/behavior before models or broad activation. Exhaustive physics and full experimental ASan acceptance remain open, but further locomotion investigation need not block this next slice.
+
+The [NPC pose continuation](../../../../journal/entries/npc-pose-chain-recovery-2026-10-20.md) restores explicit endpoint/root/IK and event-node pose ownership, including the missing original inverse-sine table. Original-code comparisons pass normally/ASan. Early-Space populated Debug/ASan courtyard round trips and 60-second observations pass; generated NPCs continue changing position/state. A native scripted camera route can still miss its target. Task 09 now proceeds to one source-confirmed object interaction; broader combat, articulated collision and full experimental ASan remain open.
+
+The [stables hit-query continuation](../../../../journal/entries/stables-node-hit-query-2026-10-20.md) repairs the user's camera-177 polar-output crash and the next lost facing coordinate. Original-code comparisons cover 16,384 proximity/filter/direct-contact cases normally/ASan. Preserve the distinction between this contract recovery, populated courtyard regression and exact manual stable re-entry; general combat, horse presence and full experimental ASan remain open.
 
 ## Implemented Slice — 2026-10-14
 
@@ -157,3 +161,9 @@ Recovered root-pose matrix and previous-position destinations from the watched A
 [Task 09's continuation](../../../../journal/entries/general-population-and-direction-audit-2026-10-19.md) recovers original spawn-event node/actor/action ownership, required root/FK transforms and queued-action consumption. Generic spawning is enabled in F5 with no enemy whitelist. Populated Debug and ASan camera round trips now pass; original-code fixtures and baseline checks pass. This supersedes the earlier F5-deferral/F9c0 failure statements above.
 
 The user confirms the fixed pedestal pair wanders, but reports Joe moving away from the arrow and simultaneous Up+Left freezing it immediately after release. Frame-stepped and normal-speed replays do not reproduce that failure. Keep it open; do not reuse earlier manual locomotion acceptance to dismiss it. Scripted-object interactions, wider NPC actions/combat, articulated collision and full experimental ASan remain unaccepted.
+
+## Modifier Freeze Reproduction And Release Repair — 2026-10-20
+
+The [modifier-release continuation](../../../../journal/entries/direction-modifier-release-2026-10-20.md) reproduces a matching Up+Left/YROT freeze after released desktop modifiers remain logically held. The compatibility bridge now clears those flags on key-up. Deterministic Debug/ASan and bounded native Wayland routes turn and release, and the user reports no freezes anymore. A longer native Debug route later crashes in an NPC pose event (`0x42faf8 → 0x424318`); its original actor/node handoff is the next bounded population frontier. Full directional fidelity, object interactions and full experimental ASan remain unaccepted.
+
+The [early-intro-skip continuation](../../../../journal/entries/early-intro-skip-population-2026-10-20.md) explains the user's remaining F5-only pedestal pair: the Space shortcut omitted the original skip script's population-enable operation. The recovered route now dispatches `dav:skipsc`; both guards and terrain actors appear after an early skip. Bounded ASan population passes, but Debug reaches the unrecovered IK node helper `0x423674` through `0x42f9c0 → 0x424318`. Stable populated early-skip exploration and full experimental ASan remain unaccepted.

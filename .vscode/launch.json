@@ -13,6 +13,10 @@
       "cwd": "${command:cmake.getLaunchTargetDirectory}",
       "environment": [
         {
+          "name": "E2R_STARTUP_LOGO_DELAY_MS",
+          "value": "0"
+        },
+        {
           "name": "E2R_ACTOR_CYLINDERS",
           "value": "1"
         },

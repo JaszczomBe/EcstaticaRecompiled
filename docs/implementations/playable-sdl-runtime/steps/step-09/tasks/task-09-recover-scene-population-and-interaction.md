@@ -1,31 +1,36 @@
 # Recover Scene Population And Interaction
 
-Status: in progress; generic F5 population enabled; direction report and wider interaction open
+Status: in progress; stables hit-query inputs repaired; manual stable re-entry and object interactions remain open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
-Last Updated: 2026-10-19
+Last Updated: 2026-10-20
 
 ## Goal
 
 Restore original scene objects and NPCs needed for exploration and basic interaction while retaining cylinder presentation and Joe's working movement/camera transitions. Begin with one verified original resource and behavior; original models and full combat remain later work.
 
-## Current Continuation — Generic Spawns And Direction Report
+## Current Continuation — NPC Poses And Object Interaction
 
 The user confirms the two pedestal guards wander after intro 2. [General population and direction audit](../../../../../journal/entries/general-population-and-direction-audit-2026-10-19.md) now recovers the first `0x42f9c0` spawn event and queued-action failure, including root/FK pose and angle conversion inputs. Correct archive identity is scoped to original scheduler/event loads. F5 sets `E2R_DEFER_BACKGROUND_SPAWNS=0`, with no population-probe flag or per-enemy whitelist. Populated Debug/ASan 175→166→175 routes and released-input observations pass. Earlier deferral, opt-in-only and failed-return statements below describe the prior slice.
 
-The user's new immediate post-release direction/arrow failure remains unresolved: combined Up+Left replays, including normal-speed bursts, update yaw/matrices and displacement locally. Keep physical F5 confirmation/reproduction open. General object interactions, broader enemy actions/combat and full experimental ASan are still unaccepted.
+The [2026-10-20 modifier-release continuation](../../../../../journal/entries/direction-modifier-release-2026-10-20.md) reproduces a matching immediate Up+Left freeze after released desktop modifiers remain logically held. YROT also freezes. The compatibility key-up repair clears those flags; deterministic Debug/ASan and native Wayland ASan replays turn again, and the user reports no freezes anymore. The longer native Debug route later fails in an NPC pose event (`0x42faf8 → 0x424318`), whose node/pose handoff is recovered by the NPC pose continuation below. General object interactions, broader enemy actions/combat, complete directional fidelity and full experimental ASan remain unaccepted.
+
+The [NPC pose continuation](../../../../../journal/entries/npc-pose-chain-recovery-2026-10-20.md) recovers endpoint/root/IK inputs and the node-chain event's pose owner from original instructions. Original x87 table initialization, endpoint/IK/attachment memory comparisons and event handoffs pass normally/ASan. The prior early-Space Debug spawn frontier is crossed; populated Debug/ASan round trips and 60-second observations pass. Native scripted camera steering retains a route limit; wider combat/interaction and full experimental ASan remain open.
+
+The [stables crash continuation](../../../../../journal/entries/stables-node-hit-query-2026-10-20.md) follows the user's camera-177 report at `0x427160 ← 0x42efdc ← 0x42faf8`. The hit-query caller now retains X/Z and separate polar outputs; the adjacent owner-to-target facing vector also has both coordinates. Normal/ASan original-code comparisons cover 16,384 filter/contact cases. Exact manual stable re-entry, horse presence and broader scripted/weapon contacts remain separate acceptance.
 
 ## Evidence And Dependencies
+
+The [early-Space continuation](../../../../../journal/entries/early-intro-skip-population-2026-10-20.md) reproduces the user's remaining F5 population difference: an early skip leaves the original script population gate set even with the correct launch flags. Space now dispatches the original `dav:skipsc` script, including its population-enable opcode. Additional actors appear at release and the bounded ASan census passes. Debug then reached `0x42f9c0 → 0x424318 → 0x423674` in an unrecovered IK branch. The NPC pose continuation above supersedes that failed exploration result and recovers this node/root/IK family plus the preceding node-chain event pose handoff. Broader interactions remain the next bounded work.
 
 The [manual castle report](../../../../../journal/entries/manual-castle-exploration-2026-10-19.md) confirms practical stairs, angled ledges, collisions and extended free movement, but no switches, doors, traps, enemies or pickups. The existing F5 launch explicitly defers automatic background population. [Task 04](task-04-recover-npc-spawn-query-inputs.md) recovers its bounded inputs; full loading/activation remains unresolved. [Step 08 Task 03](../../step-08/tasks/task-03-activate-scene-backed-children.md) owns original scene-child identities and activation.
 
 Automatic NPC population and scripted objects are separate paths. An empty cylinder overlay alone does not prove no interaction state exists. Establish resource identity, live instance/scene membership and presentation eligibility before classifying each missing category. Do not infer script resources from camera slots or manufacture the reference creatures/objects.
 
-## First Bounded Action
+## Next Bounded Action
 
-1. Capture an actor/scene-child census after release and at a known castle object location. Inspect loaded instances, active/update lists, flags, representation and diagnostic drawing eligibility. Distinguish loading/activation failure from omitted presentation or script/dynamic-background state.
-2. In a separate bounded probe, turn off only background-spawn deferral. Trace `0x44dca4 → 0x44db80 → 0x451f5c` and the first required resource/query/activation failure. Preserve the everyday F5 flags until that path is stable.
-3. Trace script-owned scene activation independently through `0x452140`, `0x4523f8` and `0x4533ac` as required. Choose one original object/NPC whose identity and source path are established; repair its first proven contract rather than enabling unrelated resources.
-4. Mirror reconstructed repairs in GenerateRecon.js, add focused original-code comparisons, regenerate with four-artifact parity and verify the required Debug/ASan route plus baseline regressions.
+1. Choose one original scripted object at a known castle location. Capture its archive identity, live instance, scene-child/script ownership, flags and cylinder/presentation eligibility before classifying it as missing.
+2. Trace the first required activation or player-interaction contract through the original instructions. Repair that contract and demonstrate one expected interaction, retaining generic NPC updates and Joe's movement.
+3. Mirror the repair in `GenerateRecon.js`, add a focused original-code comparison and rerun populated Debug/ASan crossing/return plus the existing baseline regressions. Keep combat, full models and broad category coverage separate.
 
 ## Acceptance And Limits
 

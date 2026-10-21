@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Compare recovered spawn-event ownership and matrix angles with original i386.
+"""Compare recovered NPC poses, spawn ownership and matrix angles with original i386.
 
-Resource loading, posing and activation are intercepted for the event contract;
-angle decomposition executes original matrix/angle instructions directly.
+Endpoint/IK/attached-root poses execute against original instructions. Resource
+loading, posing and activation are intercepted only for event contract checks.
 """
 import argparse
 from pathlib import Path
@@ -24,6 +24,7 @@ c=r'''
 #include <assert.h>
 #include <math.h>
 #include <sys/mman.h>
+static void FUN_00426f84(void) {abort();}
 typedef uint8_t byte,undefined1;typedef uint16_t ushort,undefined2;typedef uint32_t uint,undefined4;
 #define __fastcall
 static int E2R_actor_calc_context,E2R_actor_load_id_override;
@@ -37,7 +38,7 @@ __attribute__((used,noinline)) static void record(int x,int y,int z,int w,int le
 }
 #define HOOK(name,leaf) __attribute__((naked)) static void name(void) { \
  __asm__("pushal; push $" #leaf "; push %ecx; push %ebx; push %edx; push %eax; call record; add $20,%esp; popal; ret"); }
-HOOK(free_hook,8) HOOK(pose_hook,1) HOOK(reset_hook,2) HOOK(load_hook,3) HOOK(action_hook,4) HOOK(copy_hook,5) HOOK(activate_hook,6) HOOK(angles_hook,7)
+HOOK(node_query_hook,9) HOOK(bones_hook,10) HOOK(free_hook,8) HOOK(pose_hook,1) HOOK(reset_hook,2) HOOK(load_hook,3) HOOK(action_hook,4) HOOK(copy_hook,5) HOOK(activate_hook,6) HOOK(angles_hook,7)
 static void FUN_00424318(void){record(E2R_actor_calc_context,0,0,0,1);}
 static void FUN_00420c10(int actor){record(actor,0,0,0,2);}
 static void E2R_LoadPopulationActor(int id){record(id,0,0,0,3);}
@@ -50,15 +51,11 @@ static int E2R_IsBadWritePtr(void *p,int n){return !p;}
 '''
 for f in ['E2R_SetIdentityMatrix','FUN_00422368','FUN_00422460','FUN_00422538','E2R_ApplyEulerMatrix','E2R_TransformVector14','E2R_PolygonAngle16','FUN_0042d46c','FUN_0045186c']:
  c+=function(f)+'\n'
-# Exercise the production root/FK branch; attachment and IK branches remain outside this fixture.
-pose=function('FUN_00424318').replace('FUN_00424318(void)','native_pose(void)').replace('undefined4 native_pose','void native_pose')
-a0=pose.index('  else {\n    FUN_00420ec4')
-a1=pose.index('  sVar2 = 0;',a0)
-pose=pose[:a0]+'  else { abort(); }\n'+pose[a1:]
-a0=pose.index('    else {\n      iVar5 = *(int *)(iVar8 + 0x1e);')
-a1=pose.index('    local_34 = *(int *)(local_34 + 0x48);',a0)
-pose=pose[:a0]+'    else { abort(); }\n'+pose[a1:]
-c+=pose+'\n'
+# Exercise the complete production reverse-chain pose, including endpoint/IK and attachment.
+c+='static short E2R_PoseAsin14(short ratio);\n'
+for f in ['E2R_RotatePolygonNormal','E2R_PoseAsin14','FUN_00423674','FUN_00424164','FUN_00420ec4']:
+ c+=function(f)+'\n'
+c+=function('FUN_00424318').replace('FUN_00424318(void)','native_pose(void)').replace('undefined4 native_pose','void native_pose')+'\n'
 # Extract the repaired queued-action completion block itself, including list advancement.
 start=s.index('    /* Original 0x427ade retains the actor')
 end=s.index('  E2R_TraceActorUpdateStage("27584.before-idle-test"',start)
@@ -70,12 +67,22 @@ static void native_queue(short *local_6c,uint uVar25) {
  int extraout_EDX_01,extraout_EDX_02=0,extraout_var=0,extraout_var_00=0;
  uint uVar16;ushort uVar12;
 """+queue+'\n}\n'
+c+='static void FUN_0042efdc(int node) {record(node,0,0,0,9); }\nstatic void FUN_00423858(int actor,int mode) {record(actor,mode,0,0,10); }\n'
+c+=function('FUN_0042faf8')+'\n'
 c+='#define FUN_0042d46c fake_angles\n'+function('FUN_0042f9c0')+'\n#undef FUN_0042d46c\n'
-ranges=[(0x427ade,0x427b50),(0x424318,0x424860),(0x45de8b,0x45df0e),(0x42f9c0,0x42faf8),(0x45186c,0x451880),(0x422330,0x422628),(0x42274c,0x4228b8),(0x4228b8,0x422aa0),(0x42d46c,0x42d554),(0x432c64,0x432de4),(0x45dd04,0x45de8b)]
+ranges=[(0x4154ff,0x415553),(0x45f556,0x45f573),(0x42faf8,0x42fc0a),(0x427ade,0x427b50),(0x424318,0x424860),(0x45de8b,0x45df0e),(0x42f9c0,0x42faf8),(0x45186c,0x451880),(0x422330,0x422704),(0x423674,0x423858),(0x424164,0x424318),(0x420ec4,0x421074),(0x432de4,0x432e08),(0x42274c,0x4228b8),(0x4228b8,0x422aa0),(0x42d46c,0x42d554),(0x432c64,0x432de4),(0x45dd04,0x45de8b)]
 for start,end in ranges:c+=f'static const byte code_{start:x}[]={{'+','.join(map(str,original(start,end)))+'};\n'
 c+=r'''
 static void map(int at,int size){assert(mmap((void*)at,size,7,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)!=MAP_FAILED);}
 static void hook(int at,void *fn){*(byte*)at=0xe9;*(int*)(at+1)=(int)fn-at-5;}
+// The only replacement in the original table initializer is its CRT asin.
+// Keep the original x87 arithmetic, truncation helper, indices and stores.
+__attribute__((naked)) static void asin_hook(void){
+ __asm__("pushal; sub $16,%esp; fstpl (%esp); call asin; add $16,%esp; popal; ret");
+}
+__attribute__((naked)) static void run_asin_init(void){
+ __asm__("pushal; sub $56,%esp; mov $0x4154ff,%eax; call *%eax; add $56,%esp; popal; ret");
+}
 static int orientation;
 static void run_spawn(int node,int id,int action,int independent){
  __asm__ volatile("push orientation; call *%%edi" : "+a"(node),"+d"(id),"+b"(action),"+c"(independent):"D"(0x42f9c0):"memory","cc");
@@ -88,6 +95,18 @@ __attribute__((naked)) static void run_queue(int actor,int kind){
 }
 static void run_pose(int actor){
  __asm__ volatile("call *%%edi" : "+a"(actor):"D"(0x424318):"ebx","ecx","edx","memory","cc");
+}
+static void run_chain(int node){
+ int unused=17;
+ __asm__ volatile("call *%%edi" : "+a"(node),"+d"(unused):"D"(0x42faf8):"ebx","ecx","memory","cc");
+}
+static void run_node(int node){
+ __asm__ volatile("call *%%edi" : "+a"(node):"D"(0x423674):"ebx","ecx","edx","memory","cc");
+}
+static void compare_pose(byte *expected,int seed,const char *kind){
+ for(int i=0;i<0x1000;i++)if(expected[i]!=*(byte*)(0x900000+i)){
+  fprintf(stderr,"%s mismatch seed=%d offset=%x original=%02x recovered=%02x\n",kind,seed,i,expected[i],*(byte*)(0x900000+i));abort();
+ }
 }
 static void setup(int attachment,int missing,int seed){
  memset((void*)0x900000,0,0x10000);memset(trace,0,sizeof trace);calls=0;
@@ -102,10 +121,19 @@ static void setup(int attachment,int missing,int seed){
  *(byte*)0x902146=seed*53;*(short*)0x90218a=-1;
 }
 int main(void){
- map(0x420000,0x20000);map(0x450000,0x20000);map(0x590000,0x80000);map(0x620000,0x30000);map(0x900000,0x10000);
+ map(0x410000,0x10000);map(0x470000,0x2000);map(0x420000,0x20000);map(0x450000,0x20000);map(0x580000,0x90000);map(0x620000,0x30000);map(0x900000,0x10000);
 '''
 for start,end in ranges:c+=f'memcpy((void*)0x{start:x},code_{start:x},sizeof code_{start:x});\n'
+table_loop=re.search(r'  for \(x = -16384; x < 16384; \+\+x\)\n    \*\(short \*\).*?;',function('FUN_00414f40'),re.S).group()
 c+=r'''
+ *(byte*)0x415553=0xc3;hook(0x45f574,asin_hook);
+ *(double*)0x471391=0.00006103515625;*(double*)0x4713a9=10430.38716064159;
+ run_asin_init();
+ short expected_asin[32768];memcpy(expected_asin,(void*)0x58b590,sizeof expected_asin);
+ memset((void*)0x58b590,0,sizeof expected_asin);
+ int x;
+'''+table_loop+r'''
+ assert(!memcmp(expected_asin,(void*)0x58b590,sizeof expected_asin));
  for(int i=0;i<65536;i++) {*(short*)(0x59b590+i*2)=lrint(sin(i*6.283185307179586/65536)*16384);*(short*)(0x5de590+i*2)=lrint(cos(i*6.283185307179586/65536)*16384);}
  for(int i=0;i<256;i++){*(byte*)(0x5fe990+i)=atan(i*0.015625)*64*2*0.3183101550488765+0.5;*(byte*)(0x5fe890+i)=atan(i*0.25)*64*2*0.3183101550488765+0.5;}
  *(byte*)0x427b50=0xc3;hook(0x4538b8,free_hook);
@@ -134,11 +162,95 @@ c+=r'''
     *(short*)(initial+j*0x200+0x2c+k*2)=seed*379+j*731+k*137;
     *(short*)(initial+j*0x200+0x6e +k*2)=seed*701+j*173+k*293;
    }
-   if(j)E2R_ApplyEulerMatrix((short*)(initial+j*0x200+0xec),angles);
+   if(j) { E2R_ApplyEulerMatrix((short*)0x908400,angles);memcpy(initial+j*0x200+0xec,(void*)0x908400,18); }
   }
   memcpy((void*)0x900000,initial,sizeof initial);run_pose(0x900000);memcpy(pose_expected,(void*)0x900000,sizeof initial);
   memcpy((void*)0x900000,initial,sizeof initial);E2R_actor_calc_context=0x900000;native_pose();
   if(memcmp(pose_expected,(void*)0x900000,sizeof initial)){fprintf(stderr,"FK mismatch seed=%d\n",seed);abort();}
+ }
+ // Exercise each endpoint coordinate basis, frozen nodes and Euler/tip outputs.
+ for(int seed=0;seed<4096;seed++) {
+  static byte initial[0x1000];memset(initial,0,sizeof initial);
+  memcpy((void*)0x900000,initial,sizeof initial);
+  *(int*)0x900022=0x900800;
+  *(byte*)0x900003=(seed%4==0?1:seed%4==1?0:seed%4==2?2:0x42);
+  for(int i=0;i<3;i++) {
+   *(short*)(0x900110+i*2)=seed*1973+i*337;
+   *(short*)(0x900026+i*2)=seed*7919+i*1237;
+   *(short*)(0x90006e +i*2)=seed*913+i*797;
+   *(short*)(0x900884+i*2)=seed*37%4096+i*337;
+   *(short*)(0x90088a+i*2)=seed*17%2048+i*173;
+   *(short*)(0x908300+i*2)=seed*10457+i*3127;
+  }
+  E2R_ApplyEulerMatrix((short*)0x900806,(short*)0x908300);
+  E2R_ApplyEulerMatrix((short*)0x9008c6,(short*)0x900026);
+  memcpy(initial,(void*)0x900000,sizeof initial);
+  run_node(0x900000);memcpy(pose_expected,(void*)0x900000,sizeof initial);
+  memcpy((void*)0x900000,initial,sizeof initial);FUN_00423674(0x900000);
+  compare_pose(pose_expected,seed,"endpoint");
+ }
+ // Two-link reverse chains: all endpoint bases, zero distance/segment lengths,
+ // alternate matrices, endpoint roll alignment, and reverse-link skip patterns.
+ for(int seed=0;seed<8192;seed++) {
+  static byte initial[0x1000];memset((void*)0x900000,0,sizeof initial);
+  int root=0x900000,node=0x900200,middle=0x900400,endpoint=0x900600;
+  *(short*)(root+4)=7;*(int*)(root+0x48)=node;
+  *(int*)(node+0x22)=root;*(int*)(middle+0x22)=root;*(int*)(endpoint+0x22)=root;
+  *(int*)(node+0x1e)=middle;*(int*)(middle+0x1e)=endpoint;
+  *(int*)(node+0x48)=seed%3?middle:0;
+  *(int*)(middle+0x48)=seed%2?endpoint:0;
+  *(short*)(middle+4)=seed%2?4:3;
+  *(byte*)(node+2)=0x20|(seed%2?0x80:0)|(seed%5?0:0x10);
+  *(byte*)(middle+2)=seed%3?0:0x10;
+  *(byte*)(endpoint+3)=seed%4==0?1:seed%4==1?0:seed%4==2?2:0x42;
+  for(int i=0;i<3;i++) {
+   *(short*)(root+0x84+i*2)=seed*37%4096+i*337;
+   *(short*)(root+0x8a+i*2)=seed*17%2048+i*173;
+   *(short*)(root+0x90+i*2)=seed*1973+i*1237;
+   *(short*)(node+0x2c+i*2)=seed*71%2048+i*97;
+   *(short*)(node+0x26+i*2)=seed*10457+i*3127;
+   *(short*)(node+0x6e +i*2)=seed%8==0?0:seed*13%1024+i*79;
+   *(short*)(middle+0x6e +i*2)=seed%8==0?0:seed*23%1024+i*73;
+   *(short*)(endpoint+0x110+i*2)=seed%8==0?*(short*)(node+0x2c+i*2):seed*29%4096+i*83;
+   *(short*)(endpoint+0x18+i*2)=seed*31%4096+i*89;
+   *(short*)(endpoint+0x26+i*2)=seed*7919+i*211;
+  }
+  *(short*)(middle+0x30)=seed%8==0?0:seed%8==1?-*(short*)(node+0x72):301;
+  *(short*)(endpoint+0x30)=seed%8==0?0:seed%8==2?-*(short*)(middle+0x72):503;
+  E2R_ApplyEulerMatrix((short*)(root+0xc6),(short*)(root+0x90));
+  E2R_ApplyEulerMatrix((short*)(node+0xec),(short*)(node+0x26));
+  E2R_ApplyEulerMatrix((short*)(middle+0xec),(short*)(endpoint+0x26));
+  E2R_ApplyEulerMatrix((short*)(endpoint+6),(short*)(endpoint+0x26));
+  if(seed%32==0) {
+   memset((void*)(root+0x84),0,6);memset((void*)(root+0x90),0,6);
+   memset((void*)(node+0x2c),0,6);memset((void*)(endpoint+0x18),0,6);
+   *(byte*)(endpoint+3)=1;
+  }
+  memcpy(initial,(void*)root,sizeof initial);
+  run_pose(root);memcpy(pose_expected,(void*)root,sizeof initial);
+  memcpy((void*)root,initial,sizeof initial);E2R_actor_calc_context=root;native_pose();
+  compare_pose(pose_expected,seed,"IK");
+ }
+ // Attached root uses the original node type (7 versus other), its offset/Euler
+ // fields and inherited flag propagation before traversing the FK chain.
+ for(int seed=0;seed<1024;seed++) {
+  static byte initial[0x1000];memset((void*)0x900000,0,sizeof initial);
+  *(int*)0x9000f2=0x900800;*(int*)0x900822=0x900c00;
+  *(short*)0x900800=seed%2?7:4;*(int*)0x900048=0x900200;
+  *(byte*)0x900003=seed&4;*(byte*)0x900c03=seed&8?4:0;
+  if(seed&16) {*(int*)0x900cf2=0x900a00;*(int*)0x900a22=0x900e00;*(byte*)0x900e03=seed&32?4:0;}
+  for(int i=0;i<3;i++) {
+   *(short*)(0x900800+0x80+i*2)=seed*37%4096+i*337;
+   *(short*)(0x9000f6+i*2)=seed*17%2048+i*173;
+   *(short*)(0x900102+i*2)=seed*13+i*137;
+   *(short*)(0x9000fc+i*2)=seed*1973+i*211;
+   *(short*)(0x900108+i*2)=seed*7919+i*3127;
+  }
+  E2R_ApplyEulerMatrix((short*)0x900806,(short*)0x900108);
+  memcpy(initial,(void*)0x900000,sizeof initial);
+  run_pose(0x900000);memcpy(pose_expected,(void*)0x900000,sizeof initial);
+  memcpy((void*)0x900000,initial,sizeof initial);E2R_actor_calc_context=0x900000;native_pose();
+  compare_pose(pose_expected,seed,"attachment");
  }
  // Decompose real rotations with original pre-multiply and atan instructions.
  for(int seed=0;seed<4096;seed++) {
@@ -148,6 +260,28 @@ c+=r'''
   FUN_0042d46c(0x908200,(ushort*)0x908000);
   if(memcmp((void*)0x908100,(void*)0x908200,6)) {fprintf(stderr,"angles mismatch seed=%d original=%d,%d,%d native=%d,%d,%d\n",seed,*(short*)0x908100,*(short*)0x908102,*(short*)0x908104,*(short*)0x908200,*(short*)0x908202,*(short*)0x908204);abort();}
  }
+ hook(0x424318,pose_hook);hook(0x42efdc,node_query_hook);hook(0x423858,bones_hook);
+ for(int kind=0;kind<4;kind++)for(int attached=0;attached<2;attached++)for(int seed=0;seed<32;seed++) {
+  static byte initial[0x10000],expected_chain[0x10000];int trace_expected[64][3];
+  memset((void*)0x900000,0,sizeof initial);
+  for(int j=0;j<5;j++) {
+   int node=0x900000+j*0x200;
+   *(int*)(node+0x22)=0x900800;
+   if(j<4)*(int*)(node+0x44)=node+0x200;
+   *(int*)(node+0x48)=seed*917+j*71;
+  }
+  *(byte*)0x900002=kind?0x20:0;
+  *(int*)0x90001e=kind>1?0x900200:0;
+  *(int*)0x90021e=kind>2?0x900400:0;
+  *(int*)0x90013a=attached?0x901000:0;
+  *(int*)0x90101e=0x901200;*(int*)0x90124c=0x901400;
+  memcpy(initial,(void*)0x900000,sizeof initial);
+  calls=0;memset(trace,0,sizeof trace);run_chain(0x900000);
+  int count=calls;memcpy(trace_expected,trace,sizeof trace);memcpy(expected_chain,(void*)0x900000,sizeof initial);
+  memcpy((void*)0x900000,initial,sizeof initial);calls=0;memset(trace,0,sizeof trace);E2R_actor_calc_context=0x907000;
+  FUN_0042faf8(0x900000);
+  assert(calls==count);assert(!memcmp(trace_expected,trace,sizeof trace));assert(!memcmp(expected_chain,(void*)0x900000,sizeof initial));assert(E2R_actor_calc_context==0x907000);
+ }
  hook(0x424318,pose_hook);hook(0x420c10,reset_hook);hook(0x451f5c,load_hook);hook(0x451880,action_hook);hook(0x422aa0,copy_hook);hook(0x426c3c,activate_hook);hook(0x42d46c,angles_hook);
  byte expected[0x10000];int expected_trace[64][3];int cases=0;
  for(int attached=0;attached<2;attached++)for(int independent=0;independent<2;independent++)for(orientation=0;orientation<2;orientation++)for(int missing=0;missing<3;missing++)for(int seed=0;seed<32;seed++) {
@@ -156,7 +290,7 @@ c+=r'''
   setup(attached,missing,seed);FUN_0042f9c0(0x900000,3803,1877,independent,orientation);
   assert(calls==count);assert(!memcmp(expected_trace,trace,sizeof trace));assert(!memcmp(expected,(void*)0x900000,sizeof expected));assert(E2R_actor_calc_context==0x907000);cases++;
  }
- printf("PASS: 5120 original queued-action completions, 2048 original root/FK poses, 4096 original matrix angle decompositions and %d spawn-event ownership/memory/call cases\n",cases);
+ printf("PASS: 32768 original inverse-sine entries, 256 node-chain handoffs, 5120 original queued-action completions, 2048 root/FK, 4096 endpoint, 8192 IK and 1024 attached-root original poses, 4096 original matrix angle decompositions and %d spawn-event ownership/memory/call cases\n",cases);
 }
 '''
 with tempfile.TemporaryDirectory(prefix='e2-spawn-action-') as tmp:

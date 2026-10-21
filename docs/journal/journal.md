@@ -4,6 +4,16 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Startup skip feasibility — 2026-10-20](entries/startup-skip-feasibility-2026-10-20.md): enables the existing zero-logo-wait option in F5 after Debug/ASan readiness checks; distinguishes automatic horseback skipping from the required pedestal event sequence and records measured startup savings.
+
+- [Stables node hit-query inputs — 2026-10-20](entries/stables-node-hit-query-2026-10-20.md): repairs the reported stable crash at the legacy polar helper and the adjacent lost facing coordinate; original-code filter/contact comparisons pass normally/ASan, with exact stable re-entry kept separate from bounded runtime regressions.
+
+- [NPC endpoint and reverse-chain poses — 2026-10-20](entries/npc-pose-chain-recovery-2026-10-20.md): recovers original endpoint/IK/attachment inputs, inverse-sine initialization and event pose ownership; populated early-Space traversal and sustained NPC activity pass within the recorded route limits.
+
+- [Early intro skip and population — 2026-10-20](entries/early-intro-skip-population-2026-10-20.md): reproduces the F5-only pedestal pair after early Space, restores original skip-script population initialization, and records the exposed NPC IK pose-event failure.
+
+- [Direction freeze and modifier release — 2026-10-20](entries/direction-modifier-release-2026-10-20.md): reproduces frozen Up+Left/YROT after stale Shift/Alt release flags, repairs the compatibility bridge and records the user's no-freeze confirmation; a later native Debug NPC pose-event crash remains open.
+
 - [General population and direction audit — 2026-10-19](entries/general-population-and-direction-audit-2026-10-19.md): enables original generic population in F5 after spawn/pose/queued-action recovery; populated Debug/ASan traversal passes, while the new physical direction/arrow report remains unresolved.
 
 - [Intro skip FAN ownership — 2026-10-19](entries/intro-skip-fan-ownership-2026-10-19.md): repairs nested FAN/action selection, scene argument ownership and out-of-actor finalizer writes after the reported Space-skip crash; exact runtime reproduction remains unconfirmed.

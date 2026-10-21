@@ -7802,12 +7802,311 @@ source = replaceRectangleInput(source,"FUN_0045186c(extraout_ECX_06,iVar1,0)","F
 source = replaceRectangleInput(source,"  if (in_EAX < 0 || 2500 <= in_EAX) return;","  if (in_EAX < 0 || 5000 <= in_EAX) return;");
 
 
+// Original NPC endpoint / reverse-chain IK pose contracts.
+patchRectangleFunction("FUN_00423674", () => `void FUN_00423674(int node)
+{
+  /* Original EAX node; +0x22 is its root owner, not an implicit register. */
+  if ((*(byte *)(node + 3) & 1) != 0) return;
+  short *matrix = (short *)(node + 6);
+  short *position = (short *)(node + 0x18);
+  byte flags = *(byte *)(node + 3);
+  if ((flags & 2) == 0 || (flags & 0x40) != 0) {
+    int owner = *(int *)(node + 0x22);
+    int basis = (flags & 2) == 0 ? owner + 6 : owner + 0xc6;
+    int origin = (flags & 2) == 0 ? owner + 0x84 : owner + 0x8a;
+    E2R_TransformVector14(position,(short *)(node + 0x110),(short *)basis);
+    for (int i = 0; i < 3; ++i) position[i] += ((short *)origin)[i];
+    memcpy(matrix,(void *)basis,18);
+  } else {
+    E2R_SetIdentityMatrix((undefined2 *)matrix);
+    memcpy(position,(void *)(node + 0x110),6);
+  }
+  if (*(short *)(node + 0x28)) FUN_00422460(node + 6,*(short *)(node + 0x28));
+  if (*(short *)(node + 0x26)) FUN_00422368(node + 6,*(short *)(node + 0x26));
+  if (*(short *)(node + 0x2a)) FUN_00422538(node + 6,*(short *)(node + 0x2a));
+  short *tip = (short *)(node + 0x80);
+  E2R_TransformVector14(tip,(short *)(node + 0x6e),matrix);
+  for (int i = 0; i < 3; ++i) tip[i] += position[i];
+}`);
+patchRectangleFunction("FUN_00424164", () => `void __fastcall FUN_00424164(undefined4 parent,int node)
+{
+  /* Original EAX parent, EDX child; retain both across rotations/transforms. */
+  short *matrix = (short *)(node + 6);
+  memcpy(matrix,(void *)((*(byte *)(node + 2) & 0x10) ? node + 0xec : parent + 6),18);
+  if (*(short *)(node + 0x28)) FUN_00422460(node + 6,*(short *)(node + 0x28));
+  if (*(short *)(node + 0x26)) FUN_00422368(node + 6,*(short *)(node + 0x26));
+  if (*(short *)(node + 0x2a)) FUN_00422538(node + 6,*(short *)(node + 0x2a));
+  short *relative = (short *)(node + 0x50);
+  short offset[3];
+  for (int i = 0; i < 3; ++i)
+    offset[i] = ((short *)(node + 0x2c))[i] +
+      (*(short *)(parent + 4) == 7 ? 0 : ((short *)(parent + 0x6e))[i]);
+  E2R_TransformVector14(relative,offset,(short *)(parent + 6));
+  for (int i = 0; i < 3; ++i)
+    ((short *)(node + 0x18))[i] = ((short *)(parent + 0x18))[i] + relative[i];
+  if (*(short *)(node + 4) == 4) {
+    short *tip = (short *)(node + 0x80);
+    E2R_TransformVector14(tip,(short *)(node + 0x6e),matrix);
+    for (int i = 0; i < 3; ++i) tip[i] += ((short *)(node + 0x18))[i];
+  }
+}`);
+patchRectangleFunction("FUN_00424318", () => `static short E2R_PolygonAngle16(short x,short z);
+static void E2R_RotatePolygonNormal(short normal[3],short angle,int axis);
+
+static short E2R_PoseAsin14(short ratio)
+{
+  /* Original 0x432de4: signed Q14 input, mapped inverse-sine table. */
+  if (ratio >= 0x4000) return 0x4000;
+  if (ratio <= -0x4000) return -0x4000;
+  return *(short *)(0x593590 + ratio * 2);
+}
+
+undefined4 FUN_00424318(void)
+
+{
+  short *psVar1;
+  short sVar2;
+  int in_EAX = E2R_actor_calc_context;
+  int iVar5;
+  int iVar8;
+  ushort *puVar9;
+  ushort *puVar10;
+  short local_4c;
+  short sStack_4a;
+  short local_48;
+  ushort *local_3c;
+  short *local_38;
+  int local_34;
+
+  if (*(short **)(in_EAX + 0xf2) == (short *)0x0) {
+    E2R_ApplyEulerMatrix((short *)(in_EAX + 6),(short *)(in_EAX + 0x90));
+    local_34 = in_EAX;
+  }
+  else {
+    FUN_00420ec4(in_EAX,*(short **)(in_EAX + 0xf2));
+    local_34 = in_EAX;
+  }
+  sVar2 = 0;
+  do {
+    iVar8 = (int)sVar2;
+    sVar2 = sVar2 + 1;
+    *(undefined2 *)(local_34 + 0x18 + iVar8 * 2) = *(undefined2 *)(local_34 + 0x84 + iVar8 * 2);
+  } while (sVar2 < 3);
+  iVar8 = *(int *)(local_34 + 0x48);
+  while (iVar8 != 0) {
+    iVar8 = *(int *)(local_34 + 0x48);
+    if (*(short *)(local_34 + 4) == 7) {
+      local_4c = *(short *)(iVar8 + 0x2c);
+      sStack_4a = *(short *)(iVar8 + 0x2e);
+      local_48 = *(short *)(iVar8 + 0x30);
+    }
+    else {
+      local_4c = *(short *)(local_34 + 0x6e) + *(short *)(iVar8 + 0x2c);
+      sStack_4a = *(short *)(local_34 + 0x70) + *(short *)(iVar8 + 0x2e);
+      local_48 = *(short *)(local_34 + 0x72) + *(short *)(iVar8 + 0x30);
+    }
+    local_3c = (ushort *)(local_34 + 6);
+    local_38 = (short *)(iVar8 + 0x50);
+    short relative[3] = {local_4c,sStack_4a,local_48};
+    E2R_TransformVector14(local_38,relative,(short *)local_3c);
+    psVar1 = (short *)(iVar8 + 0x18);
+    *psVar1 = *(short *)(local_34 + 0x18);
+    *(undefined2 *)(iVar8 + 0x1a) = *(undefined2 *)(local_34 + 0x1a);
+    *(undefined2 *)(iVar8 + 0x1c) = *(undefined2 *)(local_34 + 0x1c);
+    *psVar1 = *psVar1 + *local_38;
+    *(short *)(iVar8 + 0x1a) = *(short *)(iVar8 + 0x1a) + local_38[1];
+    *(short *)(iVar8 + 0x1c) = *(short *)(iVar8 + 0x1c) + local_38[2];
+    puVar9 = local_3c;
+    if ((*(byte *)(iVar8 + 2) & 0x10) != 0) {
+      puVar9 = (ushort *)(iVar8 + 0xec);
+    }
+    puVar10 = (ushort *)(iVar8 + 6);
+    for (iVar5 = 4; iVar5 != 0; iVar5 = iVar5 + -1) {
+      *(undefined4 *)puVar10 = *(undefined4 *)puVar9;
+      puVar9 = puVar9 + 2;
+      puVar10 = puVar10 + 2;
+    }
+    *puVar10 = *puVar9;
+    if ((*(byte *)(iVar8 + 2) & 0x20) == 0) {
+      if (*(short *)(iVar8 + 0x28) != 0) {
+        FUN_00422460(iVar8 + 6,(int)*(short *)(iVar8 + 0x28));
+      }
+      if (*(short *)(iVar8 + 0x26) != 0) {
+        FUN_00422368(iVar8 + 6,(int)*(short *)(iVar8 + 0x26));
+      }
+      if (*(short *)(iVar8 + 0x2a) != 0) {
+        FUN_00422538(iVar8 + 6,(int)*(short *)(iVar8 + 0x2a));
+      }
+      local_38 = (short *)(iVar8 + 0x80);
+      E2R_TransformVector14(local_38,(short *)(iVar8 + 0x6e),(short *)(iVar8 + 6));
+      *local_38 = *local_38 + *(short *)(iVar8 + 0x18);
+      local_38[1] = local_38[1] + *(short *)(iVar8 + 0x1a);
+      local_38[2] = local_38[2] + *(short *)(iVar8 + 0x1c);
+    }
+    else {
+      /* Original 0x42454e..0x424832, with explicit local vectors/matrices. */
+      int middle = *(int *)(iVar8 + 0x1e);
+      if (middle == 0) FUN_00426f84();
+      int endpoint = *(int *)(middle + 0x1e);
+      if (endpoint == 0) FUN_00426f84();
+      FUN_00423674(endpoint);
+      short difference[3], target[3], transpose[9];
+      for (int i = 0; i < 3; ++i)
+        difference[i] = ((short *)(endpoint + 0x18))[i] - ((short *)(iVar8 + 0x18))[i];
+      short *matrix = (short *)(iVar8 + 6);
+      for (int row = 0; row < 3; ++row)
+        for (int col = 0; col < 3; ++col) transpose[row * 3 + col] = matrix[col * 3 + row];
+      E2R_TransformVector14(target,difference,transpose);
+      short yaw = E2R_PolygonAngle16(target[0],target[2]);
+      if (yaw) E2R_RotatePolygonNormal(target,(short)-yaw,1);
+      short pitch = E2R_PolygonAngle16((short)-target[1],target[2]);
+      if (pitch) E2R_RotatePolygonNormal(target,(short)-pitch,0);
+      short length_a = *(short *)(iVar8 + 0x72) + *(short *)(middle + 0x30);
+      short length_b = *(short *)(middle + 0x72) + *(short *)(endpoint + 0x30);
+      short bend_a, bend_b;
+      if (target[2] == 0) bend_a = bend_b = 0x4000;
+      else if (length_a == 0 || length_b == 0) bend_a = bend_b = 0;
+      else {
+        int half_difference = (short)(((length_a * length_a - length_b * length_b) / target[2]) >> 1);
+        short projected_a = (target[2] >> 1) + half_difference;
+        short projected_b = (target[2] >> 1) - half_difference;
+        short ratio_a = (projected_a * 16384) / length_a;
+        short ratio_b = (projected_b * 16384) / length_b;
+        bend_a = 0x4000 - E2R_PoseAsin14(ratio_a);
+        bend_b = 0x4000 - E2R_PoseAsin14(ratio_b);
+      }
+      *(short *)(middle + 0x28) = 0;
+      *(short *)(middle + 0x2a) = 0;
+      *(short *)(middle + 0x26) = -(bend_a + bend_b);
+      if (yaw) FUN_00422460(iVar8 + 6,yaw);
+      if (pitch) FUN_00422368(iVar8 + 6,pitch);
+      short roll = *(short *)(iVar8 + 0x2a);
+      if ((*(byte *)(iVar8 + 2) & 0x80) != 0) {
+        for (int i = 0; i < 3; ++i) {
+          difference[i] = ((short *)(endpoint + 6))[i * 3 + 2] - ((short *)(endpoint + 6))[i * 3 + 1];
+          for (int j = 0; j < 3; ++j) transpose[i * 3 + j] = matrix[j * 3 + i];
+        }
+        E2R_TransformVector14(target,difference,transpose);
+        roll += E2R_PolygonAngle16(target[0],(short)-target[1]);
+      }
+      if (roll) FUN_00422538(iVar8 + 6,roll);
+      if (bend_a) FUN_00422368(iVar8 + 6,bend_a);
+      E2R_TransformVector14((short *)(iVar8 + 0x80),(short *)(iVar8 + 0x6e),matrix);
+      for (int i = 0; i < 3; ++i)
+        ((short *)(iVar8 + 0x80))[i] += ((short *)(iVar8 + 0x18))[i];
+      if (middle == *(int *)(iVar8 + 0x48)) {
+        FUN_00424164(iVar8,middle);
+        if (endpoint == *(int *)(middle + 0x48)) local_34 = middle;
+      }
+    }
+    local_34 = *(int *)(local_34 + 0x48);
+    iVar8 = *(int *)(local_34 + 0x48);
+  }
+  return;
+}`);
+patchRectangleFunction("FUN_00423858", body => replaceRectangleInput(body,"FUN_00423674();","FUN_00423674(local_50);"));
+source = replaceRectangleInput(source,"FUN_00424164(extraout_ECX_22,local_44);","FUN_00424164(iVar10,local_44);");
+patchRectangleFunction("FUN_0042d72c", body => replaceRectangleInput(body,"FUN_00423674();","FUN_00423674(in_EAX);"));
+patchRectangleFunction("FUN_0042d7c0", body => replaceRectangleInput(body,"FUN_00423674();","FUN_00423674(in_EAX);"));
+patchRectangleFunction("FUN_0042d860", body => replaceRectangleInput(body,"FUN_00423674();","FUN_00423674(in_EAX);"));
+patchRectangleFunction("FUN_00420ec4", () => `static void E2R_TransformVector14(short *out,const short *in,const short *matrix);
+
+void __fastcall FUN_00420ec4(undefined4 actor,short *attached)
+{
+  /* Original EAX actor, EDX attachment. Its world tip becomes the root origin. */
+  int node = (int)(uintptr_t)attached;
+  memcpy((void *)(actor + 0x84),(void *)(node + 0x80),6);
+  memcpy((void *)(actor + 6),(void *)(node + 6),18);
+  int angles = actor + (*attached == 7 ? 0x108 : 0xfc);
+  if (*(short *)(angles + 2)) FUN_00422460(actor + 6,*(short *)(angles + 2));
+  if (*(short *)angles) FUN_00422368(actor + 6,*(short *)angles);
+  if (*(short *)(angles + 4)) FUN_00422538(actor + 6,*(short *)(angles + 4));
+  short offset[3];
+  E2R_TransformVector14(offset,(short *)(actor + (*attached == 7 ? 0x102 : 0xf6)),(short *)(actor + 6));
+  for (int i = 0; i < 3; ++i) ((short *)(actor + 0x84))[i] += offset[i];
+  FUN_0042d46c(actor + 0x90,(ushort *)(actor + 6));
+  if ((*(byte *)(actor + 3) & 4) == 0) {
+    *(byte *)(*(int *)(node + 0x22) + 3) &= 0xfb;
+  } else {
+    for (; node != 0; node = *(int *)(*(int *)(node + 0x22) + 0xf2)) {
+      if ((*(byte *)(*(int *)(node + 0x22) + 3) & 4) == 0) {
+        *(byte *)(actor + 3) &= 0xfb;
+        return;
+      }
+    }
+  }
+}`);
+patchRectangleFunction("FUN_00414f40", body => replaceRectangleInput(body,
+  "  for (x = 0; x < 256; x = x + 1) {\n    double phase = ((double)x * pi) / 128.0;",
+  `  /* Original 0x4154ff..0x41554d, constants 0x4713a9/0x471391.
+   * The signed input is centered at 0x593590; conversion truncates. */
+  for (x = -16384; x < 16384; ++x)
+    *(short *)(0x00593590 + x * 2) = (short)(asin((double)x * 6.103515625e-05) * 10430.38716064159);
+
+  for (x = 0; x < 256; x = x + 1) {
+    double phase = ((double)x * pi) / 128.0;`));
+prototypes[prototypes.indexOf("void FUN_00423674(void);")] = "void FUN_00423674(int node);";
+
+// Original event-node reverse-chain/owner handoff (0x42faf8).
+patchRectangleFunction("FUN_0042faf8", () => `undefined4 FUN_0042faf8(int node)
+{
+  /* Original 0x42faf8 retains the event node in ESI. Rebuild reverse links
+   * to its endpoint, pose that owner's chain, then issue the node queries. */
+  int middle = 0, endpoint = 0;
+  if ((*(byte *)(node + 2) & 0x20) != 0) {
+    middle = *(int *)(node + 0x1e);
+    if (middle != 0) endpoint = *(int *)(middle + 0x1e);
+  }
+  int tail = endpoint != 0 ? endpoint : node;
+  for (int cursor = tail; *(int *)(cursor + 0x44) != 0; cursor = *(int *)(cursor + 0x44))
+    *(int *)(*(int *)(cursor + 0x44) + 0x48) = cursor;
+  *(int *)(tail + 0x48) = 0;
+  int entry_context = E2R_actor_calc_context;
+  E2R_actor_calc_context = *(int *)(tail + 0x22);
+  FUN_00424318();
+  E2R_actor_calc_context = entry_context;
+  if (endpoint != 0) {
+    FUN_0042efdc(node);
+    FUN_0042efdc(middle);
+  }
+  FUN_0042efdc(tail);
+  int attached = *(int *)(node + 0x13a);
+  if (attached != 0) {
+    FUN_00423858(attached,0);
+    for (int child = *(int *)(attached + 0x1e); child != 0; child = *(int *)(child + 0x4c))
+      FUN_0042efdc(child);
+  }
+  return 0;
+}`);
+source = replaceRectangleInput(source,"FUN_0042faf8()","FUN_0042faf8((int)unaff_ESI)");
+patchRectangleFunction("FUN_0042efdc", body => replaceRectangleInput(replaceRectangleInput(body,"FUN_0042efdc(void)","FUN_0042efdc(int node)"),"  int in_EAX;","  int in_EAX = node;"));
+prototypes[prototypes.indexOf("undefined4 FUN_0042faf8(void);")] = "undefined4 FUN_0042faf8(int node);";
+prototypes[prototypes.indexOf("void FUN_0042efdc(void);")] = "void FUN_0042efdc(int node);";
+
+// Original 0x42f075..0x42f09d and 0x42f15f..0x42f188: node/actor XZ inputs
+// and separate polar outputs survive the hit-query prefilter.
+patchRectangleFunction("FUN_0042efdc", body => {
+  body = replaceRectangleInput(body,"FUN_00427160((int)(short)(*(short *)(in_EAX + 0x1c) - puVar3[0x44]),\n                                  (short *)local_1c)","E2R_NpcPolar16(&hit_angle,&hit_distance,\n                                  (short)(*(short *)(in_EAX + 0x18) - puVar3[0x42]),\n                                  (short)(*(short *)(in_EAX + 0x1c) - puVar3[0x44]))");
+  body = replaceRectangleInput(body,"  undefined4 local_1c [2];","  short hit_angle, hit_distance;");
+  body = replaceRectangleInput(body,"(short)local_1c[0] <","hit_distance <");
+  body = replaceRectangleInput(body,"FUN_00432c64(CONCAT22(extraout_var,sVar1),puVar3[0x44] - sVar1)","E2R_PolygonAngle16(\n            (short)(puVar3[0x42] - *(short *)(*(int *)(in_EAX + 0x22) + 0x84)),\n            (short)(puVar3[0x44] - sVar1))");
+  return body;
+});
+
 // Scheduled/queued action ownership after the original root reset.
 source = replaceRectangleInput(source,"    uVar27 = FUN_00451880(iVar7,psVar15);\n    psVar15 = (short *)((ulonglong)uVar27 >> 0x20);","    /* Original 0x4279ef keeps the scheduled node across action loading. */\n    FUN_00451880(0,*psVar15);");
 source = replaceRectangleInput(source,"      FUN_004538b8();","      FUN_004538b8(*(int *)(extraout_EDX_01 + 0x17c));");
 source = replaceRectangleInput(source,"      *(undefined4 *)(local_6c + 0xbe) = *(undefined4 *)(*(int *)(extraout_EDX_01 + 0x17c) + 6);\n      FUN_004538b8(*(int *)(extraout_EDX_01 + 0x17c));","      int scheduled_node = *(int *)(extraout_EDX_01 + 0x17c);\n      *(undefined4 *)(local_6c + 0xbe) = *(undefined4 *)(scheduled_node + 6);\n      FUN_004538b8(scheduled_node);");
 source = replaceRectangleInput(source,"void FUN_004538b8(void)\n\n{\n  undefined2 *in_EAX;","void FUN_004538b8(int node)\n\n{\n  undefined2 *in_EAX = (undefined2 *)(uintptr_t)node;");
 prototypes[prototypes.indexOf("void FUN_004538b8(void);")] = "void FUN_004538b8(int node);";
+
+// Space must retain the original skip script's population-enable/cleanup tail.
+source = replaceRectangleInput(source,
+  "static short *E2R_FindActionCodeBySuffix(char *suffix);",
+  "static short *E2R_FindActionCodeBySuffix(char *suffix);\nstatic int E2R_ActionIndexProbeEnabled(void);");
+source = replaceRectangleInput(source,
+  "  FUN_0043a6e0((undefined4)(int)scene_id,(undefined4)(int)scene_id);",
+  "  /* The original dav:skipsc also cleans up the horse scene and enables\n   * population (opcode 0x6a). Starting Start_sc alone loses those effects. */\n  short *skip_code = E2R_ActionIndexProbeEnabled() ?\n      E2R_FindActionCodeBySuffix(\"skipsc\") : NULL;\n  if (skip_code != NULL) FUN_0044f2fc((undefined4)(uintptr_t)skip_code);\n  else FUN_0043a6e0((undefined4)(int)scene_id,(undefined4)(int)scene_id);");
 
 fs.writeFileSync(outSrc, source);
 

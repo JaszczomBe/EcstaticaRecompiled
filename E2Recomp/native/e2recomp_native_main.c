@@ -901,6 +901,38 @@ static int e2r_actor_on_global_list(uintptr_t actor)
     return 0;
 }
 
+/* F12 evidence for physical-input reports, without debugger frame stepping. */
+static void e2r_write_player_direction_state(FILE *out)
+{
+    uintptr_t actor = (uintptr_t)DAT_0047a470;
+    if (actor == 0 || IsBadReadPtr((const void *)actor, 0x148)) {
+        fprintf(out, "player_direction actor=0x%lx readable=0\n", (unsigned long)actor);
+        return;
+    }
+    short angles[3], root[9], motion[9];
+    unsigned flags = 0, up = 0, down = 0, left = 0, right = 0;
+    uintptr_t attachment = 0;
+    memcpy(angles, (const void *)(actor + 0x90), sizeof(angles));
+    memcpy(root, (const void *)(actor + 6), sizeof(root));
+    memcpy(motion, (const void *)(actor + 0xc6), sizeof(motion));
+    e2r_read_u8_field(actor + 0x146, &flags);
+    e2r_read_u32_field(actor + 0xf2, &attachment);
+    e2r_read_u8_field(0x4c3ad8u, &up);
+    e2r_read_u8_field(0x4c3ae0u, &down);
+    e2r_read_u8_field(0x4c3adbu, &left);
+    e2r_read_u8_field(0x4c3addu, &right);
+    fprintf(out, "player_direction actor=0x%lx readable=1 angles=%d,%d,%d "
+            "motion_flags=0x%02x attachment=0x%lx ticks=%lu elapsed_ticks=%lu "
+            "held_up_down_left_right=%u,%u,%u,%u\n",
+            (unsigned long)actor, angles[0], angles[1], angles[2], flags,
+            (unsigned long)attachment, (unsigned long)_DAT_00636588,
+            (unsigned long)_DAT_00637378, up, down, left, right);
+    fprintf(out, "player_direction_root=%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+            root[0],root[1],root[2],root[3],root[4],root[5],root[6],root[7],root[8]);
+    fprintf(out, "player_direction_motion=%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+            motion[0],motion[1],motion[2],motion[3],motion[4],motion[5],motion[6],motion[7],motion[8]);
+}
+
 static void e2r_write_actor_summary(FILE *out, const char *label, unsigned index, uintptr_t actor)
 {
     short id = -1;
@@ -1338,6 +1370,10 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
                 readable ? e2r_frame_hash(framebuffer, bytes) : 0u);
     }
     e2r_write_actor_list_state(out);
+    e2r_write_player_direction_state(out);
+    fprintf(out, "population_scheduler disabled=%lu ticks=%lu last_tick=%lu\n",
+            (unsigned long)DAT_0047a450, (unsigned long)_DAT_00636588,
+            (unsigned long)DAT_0047b7f0);
     /* Camera slots and script scene-resource IDs are separate namespaces. */
     uintptr_t owner_scene = 0;
     short owner_id = -1;

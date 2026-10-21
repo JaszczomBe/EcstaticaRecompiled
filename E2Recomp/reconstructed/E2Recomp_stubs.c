@@ -422,6 +422,22 @@ static void E2R_feed_legacy_keyup(WPARAM key, LPARAM lParam) {
     if (key >= 0x61 && key <= 0x69) {
         E2R_legacy_queue(0x004c3a90)[scan] = 0;
     }
+    /* Original 0x458378..0x4583e5 releases logical modifier flags as well
+     * as the held table. Retain the hosted Shift/Ctrl/Alt aliases supplied
+     * by keydown; otherwise a released desktop modifier changes gameplay. */
+    switch (key) {
+    case VK_SHIFT: DAT_00636846 = 0; break;
+    case VK_CONTROL: DAT_00636852 = 0; break;
+    case VK_MENU:
+    case VK_RMENU: DAT_0063684a = 0; break;
+    case 0x58:
+        if (DAT_00479dfc != 0) DAT_0063684a = 0;
+        break;
+    case 0x5a:
+        if (DAT_00479dfc != 0) DAT_00636852 = 0;
+        DAT_00636846 = 0;
+        break;
+    }
 }
 
 static void E2R_feed_mouse_position(LPARAM lParam) {

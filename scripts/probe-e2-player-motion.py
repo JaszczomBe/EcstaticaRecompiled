@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Probe diagnostic Joe input/action/motion after the observed courtyard release.
 
-Uses the four experimental flags, a zero-logo-delay crash-probe shortcut and
-WndProc press/release input. Actor state is only read. Exit zero means the probe
+Uses the four experimental flags, configurable logo delays and SDL/WndProc
+press/release input. Actor state is only read. Exit zero means the probe
 completed, not that movement, collisions or gameplay acceptance passed.
 """
 import argparse
@@ -19,6 +19,8 @@ parser.add_argument('--intro-skip-action', type=int, default=0,
                     help='Send SDL Space at the Nth distinct horseback action using the real --run-recon path')
 parser.add_argument('--natural-intro', action='store_true',
                     help='Let the horseback intro finish without the diagnostic Space shortcut')
+parser.add_argument('--startup-logo-delay-ms', type=int, default=0,
+                    help='Wait per startup logo; use 5000 to match the default F5 launch')
 parser.add_argument('--frames', type=int, default=60)
 parser.add_argument('--release-delay', type=int, default=3,
                     help='Frames to wait after the script first releases Joe before sending input')
@@ -35,6 +37,12 @@ parser.add_argument('--burst-frames', action='store_true',
                     help='Run each input phase without per-frame Python/turn breakpoints')
 parser.add_argument('--sdl-events', action='store_true',
                     help='Send SDL keyboard events through the real backend pump')
+parser.add_argument('--video-driver', choices=('dummy','x11','wayland'), default='dummy',
+                    help='SDL video driver; x11/wayland use the current desktop display')
+parser.add_argument('--hold-through-release', action='store_true',
+                    help='With --pedestal-guards and --simultaneous-turn, hold both keys while Joe is still restrained')
+parser.add_argument('--tap-modifiers', nargs='+', choices=('shift','ctrl','alt'), default=[],
+                    help='Tap and release these modifiers through SDL before the input route')
 parser.add_argument('--camera-round-trip', action='store_true',
                     help='Try SDL Up, then Down if needed, to cross into camera 166 and reverse to the pedestal')
 parser.add_argument('--trace-queries', type=int, default=0,
@@ -49,24 +57,32 @@ parser.add_argument('--population-only', action='store_true',
                     help='End after the post-release population census; do not run the arrow route')
 parser.add_argument('--background-spawns', action='store_true',
                     help='Run the original population scheduler from startup without the population-probe flag')
+parser.add_argument('--require-background-population', action='store_true',
+                    help='Require the script population gate open and a live terrain-generated actor in the census')
 args = parser.parse_args()
 if args.intro_skip_action < 0 or (args.intro_skip_action and args.natural_intro):
     parser.error('intro skip action must be nonnegative and separate from --natural-intro')
 if args.frames < 1 or args.timeout < 1 or args.release_delay < 0:
     parser.error('frames/timeout must be positive and release-delay nonnegative')
+if args.startup_logo_delay_ms < 0:
+    parser.error('startup logo delay must be nonnegative')
 if args.population_only and (not args.population_frames or args.camera_round_trip or args.turn_forward):
     parser.error('--population-only requires --population-frames and a separate input route')
+if args.require_background_population and (not args.background_spawns or not args.population_frames):
+    parser.error('--require-background-population requires --background-spawns and --population-frames')
 if args.camera_round_trip and args.turn_forward:
     parser.error('--camera-round-trip and --turn-forward are separate routes')
 if args.simultaneous_turn and (not args.turn_forward or args.release_turn_first):
     parser.error('--simultaneous-turn requires --turn-forward with the turn held')
+if args.hold_through_release and (not args.pedestal_guards or not args.simultaneous_turn):
+    parser.error('--hold-through-release requires --pedestal-guards and --simultaneous-turn')
 if args.trace_queries < 0 or args.observe_seconds < 0 or args.population_frames < 0:
     parser.error('query count and observation seconds must be nonnegative')
 prefix = str(args.output.resolve())
 Path(prefix).parent.mkdir(parents=True, exist_ok=True)
 env = os.environ.copy()
-env.pop('DISPLAY', None)
-env.update(SDL_VIDEODRIVER='dummy', E2R_STARTUP_LOGO_DELAY_MS='0',
+if args.video_driver == 'dummy':env.pop('DISPLAY', None)
+env.update(SDL_VIDEODRIVER=args.video_driver, E2R_STARTUP_LOGO_DELAY_MS=str(args.startup_logo_delay_ms),
            E2R_ACTION_INDEX_PROBE='1', E2R_ACTOR_CYLINDERS='1',
            E2R_PROXY_MESH_BYPASS='1', E2R_DEFER_BACKGROUND_SPAWNS='1')
 # Preserve the existing intro resources; recovery is enabled at the checkpoint.
@@ -137,6 +153,27 @@ else:
                 ' space 3 250 PROCESS_SECONDS',to_string=True)
 if gdb.selected_frame().name()!='FUN_00415d40':gdb.execute('bt 32')
 require(gdb.selected_frame().name()=='FUN_00415d40','Missing courtyard release checkpoint')
+def key(vk,pressed):
+    scan={0x26:0x48,0x28:0x50,0x25:0x4b,0x27:0x4d,0x10:0x2a,0x11:0x1d,0x12:0x38}[vk]
+    extended=vk in (0x26,0x28,0x25,0x27)
+    if use_sdl:
+        sdl_scan={0x26:82,0x28:81,0x25:80,0x27:79,0x10:225,0x11:224,0x12:226}[vk]
+        gdb.execute('set $key_event=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
+        gdb.execute(f'set $key_event->key.type={0x300 if pressed else 0x301}',to_string=True)
+        gdb.execute(f'set $key_event->key.down={int(pressed)}',to_string=True)
+        gdb.execute(f'set $key_event->key.key={0x40000000|sdl_scan}',to_string=True)
+        gdb.execute(f'set $key_event->key.scancode={sdl_scan}',to_string=True)
+        gdb.execute('set $key_event->key.windowID=SDL_GetWindowID(e2r_sdl_backend.window)',to_string=True)
+        require(value('SDL_PushEvent($key_event)')==1,'SDL keyboard injection failed')
+        gdb.execute('call (void)free($key_event)',to_string=True)
+        gdb.execute('call e2r_poll_host_events("player-motion-probe")',to_string=True)
+    else:
+        # Arrow releases must target the same extended scan-code table as presses.
+        lparam=1|(scan<<16)|(int(extended)<<24)|(0 if pressed else 0xc0000000)
+        gdb.execute(f'call E2R_WndProc((HWND)_DAT_00ac4dac,{0x100 if pressed else 0x101},{vk},(LPARAM)0x{lparam:x})',to_string=True)
+    table=0x4c3a90 if extended else 0x4c3b90
+    require(value(f'*(unsigned char*)({table}+{scan})')==int(pressed),
+            'WndProc did not update the requested held-key byte')
 guard_checkpoints=[]
 def guard_checkpoint(label):
     active=[];node=value('_DAT_0063726c')
@@ -174,6 +211,9 @@ if check_guards:
     for i in range(3):gdb.execute('continue',to_string=True)
     require(value('DAT_0047a76c')!=0,'Missed restrained Joe checkpoint')
     guard_checkpoint('restrained')
+    if HOLD_THROUGH_RELEASE:
+        key(0x25 if TURN_FORWARD=='left' else 0x27,True)
+        key(0x26 if MOVE_KEY=='up' else 0x28,True)
     ready.condition='DAT_0047a76c == 0 && _DAT_0073cc3c == 0x67da4c && DAT_0047a470 != 0'
     gdb.execute('continue',to_string=True)
     if gdb.selected_frame().name()!='FUN_00415d40':gdb.execute('bt 32')
@@ -194,15 +234,21 @@ def population_census(label):
         h=lambda offset:struct.unpack_from('<h',data,offset)[0]
         u=lambda offset:struct.unpack_from('<I',data,offset)[0]
         actors.append(dict(index=index,pointer=pointer,id=h(0),
+            table_flags=value(f'*(unsigned short*)({0x64a178}+{index}*2)'),
             name=names[index].decode('ascii','replace') if index<len(names) else None,
             flags=data[2:4].hex(),position=[h(0x84+i*2) for i in range(3)],
-            state=h(0x82),representation=u(0x11e),action=u(0xa6),next=u(0x4c)))
+            state=h(0x82),representation=u(0x11e),action=u(0xa6),
+            action_progress=struct.unpack_from('<H',data,0xac)[0],next=u(0x4c)))
     active=[];node=value('_DAT_0063726c')
     while node and len(active)<256:
         require(node not in active,'Cycle in active actors')
         active.append(node);node=value(f'*(unsigned int*)({node}+0x4c)')
     sample=dict(label=label,current=value('DAT_0047a470'),active=active,actors=actors,
+                population_disabled=value('DAT_0047a450'),ticks=value('_DAT_00636588'),
+                scheduler_last_tick=value('DAT_0047b7f0'),random_seed=value('E2R_rand_seed_fallback'),
                 camera=(value('_DAT_0073cc3c')-0x67c728)//28)
+    sample['generated_active']=[a['id'] for a in actors
+                                if a['pointer'] in active and a['table_flags']&8]
     population_samples.append(sample)
     with open(prefix+'-population.json','w') as out:json.dump(population_samples,out,indent=2)
     return sample
@@ -231,6 +277,8 @@ def snapshot(label):
     floor_cell=value(f'*(unsigned short*){cell_address}')
     data=dict(phase=label,actor=actor,scene=value('_DAT_0073cc3c'),
               wait=value('DAT_0047a76c'),modal=value('_DAT_00643650'),
+              population_disabled=value('DAT_0047a450'),ticks=value('_DAT_00636588'),
+              scheduler_last_tick=value('DAT_0047b7f0'),
               position=position,facing=field(0x92),
               render_matrix=[field(6+i*2) for i in range(9)],
               motion_matrix=[field(0xc6+i*2) for i in range(9)],
@@ -245,31 +293,14 @@ def snapshot(label):
               progress=field(0xac,'unsigned short'),duration=field(0xaa,'unsigned short'),
               previous_slot=field(0x96),input_direction=value('_DAT_00479e78'),
               actor_state=field(0x82),motion_flags=field(0x146,'unsigned char'),
+              modifiers={name:value(symbol) for name,symbol in
+                         [('shift','DAT_00636846'),('ctrl','DAT_00636852'),('alt','DAT_0063684a')]},
               held_keys={name:value(f'*(unsigned char*)({0x4c3a90}+{scan})')
                          for name,scan in [('up',0x48),('down',0x50),('left',0x4b),('right',0x4d)]})
     packet=prefix+'-'+label
     expression='e2r_write_visibility_packet((HWND)_DAT_00ac4dac,'+json.dumps(packet)+')'
     require(value(expression)==1,'Visibility packet failed')
     return data
-def key(vk,pressed):
-    scan={0x26:0x48,0x28:0x50,0x25:0x4b,0x27:0x4d}[vk]
-    if use_sdl:
-        sdl_scan={0x26:82,0x28:81,0x25:80,0x27:79}[vk]
-        gdb.execute('set $key_event=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
-        gdb.execute(f'set $key_event->key.type={0x300 if pressed else 0x301}',to_string=True)
-        gdb.execute(f'set $key_event->key.down={int(pressed)}',to_string=True)
-        gdb.execute(f'set $key_event->key.key={0x40000000|sdl_scan}',to_string=True)
-        gdb.execute(f'set $key_event->key.scancode={sdl_scan}',to_string=True)
-        gdb.execute('set $key_event->key.windowID=SDL_GetWindowID(e2r_sdl_backend.window)',to_string=True)
-        require(value('SDL_PushEvent($key_event)')==1,'SDL keyboard injection failed')
-        gdb.execute('call (void)free($key_event)',to_string=True)
-        gdb.execute('call e2r_poll_host_events("player-motion-probe")',to_string=True)
-    else:
-        # Arrow releases must target the same extended scan-code table as presses.
-        lparam=1|(scan<<16)|(1<<24)|(0 if pressed else 0xc0000000)
-        gdb.execute(f'call E2R_WndProc((HWND)_DAT_00ac4dac,{0x100 if pressed else 0x101},{vk},(LPARAM)0x{lparam:x})',to_string=True)
-    require(value(f'*(unsigned char*)({0x4c3a90}+{scan})')==int(pressed),
-            'WndProc did not update the requested held-key byte')
 states=[]
 camera_samples=[]
 def observe_camera():
@@ -289,11 +320,18 @@ def checkpoint(label):
                        combined_turn=TURN_FORWARD,turn_calls=globals().get('turn_calls',[]),
                        simultaneous_turn=SIMULTANEOUS_TURN,burst_frames=BURST_FRAMES,
                        background_spawns=BACKGROUND_SPAWNS,
+                       hold_through_release=HOLD_THROUGH_RELEASE,video_driver=VIDEO_DRIVER,
+                       tapped_modifiers=TAP_MODIFIERS,
+                       startup_logo_delay_ms=LOGO_DELAY,
                        sdl_events=use_sdl,release_turn_first=RELEASE_TURN,move_key=MOVE_KEY,
                        camera_round_trip=camera_route,camera_samples=camera_samples,
                        gameplay_acceptance=False),out,indent=2)
 advance(RELEASE_DELAY)
 checkpoint('before')
+for modifier in TAP_MODIFIERS:
+    modifier_vk={'shift':0x10,'ctrl':0x11,'alt':0x12}[modifier]
+    key(modifier_vk,True);key(modifier_vk,False)
+if TAP_MODIFIERS:checkpoint('modifiers-released')
 turn_calls=[]
 queries=[]
 active_query=None
@@ -363,6 +401,9 @@ if population_frames:
         require(actor in sample['active'],'Population removed Joe from active updates')
         require(value('DAT_0047a470')==actor,'Population changed the current actor')
     checkpoint('population-enabled')
+    if REQUIRE_POPULATION:
+        require(population_samples[-1]['population_disabled']==0,'Script still disables terrain population')
+        require(bool(population_samples[-1]['generated_active']),'No terrain-generated actor is active')
 if population_only:
     pass
 elif camera_route:
@@ -406,8 +447,9 @@ elif TURN_FORWARD:
     vk=0x25 if name=='left' else 0x27
     move_vk=0x26 if MOVE_KEY=='up' else 0x28
     heading_samples=[];trace_heading=True
-    key(vk,True)
-    if SIMULTANEOUS_TURN:key(move_vk,True)
+    if not HOLD_THROUGH_RELEASE:
+        key(vk,True)
+        if SIMULTANEOUS_TURN:key(move_vk,True)
     advance(frames);checkpoint(name+'-pressed')
     if RELEASE_TURN:
         key(vk,False);advance(frames);checkpoint(name+'-released')
@@ -427,21 +469,45 @@ if query_limit:
     query_bp.delete();floor_bp.delete()
     require(len(queries)>0,'No motion queries were recorded')
 observed_seconds=0
+npc_observation=None
 if observe_seconds:
+    npc_samples=[]
+    if REQUIRE_POPULATION:npc_samples.append(population_census('observation-start'))
     started=time.monotonic()
     while time.monotonic()-started<observe_seconds:
         advance(30)
         observe_camera()
+        if REQUIRE_POPULATION:npc_samples.append(population_census('observation-update'))
     observed_seconds=time.monotonic()-started
     checkpoint('observed-released')
     require(all(held==0 for held in states[-1]['held_keys'].values()),'Observation left a key held')
+    if REQUIRE_POPULATION:
+        moved=set();changed=set();active_windows=0
+        for before,after in zip(npc_samples,npc_samples[1:]):
+            old={a['pointer']:a for a in before['actors'] if a['pointer'] in before['active']}
+            window_changed=False
+            for a in after['actors']:
+                if not a['table_flags']&8 or a['id']==0 or a['pointer'] not in after['active']:continue
+                prior=old.get(a['pointer'])
+                if not prior:continue
+                if a['position']!=prior['position']:moved.add(a['id'])
+                if any(a[key]!=prior[key] for key in ('position','state','action','action_progress')):
+                    changed.add(a['id']);window_changed=True
+            active_windows+=int(window_changed)
+        require(bool(npc_samples[-1]['generated_active']),'Observation lost all generated NPCs')
+        require(bool(moved) and bool(changed),'Generated NPCs did not continue moving/updating')
+        npc_observation=dict(samples=len(npc_samples),active_windows=active_windows,
+                             moved_ids=sorted(moved),changed_ids=sorted(changed))
 report=dict(probe_complete=True,frames_per_phase=frames,states=states,
             combined_turn=TURN_FORWARD,move_key=MOVE_KEY,turn_calls=turn_calls,
             simultaneous_turn=SIMULTANEOUS_TURN,burst_frames=BURST_FRAMES,
             background_spawns=BACKGROUND_SPAWNS,
+            hold_through_release=HOLD_THROUGH_RELEASE,video_driver=VIDEO_DRIVER,
+            tapped_modifiers=TAP_MODIFIERS,
+            startup_logo_delay_ms=LOGO_DELAY,
             sdl_events=use_sdl,release_turn_first=RELEASE_TURN,
             camera_round_trip=camera_route,camera_samples=camera_samples,
-            recorded_queries=len(queries),observed_seconds=observed_seconds,
+            recorded_queries=len(queries),observed_seconds=observed_seconds,npc_observation=npc_observation,
             population_frames=population_frames,population_samples=len(population_samples),
             guard_checkpoints=guard_checkpoints,natural_intro=natural_intro,intro_actions=intro_actions,
             position_changed=any(s['position']!=states[0]['position'] for s in states[1:]),
@@ -453,14 +519,23 @@ print('PROBE COMPLETE: position_changed='+str(report['position_changed'])+
 end
 quit
 '''.replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
-    'PROCESS_SECONDS', str(args.timeout + 10)).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
-    'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip)).replace(
-    'RELEASE_TURN',repr(args.release_turn_first)).replace('SIMULTANEOUS_TURN',repr(args.simultaneous_turn)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(
+    'PROCESS_SECONDS', str(args.timeout + 10)).replace('LOGO_DELAY',str(args.startup_logo_delay_ms)).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
+    'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip or bool(args.tap_modifiers))).replace('TAP_MODIFIERS',repr(args.tap_modifiers)).replace(
+    'RELEASE_TURN',repr(args.release_turn_first)).replace('SIMULTANEOUS_TURN',repr(args.simultaneous_turn)).replace('HOLD_THROUGH_RELEASE',repr(args.hold_through_release)).replace('VIDEO_DRIVER',repr(args.video_driver)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(
     'QUERY_LIMIT',str(args.trace_queries)).replace('OBSERVE_SECONDS',str(args.observe_seconds)).replace(
-    'POPULATION_COUNT',str(args.population_frames)).replace('POPULATION_ONLY',repr(args.population_only)).replace('BACKGROUND_SPAWNS',repr(args.background_spawns)).replace('CHECK_GUARDS',repr(args.pedestal_guards)).replace('NATURAL_INTRO',repr(args.natural_intro)).replace('INTRO_SKIP_ACTION',str(args.intro_skip_action))
+    'POPULATION_COUNT',str(args.population_frames)).replace('POPULATION_ONLY',repr(args.population_only)).replace('REQUIRE_POPULATION',repr(args.require_background_population)).replace('BACKGROUND_SPAWNS',repr(args.background_spawns)).replace('CHECK_GUARDS',repr(args.pedestal_guards)).replace('NATURAL_INTRO',repr(args.natural_intro)).replace('INTRO_SKIP_ACTION',str(args.intro_skip_action))
 with tempfile.TemporaryDirectory(prefix='e2-player-motion-') as tmp:
     script = Path(tmp) / 'probe.gdb'
-    script.write_text(commands)
+    # Desktop drivers load GDB Python helpers from shared libraries. Their
+    # top-level names (including `prefix`) must not overwrite this probe's state.
+    preamble, body = commands.split('\npython\n', 1)
+    body, trailing = body.rsplit('\nend\n', 1)
+    python_script = Path(tmp) / 'probe.py'
+    python_script.write_text(body)
+    source_path = repr(str(python_script))
+    script.write_text(preamble + '\npython\nexec(compile(open(' + source_path +
+                      ').read(), ' + source_path + ', "exec"), '
+                      '{"__name__": "__e2_motion_probe__"})\nend\n' + trailing)
     try:
         result = subprocess.run(['gdb', '-q', '-batch', '-x', str(script),
                                  str(args.exe.resolve())], env=env,

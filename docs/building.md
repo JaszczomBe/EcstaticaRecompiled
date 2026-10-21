@@ -96,10 +96,12 @@ The former `linux-clang32-asan` and `linux-clang32-sdl-asan` preset names are re
 
 1. After initial configuration, run **CMake: Select Configure Preset** and choose **Debug · Clang 21 · i386 · SDL**. Existing VS Code selections may still point to an older/native preset; make this selection once.
 2. Select the matching build preset if prompted, and select the `e2recomp` launch target.
-3. Press F5 using **Ecstatica Recompiled**. CMake Tools builds the selected target, resolves its executable and working directory, and launches GDB with `--run-recon` and `E2R_ACTOR_CYLINDERS=1 E2R_ACTION_INDEX_PROBE=1 E2R_PROXY_MESH_BYPASS=1 E2R_DEFER_BACKGROUND_SPAWNS=1`.
+3. Press F5 using **Ecstatica Recompiled**. CMake Tools builds the selected target, resolves its executable and working directory, and launches GDB with `--run-recon` and `E2R_ACTOR_CYLINDERS=1 E2R_ACTION_INDEX_PROBE=1 E2R_PROXY_MESH_BYPASS=1 E2R_DEFER_BACKGROUND_SPAWNS=0 E2R_STARTUP_LOGO_DELAY_MS=0`.
 4. Ctrl+Shift+B uses the single CMake build task for the active build preset. There are no shell configure/build launch wrappers or duplicate SDL/X11 launch entries.
 
 Changing the selected preset changes F5's executable. CMake Tools must have successfully configured that preset before its target commands can resolve. F5 uses its build-before-run integration; no additional pre-launch build task is attached.
+
+`E2R_STARTUP_LOGO_DELAY_MS=0` removes the startup logo waits while retaining logo/resource initialization. Set it to `5000` or remove it to restore the default waits. Space still skips the horseback sequence through its original skip script; the pedestal release sequence continues normally. There is no supported full-intro skip flag yet. See the [startup-skip assessment and measured Debug/ASan results](journal/entries/startup-skip-feasibility-2026-10-20.md).
 
 Workspace settings show the configure preset, Build, and launch target in the status bar. Other controls remain in the CMake Tools sidebar/Command Palette. The kit/Debug-selector pair in undertone belongs to its non-preset VS Code mode; this workspace deliberately stays in preset mode. IntelliSense uses CMake Tools' selected configuration and compile commands.
 
