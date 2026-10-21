@@ -282,9 +282,22 @@ typedef INT_PTR (WINAPI *FARPROC)();
 #define WM_MBUTTONUP 0x0208
 #define PM_REMOVE 0x0001
 #define VK_RETURN 0x0d
+#define VK_SHIFT 0x10
+#define VK_CONTROL 0x11
+#define VK_MENU 0x12
 #define VK_ESCAPE 0x1b
 #define VK_SPACE 0x20
+#define VK_LEFT 0x25
+#define VK_UP 0x26
+#define VK_RIGHT 0x27
+#define VK_DOWN 0x28
+#define VK_I 0x49
 #define VK_Q 0x51
+#define VK_L 0x4c
+#define VK_S 0x53
+#define VK_F12 0x7b
+#define VK_LMENU 0xa4
+#define VK_RMENU 0xa5
 #define GENERIC_WRITE 0x40000000u
 #define FILE_SHARE_READ 0x00000001u
 #define CREATE_ALWAYS 2u
@@ -308,8 +321,12 @@ BOOL VirtualProtect(LPVOID address, size_t size, DWORD new_protect, DWORD *old_p
 void *SetUnhandledExceptionFilter(void *filter);
 BOOL IsWindow(HWND hwnd);
 int E2R_TryPresentCurrentFrame(HWND hwnd);
+void E2R_RequestVisibilityDump(void);
 void E2R_PumpHostEvents(void);
 void E2R_PumpHost(void);
+int ShowCursor(BOOL show);
+BOOL GetCursorPos(POINT *point);
+BOOL SetCursorPos(int x, int y);
 BOOL PeekMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter, UINT remove);
 BOOL GetMessageA(MSG *msg, HWND hwnd, UINT min_filter, UINT max_filter);
 BOOL TranslateMessage(const MSG *msg);

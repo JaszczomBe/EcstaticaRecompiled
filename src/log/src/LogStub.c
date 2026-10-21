@@ -2,11 +2,17 @@
 
 #include <stdarg.h>
 
-void E2R_LogBootstrap(const char *level, const char *disabled_modules, const char *data_dir)
+int E2R_LogBootstrap(const char *level, const char *disabled_modules, const char *data_dir)
 {
     (void)level;
     (void)disabled_modules;
     (void)data_dir;
+    return 1;
+}
+
+void E2R_LogDiagnostic(const char *message)
+{
+    (void)message;
 }
 
 void E2R_LogShutdown(void)

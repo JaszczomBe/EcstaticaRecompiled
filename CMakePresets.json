@@ -1,100 +1,219 @@
 {
   "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
   "configurePresets": [
     {
-      "name": "linux-clang-debug",
-      "displayName": "Linux Clang Debug",
+      "name": "linux-clang-base",
+      "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/linux-clang-debug",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2"
+        "CMAKE_C_COMPILER": "clang-21",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+        "CMAKE_C_FLAGS": "",
+        "CMAKE_EXE_LINKER_FLAGS": "",
+        "E2R_ENABLE_ASAN": false,
+        "E2R_REQUIRE_I386": false,
+        "E2R_EXPECTED_CLANG_MAJOR": "21",
+        "CMAKE_CXX_COMPILER": "clang++-21",
+        "E2R_ENABLE_LOGGER": true,
+        "E2R_ENABLE_RUNTIME_OPTIONS": true,
+        "CMAKE_CXX_FLAGS": ""
       }
     },
     {
-      "name": "linux-clang32-debug",
-      "displayName": "Linux Clang 32-bit Debug",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/linux-clang32-debug",
+      "name": "linux-clang32-base",
+      "hidden": true,
+      "inherits": "linux-clang-base",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_C_FLAGS": "-m32",
-        "CMAKE_CXX_FLAGS": "-m32 -isystem /usr/include/x86_64-linux-gnu/c++/14 -nostdlib++",
-        "CMAKE_CXX_STANDARD_LIBRARIES": "/usr/lib/i386-linux-gnu/libstdc++.so.6",
+        "CMAKE_CXX_FLAGS": "-m32",
         "CMAKE_EXE_LINKER_FLAGS": "-m32",
-        "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2"
-      }
-    },
-    {
-      "name": "linux-clang32-asan",
-      "displayName": "Linux Clang 32-bit ASan",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/linux-clang32-asan",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_C_FLAGS": "-m32 -fsanitize=address -fno-omit-frame-pointer",
-        "CMAKE_EXE_LINKER_FLAGS": "-m32 -fsanitize=address",
-        "E2R_ENABLE_LOGGER": "OFF",
-        "E2R_ENABLE_RUNTIME_OPTIONS": "OFF",
-        "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2"
-      }
-    },
-    {
-      "name": "linux-clang-sdl-debug",
-      "displayName": "Linux Clang SDL Debug",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/linux-clang-sdl-debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2",
-        "E2R_HOST_BACKEND": "sdl"
+        "CMAKE_SHARED_LINKER_FLAGS": "-m32",
+        "E2R_REQUIRE_I386": true
       }
     },
     {
       "name": "linux-clang32-sdl-debug",
-      "displayName": "Linux Clang 32-bit SDL Debug",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/linux-clang32-sdl-debug",
+      "displayName": "Debug · Clang 21 · i386 · SDL",
+      "description": "SDL developer runtime. Debug without ASan is the everyday F5 choice.",
+      "inherits": "linux-clang32-base",
+      "binaryDir": "${sourceDir}/build/Debug/clang21-i386-sdl",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_C_FLAGS": "-m32",
-        "CMAKE_CXX_FLAGS": "-m32 -isystem /usr/include/x86_64-linux-gnu/c++/14 -nostdlib++",
-        "CMAKE_CXX_STANDARD_LIBRARIES": "/usr/lib/i386-linux-gnu/libstdc++.so.6",
-        "CMAKE_EXE_LINKER_FLAGS": "-m32",
-        "ECSTATICA2_DATA_DIR": "/home/rgrabowski/Games/Ecstatica2",
-        "E2R_HOST_BACKEND": "sdl"
+        "E2R_HOST_BACKEND": "sdl",
+        "E2R_ENABLE_ASAN": false
+      }
+    },
+    {
+      "name": "linux-clang32-sdl-release",
+      "displayName": "Release · Clang 21 · i386 · SDL",
+      "description": "Experimental: builds successfully but currently crashes during reconstructed startup. Use Debug for everyday F5.",
+      "inherits": "linux-clang32-base",
+      "binaryDir": "${sourceDir}/build/Release/clang21-i386-sdl",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "E2R_HOST_BACKEND": "sdl",
+        "E2R_ENABLE_ASAN": false
+      }
+    },
+    {
+      "name": "linux-clang32-sdl-relwithdebinfo",
+      "displayName": "RelWithDebInfo · Clang 21 · i386 · SDL",
+      "description": "Experimental: builds successfully but currently crashes during reconstructed startup. Use Debug for everyday F5.",
+      "inherits": "linux-clang32-base",
+      "binaryDir": "${sourceDir}/build/RelWithDebInfo/clang21-i386-sdl",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "E2R_HOST_BACKEND": "sdl",
+        "E2R_ENABLE_ASAN": false
+      }
+    },
+    {
+      "name": "linux-clang32-sdl-minsizerel",
+      "displayName": "MinSizeRel · Clang 21 · i386 · SDL",
+      "description": "Experimental: builds successfully but currently crashes during reconstructed startup. Use Debug for everyday F5.",
+      "inherits": "linux-clang32-base",
+      "binaryDir": "${sourceDir}/build/MinSizeRel/clang21-i386-sdl",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "MinSizeRel",
+        "E2R_HOST_BACKEND": "sdl",
+        "E2R_ENABLE_ASAN": false
+      }
+    },
+    {
+      "name": "linux-clang32-sdl-debug-asan",
+      "displayName": "Debug · Clang 21 · i386 · SDL · ASan",
+      "description": "SDL developer runtime. Debug without ASan is the everyday F5 choice.",
+      "inherits": "linux-clang32-base",
+      "binaryDir": "${sourceDir}/build/Debug/clang21-i386-sdl-asan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "E2R_HOST_BACKEND": "sdl",
+        "E2R_ENABLE_ASAN": true
+      }
+    },
+    {
+      "name": "linux-clang32-debug",
+      "displayName": "Debug · Clang 21 · i386 · X11",
+      "description": "X11 baseline used by the regression scripts.",
+      "inherits": "linux-clang32-base",
+      "binaryDir": "${sourceDir}/build/Debug/clang21-i386-x11",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "E2R_HOST_BACKEND": "x11",
+        "E2R_ENABLE_ASAN": false
+      }
+    },
+    {
+      "name": "linux-clang32-debug-asan",
+      "displayName": "Debug · Clang 21 · i386 · X11 · ASan",
+      "description": "X11 baseline used by the regression scripts.",
+      "inherits": "linux-clang32-base",
+      "binaryDir": "${sourceDir}/build/Debug/clang21-i386-x11-asan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "E2R_HOST_BACKEND": "x11",
+        "E2R_ENABLE_ASAN": true
+      }
+    },
+    {
+      "name": "linux-clang-debug",
+      "displayName": "Debug · Clang 21 · native64 · X11 · build only",
+      "description": "Build-only diagnostic; reconstructed execution requires i386.",
+      "inherits": "linux-clang-base",
+      "binaryDir": "${sourceDir}/build/Debug/clang21-native64-x11",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "E2R_HOST_BACKEND": "x11",
+        "E2R_ENABLE_ASAN": false
+      }
+    },
+    {
+      "name": "linux-clang-sdl-debug",
+      "displayName": "Debug · Clang 21 · native64 · SDL · build only",
+      "description": "Build-only diagnostic; reconstructed execution requires i386.",
+      "inherits": "linux-clang-base",
+      "binaryDir": "${sourceDir}/build/Debug/clang21-native64-sdl",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "E2R_HOST_BACKEND": "sdl",
+        "E2R_ENABLE_ASAN": false
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "linux-clang-debug",
-      "configurePreset": "linux-clang-debug"
+      "name": "linux-clang32-sdl-debug",
+      "configurePreset": "linux-clang32-sdl-debug",
+      "targets": [
+        "e2recomp"
+      ]
+    },
+    {
+      "name": "linux-clang32-sdl-release",
+      "configurePreset": "linux-clang32-sdl-release",
+      "targets": [
+        "e2recomp"
+      ]
+    },
+    {
+      "name": "linux-clang32-sdl-relwithdebinfo",
+      "configurePreset": "linux-clang32-sdl-relwithdebinfo",
+      "targets": [
+        "e2recomp"
+      ]
+    },
+    {
+      "name": "linux-clang32-sdl-minsizerel",
+      "configurePreset": "linux-clang32-sdl-minsizerel",
+      "targets": [
+        "e2recomp"
+      ]
+    },
+    {
+      "name": "linux-clang32-sdl-debug-asan",
+      "configurePreset": "linux-clang32-sdl-debug-asan",
+      "targets": [
+        "e2recomp"
+      ]
     },
     {
       "name": "linux-clang32-debug",
-      "configurePreset": "linux-clang32-debug"
+      "configurePreset": "linux-clang32-debug",
+      "targets": [
+        "e2recomp"
+      ]
     },
     {
-      "name": "linux-clang32-asan",
-      "configurePreset": "linux-clang32-asan"
+      "name": "linux-clang32-debug-asan",
+      "configurePreset": "linux-clang32-debug-asan",
+      "targets": [
+        "e2recomp"
+      ]
+    },
+    {
+      "name": "linux-clang-debug",
+      "configurePreset": "linux-clang-debug",
+      "targets": [
+        "e2recomp"
+      ]
     },
     {
       "name": "linux-clang-sdl-debug",
-      "configurePreset": "linux-clang-sdl-debug"
-    },
-    {
-      "name": "linux-clang32-sdl-debug",
-      "configurePreset": "linux-clang32-sdl-debug"
+      "configurePreset": "linux-clang-sdl-debug",
+      "targets": [
+        "e2recomp"
+      ]
     }
   ]
 }

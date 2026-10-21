@@ -5,6 +5,7 @@
 #include "Log/LogBootstrap.h"
 
 #include <cstdarg>
+#include <atomic>
 #include <cstdio>
 #include <filesystem>
 #include <string>
@@ -13,6 +14,7 @@
 
 namespace
 {
+    std::atomic<bool> diagnosticMirrorEnabled{false};
     using namespace Ecstatica::Recompiled::Log;
 
     Level ToLevel(int level)
@@ -42,6 +44,7 @@ namespace
             {E2R_LOG_TAG_TIMING, "Timing"},
             {E2R_LOG_TAG_AUDIO, "Audio"},
             {E2R_LOG_TAG_PROBE, "Probe"},
+            {E2R_LOG_TAG_DIAGNOSTIC, "Diagnostic"},
         };
 
         for (auto module : {ModuleID::Runtime,
@@ -65,28 +68,51 @@ namespace
 
     std::string BuildLogPath(const char* dataDir)
     {
-        std::filesystem::path root = dataDir != nullptr && dataDir[0] != '\0' ? dataDir : "./data";
+        std::filesystem::path root = dataDir;
         std::filesystem::path logs = root / "logs";
         std::error_code ec;
         std::filesystem::create_directories(logs, ec);
+        if (ec)
+            return {};
         return (logs / "e2recomp.log").string();
     }
 }
 
-extern "C" void E2R_LogBootstrap(const char* level, const char* disabled_modules, const char* data_dir)
+extern "C" int E2R_LogBootstrap(const char* level, const char* disabled_modules, const char* data_dir)
 {
-    const std::string logPath = BuildLogPath(data_dir);
-    Ecstatica::Recompiled::Log::Bootstrap(
-        level != nullptr ? level : "",
-        disabled_modules != nullptr ? disabled_modules : "",
-        false,
-        RegisterCommonTags,
-        logPath);
+    try
+    {
+        if (data_dir == nullptr || data_dir[0] == '\0')
+            return 0;
+        const std::string logPath = BuildLogPath(data_dir);
+        if (logPath.empty() || !Ecstatica::Recompiled::Log::Bootstrap(
+            level != nullptr ? level : "",
+            disabled_modules != nullptr ? disabled_modules : "",
+            false,
+            RegisterCommonTags,
+            logPath, false))
+            return 0;
+        diagnosticMirrorEnabled.store(true, std::memory_order_release);
+        return 1;
+    }
+    catch (const std::exception& error)
+    {
+        std::fprintf(stderr, "logger bootstrap failed: %s\n", error.what());
+        return 0;
+    }
 }
 
 extern "C" void E2R_LogShutdown(void)
 {
+    diagnosticMirrorEnabled.store(false, std::memory_order_release);
     Ecstatica::Recompiled::Log::BootstrapShutdown();
+}
+
+extern "C" void E2R_LogDiagnostic(const char* message)
+{
+    if (diagnosticMirrorEnabled.load(std::memory_order_acquire))
+        E2R_LogWrite(E2R_LOG_LEVEL_INFO, E2R_LOG_MODULE_RUNTIME,
+                     E2R_LOG_TAG_DIAGNOSTIC, nullptr, nullptr, 0, message);
 }
 
 extern "C" void E2R_LogWrite(int level,

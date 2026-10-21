@@ -66,7 +66,7 @@ for (const name of valueUsed) {
 source = source.replace('#include "e2recomp_types.h"', '#include "E2Recomp_recon.h"');
 source = source.replace(
   '#include "E2Recomp_recon.h"',
-  '#include "E2Recomp_recon.h"\n#include <math.h>\n#include <stdarg.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#ifdef NAN\n#undef NAN\n#endif\n#define NAN(x) isnan((double)(x))\n\nstatic uint E2R_file_flags[256];\n#define E2R_STREAM_MAGIC 0xe25eed01u\n\nstatic int E2R_round_to_int(double value)\n{\n  return (int)(value < 0.0 ? value - 0.5 : value + 0.5);\n}\n\nstatic byte E2R_clamp_byte(int value)\n{\n  if (value < 0) {\n    return 0;\n  }\n  if (255 < value) {\n    return 255;\n  }\n  return (byte)value;\n}\n\nstatic short E2R_clamp_short(int value)\n{\n  if (value < -32768) {\n    return -32768;\n  }\n  if (32767 < value) {\n    return 32767;\n  }\n  return (short)value;\n}\n\nstatic undefined4 E2R_OpenReadStream(LPCSTR path)\n{\n  HANDLE file;\n  DWORD size;\n  DWORD bytes_read = 0;\n  char *buffer;\n  undefined4 *stream;\n\n  file = CreateFileA(path,0x80000000,3,(LPSECURITY_ATTRIBUTES)0x0,3,0x80,(HANDLE)0x0);\n  if (file == INVALID_HANDLE_VALUE) {\n    return 0;\n  }\n  size = SetFilePointer(file,0,(PLONG)0x0,2);\n  if (size == 0xffffffff) {\n    CloseHandle(file);\n    return 0;\n  }\n  SetFilePointer(file,0,(PLONG)0x0,0);\n  buffer = (char *)LocalAlloc(0x40,size == 0 ? 1 : size);\n  stream = (undefined4 *)LocalAlloc(0x40,0x1c);\n  if (buffer == (char *)0x0 || stream == (undefined4 *)0x0) {\n    if (buffer != (char *)0x0) {\n      LocalFree(buffer);\n    }\n    if (stream != (undefined4 *)0x0) {\n      LocalFree(stream);\n    }\n    CloseHandle(file);\n    return 0;\n  }\n  if (size != 0 && ReadFile(file,buffer,size,&bytes_read,(LPOVERLAPPED)0x0) == 0) {\n    LocalFree(buffer);\n    LocalFree(stream);\n    CloseHandle(file);\n    return 0;\n  }\n  CloseHandle(file);\n  stream[0] = (undefined4)(uintptr_t)buffer;\n  stream[1] = (undefined4)bytes_read;\n  stream[2] = (undefined4)(uintptr_t)(buffer + bytes_read);\n  stream[3] = 0;\n  stream[4] = 0xffffffff;\n  stream[5] = (undefined4)(uintptr_t)buffer;\n  stream[6] = E2R_STREAM_MAGIC;\n  return (undefined4)(uintptr_t)stream;\n}\n\nstatic uint E2R_ReadOpenFileBytes(int descriptor,char *buffer,DWORD bytes_to_read)\n{\n  DWORD bytes_read = 0;\n  HANDLE file;\n  uint slot = (uint)descriptor;\n\n  if (_DAT_00ac51fc == 0 || _DAT_00ac51f8 <= slot) {\n    return 0xffffffff;\n  }\n  file = *(HANDLE *)(_DAT_00ac51fc + slot * 4);\n  if (file == (HANDLE)0x0 || file == INVALID_HANDLE_VALUE) {\n    return 0xffffffff;\n  }\n  if (ReadFile(file,buffer,bytes_to_read,&bytes_read,(LPOVERLAPPED)0x0) == 0) {\n    return 0xffffffff;\n  }\n  return bytes_read;\n}\n'
+  '#include "E2Recomp_recon.h"\n#include <math.h>\n#include <stdarg.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include "e2recomp_log.h"\n#ifdef NAN\n#undef NAN\n#endif\n#define NAN(x) isnan((double)(x))\n\nstatic uint E2R_file_flags[256];\n#define E2R_STREAM_MAGIC 0xe25eed01u\n\nstatic int E2R_round_to_int(double value)\n{\n  return (int)(value < 0.0 ? value - 0.5 : value + 0.5);\n}\n\nstatic byte E2R_clamp_byte(int value)\n{\n  if (value < 0) {\n    return 0;\n  }\n  if (255 < value) {\n    return 255;\n  }\n  return (byte)value;\n}\n\nstatic short E2R_clamp_short(int value)\n{\n  if (value < -32768) {\n    return -32768;\n  }\n  if (32767 < value) {\n    return 32767;\n  }\n  return (short)value;\n}\n\nstatic undefined4 E2R_OpenReadStream(LPCSTR path)\n{\n  HANDLE file;\n  DWORD size;\n  DWORD bytes_read = 0;\n  char *buffer;\n  undefined4 *stream;\n\n  file = CreateFileA(path,0x80000000,3,(LPSECURITY_ATTRIBUTES)0x0,3,0x80,(HANDLE)0x0);\n  if (file == INVALID_HANDLE_VALUE) {\n    return 0;\n  }\n  size = SetFilePointer(file,0,(PLONG)0x0,2);\n  if (size == 0xffffffff) {\n    CloseHandle(file);\n    return 0;\n  }\n  SetFilePointer(file,0,(PLONG)0x0,0);\n  buffer = (char *)LocalAlloc(0x40,size == 0 ? 1 : size);\n  stream = (undefined4 *)LocalAlloc(0x40,0x1c);\n  if (buffer == (char *)0x0 || stream == (undefined4 *)0x0) {\n    if (buffer != (char *)0x0) {\n      LocalFree(buffer);\n    }\n    if (stream != (undefined4 *)0x0) {\n      LocalFree(stream);\n    }\n    CloseHandle(file);\n    return 0;\n  }\n  if (size != 0 && ReadFile(file,buffer,size,&bytes_read,(LPOVERLAPPED)0x0) == 0) {\n    LocalFree(buffer);\n    LocalFree(stream);\n    CloseHandle(file);\n    return 0;\n  }\n  CloseHandle(file);\n  stream[0] = (undefined4)(uintptr_t)buffer;\n  stream[1] = (undefined4)bytes_read;\n  stream[2] = (undefined4)(uintptr_t)(buffer + bytes_read);\n  stream[3] = 0;\n  stream[4] = 0xffffffff;\n  stream[5] = (undefined4)(uintptr_t)buffer;\n  stream[6] = E2R_STREAM_MAGIC;\n  return (undefined4)(uintptr_t)stream;\n}\n\nstatic uint E2R_ReadOpenFileBytes(int descriptor,char *buffer,DWORD bytes_to_read)\n{\n  DWORD bytes_read = 0;\n  HANDLE file;\n  uint slot = (uint)descriptor;\n\n  if (_DAT_00ac51fc == 0 || _DAT_00ac51f8 <= slot) {\n    return 0xffffffff;\n  }\n  file = *(HANDLE *)(_DAT_00ac51fc + slot * 4);\n  if (file == (HANDLE)0x0 || file == INVALID_HANDLE_VALUE) {\n    return 0xffffffff;\n  }\n  if (ReadFile(file,buffer,bytes_to_read,&bytes_read,(LPOVERLAPPED)0x0) == 0) {\n    return 0xffffffff;\n  }\n  return bytes_read;\n}\n'
 );
 source = source.replace(
   "#define NAN(x) isnan((double)(x))\n\nstatic uint E2R_file_flags",
@@ -81,8 +81,16 @@ source = source.replace(
   "static uint E2R_actor_current_diag_count;\nstatic int E2R_runtime_diag_enabled;\nstatic int E2R_game_state_log_enabled;\nstatic uint E2R_game_state_log_count;\nstatic uint E2R_current_actor_trace_diag_count;"
 );
 source = source.replace(
+  "static uint E2R_actor_load_diag_count;\nstatic int E2R_actor_load_id_override",
+  "static uint E2R_actor_load_diag_count;\nstatic uint E2R_rep_load_diag_count;\nstatic int E2R_actor_load_id_override"
+);
+source = source.replace(
+  "static int E2R_actor_load_id_override = -1;\nstatic int *E2R_fan_parse_stream;",
+  "static int E2R_actor_load_id_override = -1;\nstatic short E2R_actor_visible_rep_fallback[5000];\nstatic byte E2R_actor_visible_rep_fallback_valid[5000];\nstatic int *E2R_fan_parse_stream;"
+);
+source = source.replace(
   "static int E2R_actor_calc_context;\n\nstatic void E2R_InitDiagnostics",
-  "static int E2R_actor_calc_context;\nstatic uintptr_t E2R_hosted_streams[1024];\n\nstatic void E2R_InitDiagnostics"
+  "static int E2R_actor_calc_context;\nstatic int E2R_action_event_context;\nstatic uintptr_t E2R_hosted_streams[1024];\n\nstatic void E2R_InitDiagnostics"
 );
 source = source.replace(
   "  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n\n  if (fan_diag != (char *)0x0 && fan_diag[0] != '\\0' && fan_diag[0] != '0') {",
@@ -124,6 +132,20 @@ source = source.replace("  stream[3] = 0;\n  stream[4] = 0xffffffff;", "  stream
 source = source.replace(
   "  stream[5] = (undefined4)(uintptr_t)buffer;\n  stream[6] = E2R_STREAM_MAGIC;\n  return (undefined4)(uintptr_t)stream;",
   "  stream[5] = (undefined4)(uintptr_t)buffer;\n  stream[6] = E2R_STREAM_MAGIC;\n  E2R_RegisterHostedStream(stream);\n  return (undefined4)(uintptr_t)stream;"
+);
+
+// 0x4605bc writes access through EDX and attributes through EBX. Recover the
+// second destination before collecting prototypes so the header retains it.
+source = source.replace(
+  /void __fastcall FUN_004605bc\([^)]*\)\s*\{[\s\S]*?^\}/m,
+  `void __fastcall FUN_004605bc(undefined4 param_1,undefined4 *param_2,undefined4 *param_3)
+
+{
+  /* Original EAX mode, EDX access output and EBX attributes output. */
+  *param_2 = param_1 == 2 ? 0xc0000000 : param_1 == 1 ? 0x40000000 : 0x80000000;
+  *param_3 = param_1 == 1 || param_1 == 2 ? 0x80 : 1;
+  return;
+}`
 );
 
 const protoMatches = source.matchAll(/^\s*((?:[A-Za-z_][A-Za-z0-9_]*\s+|[*]\s*)+[A-Za-z_][A-Za-z0-9_]*\s*\([^;{}]*?\))\s*\r?\n\s*\{/gms);
@@ -216,7 +238,7 @@ source = source.replace(
   /undefined8 __fastcall FUN_0045fa43\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045fa88 \*\//,
   "undefined8 __fastcall FUN_0045fa43(undefined4 param_1,undefined4 param_2)\n\n{\n  char *src = (char *)(uintptr_t)param_1;\n  char *dst;\n  uint len = 0;\n  if ((uintptr_t)src < 0x10000 || (uintptr_t)src > 0x7fffffff) return (ulonglong)param_2 << 32;\n  while (src[len] != 0) len++;\n  len++;\n  dst = (char *)LocalAlloc(0x40, len);\n  if (dst != (char *)0x0) {\n    uint i;\n    for (i = 0; i < len; i++) dst[i] = src[i];\n  }\n  return CONCAT44(param_2,dst);\n}\n\n\n\n/* 0045fa88 */"
 );
-source = source.replace("  FUN_004605bc(extraout_ECX,&local_20);\n  FUN_004605e8(extraout_ECX_00,&local_24);", "  FUN_004605bc(uVar6,&local_20);\n  FUN_004605e8(uVar6,&local_24);");
+source = source.replace("  FUN_004605bc(extraout_ECX,&local_20);\n  FUN_004605e8(extraout_ECX_00,&local_24);", "  FUN_004605bc(uVar6,&local_20,&local_1c);\n  FUN_004605e8(uVar6,&local_24);");
 source = source.replace(
   "    uVar7 = (*(code *)PTR_thunk_FUN_004603d1_0047d3a8)();\n    uVar1 = (undefined4)uVar7;\n    lVar8 = FUN_00460803(extraout_ECX_06,(uint)((ulonglong)uVar7 >> 0x20));",
   "    uVar7 = FUN_004603d1((undefined4)(uintptr_t)pvVar3,param_2);\n    uVar1 = (undefined4)uVar7;\n    lVar8 = FUN_00460803(uVar1,uVar1);"
@@ -229,9 +251,6 @@ source = source.replace(
   "  (*(code *)PTR_FUN_0047d3a0)();\n  uVar1 = FUN_004608e8(extraout_ECX,extraout_EDX);\n  (*(code *)PTR_FUN_0047d3a4)();\n  (*(code *)PTR_thunk_FUN_004604e6_0047d3ac)();\n  return CONCAT44(param_2,(int)uVar1);",
   "  uVar1 = FUN_004608e8(param_1,param_2);\n  FUN_004604e6(param_1,param_2);\n  return CONCAT44(param_2,(int)uVar1);"
 );
-source = source.replace(/(void __fastcall FUN_004605bc\(undefined4 param_1,undefined4 \*param_2\)[\s\S]*?\r?\n  undefined4 \*unaff_EBX;\r?\n\s*)if \(in_EAX == 2\) \{/, "$1in_EAX = (int)(uintptr_t)param_1;\n  if (in_EAX == 2) {");
-source = source.replace("      *unaff_EBX = 1;\n      return;", "      if (unaff_EBX != (undefined4 *)0x0 && !E2R_IsBadWritePtr(unaff_EBX,4)) {\n        *unaff_EBX = 1;\n      }\n      return;");
-source = source.replace("  *unaff_EBX = 0x80;\n  return;\n}\n\n\n\n/* 004605e8 */", "  if (unaff_EBX != (undefined4 *)0x0 && !E2R_IsBadWritePtr(unaff_EBX,4)) {\n    *unaff_EBX = 0x80;\n  }\n  return;\n}\n\n\n\n/* 004605e8 */");
 source = source.replace(/(void __fastcall FUN_004605e8\(undefined4 param_1,undefined4 \*param_2\)[\s\S]*?\r?\n  int in_EAX;\r?\n\s*)if \(\(in_EAX == 0\)/, "$1in_EAX = (int)(uintptr_t)param_1;\n  if ((in_EAX == 0)");
 source = source.replace(
   /(longlong __fastcall FUN_00460803\(undefined4 param_1,uint param_2\)[\s\S]*?\r?\n  DWORD DVar1;\r?\n  HANDLE hFile;\r?\n\s*)\(\*\(code \*\)PTR_FUN_0047d3a0\)\(param_2,param_1\);/,
@@ -272,8 +291,24 @@ source = source.replace(
   "  int requester_id;\n  undefined8 uVar4;\n\n  E2R_TraceInputFlags(\"15d40.enter\");\n  if (_DAT_00636690 != 0) {"
 );
 source = source.replace(
+  "  E2R_TraceInputFlags(\"15d40.enter\");\n  if (_DAT_00636690 != 0) {",
+  "  E2R_TraceInputFlags(\"15d40.enter\");\n  if (DAT_00636850 != '\\0') {\n    E2R_RequestIntroSkip();\n  }\n  if (_DAT_00636690 != 0) {"
+);
+source = source.replace(
+  "  E2R_TraceInputFlags(\"15d40.enter\");\n\n  if (_DAT_00636690 != 0) {",
+  "  E2R_TraceInputFlags(\"15d40.enter\");\n  if (DAT_00636850 != '\\0') {\n    E2R_RequestIntroSkip();\n  }\n\n  if (_DAT_00636690 != 0) {"
+);
+source = source.replace(
+  /  E2R_TraceInputFlags\("15d40\.enter"\);\r?\n\s*\r?\n  if \(_DAT_00636690 != 0\) \{/,
+  "  E2R_TraceInputFlags(\"15d40.enter\");\n  if (DAT_00636850 != '\\0') {\n    E2R_RequestIntroSkip();\n  }\n\n  if (_DAT_00636690 != 0) {"
+);
+source = source.replace(
   "    else {\n      if (((((DAT_0063685c != '\\0') || (DAT_0063685a != '\\0')) || (DAT_00636855 != '\\0')) ||\n          (((DAT_00636854 != '\\0' || (DAT_00636856 != '\\0')) ||\n           ((DAT_00636857 != '\\0' || ((DAT_00636859 != '\\0' || (DAT_00636858 != '\\0')))))))) ||\n         ((DAT_0063685b != '\\0' ||\n          ((DAT_00636850 != '\\0' ||\n           ((*(int *)(DAT_0047a470 + 0xa6) != 0 &&\n            ((*(byte *)(*(int *)(DAT_0047a470 + 0xa6) + 0xc) & 2) != 0)))))))) {",
   "    else {\n      current_action_flag = 0;\n      if (E2R_IsReadableCurrentPointer(DAT_0047a470)) {\n        iVar2 = *(int *)(DAT_0047a470 + 0xa6);\n        if (iVar2 != 0 && 0x10000u <= (uint)iVar2 && (uint)iVar2 < 0x70000000u &&\n            !IsBadReadPtr((void *)(uintptr_t)iVar2,0x10)) {\n          current_action_flag = (*(byte *)(iVar2 + 0xc) & 2) != 0;\n        }\n      }\n      if (DAT_0063685c != '\\0' || DAT_0063685a != '\\0' || DAT_00636855 != '\\0' ||\n          DAT_00636854 != '\\0' || DAT_00636856 != '\\0' || DAT_00636857 != '\\0' ||\n          DAT_00636859 != '\\0' || DAT_00636858 != '\\0' || DAT_0063685b != '\\0' ||\n          DAT_00636850 != '\\0' || current_action_flag != 0) {\n        if (DAT_00636850 != '\\0') {\n          E2R_GameStateLog(\"15d40.space activity reset action_timer current_action_flag=%d\",\n                           current_action_flag);\n        }"
+);
+source = source.replace(
+  "        if (DAT_00636850 != '\\0') {\n          E2R_GameStateLog(\"15d40.space activity reset action_timer current_action_flag=%d\",\n                           current_action_flag);\n        }\n        _DAT_00636860 = _DAT_00636588;",
+  "        if (DAT_00636850 != '\\0') {\n          E2R_GameStateLog(\"15d40.space activity reset action_timer current_action_flag=%d\",\n                           current_action_flag);\n          E2R_RequestIntroSkip();\n        }\n        _DAT_00636860 = _DAT_00636588;"
 );
 source = source.replace(
   "    DAT_0047a788 = 1;\n    DAT_00636844 = '\\0';\n    _DAT_00643650 = 5;\n    if (DAT_00479db4 != 0) {\n      param_1 = 0;\n      DAT_00479db4 = 0;\n    }\n    uVar4 = FUN_0043ce58(param_1,5);",
@@ -285,7 +320,7 @@ source = source.replace(
 );
 source = source.replace(
   "    case 6:\n      FUN_00414e68();\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\",",
-  "    case 6:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\","
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\","
 );
 source = source.replace(
   "  if (DAT_00636845 != '\\0') {\n    DAT_00636845 = '\\0';\n  }\n  return;\n}\n\n\n\n/* 0041643c */",
@@ -433,8 +468,56 @@ source = source.replace(
   "      if (*(int *)(param_2 + 6) != 0) {\n        E2R_requester_probe_action_count++;\n        E2R_requester_probe_last_action = *(uintptr_t *)(param_2 + 6);\n        E2R_InvokeRequesterAction(E2R_requester_probe_last_action);\n        FUN_0041cfc0();\n        return;\n      }"
 );
 source = source.replace(
+  "    if (*(int *)(param_2 + 6) != 0) {\n      (**(code **)(param_2 + 6))();\n      uVar6 = extraout_ECX_00;\n      uVar8 = extraout_DX_00;\n    }",
+  "    if (*(int *)(param_2 + 6) != 0) {\n      E2R_requester_probe_action_count++;\n      E2R_requester_probe_last_action = *(uintptr_t *)(param_2 + 6);\n      if (E2R_InvokeRequesterAction(E2R_requester_probe_last_action)) {\n        return 1;\n      }\n    }"
+);
+source = source.replace(
+  "  if (*(int *)(param_2 + 6) != 0) {\n    (**(code **)(param_2 + 6))();\n    uVar6 = extraout_ECX;\n    _DAT_006443d0 = extraout_DX;\n  }",
+  "  if (*(int *)(param_2 + 6) != 0) {\n    E2R_requester_probe_action_count++;\n    E2R_requester_probe_last_action = *(uintptr_t *)(param_2 + 6);\n    if (E2R_InvokeRequesterAction(E2R_requester_probe_last_action)) {\n      return 1;\n    }\n  }"
+);
+source = source.replace(
   "  }\n  FUN_0041cfc0();\n  return;\ncode_r0x0043bf38:",
   "  }\n  else {\n    E2R_requester_probe_bd4c_no_key_count++;\n  }\n  FUN_0041cfc0();\n  return;\ncode_r0x0043bf38:"
+);
+source = source.replace(
+  "  _DAT_0064342c = 0;\n  _DAT_006443d0 = (ushort)(in_EAX == (short *)(undefined1 *)0x0047a684);\n  iVar2 = 0;",
+  "  _DAT_0064342c = 0;\n  _DAT_006443d0 = (ushort)(in_EAX == (short *)(undefined1 *)0x0047a684);\n  E2R_RequesterProbeFeedPendingMouse(E2R_WORD_AT(DAT_0047a45e,2));\n  iVar2 = 0;"
+);
+source = source.replace(
+  "  param_2[0xd] = sVar6 + param_2[1];\n  param_2[0xe] = param_2[0xd] + param_2[3];\n  param_2[0xc] = param_2[0xb] + param_2[2];\n  iVar3 = DAT_0047a279 >> 0x18;",
+  "  param_2[0xd] = sVar6 + param_2[1];\n  param_2[0xe] = param_2[0xd] + param_2[3];\n  param_2[0xc] = param_2[0xb] + param_2[2];\n  E2R_RequesterProbeLogItemLayout(E2R_WORD_AT(DAT_0047a45e,2),(uintptr_t)param_2);\n  iVar3 = DAT_0047a279 >> 0x18;"
+);
+source = source.replace(
+  "        FUN_0043d8ec();\n        FUN_0043d934();\n        FUN_0043d9a0();\n        FUN_0043da04();\n        FUN_0043da80();\n        uVar13 = FUN_0043b384(extraout_ECX_04,extraout_EDX_00);",
+  "        FUN_0043d8ec();\n        FUN_0043d934();\n        FUN_0043d9a0();\n        FUN_0043da04();\n        FUN_0043da80();\n        E2R_InitRequesterSettingsItems();\n        uVar13 = FUN_0043b384(0x0047a668,extraout_EDX_00);"
+);
+source = source.replace(
+  "\n\n\n/* 0043af98 */",
+  "\n\nint E2R_RequesterHandleMouseClick(uintptr_t x, uintptr_t y)\n{\n  short *record;\n  short *item;\n  uintptr_t action;\n  ushort requester_id;\n  uint guard;\n\n  requester_id = E2R_WORD_AT(DAT_0047a45e,2);\n  if (_DAT_00643650 == 0 ||\n      (requester_id != 0x28 && requester_id != 0x29 &&\n       requester_id != 0x2a && requester_id != 0x31)) {\n    return 0;\n  }\n  record = (short *)FUN_0043aeac();\n  if (record == (short *)0x0 || (uintptr_t)record >= 0x70000000u ||\n      IsBadReadPtr(record,0x20)) {\n    return 0;\n  }\n  item = *(short **)(record + 6);\n  for (guard = 0; item != (short *)0x0 && guard < 0x40; guard = guard + 1) {\n    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {\n      return 0;\n    }\n    if ((short)x >= item[0xb] && (short)x < item[0xc] &&\n        (short)y >= item[0xd] && (short)y < item[0xe]) {\n      action = *(uintptr_t *)(item + 6);\n      if (action == 0) {\n        return 0;\n      }\n      _DAT_00643430 = item;\n      E2R_requester_probe_action_count++;\n      E2R_requester_probe_last_action = action;\n      return E2R_InvokeRequesterAction(action);\n    }\n    item = *(short **)(item + 9);\n  }\n  return 0;\n}\n\n\n/* 0043af98 */"
+);
+source = source.replace(
+  "  if (_DAT_00643650 == 0 ||\n      (requester_id != 0x28 && requester_id != 0x29 &&\n       requester_id != 0x2a && requester_id != 0x31)) {\n    return 0;\n  }",
+  "  if (_DAT_00643650 == 0 ||\n      (requester_id != 0x14 && requester_id != 0x28 &&\n       requester_id != 0x29 && requester_id != 0x2a && requester_id != 0x31)) {\n    if (E2R_MenuDiagEnabled()) {\n      fprintf(stderr,\n              \"menu click: phase=requester-direct outcome=ignored x=%ld y=%ld \"\n              \"state=%lu requester=0x%x selected=0x%lx\\n\",\n              (long)x,(long)y,(unsigned long)_DAT_00643650,\n              (unsigned int)requester_id,(unsigned long)_DAT_00643430);\n    }\n    return 0;\n  }"
+);
+source = source.replace(
+  "  if (record == (short *)0x0 || (uintptr_t)record >= 0x70000000u ||\n      IsBadReadPtr(record,0x20)) {\n    return 0;\n  }",
+  "  if (record == (short *)0x0 || (uintptr_t)record >= 0x70000000u ||\n      IsBadReadPtr(record,0x20)) {\n    if (E2R_MenuDiagEnabled()) {\n      fprintf(stderr,\n              \"menu click: phase=requester-direct outcome=bad-record x=%ld y=%ld \"\n              \"state=%lu requester=0x%x record=0x%lx\\n\",\n              (long)x,(long)y,(unsigned long)_DAT_00643650,\n              (unsigned int)requester_id,(unsigned long)record);\n    }\n    return 0;\n  }"
+);
+source = source.replace(
+  "    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {\n      return 0;\n    }",
+  "    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {\n      if (E2R_MenuDiagEnabled()) {\n        fprintf(stderr,\n                \"menu click: phase=requester-direct outcome=bad-item x=%ld y=%ld \"\n                \"state=%lu requester=0x%x record=0x%lx item=0x%lx guard=%lu\\n\",\n                (long)x,(long)y,(unsigned long)_DAT_00643650,\n                (unsigned int)requester_id,(unsigned long)record,\n                (unsigned long)item,(unsigned long)guard);\n      }\n      return 0;\n    }"
+);
+source = source.replace(
+  "      if (action == 0) {\n        return 0;\n      }\n      _DAT_00643430 = item;",
+  "      if (action == 0) {\n        if (E2R_MenuDiagEnabled()) {\n          fprintf(stderr,\n                  \"menu click: phase=requester-direct outcome=no-action x=%ld y=%ld \"\n                  \"state=%lu requester=0x%x item=0x%lx bounds=[%d,%d..%d,%d]\\n\",\n                  (long)x,(long)y,(unsigned long)_DAT_00643650,\n                  (unsigned int)requester_id,(unsigned long)item,\n                  (int)item[0xb],(int)item[0xd],(int)item[0xc],(int)item[0xe]);\n        }\n        return 0;\n      }\n      if (E2R_MenuDiagEnabled()) {\n        fprintf(stderr,\n                \"menu click: phase=requester-direct outcome=hit x=%ld y=%ld \"\n                \"state=%lu requester=0x%x item=0x%lx bounds=[%d,%d..%d,%d] \"\n                \"action=0x%lx action_name=%s\\n\",\n                (long)x,(long)y,(unsigned long)_DAT_00643650,\n                (unsigned int)requester_id,(unsigned long)item,\n                (int)item[0xb],(int)item[0xd],(int)item[0xc],(int)item[0xe],\n                (unsigned long)action,E2R_RequesterActionName(action));\n      }\n      _DAT_00643430 = item;"
+);
+source = source.replace(
+  "      _DAT_00643430 = item;\n      E2R_requester_probe_action_count++;\n      E2R_requester_probe_last_action = action;\n      return E2R_InvokeRequesterAction(action);",
+  "      _DAT_00643430 = item;\n      E2R_requester_probe_action_count++;\n      E2R_requester_probe_last_action = action;\n      if ((requester_id == 0x29 && action == (uintptr_t)&LAB_0043fadc) ||\n          (requester_id == 0x2a && action == (uintptr_t)&LAB_0043fb58)) {\n        _DAT_0064353c = (int)(ushort)item[8] & 0xff;\n        E2R_RedrawActiveRequesterItem();\n        return 1;\n      }\n      if (requester_id == 0x28) {\n        if (action == (uintptr_t)&LAB_0043d47c &&\n            !(DAT_0047a76c == 0 && _DAT_0073cc3c != 0 &&\n              E2R_IsReadableCurrentPointer(DAT_0047a470))) {\n          E2R_InvokeRequesterAction(action);\n          return 1;\n        }\n        return 0;\n      }\n      return E2R_InvokeRequesterAction(action);"
+);
+source = source.replace(
+  "  return 0;\n}\n\n\n/* 0043af98 */",
+  "  if (E2R_MenuDiagEnabled()) {\n    fprintf(stderr,\n            \"menu click: phase=requester-direct outcome=miss x=%ld y=%ld \"\n            \"state=%lu requester=0x%x record=0x%lx items_checked=%lu selected=0x%lx\\n\",\n            (long)x,(long)y,(unsigned long)_DAT_00643650,\n            (unsigned int)requester_id,(unsigned long)record,(unsigned long)guard,\n            (unsigned long)_DAT_00643430);\n  }\n  return 0;\n}\n\n\n/* 0043af98 */"
 );
 source = source.replace(/(void __fastcall FUN_00460557\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n\s*)\*\(int \*\)\(\(int\)uVar1 \+ 4\) = \(int\)\(\(ulonglong\)uVar1 >> 0x20\);/, "$1if ((int)uVar1 != 0) {\n    *(int *)((int)uVar1 + 4) = (int)((ulonglong)uVar1 >> 0x20);\n  }");
 source = source.replace(/(void __fastcall FUN_0046055c\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n\s*)\*\(int \*\)\(\(int\)uVar1 \+ 4\) = \(int\)\(\(ulonglong\)uVar1 >> 0x20\);/, "$1if ((int)uVar1 != 0) {\n    *(int *)((int)uVar1 + 4) = (int)((ulonglong)uVar1 >> 0x20);\n  }");
@@ -610,6 +693,22 @@ source = source.replace(
   "  if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||\n      (uintptr_t)base >= 0x70000000u || _DAT_006401ec <= 0 ||\n      0x1000 < _DAT_006401ec || _DAT_006401d4 <= 0 ||\n      0x1000 < _DAT_006401d4) {\n    return;\n  }\n  write_span = ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +\n               (size_t)_DAT_006401ec;\n  if (E2R_IsBadWritePtr((void *)(uintptr_t)base,write_span)) {\n    return;\n  }\n  dx = x1 - x0;"
 );
 source = source.replace(
+  "  else {\n    FUN_00419af4(1,param_2,0,0);\n  }\n  return;\n}\n\n\n\n/* 00418a04 */",
+  "  else {\n    E2R_DrawHostedText(param_2);\n  }\n  return;\n}\n\n\n\n/* 00418a04 */"
+);
+source = source.replace(
+  "    FUN_0041b078(iVar3,(short)iVar3);\n    FUN_00418770(extraout_ECX_05,*(byte **)(param_2 + 4));",
+  "    FUN_0041b078(iVar3,(short)(param_2[0xd] + 1));\n    FUN_00418770(extraout_ECX_05,*(byte **)(param_2 + 4));"
+);
+source = source.replace(
+  "      iVar3 = extraout_ECX_06 + (uint)uVar2;\n      FUN_0041b078(iVar3,(short)iVar3);",
+  "      iVar3 = extraout_ECX_06 + (uint)uVar2;\n      FUN_0041b078(iVar3,(short)(param_2[0xd] + 1));"
+);
+source = source.replace(
+  "  for (psVar8 = *(short **)(in_EAX + 6); psVar8 != (short *)0x0; psVar8 = *(short **)(psVar8 + 9)) {\n    FUN_0043b9bc(uVar4,psVar8);\n    uVar4 = extraout_ECX_08;\n    uVar7 = extraout_EDX_01;\n    uVar5 = extraout_var_01;\n  }\n  uVar11 = CONCAT44(uVar7,CONCAT22(uVar5,E2R_WORD_AT(DAT_0047a45e,2)));",
+  "  for (psVar8 = *(short **)(in_EAX + 6); psVar8 != (short *)0x0; psVar8 = *(short **)(psVar8 + 9)) {\n    FUN_0043b9bc(uVar4,psVar8);\n    uVar4 = extraout_ECX_08;\n    uVar7 = extraout_EDX_01;\n    uVar5 = extraout_var_01;\n  }\n  E2R_DrawHostedRequesterLabels(in_EAX);\n  uVar11 = CONCAT44(uVar7,CONCAT22(uVar5,E2R_WORD_AT(DAT_0047a45e,2)));"
+);
+source = source.replace(
   /(void __fastcall FUN_0041b34c\(undefined4 param_1,int param_2\)[\s\S]*?\r?\n  int surface;\r?\n\s*)int x0;/,
   "$1int style_surface;\n  int x0;"
 );
@@ -771,9 +870,319 @@ const glyphTableMirrorSymbols = [
   "DAT_00479c94", "DAT_00479d6c",
 ];
 const ctypeTableState = `\nstatic byte E2R_CtypeFlags(uint index)\n{\n  int c = (int)(byte)index - 1;\n  byte flags = 0;\n\n  if (c < 0) {\n    return 0;\n  }\n  if (c < 0x20 || c == 0x7f) {\n    flags = flags | 1;\n  }\n  if (c == ' ' || c == '\\t' || c == '\\n' || c == '\\r' || c == '\\v' || c == '\\f') {\n    flags = flags | 2;\n  }\n  if ('0' <= c && c <= '9') {\n    flags = flags | 0x20;\n  }\n  if ('A' <= c && c <= 'Z') {\n    flags = flags | 0x40;\n  }\n  if ('a' <= c && c <= 'z') {\n    flags = flags | 0x80;\n  }\n  return flags;\n}\n\nstatic byte E2R_BitMask(uint index)\n{\n  return (byte)(1u << (index & 7));\n}\n\nstatic void E2R_CopyCStringBounded(char *dest,char *source,uint size)\n{\n  uint i;\n\n  if (dest == (char *)0x0 || source == (char *)0x0 || size == 0 ||\n      E2R_IsBadWritePtr(dest,size) || IsBadReadPtr(source,1)) {\n    return;\n  }\n  memset(dest,0,size);\n  for (i = 0; i + 1 < size; i = i + 1) {\n    if (IsBadReadPtr(source + i,1) || source[i] == '\\0') {\n      break;\n    }\n    dest[i] = source[i];\n  }\n}\n\nstatic void E2R_FormatOneString(char *dest,char *format,char *value)\n{\n  while (*format != '\\0') {\n    if (format[0] == '%' && format[1] == 's') {\n      while (*value != '\\0') {\n        *dest = *value;\n        dest = dest + 1;\n        value = value + 1;\n      }\n      format = format + 2;\n    }\n    else {\n      *dest = *format;\n      dest = dest + 1;\n      format = format + 1;\n    }\n  }\n  *dest = '\\0';\n}\n\nstatic void E2R_UseHostedCdPath(char *path)\n{\n  if ((path[0] != '\\0' && path[1] == ':') || path[0] == '\\\\' || path[0] == '/') {\n    path[0] = '\\0';\n  }\n}\n`;
-const requesterActionState = `\nstatic int E2R_InvokeRequesterAction(uintptr_t action)\n{\n  ushort requester_id = E2R_WORD_AT(DAT_0047a45e,2);\n\n  if (action == (uintptr_t)&LAB_0043c594) {\n    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643dc4) {\n      _DAT_006443d2 = (_DAT_006443d2 & 0xffff) | 0x10000;\n      if (_DAT_00643430 == (short *)0x00643dc4) {\n        _DAT_00643650 = 6;\n      }\n      return 1;\n    }\n  }\n  if (action == (uintptr_t)&LAB_0043d458) {\n    _DAT_00643650 = 0;\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d464) {\n    _DAT_00643650 = 1;\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d470) {\n    _DAT_00643650 = 2;\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d47c) {\n    if (DAT_0047a76c == 0) {\n      _DAT_00643650 = 3;\n    }\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d490) {\n    _DAT_00643650 = 4;\n    return 1;\n  }\n  if (action == (uintptr_t)&DAT_0043d49c) {\n    uintptr_t prompt = 0x004729b8;\n    if (DAT_00479e00 != 0 && !IsBadReadPtr((void *)0x0060aef0,4) &&\n        *(uintptr_t *)0x0060aef0 != 0) {\n      prompt = *(uintptr_t *)0x0060aef0;\n    }\n    _DAT_00643650 = ((int)FUN_0043c910((undefined4)prompt,0) != 0) ? 6 : 5;\n    return 1;\n  }\n  if (action == (uintptr_t)&DAT_0043d4c0) {\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d83c) {\n    if (DAT_0047d0c4 == 0) {\n      return 1;\n    }\n    FUN_0044e5b0();\n    if (DAT_0047a43c != 0) {\n      FUN_0043acec();\n    }\n    else {\n      FUN_0043ac60();\n    }\n    DAT_0047a440 = DAT_0047a43c;\n    FUN_0044e5b0();\n    FUN_004559bc();\n    FUN_00456f94();\n    FUN_004211c8(0,0);\n    FUN_00421a14();\n    FUN_00421f54(0);\n    FUN_00422238(0,0);\n    FUN_0043d8ec();\n    FUN_0043d934();\n    FUN_0043d9a0();\n    FUN_0043da04();\n    FUN_0043da80();\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043c4e8) {\n    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643c84) {\n      _DAT_006443d2 = _DAT_006443d2 & 0xffff;\n      if (_DAT_00643430 == (short *)0x00643c84) {\n        _DAT_00643650 = 5;\n      }\n      return 1;\n    }\n    if (requester_id == 0x27 || requester_id == 0x28) {\n      _DAT_00643650 = 5;\n      return 1;\n    }\n    if (requester_id == 0x2a) {\n      _DAT_0064353c = 0;\n      return 1;\n    }\n  }\n  return 0;\n}\n`;
+let requesterActionState = `\nstatic int E2R_InvokeRequesterAction(uintptr_t action)\n{\n  ushort requester_id = E2R_WORD_AT(DAT_0047a45e,2);\n\n  if (action == (uintptr_t)&LAB_0043c594) {\n    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643dc4) {\n      _DAT_006443d2 = (_DAT_006443d2 & 0xffff) | 0x10000;\n      if (_DAT_00643430 == (short *)0x00643dc4) {\n        _DAT_00643650 = 6;\n      }\n      return 1;\n    }\n  }\n  if (action == (uintptr_t)&LAB_0043d458) {\n    _DAT_00643650 = 0;\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d464) {\n    _DAT_00643650 = 1;\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d470) {\n    _DAT_00643650 = 2;\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d47c) {\n    if (DAT_0047a76c == 0) {\n      _DAT_00643650 = 3;\n    }\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d490) {\n    _DAT_00643650 = 4;\n    return 1;\n  }\n  if (action == (uintptr_t)&DAT_0043d49c) {\n    uintptr_t prompt = 0x004729b8;\n    if (DAT_00479e00 != 0 && !IsBadReadPtr((void *)0x0060aef0,4) &&\n        *(uintptr_t *)0x0060aef0 != 0) {\n      prompt = *(uintptr_t *)0x0060aef0;\n    }\n    _DAT_00643650 = ((int)FUN_0043c910((undefined4)prompt,0) != 0) ? 6 : 5;\n    return 1;\n  }\n  if (action == (uintptr_t)&DAT_0043d4c0) {\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d83c) {\n    if (DAT_0047d0c4 == 0) {\n      return 1;\n    }\n    FUN_0044e5b0();\n    if (DAT_0047a43c != 0) {\n      FUN_0043acec();\n    }\n    else {\n      FUN_0043ac60();\n    }\n    DAT_0047a440 = DAT_0047a43c;\n    FUN_0044e5b0();\n    FUN_004559bc();\n    FUN_00456f94();\n    FUN_004211c8(0,0);\n    FUN_00421a14();\n    FUN_00421f54(0);\n    FUN_00422238(0,0);\n    FUN_0043d8ec();\n    FUN_0043d934();\n    FUN_0043d9a0();\n    FUN_0043da04();\n    FUN_0043da80();\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043c4e8) {\n    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643c84) {\n      _DAT_006443d2 = _DAT_006443d2 & 0xffff;\n      if (_DAT_00643430 == (short *)0x00643c84) {\n        _DAT_00643650 = 5;\n      }\n      return 1;\n    }\n    if (requester_id == 0x27 || requester_id == 0x28) {\n      _DAT_00643650 = 5;\n      return 1;\n    }\n    if (requester_id == 0x2a) {\n      _DAT_0064353c = 0;\n      return 1;\n    }\n  }\n  return 0;\n}\n`;
+requesterActionState = requesterActionState.replace(
+  "  if (action == (uintptr_t)&LAB_0043d83c) {",
+  "  if (action == (uintptr_t)&LAB_0043d728) {\n    DAT_0047a49c = DAT_0047a49c == 0;\n    FUN_0043d934();\n    E2R_RedrawActiveRequesterItem();\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d7a0) {\n    DAT_0047a4a0 = DAT_0047a4a0 == 0;\n    FUN_0043d9a0();\n    E2R_RedrawActiveRequesterItem();\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d7f0) {\n    DAT_0047a4a4 = (DAT_0047a4a4 + 1) % 3;\n    FUN_0043da04();\n    E2R_RedrawActiveRequesterItem();\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d6e4) {\n    if (DAT_0047d0c4 != 0) {\n      DAT_0047a43c = DAT_0047a43c == 0;\n      FUN_0043da80();\n    }\n    E2R_RedrawActiveRequesterItem();\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d83c) {"
+);
+requesterActionState = requesterActionState.replace(
+  "    if (requester_id == 0x2a) {",
+  "    if (requester_id == 0x29 || requester_id == 0x2a) {"
+);
+requesterActionState = requesterActionState.replace(
+  "  if (action == (uintptr_t)&LAB_0043d47c) {\n    if (DAT_0047a76c == 0) {\n      _DAT_00643650 = 3;\n    }\n    return 1;\n  }",
+  "  if (action == (uintptr_t)&LAB_0043d47c) {\n    if (DAT_0047a76c == 0 && _DAT_0073cc3c != 0 &&\n        E2R_IsReadableCurrentPointer(DAT_0047a470)) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.save\",3);\n    }\n    else {\n      E2R_TraceRequesterState(\"action.save_disabled_intro\",_DAT_00643650);\n      return 0;\n    }\n    return 1;\n  }"
+);
+requesterActionState = requesterActionState.replace(
+  "  if (action == (uintptr_t)&LAB_0043d83c) {\n    if (DAT_0047d0c4 == 0) {",
+  "  if (action == (uintptr_t)&LAB_0043d83c) {\n    if (requester_id == 0x31) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_ok\",0);\n      return 1;\n    }\n    if (DAT_0047d0c4 == 0) {"
+);
+requesterActionState = requesterActionState.replace(
+  "    if (requester_id == 0x29 || requester_id == 0x2a) {\n      _DAT_0064353c = 0;\n      return 1;\n    }\n",
+  "    if (requester_id == 0x29 || requester_id == 0x2a) {\n      _DAT_0064353c = 0;\n      return 1;\n    }\n    if (requester_id == 0x31) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_cancel\",0);\n      return 1;\n    }\n"
+);
 const requesterFocusState = `\nstatic short *E2R_RequesterFirstSelectable(short *item)\n{\n  uint guard = 0;\n  short *first_readable = (short *)0x0;\n\n  while (item != (short *)0x0 && guard < 0x80) {\n    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {\n      return (short *)0x0;\n    }\n    if (first_readable == (short *)0x0) {\n      first_readable = item;\n    }\n    if ((*(byte *)((int)item + 0x11) & 0x10) != 0) {\n      return item;\n    }\n    item = *(short **)(item + 9);\n    guard++;\n  }\n  return first_readable;\n}\n`;
 const menuStringState = `\nstatic int E2R_IsReadableCString(char *text)\n{\n  uint i;\n\n  if ((uintptr_t)text < 0x10000 || IsBadReadPtr(text,1)) {\n    return 0;\n  }\n  for (i = 0; i < 0x1000; i = i + 1) {\n    if (IsBadReadPtr(text + i,1)) {\n      return 0;\n    }\n    if (text[i] == '\\0') {\n      return 1;\n    }\n  }\n  return 0;\n}\n\nstatic int *E2R_ResolveMenuStringList(undefined4 first,undefined4 second,undefined4 *local_single)\n{\n  int *list;\n  char *text;\n\n  list = (int *)(uintptr_t)first;\n  if ((uintptr_t)list >= 0x10000 && !IsBadReadPtr(list,4)) {\n    text = (char *)(uintptr_t)list[0];\n    if (text == (char *)0x0 || E2R_IsReadableCString(text)) {\n      return list;\n    }\n  }\n  text = (char *)(uintptr_t)first;\n  if (E2R_IsReadableCString(text)) {\n    local_single[0] = first;\n    local_single[1] = 0;\n    return (int *)local_single;\n  }\n  text = (char *)(uintptr_t)second;\n  if (E2R_IsReadableCString(text)) {\n    local_single[0] = second;\n    local_single[1] = 0;\n    return (int *)local_single;\n  }\n  return (int *)0x0;\n}\n`;
+let hostedTextState = `\nstatic const byte *E2R_HostedGlyphRows(byte ch)\n{\n  static const byte space[7] = {0,0,0,0,0,0,0};\n  static const byte unknown[7] = {0x0e,0x11,0x01,0x06,0x04,0,0x04};\n\n  switch (ch) {\n  case '0': { static const byte r[7] = {0x0e,0x11,0x13,0x15,0x19,0x11,0x0e}; return r; }\n  case '1': { static const byte r[7] = {0x04,0x0c,0x04,0x04,0x04,0x04,0x0e}; return r; }\n  case '2': { static const byte r[7] = {0x0e,0x11,0x01,0x02,0x04,0x08,0x1f}; return r; }\n  case '3': { static const byte r[7] = {0x1e,0x01,0x01,0x0e,0x01,0x01,0x1e}; return r; }\n  case '4': { static const byte r[7] = {0x02,0x06,0x0a,0x12,0x1f,0x02,0x02}; return r; }\n  case '5': { static const byte r[7] = {0x1f,0x10,0x1e,0x01,0x01,0x11,0x0e}; return r; }\n  case '6': { static const byte r[7] = {0x06,0x08,0x10,0x1e,0x11,0x11,0x0e}; return r; }\n  case '7': { static const byte r[7] = {0x1f,0x01,0x02,0x04,0x08,0x08,0x08}; return r; }\n  case '8': { static const byte r[7] = {0x0e,0x11,0x11,0x0e,0x11,0x11,0x0e}; return r; }\n  case '9': { static const byte r[7] = {0x0e,0x11,0x11,0x0f,0x01,0x02,0x0c}; return r; }\n  case 'A': { static const byte r[7] = {0x0e,0x11,0x11,0x1f,0x11,0x11,0x11}; return r; }\n  case 'B': { static const byte r[7] = {0x1e,0x11,0x11,0x1e,0x11,0x11,0x1e}; return r; }\n  case 'C': { static const byte r[7] = {0x0f,0x10,0x10,0x10,0x10,0x10,0x0f}; return r; }\n  case 'D': { static const byte r[7] = {0x1e,0x11,0x11,0x11,0x11,0x11,0x1e}; return r; }\n  case 'E': { static const byte r[7] = {0x1f,0x10,0x10,0x1e,0x10,0x10,0x1f}; return r; }\n  case 'F': { static const byte r[7] = {0x1f,0x10,0x10,0x1e,0x10,0x10,0x10}; return r; }\n  case 'G': { static const byte r[7] = {0x0f,0x10,0x10,0x13,0x11,0x11,0x0f}; return r; }\n  case 'H': { static const byte r[7] = {0x11,0x11,0x11,0x1f,0x11,0x11,0x11}; return r; }\n  case 'I': { static const byte r[7] = {0x0e,0x04,0x04,0x04,0x04,0x04,0x0e}; return r; }\n  case 'J': { static const byte r[7] = {0x01,0x01,0x01,0x01,0x11,0x11,0x0e}; return r; }\n  case 'K': { static const byte r[7] = {0x11,0x12,0x14,0x18,0x14,0x12,0x11}; return r; }\n  case 'L': { static const byte r[7] = {0x10,0x10,0x10,0x10,0x10,0x10,0x1f}; return r; }\n  case 'M': { static const byte r[7] = {0x11,0x1b,0x15,0x15,0x11,0x11,0x11}; return r; }\n  case 'N': { static const byte r[7] = {0x11,0x19,0x15,0x13,0x11,0x11,0x11}; return r; }\n  case 'O': { static const byte r[7] = {0x0e,0x11,0x11,0x11,0x11,0x11,0x0e}; return r; }\n  case 'P': { static const byte r[7] = {0x1e,0x11,0x11,0x1e,0x10,0x10,0x10}; return r; }\n  case 'Q': { static const byte r[7] = {0x0e,0x11,0x11,0x11,0x15,0x12,0x0d}; return r; }\n  case 'R': { static const byte r[7] = {0x1e,0x11,0x11,0x1e,0x14,0x12,0x11}; return r; }\n  case 'S': { static const byte r[7] = {0x0f,0x10,0x10,0x0e,0x01,0x01,0x1e}; return r; }\n  case 'T': { static const byte r[7] = {0x1f,0x04,0x04,0x04,0x04,0x04,0x04}; return r; }\n  case 'U': { static const byte r[7] = {0x11,0x11,0x11,0x11,0x11,0x11,0x0e}; return r; }\n  case 'V': { static const byte r[7] = {0x11,0x11,0x11,0x11,0x11,0x0a,0x04}; return r; }\n  case 'W': { static const byte r[7] = {0x11,0x11,0x11,0x15,0x15,0x1b,0x11}; return r; }\n  case 'X': { static const byte r[7] = {0x11,0x11,0x0a,0x04,0x0a,0x11,0x11}; return r; }\n  case 'Y': { static const byte r[7] = {0x11,0x11,0x0a,0x04,0x04,0x04,0x04}; return r; }\n  case 'Z': { static const byte r[7] = {0x1f,0x01,0x02,0x04,0x08,0x10,0x1f}; return r; }\n  case '.': { static const byte r[7] = {0,0,0,0,0,0x0c,0x0c}; return r; }\n  case '(': { static const byte r[7] = {0x02,0x04,0x08,0x08,0x08,0x04,0x02}; return r; }\n  case ')': { static const byte r[7] = {0x08,0x04,0x02,0x02,0x02,0x04,0x08}; return r; }\n  case '-': { static const byte r[7] = {0,0,0,0x1f,0,0,0}; return r; }\n  case '_': { static const byte r[7] = {0,0,0,0,0,0,0x1f}; return r; }\n  case ' ': return space;\n  default: return unknown;\n  }\n}\n\nstatic void E2R_DrawHostedText(byte *text)\n{\n  byte ch;\n  const byte *rows;\n  int advance;\n  int base;\n  byte color;\n  uint col;\n  uint i;\n  int pitch;\n  uint row;\n  int scale;\n  int style_surface;\n  int surface;\n  int x;\n  int y;\n  uint yy;\n  uint xx;\n\n  if (text == (byte *)0x0 || IsBadReadPtr(text,1)) {\n    return;\n  }\n  style_surface = DAT_0047a279 >> 0x18;\n  surface = style_surface;\n  if (DAT_0047a43c != 0) {\n    surface = surface + 2;\n  }\n  if (surface < 0 || 3 < surface) {\n    return;\n  }\n  base = FUN_00418a04((undefined4)(uintptr_t)surface,&pitch);\n  if ((uintptr_t)base < 0x10000u || pitch <= 0 || _DAT_006401ec <= 0 ||\n      _DAT_006401d4 <= 0) {\n    return;\n  }\n  x = (short)*(undefined2 *)(0x006366c4 + surface * 2);\n  y = (short)*(undefined2 *)(0x006366d0 + surface * 2);\n  color = ((byte *)0x006366dc)[style_surface * 2];\n  if (color == 0) {\n    color = 0xf;\n  }\n  advance = DAT_0047a408 == 0 ? 12 : DAT_0047a408;\n  scale = DAT_0047a43c == 0 ? 1 : 2;\n  for (i = 0; i < 10000 && !IsBadReadPtr(text + i,1); i = i + 1) {\n    ch = text[i];\n    if (ch == 0) {\n      break;\n    }\n    if ('a' <= ch && ch <= 'z') {\n      ch = ch - ('a' - 'A');\n    }\n    rows = E2R_HostedGlyphRows(ch);\n    for (row = 0; row < 7; row = row + 1) {\n      for (col = 0; col < 5; col = col + 1) {\n        if ((rows[row] & (byte)(1u << (4 - col))) != 0) {\n          for (yy = 0; yy < (uint)scale; yy = yy + 1) {\n            for (xx = 0; xx < (uint)scale; xx = xx + 1) {\n              int px = x + (int)(col * (uint)scale + xx);\n              int py = y + (int)(row * (uint)scale + yy);\n              if (0 <= px && px < _DAT_006401ec && 0 <= py && py < _DAT_006401d4) {\n                *(byte *)(base + py * pitch + px) = color;\n              }\n            }\n          }\n        }\n      }\n    }\n    x = x + advance;\n  }\n  *(undefined2 *)(0x006366c4 + surface * 2) = (undefined2)x;\n}\n`;
+hostedTextState = hostedTextState.replace(
+  "if (color == 0) {\\n    color = 0xf;",
+  "if (color == 0 || color == 10 || color == 0xf) {\\n    color = 8;"
+);
+hostedTextState = hostedTextState.replace(
+  "\n\nstatic void E2R_DrawHostedText(byte *text)",
+  "\n\nstatic void E2R_FillHostedRect(int left,int top,int right,int bottom)\n{\n  int base;\n  byte color;\n  int pitch;\n  int style_surface;\n  int surface;\n  int x;\n  int y;\n\n  style_surface = DAT_0047a279 >> 0x18;\n  surface = style_surface;\n  if (DAT_0047a43c != 0) {\n    surface = surface + 2;\n  }\n  if (surface < 0 || 3 < surface || right < left || bottom < top) {\n    return;\n  }\n  if (left < 0) left = 0;\n  if (top < 0) top = 0;\n  if (_DAT_006401ec <= right) right = _DAT_006401ec - 1;\n  if (_DAT_006401d4 <= bottom) bottom = _DAT_006401d4 - 1;\n  if (right < left || bottom < top) {\n    return;\n  }\n  base = FUN_00418a04((undefined4)(uintptr_t)surface,&pitch);\n  if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||\n      _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||\n      0x1000 < _DAT_006401ec || 0x1000 < _DAT_006401d4 ||\n      E2R_IsBadWritePtr((void *)(uintptr_t)base,\n                        ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +\n                        (size_t)_DAT_006401ec)) {\n    return;\n  }\n  color = ((byte *)0x006366dc)[style_surface * 2];\n  for (y = top; y <= bottom; y = y + 1) {\n    byte *row = (byte *)(base + y * pitch + left);\n    for (x = left; x <= right; x = x + 1) {\n      *row = color;\n      row = row + 1;\n    }\n  }\n}\n\nstatic void E2R_DrawHostedRectBorder(int left,int top,int right,int bottom)\n{\n  int style_surface;\n\n  if (right < left || bottom < top) {\n    return;\n  }\n  style_surface = DAT_0047a279 >> 0x18;\n  *(undefined2 *)((undefined1 *)0x006366dc + style_surface * 2) = 8;\n  FUN_0041b078(left,top);\n  FUN_0041b34c(right,top);\n  FUN_0041b34c(right,bottom);\n  *(undefined2 *)((undefined1 *)0x006366dc + style_surface * 2) = 0xe;\n  FUN_0041b078(right - 1,bottom);\n  FUN_0041b34c(left,bottom);\n  FUN_0041b34c(left,top);\n}\n\nstatic void E2R_DrawHostedText(byte *text)"
+);
+hostedTextState = hostedTextState.replace(
+  /static void E2R_FillHostedRect\(int left,int top,int right,int bottom\)[\s\S]*?\n\nstatic void E2R_DrawHostedText\(byte \*text\)/,
+  `static void E2R_CopyHostedSurface(int dst,int src)
+{
+  int dst_base;
+  int dst_pitch;
+  int src_base;
+  int src_pitch;
+  int y;
+
+  if (dst == src || dst < 0 || 3 < dst || src < 0 || 3 < src ||
+      _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||
+      0x1000 < _DAT_006401ec || 0x1000 < _DAT_006401d4) {
+    return;
+  }
+  src_base = FUN_00418a04((undefined4)(uintptr_t)src,&src_pitch);
+  dst_base = FUN_00418a04((undefined4)(uintptr_t)dst,&dst_pitch);
+  if ((uintptr_t)src_base < 0x10000u || (uintptr_t)dst_base < 0x10000u ||
+      src_pitch < _DAT_006401ec || dst_pitch < _DAT_006401ec ||
+      IsBadReadPtr((void *)(uintptr_t)src_base,
+                   ((size_t)_DAT_006401d4 - 1u) * (size_t)src_pitch +
+                   (size_t)_DAT_006401ec) ||
+      E2R_IsBadWritePtr((void *)(uintptr_t)dst_base,
+                        ((size_t)_DAT_006401d4 - 1u) * (size_t)dst_pitch +
+                        (size_t)_DAT_006401ec)) {
+    return;
+  }
+  for (y = 0; y < _DAT_006401d4; y = y + 1) {
+    memcpy((void *)(uintptr_t)(dst_base + y * dst_pitch),
+           (void *)(uintptr_t)(src_base + y * src_pitch),
+           (size_t)_DAT_006401ec);
+  }
+}
+
+#define E2R_REQUESTER_BACKDROP_MAX 8
+static byte E2R_requester_backdrop_pixels[E2R_REQUESTER_BACKDROP_MAX][2][640 * 480];
+static int E2R_requester_backdrop_width[E2R_REQUESTER_BACKDROP_MAX];
+static int E2R_requester_backdrop_height[E2R_REQUESTER_BACKDROP_MAX];
+static int E2R_requester_backdrop_depth;
+
+static void E2R_SaveHostedRequesterBackdrop(void)
+{
+  int base;
+  int pitch;
+  int slot;
+  int surface;
+  int y;
+
+  if (DAT_0047a43c == 0 || _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||
+      640 < _DAT_006401ec || 480 < _DAT_006401d4) {
+    return;
+  }
+  if (E2R_requester_backdrop_depth >= E2R_REQUESTER_BACKDROP_MAX) {
+    return;
+  }
+  slot = E2R_requester_backdrop_depth;
+  E2R_requester_backdrop_width[slot] = _DAT_006401ec;
+  E2R_requester_backdrop_height[slot] = _DAT_006401d4;
+  for (surface = 0; surface < 2; surface = surface + 1) {
+    base = FUN_00418a04((undefined4)(uintptr_t)(surface + 2),&pitch);
+    if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||
+        IsBadReadPtr((void *)(uintptr_t)base,
+                     ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +
+                     (size_t)_DAT_006401ec)) {
+      return;
+    }
+    for (y = 0; y < _DAT_006401d4; y = y + 1) {
+      memcpy(E2R_requester_backdrop_pixels[slot][surface] + y * 640,
+             (void *)(uintptr_t)(base + y * pitch),
+             (size_t)_DAT_006401ec);
+    }
+  }
+  E2R_requester_backdrop_depth = E2R_requester_backdrop_depth + 1;
+}
+
+static void E2R_RestoreHostedRequesterBackdrop(void)
+{
+  int base;
+  int height;
+  int pitch;
+  int slot;
+  int surface;
+  int width;
+  int y;
+
+  if (DAT_0047a43c == 0 || E2R_requester_backdrop_depth <= 0) {
+    return;
+  }
+  slot = E2R_requester_backdrop_depth - 1;
+  width = E2R_requester_backdrop_width[slot];
+  height = E2R_requester_backdrop_height[slot];
+  if (width <= 0 || height <= 0 || 640 < width || 480 < height) {
+    E2R_requester_backdrop_depth = slot;
+    return;
+  }
+  for (surface = 0; surface < 2; surface = surface + 1) {
+    base = FUN_00418a04((undefined4)(uintptr_t)(surface + 2),&pitch);
+    if ((uintptr_t)base < 0x10000u || pitch < width ||
+        E2R_IsBadWritePtr((void *)(uintptr_t)base,
+                          ((size_t)height - 1u) * (size_t)pitch +
+                          (size_t)width)) {
+      E2R_requester_backdrop_depth = slot;
+      return;
+    }
+    for (y = 0; y < height; y = y + 1) {
+      memcpy((void *)(uintptr_t)(base + y * pitch),
+             E2R_requester_backdrop_pixels[slot][surface] + y * 640,
+             (size_t)width);
+    }
+  }
+  E2R_requester_backdrop_depth = slot;
+  DAT_0047a788 = 1;
+}
+
+static void E2R_ResetHostedRequesterBackdrop(void)
+{
+  E2R_requester_backdrop_depth = 0;
+}
+
+static int E2R_HostedSurfaceScore(int surface)
+{
+  int base;
+  int pitch;
+  int score;
+  int x;
+  int y;
+
+  if (surface < 0 || 3 < surface || _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||
+      0x1000 < _DAT_006401ec || 0x1000 < _DAT_006401d4) {
+    return -1;
+  }
+  base = FUN_00418a04((undefined4)(uintptr_t)surface,&pitch);
+  if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||
+      IsBadReadPtr((void *)(uintptr_t)base,
+                   ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +
+                   (size_t)_DAT_006401ec)) {
+    return -1;
+  }
+  score = 0;
+  for (y = 0; y < _DAT_006401d4; y = y + 8) {
+    for (x = 0; x < _DAT_006401ec; x = x + 8) {
+      if (*(byte *)(base + y * pitch + x) != 0) {
+        score = score + 1;
+      }
+    }
+  }
+  return score;
+}
+
+static void E2R_FillHostedRect(int left,int top,int right,int bottom)
+{
+  int base;
+  byte color;
+  int count;
+  int i;
+  int pitch;
+  int style_surface;
+  int surface;
+  int targets[2];
+  int x;
+  int y;
+
+  style_surface = DAT_0047a279 >> 0x18;
+  surface = style_surface;
+  if (DAT_0047a43c != 0) {
+    surface = surface + 2;
+  }
+  if (surface < 0 || 3 < surface || right < left || bottom < top) {
+    return;
+  }
+  targets[0] = surface;
+  count = 1;
+  if (DAT_0047a43c != 0) {
+    if (E2R_HostedSurfaceScore(surface == 2 ? 3 : 2) > E2R_HostedSurfaceScore(surface)) {
+      E2R_CopyHostedSurface(surface,surface == 2 ? 3 : 2);
+    }
+    else {
+      E2R_CopyHostedSurface(surface == 2 ? 3 : 2,surface);
+    }
+    targets[0] = 2;
+    targets[1] = 3;
+    count = 2;
+  }
+  if (left < 0) left = 0;
+  if (top < 0) top = 0;
+  if (_DAT_006401ec <= right) right = _DAT_006401ec - 1;
+  if (_DAT_006401d4 <= bottom) bottom = _DAT_006401d4 - 1;
+  if (right < left || bottom < top) {
+    return;
+  }
+  color = ((byte *)0x006366dc)[style_surface * 2];
+  for (i = 0; i < count; i = i + 1) {
+    base = FUN_00418a04((undefined4)(uintptr_t)targets[i],&pitch);
+    if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||
+        _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||
+        0x1000 < _DAT_006401ec || 0x1000 < _DAT_006401d4 ||
+        E2R_IsBadWritePtr((void *)(uintptr_t)base,
+                          ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +
+                          (size_t)_DAT_006401ec)) {
+      continue;
+    }
+    for (y = top; y <= bottom; y = y + 1) {
+      byte *row = (byte *)(base + y * pitch + left);
+      for (x = left; x <= right; x = x + 1) {
+        *row = color;
+        row = row + 1;
+      }
+    }
+  }
+}
+
+static void E2R_DrawHostedRectBorder(int left,int top,int right,int bottom)
+{
+  int base;
+  int count;
+  int i;
+  int pitch;
+  int style_surface;
+  int targets[2];
+  int x;
+  int y;
+
+  if (right < left || bottom < top) {
+    return;
+  }
+  style_surface = DAT_0047a279 >> 0x18;
+  targets[0] = style_surface;
+  count = 1;
+  if (DAT_0047a43c != 0) {
+    targets[0] = 2;
+    targets[1] = 3;
+    count = 2;
+  }
+  for (i = 0; i < count; i = i + 1) {
+    base = FUN_00418a04((undefined4)(uintptr_t)targets[i],&pitch);
+    if ((uintptr_t)base < 0x10000u || pitch < _DAT_006401ec ||
+        _DAT_006401ec <= 0 || _DAT_006401d4 <= 0 ||
+        0x1000 < _DAT_006401ec || 0x1000 < _DAT_006401d4 ||
+        E2R_IsBadWritePtr((void *)(uintptr_t)base,
+                          ((size_t)_DAT_006401d4 - 1u) * (size_t)pitch +
+                          (size_t)_DAT_006401ec)) {
+      continue;
+    }
+    if (left < 0) left = 0;
+    if (top < 0) top = 0;
+    if (_DAT_006401ec <= right) right = _DAT_006401ec - 1;
+    if (_DAT_006401d4 <= bottom) bottom = _DAT_006401d4 - 1;
+    for (x = left; x <= right; x = x + 1) {
+      *(byte *)(base + top * pitch + x) = 8;
+      *(byte *)(base + bottom * pitch + x) = 0xe;
+    }
+    for (y = top; y <= bottom; y = y + 1) {
+      *(byte *)(base + y * pitch + right) = 8;
+      *(byte *)(base + y * pitch + left) = 0xe;
+    }
+  }
+}
+
+static void E2R_DrawHostedText(byte *text)`
+);
+hostedTextState = hostedTextState.replace(
+  /(static void E2R_DrawHostedText\(byte \*text\)\n\{\n[\s\S]*?  int base;\n)  byte color;/,
+  "$1  int base2;\n  byte color;"
+);
+hostedTextState = hostedTextState.replace(
+  /(static void E2R_DrawHostedText\(byte \*text\)\n\{\n[\s\S]*?  int pitch;\n)  uint row;/,
+  "$1  int pitch2;\n  uint row;"
+);
+hostedTextState = hostedTextState.replace(
+  /(static void E2R_DrawHostedText\(byte \*text\)\n\{\n[\s\S]*?  int surface;\n)  int x;/,
+  "$1  int surface2;\n  int x;"
+);
+hostedTextState = hostedTextState.replace(
+  "  if ((uintptr_t)base < 0x10000u || pitch <= 0 || _DAT_006401ec <= 0 ||\n      _DAT_006401d4 <= 0) {\n    return;\n  }\n  x = (short)*(undefined2 *)(0x006366c4 + surface * 2);",
+  "  if ((uintptr_t)base < 0x10000u || pitch <= 0 || _DAT_006401ec <= 0 ||\n      _DAT_006401d4 <= 0) {\n    return;\n  }\n  base2 = 0;\n  pitch2 = 0;\n  surface2 = -1;\n  if (DAT_0047a43c != 0) {\n    surface2 = surface == 2 ? 3 : 2;\n    base2 = FUN_00418a04((undefined4)(uintptr_t)surface2,&pitch2);\n    if ((uintptr_t)base2 < 0x10000u || pitch2 <= 0) {\n      base2 = 0;\n    }\n  }\n  x = (short)*(undefined2 *)(0x006366c4 + surface * 2);"
+);
+hostedTextState = hostedTextState.replace(
+  "                *(byte *)(base + py * pitch + px) = color;",
+  "                *(byte *)(base + py * pitch + px) = color;\n                if (base2 != 0) {\n                  *(byte *)(base2 + py * pitch2 + px) = color;\n                }"
+);
+const hostedRequesterLabelState = `\nstatic byte *E2R_RequesterTextOrFallback(byte *text);\n\nstatic void E2R_DrawHostedRequesterLabels(short *record)\n{\n  byte *text;\n  byte color;\n  int item_width;\n  int text_width;\n  int x;\n  short *item;\n  uint guard;\n  uint len;\n  int style_surface;\n\n  if (DAT_0047a43c == 0 || record == (short *)0x0 || IsBadReadPtr(record,0x10)) {\n    return;\n  }\n  style_surface = DAT_0047a279 >> 0x18;\n  item = *(short **)(record + 6);\n  for (guard = 0; item != (short *)0x0 && guard < 0x40; guard = guard + 1) {\n    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {\n      break;\n    }\n    text = E2R_RequesterTextOrFallback(*(byte **)(item + 4));\n    if (text != (byte *)0x0 && !IsBadReadPtr(text,1) && text[0] != 0) {\n      len = 0;\n      while (len < 0x100 && !IsBadReadPtr(text + len,1) && text[len] != 0) {\n        len = len + 1;\n      }\n      text_width = (DAT_0047a408 == 0 ? 12 : DAT_0047a408) * (int)len;\n      item_width = (int)item[2];\n      if ((*(byte *)((int)item + 0x11) & 0x40) == 0) {\n        x = item[0xb] + (item_width - text_width) / 2;\n      }\n      else {\n        x = item[0xb] + 4;\n      }\n      color = item == _DAT_00643430 ? 0xe : 8;\n      *(undefined2 *)((undefined1 *)0x006366dc + style_surface * 2) = color;\n      FUN_0041b078(x,(short)(item[0xd] + 1));\n      E2R_DrawHostedText(text);\n    }\n    item = *(short **)(item + 9);\n  }\n}\n\nstatic byte *E2R_RequesterTextOrFallback(byte *text)\n{\n  uintptr_t address = (uintptr_t)text;\n\n  if (address == 0x00473298u) return (byte *)\"OK\";\n  if (address == 0x004732a4u) return (byte *)\"Yes\";\n  if (address == 0x004732a8u) return (byte *)\"No\";\n  if (address == 0x00473304u) return (byte *)\"Quit\";\n  return text;\n}\n\nstatic void E2R_RedrawActiveRequesterItem(void)\n{\n  short *record;\n  short *item;\n\n  record = (short *)FUN_0043aeac();\n  item = (short *)_DAT_00643430;\n  if (record == (short *)0x0 || item == (short *)0x0 ||\n      (uintptr_t)record >= 0x70000000u || (uintptr_t)item >= 0x70000000u ||\n      IsBadReadPtr(record,0x20) || IsBadReadPtr(item,0x20)) {\n    return;\n  }\n  FUN_0043b9bc(0,item);\n  E2R_DrawHostedRequesterLabels(record);\n  DAT_0047a788 = 1;\n}\n`;
 const streamLineState = `\nstatic undefined1 *E2R_ReadStreamLine(undefined4 stream_handle,char *buffer,uint count)\n{\n  undefined4 *stream;\n  byte *cursor;\n  uint remaining;\n  uint copied = 0;\n  byte value = 0;\n\n  if (count == 0) {\n    return (undefined1 *)0x0;\n  }\n  buffer[0] = '\\0';\n  stream = (undefined4 *)(uintptr_t)stream_handle;\n  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||\n      IsBadReadPtr(stream,0x1c) || stream[6] != E2R_STREAM_MAGIC) {\n    return (undefined1 *)0x0;\n  }\n  cursor = (byte *)(uintptr_t)stream[0];\n  remaining = (uint)stream[1];\n  while (copied + 1 < count && remaining != 0) {\n    value = *cursor;\n    cursor = cursor + 1;\n    remaining = remaining - 1;\n    buffer[copied] = (char)value;\n    copied = copied + 1;\n    if (value == '\\n') {\n      break;\n    }\n  }\n  stream[0] = (undefined4)(uintptr_t)cursor;\n  stream[1] = remaining;\n  if (copied == 0) {\n    return (undefined1 *)0x0;\n  }\n  buffer[copied] = '\\0';\n  return (undefined1 *)buffer;\n}\n`;
 const configHeaderState = `\nstatic void E2R_UnpackConfigHeader(char *header,char *cStack_5c,byte *bStack_5b,byte *bStack_5a,\n                                   undefined1 *uStack_59,byte *bStack_58,\n                                   undefined1 *uStack_57,undefined1 *uStack_56,\n                                   undefined1 *uStack_55,undefined1 *uStack_54,\n                                   undefined1 *uStack_53,byte *bStack_52)\n{\n  *cStack_5c = header[0xc];\n  *bStack_5b = (byte)header[0xd];\n  *bStack_5a = (byte)header[0xe];\n  *uStack_59 = (undefined1)header[0xf];\n  *bStack_58 = (byte)header[0x10];\n  *uStack_57 = (undefined1)header[0x11];\n  *uStack_56 = (undefined1)header[0x12];\n  *uStack_55 = (undefined1)header[0x13];\n  *uStack_54 = (undefined1)header[0x14];\n  *uStack_53 = (undefined1)header[0x15];\n  *bStack_52 = (byte)header[0x16];\n}\n\nstatic void E2R_PackConfigHeader(char *header,char cStack_5c,byte bStack_5b,byte bStack_5a,\n                                 undefined1 uStack_59,byte bStack_58,undefined1 uStack_57,\n                                 undefined1 uStack_56,undefined1 uStack_55,\n                                 undefined1 uStack_54,undefined1 uStack_53,byte bStack_52)\n{\n  header[0xc] = cStack_5c;\n  header[0xd] = (char)bStack_5b;\n  header[0xe] = (char)bStack_5a;\n  header[0xf] = (char)uStack_59;\n  header[0x10] = (char)bStack_58;\n  header[0x11] = (char)uStack_57;\n  header[0x12] = (char)uStack_56;\n  header[0x13] = (char)uStack_55;\n  header[0x14] = (char)uStack_54;\n  header[0x15] = (char)uStack_53;\n  header[0x16] = (char)bStack_52;\n}\n`;
 const cursorMaskState = `\nstatic void E2R_InitCursorMaskState(void)\n{\n  static int initialized;\n\n  if (initialized != 0) {\n    return;\n  }\n  initialized = 1;\n  *(undefined4 *)0x00479e8a = (undefined4)DAT_00479e8a;\n  *(undefined2 *)0x00479e8e = 0xffff;\n  *(undefined2 *)0x00479e90 = 0xffff;\n  memset((void *)0x00479e92,'#',0x40);\n}\n\nstatic void E2R_SyncCursorPackedPosition(void)\n{\n  E2R_InitCursorMaskState();\n  *(undefined4 *)0x00479e8a = (undefined4)DAT_00479e8a;\n}\n`;
@@ -1523,8 +1932,30 @@ static void E2R_InitRequesterYesNoPromptItems(void)
                           (uintptr_t)&LAB_0043c4e8,0x2000,0x00643dc4);
   }
 }
+
+static void E2R_InitRequesterSettingsItems(void)
+{
+  uintptr_t ok_text;
+
+  ok_text = DAT_00479e00 == 0 ? (uintptr_t)(char *)0x00473298 : (uintptr_t)_DAT_0060ae70;
+  E2R_InitRequesterItem(0x00643998,0xde,0x13,0x1e,10,(uintptr_t)_DAT_006439a0,
+                        (uintptr_t)&LAB_0043d728,0,0x006439f8);
+  E2R_InitRequesterItem(0x006439f8,0xde,0x13,0x2d,10,(uintptr_t)_DAT_00643a00,
+                        (uintptr_t)&LAB_0043d7a0,0,0x00643958);
+  E2R_InitRequesterItem(0x00643958,0xde,0x13,0x3c,10,(uintptr_t)_DAT_00643960,
+                        (uintptr_t)&LAB_0043d7f0,0,0x006436e0);
+  E2R_InitRequesterItem(0x006436e0,0xde,0x13,0x4b,10,(uintptr_t)_DAT_006436e8,
+                        (uintptr_t)&LAB_0043d6e4,0,0x00643de4);
+  E2R_InitRequesterItem(0x00643de4,0x38,10,0x5f,0xc,ok_text,
+                        (uintptr_t)&LAB_0043d83c,0x2000,0);
+  E2R_InitRequesterRecord(0x0047a668,-1,-1,0xf0,0x78,(uintptr_t)DAT_0047a670,0x00643998);
+}
 `;
-source = source.replace("\n\n/* 00410078 */", `${ctypeTableState}\n${requesterActionState}\n${requesterFocusState}\n${menuStringState}\n${streamLineState}\n${configHeaderState}\n${cursorMaskState}\n${startupPartNames}\n${glyphTableMirror}\n${hudIconNameState}\n${requesterRecordState}\n\n/* 00410078 */`);
+source = source.replace("\n\n/* 00410078 */", `${ctypeTableState}\n${requesterActionState}\n${requesterFocusState}\n${menuStringState}\n${hostedTextState}\n${hostedRequesterLabelState}\n${streamLineState}\n${configHeaderState}\n${cursorMaskState}\n${startupPartNames}\n${glyphTableMirror}\n${hudIconNameState}\n${requesterRecordState}\n\n/* 00410078 */`);
+source = source.replace(
+  "static int E2R_InvokeRequesterAction(uintptr_t action)",
+  "static int E2R_requester_continue_after_action;\nstatic void E2R_RedrawActiveRequesterItem(void);\n\nstatic int E2R_InvokeRequesterAction(uintptr_t action)"
+);
 source = source.replace("\n\n/* 00410078 */", `${packedNameState}\n${actionCodeState}\n\n/* 00410078 */`);
 source = source.replace(
   "static uint E2R_current_actor_trace_diag_count;\nstatic const char *E2R_current_actor_last_site;",
@@ -1541,6 +1972,10 @@ source = source.replace(
 source = source.replace(
   "static uint E2R_actor_update_diag_count;\nstatic const char *E2R_current_actor_last_site;",
   "static uint E2R_actor_update_diag_count;\nstatic uint E2R_action_invoke_diag_count;\nstatic const char *E2R_current_actor_last_site;"
+);
+source = source.replace(
+  "static uint E2R_action_invoke_diag_count;\nstatic const char *E2R_current_actor_last_site;",
+  "static uint E2R_action_invoke_diag_count;\nstatic uint E2R_scene_lookup_diag_count;\nstatic const char *E2R_current_actor_last_site;"
 );
 source = source.replace(
   "static uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)",
@@ -1560,11 +1995,47 @@ source = source.replace(
 );
 source = source.replace(
   "static void E2R_SelectSceneRecord(short scene_id)\n{\n  if (scene_id < 0 || 0x4b0 <= scene_id) {\n    return;\n  }\n  _DAT_0073ccba = (ushort)scene_id;\n  FUN_0044c6bc();\n}\n\nstatic uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)",
-  "static void E2R_SyncSceneViewId(void)\n{\n  _DAT_0073ccb8 = CONCAT22((ushort)_DAT_0073ccba,(ushort)_DAT_0073ccb8);\n}\n\nstatic void E2R_SelectSceneRecord(short scene_id)\n{\n  if (scene_id < 0 || 0x4b0 <= scene_id) {\n    return;\n  }\n  _DAT_0073ccba = (ushort)scene_id;\n  E2R_SyncSceneViewId();\n  FUN_0044c6bc();\n}\n\nstatic int E2R_ShouldForceScene785Fallback(void)\n{\n  char *value = getenv(\"E2R_FORCE_SCENE_785\");\n\n  return value != (char *)0x0 && value[0] != '\\0' && value[0] != '0';\n}\n\nstatic void E2R_WaitStartupLogo(void)\n{\n  char *value = getenv(\"E2R_STARTUP_LOGO_DELAY_MS\");\n  unsigned long delay_ms = 5000;\n\n  if (value != (char *)0x0 && value[0] != '\\0') {\n    delay_ms = strtoul(value,(char **)0x0,10);\n  }\n  if (delay_ms != 0) {\n    Sleep((DWORD)delay_ms);\n  }\n}\n\nstatic uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)"
+  "static void E2R_SyncSceneViewId(void)\n{\n  _DAT_0073ccb8 = CONCAT22((ushort)_DAT_0073ccba,(ushort)_DAT_0073ccb8);\n}\n\nstatic void E2R_SelectSceneRecord(short scene_id)\n{\n  if (scene_id < 0 || 0x4b0 <= scene_id) {\n    return;\n  }\n  _DAT_0073ccba = (ushort)scene_id;\n  E2R_SyncSceneViewId();\n  FUN_0044c6bc();\n}\n\nstatic int E2R_ActivateSelectedSceneRecord(short scene_id)\n{\n  int scene_record;\n  int child;\n  int actor;\n  int selected_actor;\n  uint guard;\n\n  if (scene_id < 0 || 0x4b0 <= scene_id) {\n    return 0;\n  }\n  FUN_0045233c((undefined4)(int)scene_id,(undefined4)(int)scene_id);\n  scene_record = *(int *)((undefined1 *)0x0062e450 + scene_id * 4);\n  if (scene_record == 0 || IsBadReadPtr((void *)(uintptr_t)scene_record,0x20)) {\n    return 0;\n  }\n  FUN_00452140((undefined4)(uintptr_t)scene_record);\n  selected_actor = 0;\n  guard = 0;\n  for (child = *(int *)(scene_record + 4);\n       child != 0 && guard < 0x4000 &&\n       !IsBadReadPtr((void *)(uintptr_t)child,0x1c);\n       child = *(int *)(child + 0x18)) {\n    guard = guard + 1;\n    if (((*(byte *)(child + 0xe) & 0x20) != 0) || *(short *)child < 0) {\n      continue;\n    }\n    actor = *(int *)((undefined1 *)0x00630b60 + *(short *)child * 4);\n    if (actor == 0) {\n      continue;\n    }\n    if ((uintptr_t)actor == (uintptr_t)DAT_0047a470) {\n      selected_actor = actor;\n      break;\n    }\n    if (selected_actor == 0 || *(short *)child == 0) {\n      selected_actor = actor;\n    }\n  }\n  if (selected_actor != 0) {\n    DAT_0047a470 = (short *)(uintptr_t)\n      E2R_TraceCurrentActorWrite(\"scene.activate-selected\",(uintptr_t)selected_actor);\n  }\n  FUN_004523f8((undefined4)(uintptr_t)scene_record);\n  if (E2R_RuntimeDiagEnabled() && E2R_scene_load_diag_count < 128) {\n    E2R_scene_load_diag_count = E2R_scene_load_diag_count + 1;\n    fprintf(stderr,\n            \"scene activate selected: scene=%d record=0x%lx current=0x%lx actor_head=0x%lx\\n\",\n            (int)scene_id,(unsigned long)(uintptr_t)scene_record,\n            (unsigned long)DAT_0047a470,(unsigned long)_DAT_0063726c);\n  }\n  return 1;\n}\n\nstatic int E2R_ShouldForceScene785Fallback(void)\n{\n  char *value = getenv(\"E2R_FORCE_SCENE_785\");\n\n  return value != (char *)0x0 && value[0] != '\\0' && value[0] != '0';\n}\n\nstatic void E2R_WaitStartupLogo(void)\n{\n  char *value = getenv(\"E2R_STARTUP_LOGO_DELAY_MS\");\n  unsigned long delay_ms = 5000;\n\n  if (value != (char *)0x0 && value[0] != '\\0') {\n    delay_ms = strtoul(value,(char **)0x0,10);\n  }\n  if (delay_ms != 0) {\n    Sleep((DWORD)delay_ms);\n  }\n}\n\nstatic uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)"
 );
 source = source.replace(
   "static void E2R_WaitStartupLogo(void)\n{\n  char *value = getenv(\"E2R_STARTUP_LOGO_DELAY_MS\");\n  unsigned long delay_ms = 5000;\n\n  if (value != (char *)0x0 && value[0] != '\\0') {\n    delay_ms = strtoul(value,(char **)0x0,10);\n  }\n  if (delay_ms != 0) {\n    Sleep((DWORD)delay_ms);\n  }\n}\n\nstatic uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)",
   "static void E2R_TraceInputFlags(const char *site);\n\nstatic void E2R_WaitStartupLogo(void)\n{\n  char *value = getenv(\"E2R_STARTUP_LOGO_DELAY_MS\");\n  unsigned long delay_ms = 5000;\n  unsigned long elapsed_ms;\n  unsigned long slice_ms;\n\n  if (value != (char *)0x0 && value[0] != '\\0') {\n    delay_ms = strtoul(value,(char **)0x0,10);\n  }\n  if (delay_ms != 0) {\n    E2R_GameStateLog(\"startup logo wait begin ms=%lu\",delay_ms);\n    elapsed_ms = 0;\n    while (elapsed_ms < delay_ms) {\n      if (DAT_00636850 != '\\0' || DAT_00636844 != '\\0') {\n        E2R_GameStateLog(\"startup logo wait skipped elapsed=%lu esc=%u space=%u\",\n                         elapsed_ms,(unsigned int)(byte)DAT_00636844,\n                         (unsigned int)(byte)DAT_00636850);\n        DAT_00636844 = '\\0';\n        DAT_00636850 = '\\0';\n        E2R_TraceInputFlags(\"startup-logo.skip-clear\");\n        break;\n      }\n      slice_ms = delay_ms - elapsed_ms;\n      if (16 < slice_ms) {\n        slice_ms = 16;\n      }\n      Sleep((DWORD)slice_ms);\n      elapsed_ms = elapsed_ms + slice_ms;\n    }\n    E2R_GameStateLog(\"startup logo wait end ms=%lu\",delay_ms);\n  }\n}\n\nstatic const char *E2R_StartupLogoName(undefined4 path)\n{\n  uintptr_t ptr = (uintptr_t)path;\n\n  if (ptr == (uintptr_t)s_gbnklogo_raw_00470500) {\n    return \"gbnklogo.raw\";\n  }\n  if (ptr == (uintptr_t)s_psyglogo_raw_00470510 ||\n      ptr == (uintptr_t)s_psyglogo_raw_00472f98) {\n    return \"psyglogo.raw\";\n  }\n  if (ptr == (uintptr_t)s_aasglogo_raw_00470520 ||\n      ptr == (uintptr_t)s_aasglogo_raw_00472fa8) {\n    return \"aasglogo.raw\";\n  }\n  if (ptr != 0 && !IsBadReadPtr((void *)ptr,1)) {\n    return (const char *)ptr;\n  }\n  return \"<unknown>\";\n}\n\nstatic void E2R_TraceInputFlags(const char *site)\n{\n  static byte last_escape;\n  static byte last_space;\n  static uintptr_t last_requester_state;\n  static uintptr_t last_scene;\n\n  if (!E2R_GameStateLogEnabled()) {\n    return;\n  }\n  if (DAT_00636844 == last_escape && DAT_00636850 == last_space &&\n      _DAT_00643650 == last_requester_state && _DAT_0073cc3c == last_scene) {\n    return;\n  }\n  E2R_GameStateLog(\n      \"%s input esc=%u space=%u menu_request=%lu requester_state=%lu mode=%lu scene=0x%lx current=0x%lx\",\n      site,(unsigned int)(byte)DAT_00636844,(unsigned int)(byte)DAT_00636850,\n      (unsigned long)DAT_00479db4,(unsigned long)_DAT_00643650,\n      (unsigned long)DAT_00479de8,(unsigned long)_DAT_0073cc3c,\n      (unsigned long)DAT_0047a470);\n  last_escape = DAT_00636844;\n  last_space = DAT_00636850;\n  last_requester_state = _DAT_00643650;\n  last_scene = _DAT_0073cc3c;\n}\n\nstatic uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)"
+);
+source = source.replace(
+  "static uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)",
+  "static short E2R_FindPackedNameIndex(char *input,char *table,uint capacity,short max_names);\n\nstatic int E2R_RequestIntroSkip(void)\n{\n  int actor;\n  int *slot;\n  int action;\n  short scene_id;\n  ushort duration;\n  ushort progress;\n\n  if (DAT_00636850 == '\\0') {\n    return 0;\n  }\n  actor = DAT_0047a470;\n  E2R_GameStateLog(\"intro skip inspect actor=0x%lx scene=0x%lx space=%u\",\n                   (unsigned long)(uintptr_t)actor,(unsigned long)_DAT_0073cc3c,\n                   (unsigned int)(byte)DAT_00636850);\n  if (actor == 0 || (uintptr_t)actor < 0x10000u) {\n    return 0;\n  }\n  slot = (int *)(uintptr_t)(actor + 0xa6);\n  if (IsBadReadPtr(slot,0x12)) {\n    return 0;\n  }\n  action = *slot;\n  if (action != 0x937800 || ((*(byte *)((int)slot + 0xc) & 2) == 0)) {\n    return 0;\n  }\n  duration = *(ushort *)(slot + 1);\n  progress = *(ushort *)((int)slot + 6);\n  if (duration == 0 || duration <= progress) {\n    return 0;\n  }\n  scene_id = E2R_FindPackedNameIndex(s_Start_sc_00470c80,_DAT_006366bc,20000,0x9c4);\n  if (scene_id < 0) {\n    E2R_GameStateLog(\"intro skip missing Start_sc scene actor=0x%lx action=0x%lx\",\n                     (unsigned long)(uintptr_t)actor,\n                     (unsigned long)(uintptr_t)action);\n    return 0;\n  }\n  DAT_00636850 = '\\0';\n  E2R_GameStateLog(\"intro skip request scene=0x%lx actor=0x%lx action=0x%lx progress=%u duration=%u Start_sc=%d offset=%ld record=0x%lx\",\n                   (unsigned long)_DAT_0073cc3c,(unsigned long)(uintptr_t)actor,\n                   (unsigned long)(uintptr_t)action,(unsigned int)progress,\n                   (unsigned int)duration,(int)scene_id,\n                   (long)*(int *)(scene_id * 4 + 0x650fa0),\n                   (unsigned long)*(int *)(scene_id * 4 + 0x62e450));\n  if (E2R_StartupDiagEnabled()) {\n    E2R_archive_parse_summary_count = 0;\n    E2R_fan_phase_diag_count = 0;\n    E2R_fan_dispatch_diag_count = 0;\n    E2R_scene_load_diag_count = 0;\n    E2R_scene_record_install_diag_count = 0;\n    E2R_scene_child_diag_count = 0;\n  }\n  FUN_0043a6e0((undefined4)(int)scene_id,(undefined4)(int)scene_id);\n  E2R_GameStateLog(\"intro skip subintro scene=%d current=0x%lx actors=0x%lx scene_ptr=0x%lx\",\n                   (int)scene_id,(unsigned long)DAT_0047a470,\n                   (unsigned long)_DAT_0063726c,(unsigned long)_DAT_0073cc3c);\n  return 1;\n}\n\nstatic uintptr_t E2R_TraceScenePointerWrite(const char *site, uintptr_t value)"
+);
+source = source.replace(
+  "static short E2R_FindPackedNameIndex(char *input,char *table,uint capacity,short max_names);\n\nstatic int E2R_RequestIntroSkip(void)",
+  "static short E2R_FindPackedNameIndex(char *input,char *table,uint capacity,short max_names);\nstatic char *E2R_ActionCodeName(short *action);\nstatic short *E2R_FindActionCodeBySuffix(char *suffix);\n\nstatic void E2R_TraceIntroActionCandidate(char *suffix)\n{\n  short *action;\n  short *pool;\n  char *name;\n  uint offset;\n  uint token_count;\n\n  if (!E2R_StartupDiagEnabled()) {\n    return;\n  }\n  action = E2R_FindActionCodeBySuffix(suffix);\n  if (action == (short *)0x0 || IsBadReadPtr(action,0xe)) {\n    fprintf(stderr,\"intro action candidate: suffix=%s node=0x0 name=(null) code=-1 tokens=(missing)\\n\",\n            suffix != (char *)0x0 ? suffix : \"(null)\");\n    return;\n  }\n  name = E2R_ActionCodeName(action);\n  offset = *(uint *)(action + 3);\n  pool = (short *)(uintptr_t)_DAT_006366a0;\n  fprintf(stderr,\"intro action candidate: suffix=%s node=0x%lx name=%s code=0x%x tokens=\",\n          suffix != (char *)0x0 ? suffix : \"(null)\",\n          (unsigned long)(uintptr_t)action,\n          name != (char *)0x0 ? name : \"(null)\",offset);\n  if (pool != (short *)0x0 && offset < 19984 &&\n      !IsBadReadPtr(pool + offset,16 * sizeof(short))) {\n    for (token_count = 0; token_count < 16; token_count = token_count + 1) {\n      fprintf(stderr,\"%s%04x\",token_count == 0 ? \"\" : \",\",\n              (unsigned int)(ushort)pool[offset + token_count]);\n      if (pool[offset + token_count] == 0) {\n        break;\n      }\n    }\n  }\n  else {\n    fprintf(stderr,\"(unreadable)\");\n  }\n  fprintf(stderr,\"\\n\");\n}\n\nstatic int E2R_RequestIntroSkip(void)"
+);
+source = source.replace(
+  "  scene_id = E2R_FindPackedNameIndex(s_Start_sc_00470c80,_DAT_006366bc,20000,0x9c4);",
+  "  if (E2R_StartupDiagEnabled()) {\n    E2R_TraceIntroActionCandidate(s_StartGame_004725f4);\n    E2R_TraceIntroActionCandidate(\"horse6\");\n    E2R_TraceIntroActionCandidate(\"horse7\");\n    E2R_TraceIntroActionCandidate(\"horse8\");\n  }\n  scene_id = E2R_FindPackedNameIndex(s_Start_sc_00470c80,_DAT_006366bc,20000,0x9c4);"
+);
+source = source.replace(
+  "  short scene_id;\n  ushort duration;\n  ushort progress;",
+  "  short scene_id;\n  short horse_scene_id;\n  short actor_scene_id;\n  int actor_scene;\n  int is_direct_intro_action;\n  int is_horse_intro_scene;\n  ushort duration;\n  ushort progress;"
+);
+source = source.replace(
+  "  action = *slot;\n  if (action != 0x937800 || ((*(byte *)((int)slot + 0xc) & 2) == 0)) {\n    return 0;\n  }\n  duration = *(ushort *)(slot + 1);",
+  "  action = *slot;\n  actor_scene = 0;\n  actor_scene_id = -1;\n  if (!IsBadReadPtr((void *)(uintptr_t)(actor + 0x132),4)) {\n    actor_scene = E2R_NormalizeSceneRecordPointer(*(int *)(actor + 0x132));\n    if (actor_scene != 0) {\n      actor_scene_id = *(short *)(uintptr_t)actor_scene;\n    }\n  }\n  horse_scene_id = E2R_FindPackedNameIndex(\"horse\",_DAT_006366bc,20000,0x9c4);\n  is_direct_intro_action = action == 0x937800 && ((*(byte *)((int)slot + 0xc) & 2) != 0);\n  is_horse_intro_scene = horse_scene_id >= 0 && actor_scene_id == horse_scene_id;\n  if (!is_direct_intro_action && !is_horse_intro_scene) {\n    E2R_GameStateLog(\"intro skip ignored actor=0x%lx action=0x%lx actor_scene=0x%lx actor_scene_id=%d horse_scene=%d flags=0x%x\",\n                     (unsigned long)(uintptr_t)actor,\n                     (unsigned long)(uintptr_t)action,(unsigned long)(uintptr_t)actor_scene,\n                     (int)actor_scene_id,(int)horse_scene_id,\n                     (unsigned int)*(byte *)((int)slot + 0xc));\n    return 0;\n  }\n  duration = *(ushort *)(slot + 1);"
+);
+source = source.replace(
+  "  E2R_GameStateLog(\"intro skip request scene=0x%lx actor=0x%lx action=0x%lx progress=%u duration=%u Start_sc=%d offset=%ld record=0x%lx\",\n                   (unsigned long)_DAT_0073cc3c,(unsigned long)(uintptr_t)actor,\n                   (unsigned long)(uintptr_t)action,(unsigned int)progress,\n                   (unsigned int)duration,(int)scene_id,",
+  "  E2R_GameStateLog(\"intro skip request scene=0x%lx actor=0x%lx action=0x%lx progress=%u duration=%u Start_sc=%d horse_scene=%d actor_scene_id=%d direct=%d horse=%d offset=%ld record=0x%lx\",\n                   (unsigned long)_DAT_0073cc3c,(unsigned long)(uintptr_t)actor,\n                   (unsigned long)(uintptr_t)action,(unsigned int)progress,\n                   (unsigned int)duration,(int)scene_id,(int)horse_scene_id,\n                   (int)actor_scene_id,is_direct_intro_action,is_horse_intro_scene,"
+);
+source = source.replace(
+  "    E2R_scene_child_diag_count = 0;\n  }\n  FUN_0043a6e0((undefined4)(int)scene_id,(undefined4)(int)scene_id);",
+  "    E2R_scene_child_diag_count = 0;\n    E2R_scene_child_activate_diag_count = 0;\n  }\n  FUN_0043a6e0((undefined4)(int)scene_id,(undefined4)(int)scene_id);"
+);
+source = source.replace(
+  "  horse_scene_id = E2R_FindPackedNameIndex(\"horse\",_DAT_006366bc,20000,0x9c4);\n  is_direct_intro_action = action == 0x937800 && ((*(byte *)((int)slot + 0xc) & 2) != 0);\n  is_horse_intro_scene = horse_scene_id >= 0 && actor_scene_id == horse_scene_id;\n  if (!is_direct_intro_action && !is_horse_intro_scene) {",
+  "  horse_scene_id = E2R_FindPackedNameIndex(\"horse\",_DAT_006366bc,20000,0x9c4);\n  scene_id = E2R_FindPackedNameIndex(s_Start_sc_00470c80,_DAT_006366bc,20000,0x9c4);\n  is_direct_intro_action = action == 0x937800 && ((*(byte *)((int)slot + 0xc) & 2) != 0);\n  is_horse_intro_scene = horse_scene_id >= 0 && actor_scene_id == horse_scene_id;\n  if (scene_id >= 0 && actor_scene_id == scene_id) {\n    DAT_00636850 = '\\0';\n    E2R_GameStateLog(\"intro skip ignored wait-only subintro actor=0x%lx action=0x%lx actor_scene_id=%d\",\n                     (unsigned long)(uintptr_t)actor,\n                     (unsigned long)(uintptr_t)action,(int)actor_scene_id);\n    return 0;\n  }\n  if (!is_direct_intro_action && !is_horse_intro_scene) {"
+);
+source = source.replace(
+  "  if (E2R_StartupDiagEnabled()) {\n    E2R_TraceIntroActionCandidate(s_StartGame_004725f4);\n    E2R_TraceIntroActionCandidate(\"horse6\");\n    E2R_TraceIntroActionCandidate(\"horse7\");\n    E2R_TraceIntroActionCandidate(\"horse8\");\n  }\n  scene_id = E2R_FindPackedNameIndex(s_Start_sc_00470c80,_DAT_006366bc,20000,0x9c4);\n  if (scene_id < 0) {",
+  "  if (E2R_StartupDiagEnabled()) {\n    E2R_TraceIntroActionCandidate(s_StartGame_004725f4);\n    E2R_TraceIntroActionCandidate(\"horse6\");\n    E2R_TraceIntroActionCandidate(\"horse7\");\n    E2R_TraceIntroActionCandidate(\"horse8\");\n  }\n  if (scene_id < 0) {"
 );
 source = source.replace(
   /(_DAT_0073ccba = (?!\(ushort\)scene_id\b)[^;\n]+;\n)/g,
@@ -1577,6 +2048,14 @@ source = source.replace(
 source = source.replace(
   "  uintptr_t old_value = _DAT_00643650;\n\n  if (E2R_requester_state_diag_count < 64) {",
   "  uintptr_t old_value = _DAT_00643650;\n\n  E2R_GameStateLog(\"requester state write site=%s old=%lu new=%lu mode=%lu dialog=%lu requester=0x%x scene=0x%lx\",\n                   site,(unsigned long)old_value,(unsigned long)value,\n                   (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,\n                   (unsigned int)E2R_WORD_AT(DAT_0047a45e,2),\n                   (unsigned long)_DAT_0073cc3c);\n  if (E2R_requester_state_diag_count < 64) {"
+);
+source = source.replace(
+  "static uintptr_t E2R_TraceRequesterState(const char *site, uintptr_t value)\n{",
+  "static int E2R_MenuDiagEnabled(void)\n{\n  static int initialized;\n  static int enabled;\n  char *value;\n\n  if (initialized == 0) {\n    value = getenv(\"E2R_MENU_DIAG\");\n    enabled = value != (char *)0x0 && value[0] != '\\0' && value[0] != '0';\n    initialized = 1;\n  }\n  return enabled;\n}\n\nstatic const char *E2R_RequesterActionName(uintptr_t action)\n{\n  if (action == (uintptr_t)&LAB_0043c594) return \"confirm_yes\";\n  if (action == (uintptr_t)&LAB_0043d458) return \"start_male\";\n  if (action == (uintptr_t)&LAB_0043d464) return \"start_female\";\n  if (action == (uintptr_t)&LAB_0043d470) return \"settings\";\n  if (action == (uintptr_t)&LAB_0043d47c) return \"save\";\n  if (action == (uintptr_t)&LAB_0043d490) return \"load\";\n  if (action == (uintptr_t)&DAT_0043d49c) return \"quit_prompt\";\n  if (action == (uintptr_t)&DAT_0043d4c0) return \"noop\";\n  if (action == (uintptr_t)&LAB_0043d728) return \"settings_music\";\n  if (action == (uintptr_t)&LAB_0043d7a0) return \"settings_sfx\";\n  if (action == (uintptr_t)&LAB_0043d7f0) return \"settings_difficulty\";\n  if (action == (uintptr_t)&LAB_0043d6e4) return \"settings_resolution\";\n  if (action == (uintptr_t)&LAB_0043d83c) return \"ok\";\n  if (action == (uintptr_t)&LAB_0043c4e8) return \"cancel\";\n  if (action == (uintptr_t)&LAB_0043fadc) return \"load_slot\";\n  if (action == (uintptr_t)&LAB_0043fb58) return \"save_slot\";\n  return \"unknown\";\n}\n\nstatic uintptr_t E2R_TraceRequesterState(const char *site, uintptr_t value)\n{"
+);
+source = source.replace(
+  "  uintptr_t old_value = _DAT_00643650;\n\n  E2R_GameStateLog(\"requester state write site=%s old=%lu new=%lu mode=%lu dialog=%lu requester=0x%x scene=0x%lx\",",
+  "  uintptr_t old_value = _DAT_00643650;\n\n  if (E2R_MenuDiagEnabled()) {\n    fprintf(stderr,\n            \"menu state: site=%s old=%lu new=%lu requester=0x%x selected=0x%lx \"\n            \"mode=%lu dialog=%lu menu_request=%lu scene=0x%lx current=0x%lx\\n\",\n            site,(unsigned long)old_value,(unsigned long)value,\n            (unsigned int)E2R_WORD_AT(DAT_0047a45e,2),\n            (unsigned long)_DAT_00643430,\n            (unsigned long)DAT_00479de8,(unsigned long)DAT_0047a76c,\n            (unsigned long)DAT_00479db4,(unsigned long)_DAT_0073cc3c,\n            (unsigned long)DAT_0047a470);\n  }\n  E2R_GameStateLog(\"requester state write site=%s old=%lu new=%lu mode=%lu dialog=%lu requester=0x%x scene=0x%lx\","
 );
 source = source.replace(
   "    word82 = *(short *)(current + 0x82);\n    worde8 = *(short *)(current + 0xe8);\n  }\n  if (E2R_requester_state_diag_count < 64) {",
@@ -1593,6 +2072,10 @@ source = source.replace(
 source = source.replace(
   "static void E2R_TraceStartGameStage(const char *stage)",
   "static void E2R_TraceActorUpdateStage(const char *stage, short *actor)\n{\n  uintptr_t value = (uintptr_t)actor;\n  int actor_bad = value == 0 || IsBadReadPtr(actor,0x180);\n  uintptr_t action = 0;\n  uintptr_t rep = 0;\n  uintptr_t target = 0;\n  uintptr_t queued1 = 0;\n  uintptr_t queued2 = 0;\n  uintptr_t late = 0;\n  short state = 0;\n  short rep_id = 0;\n  short state91 = 0;\n  short word74 = 0;\n  short word76 = 0;\n  short wordba = 0;\n  unsigned byte2 = 0;\n  unsigned byte3 = 0;\n  unsigned bytea3 = 0;\n  unsigned byteb3 = 0;\n  unsigned byteb6 = 0;\n\n  if (!actor_bad) {\n    action = *(uint *)(value + 0xa6);\n    rep = *(uint *)(value + 0x11e);\n    target = *(uint *)(value + 0x1e);\n    queued1 = *(uint *)(value + 0x126);\n    queued2 = *(uint *)(value + 0x12a);\n    late = *(uint *)(value + 0x17c);\n    state = actor[0x41];\n    rep_id = actor[0x90];\n    state91 = actor[0x91];\n    word74 = actor[0x74];\n    word76 = actor[0x76];\n    wordba = actor[0xba];\n    byte2 = *(byte *)(value + 2);\n    byte3 = *(byte *)(value + 3);\n    bytea3 = *(byte *)(value + 0xa3);\n    byteb3 = *(byte *)(value + 0xb3);\n    byteb6 = *(byte *)(value + 0xb6);\n  }\n  if (E2R_actor_update_diag_count < 192) {\n    E2R_actor_update_diag_count = E2R_actor_update_diag_count + 1;\n    fprintf(stderr,\n            \"actor update: %s actor=0x%lx bad180=%d current=0x%lx scene=0x%lx \"\n            \"state=%d action=0x%lx rep=0x%lx rep_id=%d state91=%d \"\n            \"target=0x%lx queued=%lx/%lx late=0x%lx w74=%d w76=%d wba=%d \"\n            \"b2=0x%x b3=0x%x ba3=0x%x bb3=0x%x bb6=0x%x caller=%p\\n\",\n            stage,(unsigned long)value,actor_bad,(unsigned long)DAT_0047a470,\n            (unsigned long)_DAT_0073cc3c,(int)state,(unsigned long)action,\n            (unsigned long)rep,(int)rep_id,(int)state91,(unsigned long)target,\n            (unsigned long)queued1,(unsigned long)queued2,(unsigned long)late,\n            (int)word74,(int)word76,(int)wordba,byte2,byte3,bytea3,byteb3,byteb6,\n            __builtin_return_address(0));\n  }\n}\n\nstatic void E2R_TraceStartGameStage(const char *stage)"
+);
+source = source.replace(
+  "static void E2R_TraceStartGameStage(const char *stage)",
+  "static int E2R_RepIdIsMissing(short rep_id)\n{\n  if (rep_id < 0 || 500 <= rep_id) {\n    return 0;\n  }\n  return *(int *)((undefined1 *)0x00635980 + rep_id * 4) == 0 &&\n         *(int *)(0x00663a10 + rep_id * 4) < 0;\n}\n\nstatic int E2R_ActorMotionRef(short *actor)\n{\n  int side;\n  int ref;\n\n  if (actor == (short *)0x0 || IsBadReadPtr(actor,0x58)) {\n    return 0;\n  }\n  side = *(int *)(actor + 0x2a);\n  ref = 0;\n  if (side != 0 && !IsBadReadPtr((void *)(uintptr_t)side,0xc)) {\n    ref = *(int *)(side + 8);\n  }\n  if (ref == 0) {\n    ref = *(int *)(actor + 0xf);\n  }\n  if (ref != 0 && IsBadReadPtr((void *)(uintptr_t)ref,0x86)) {\n    ref = 0;\n  }\n  return ref;\n}\n\nstatic int E2R_ActorSideLinkedAction(short *actor, int offset)\n{\n  int side;\n  int linked;\n\n  if (actor == (short *)0x0 || IsBadReadPtr(actor,0x58)) {\n    return 0;\n  }\n  side = *(int *)(actor + 0x2a);\n  if (side == 0 || IsBadReadPtr((void *)(uintptr_t)side,(UINT_PTR)(offset + 4))) {\n    return 0;\n  }\n  linked = *(int *)(side + offset);\n  if (linked == 0 || IsBadReadPtr((void *)(uintptr_t)linked,0x13e)) {\n    return 0;\n  }\n  return *(int *)(linked + 0x13a);\n}\n\nstatic void E2R_RetainCurrentRepForMissingTarget(const char *site, short *actor)\n{\n  uintptr_t rep;\n  short current_rep;\n  short desired_rep;\n  short actor_id;\n\n  if (actor == (short *)0x0 || IsBadReadPtr(actor,0x124)) {\n    return;\n  }\n  rep = *(uint *)((uintptr_t)actor + 0x11e);\n  actor_id = *actor;\n  if (rep != 0 && !IsBadReadPtr((void *)rep,2)) {\n    current_rep = *(short *)rep;\n    if (-1 < actor_id && actor_id < 5000 && 0 <= current_rep && current_rep < 500) {\n      E2R_actor_visible_rep_fallback[actor_id] = current_rep;\n      E2R_actor_visible_rep_fallback_valid[actor_id] = 1;\n    }\n  }\n  else if (-1 < actor_id && actor_id < 5000 &&\n           E2R_actor_visible_rep_fallback_valid[actor_id] != 0) {\n    current_rep = E2R_actor_visible_rep_fallback[actor_id];\n  }\n  else {\n    return;\n  }\n  desired_rep = actor[0x91];\n  if (current_rep < 0 || 500 <= current_rep || current_rep == desired_rep ||\n      !E2R_RepIdIsMissing(desired_rep)) {\n    return;\n  }\n  if (E2R_RuntimeDiagEnabled() && E2R_actor_update_diag_count < 192) {\n    E2R_actor_update_diag_count = E2R_actor_update_diag_count + 1;\n    fprintf(stderr,\n            \"actor rep retain: site=%s actor=0x%lx rep=0x%lx current=%d missing=%d\\n\",\n            site,(unsigned long)(uintptr_t)actor,(unsigned long)rep,\n            (int)current_rep,(int)desired_rep);\n  }\n  actor[0x91] = current_rep;\n}\n\nstatic void E2R_TraceStartGameStage(const char *stage)"
 );
 for (const [from, to] of [
   ["        _DAT_00643650 = 6;", "        _DAT_00643650 = E2R_TraceRequesterState(\"action.confirm_yes\",6);"],
@@ -1637,6 +2120,10 @@ source = source.replace(
   "    FUN_00421a14();\n    E2R_TraceFrameStage(\"42a70c.after-21a14\");\n    FUN_00421f54(extraout_ECX_12);\n    E2R_TraceFrameStage(\"42a70c.after-21f54\");\n    E2R_TraceFrameStage(\"42a70c.before-22238\");"
 );
 source = source.replace(
+  "      FUN_004249f4((undefined4)(uintptr_t)iVar4);\n      iVar4 = extraout_EDX_00;\n    }\n    iVar4 = *(int *)(iVar4 + 0x4c);",
+  "      FUN_004249f4((undefined4)(uintptr_t)iVar4);\n    }\n    iVar4 = *(int *)(iVar4 + 0x4c);"
+);
+source = source.replace(
   "    uVar14 = FUN_00422238(extraout_ECX_13,extraout_EDX_01);\n    psVar12 = (short *)((ulonglong)uVar14 >> 0x20);",
   "    E2R_TraceFrameStage(\"42a70c.before-22238\");\n    uVar14 = FUN_00422238(extraout_ECX_13,extraout_EDX_01);\n    E2R_TraceFrameStage(\"42a70c.after-22238\");\n    psVar12 = (short *)((ulonglong)uVar14 >> 0x20);"
 );
@@ -1673,12 +2160,12 @@ source = source.replace(
   "  int iVar9;\n  int next_actor;\n  uint actor_loop_guard;\n  undefined4 extraout_ECX;"
 );
 source = source.replace(
-  "  int next_actor;\n  uint actor_loop_guard;\n  undefined4 extraout_ECX;",
-  "  int next_actor;\n  uint actor_loop_guard;\n  uint timing_loop_guard;\n  undefined4 extraout_ECX;"
+  "  uVar13 = extraout_ECX;\n  uVar4 = _DAT_00640194;\n  while (_DAT_00640194 = uVar4, _DAT_0063737c == iVar7) {",
+  "  E2R_TraceFrameStage(\"42a70c.entry\");\n  uVar13 = 0;\n  uVar4 = _DAT_00640194;\n  while (_DAT_00640194 = uVar4, _DAT_0063737c == iVar7) {"
 );
 source = source.replace(
-  "  uVar13 = extraout_ECX;\n  uVar4 = _DAT_00640194;\n  while (_DAT_00640194 = uVar4, _DAT_0063737c == iVar7) {",
-  "  E2R_TraceFrameStage(\"42a70c.entry\");\n  uVar13 = extraout_ECX;\n  uVar4 = _DAT_00640194;\n  timing_loop_guard = 0;\n  while (_DAT_00640194 = uVar4, _DAT_0063737c == iVar7) {\n    if (0x10000 <= timing_loop_guard) {\n      E2R_TraceFrameStage(\"42a70c.timer-loop-break\");\n      break;\n    }\n    timing_loop_guard = timing_loop_guard + 1;"
+  "    _DAT_0063737c = (int)uVar14;\n    uVar14 = FUN_0041cf5c(uVar13,(int)((ulonglong)uVar14 >> 0x20));\n    uVar13 = extraout_ECX_00;",
+  "    /* Original 0x42a73e..0x42a74e waits for an actual clock change.\n     * A poll-count escape runs motion/turn logic with stale distance at dt=0. */\n    uVar14 = FUN_0041cf5c(0,0);"
 );
 source = source.replace(
   "  iVar7 = _DAT_0063737c - iVar7;\n  if ((_DAT_006365a4 != 0) && (iVar7 = iVar7 / 3, iVar7 == 0)) {",
@@ -1735,6 +2222,74 @@ source = source.replace(/\(int\)&DAT_00479e8a/g, "(int)(undefined1 *)0x00479e8a"
 source = source.replace(/&DAT_00479e8e/g, "(undefined1 *)0x00479e8e");
 source = source.replace(/&DAT_00479e92/g, "(undefined1 *)0x00479e92");
 source = source.replace(/(undefined8 __fastcall FUN_0043b384\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  ulonglong uVar11;\r?\n\s*)DAT_0047a788 = 1;/, "$1in_EAX = (short *)(uintptr_t)param_1;\n  E2R_requester_probe_b384_count++;\n  E2R_requester_probe_b384_last_ptr = (uintptr_t)in_EAX;\n  if (IsBadReadPtr(in_EAX,0x40) || (uintptr_t)in_EAX >= 0x70000000u) {\n    E2R_requester_probe_b384_bad_ptr_count++;\n    in_EAX = (short *)FUN_0043aeac();\n    E2R_requester_probe_b384_last_ptr = (uintptr_t)in_EAX;\n    if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,0x40) || (uintptr_t)in_EAX >= 0x70000000u) {\n      return (ulonglong)param_2 << 32;\n    }\n  }\n  param_1 = (undefined4)(uintptr_t)in_EAX;\n  DAT_0047a788 = 1;");
+source = source.replace(
+  /(undefined8 __fastcall FUN_0043b384\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined4 extraout_EDX_02;\r?\n\s*)short \*psVar8;/,
+  "$1int mouse_state;\n  short *psVar8;"
+);
+source = source.replace(
+  "  if (DAT_0047a470 != (short *)0x0) {\n    ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] = ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] | 2;\n  }",
+  "  if (DAT_0047a470 != (short *)0x0 && E2R_IsReadableCurrentPointer(DAT_0047a470)) {\n    ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] = ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] | 2;\n  }"
+);
+source = source.replace(
+  "  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xf;\n  FUN_0041ab4c((*(int *)(in_EAX + 8) >> 0x10) + -1,*(int *)(in_EAX + 7) >> 0x10,\n               (*(int *)(in_EAX + 10) >> 0x10) + -1);\n  *(undefined2 *)((DAT_0047a279 >> 0x18) * 2 + 0x6366a8) = 1;\n  FUN_0041b078(extraout_ECX_00,(short)((uint)*(undefined4 *)(in_EAX + 7) >> 0x10));\n  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 8;\n  FUN_0041b34c(extraout_ECX_01,*(int *)(in_EAX + 7) >> 0x10);\n  FUN_0041b34c(extraout_ECX_02,*(int *)(in_EAX + 8) >> 0x10);\n  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xe;\n  FUN_0041b078(extraout_ECX_03,(short)((uint)*(undefined4 *)(in_EAX + 8) >> 0x10) + -1);\n  FUN_0041b34c(extraout_ECX_04,(*(int *)(in_EAX + 8) >> 0x10) + -1);\n  FUN_0041b34c(extraout_ECX_05,*(int *)(in_EAX + 7) >> 0x10);",
+  "  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xf;\n  E2R_FillHostedRect(*(int *)(in_EAX + 7) >> 0x10,*(int *)(in_EAX + 9) >> 0x10,\n                     (*(int *)(in_EAX + 8) >> 0x10) + -1,\n                     (*(int *)(in_EAX + 10) >> 0x10) + -1);\n  *(undefined2 *)((DAT_0047a279 >> 0x18) * 2 + 0x6366a8) = 1;\n  E2R_DrawHostedRectBorder(*(int *)(in_EAX + 7) >> 0x10,*(int *)(in_EAX + 9) >> 0x10,\n                           (*(int *)(in_EAX + 8) >> 0x10) + -1,\n                           (*(int *)(in_EAX + 10) >> 0x10) + -1);"
+);
+source = source.replace(
+  "  FUN_0041bcc8(param_1);\n  bVar10 = DAT_0047a4f8 != 0;",
+  "  FUN_0041bcc8(param_1);\n  E2R_SaveHostedRequesterBackdrop();\n  bVar10 = DAT_0047a4f8 != 0;"
+);
+source = source.replace(
+  "  for (psVar8 = *(short **)(in_EAX + 6); psVar8 != (short *)0x0; psVar8 = *(short **)(psVar8 + 9)) {\n    FUN_0043b9bc(uVar4,psVar8);\n    uVar4 = extraout_ECX_08;\n    uVar7 = extraout_EDX_01;\n    uVar5 = extraout_var_01;\n  }\n  uVar11 = CONCAT44(uVar7,CONCAT22(uVar5,E2R_WORD_AT(DAT_0047a45e,2)));",
+  "  for (psVar8 = *(short **)(in_EAX + 6); psVar8 != (short *)0x0; psVar8 = *(short **)(psVar8 + 9)) {\n    FUN_0043b9bc(uVar4,psVar8);\n    uVar4 = extraout_ECX_08;\n    uVar7 = extraout_EDX_01;\n    uVar5 = extraout_var_01;\n  }\n  E2R_DrawHostedRequesterLabels(in_EAX);\n  uVar11 = CONCAT44(uVar7,CONCAT22(uVar5,E2R_WORD_AT(DAT_0047a45e,2)));"
+);
+source = source.replace(
+  "  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xf;\n  FUN_0041ab4c((*(int *)(puVar3 + 8) >> 0x10) + -1,*(int *)(puVar3 + 7) >> 0x10,\n               (*(int *)(puVar3 + 10) >> 0x10) + -1);\n  *(undefined2 *)((DAT_0047a279 >> 0x18) * 2 + 0x6366a8) = 1;\n  FUN_0041b078(extraout_ECX,(short)((uint)*(undefined4 *)(puVar3 + 7) >> 0x10));\n  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 8;\n  FUN_0041b34c(extraout_ECX_00,*(int *)(puVar3 + 7) >> 0x10);\n  FUN_0041b34c(extraout_ECX_01,*(int *)(puVar3 + 8) >> 0x10);\n  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xe;\n  FUN_0041b078(extraout_ECX_02,(short)((uint)*(undefined4 *)(puVar3 + 8) >> 0x10) + -1);\n  FUN_0041b34c(extraout_ECX_03,(*(int *)(puVar3 + 8) >> 0x10) + -1);\n  FUN_0041b34c(extraout_ECX_04,*(int *)(puVar3 + 7) >> 0x10);",
+  "  *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xf;\n  E2R_FillHostedRect(*(int *)(puVar3 + 7) >> 0x10,*(int *)(puVar3 + 9) >> 0x10,\n                     (*(int *)(puVar3 + 8) >> 0x10) + -1,\n                     (*(int *)(puVar3 + 10) >> 0x10) + -1);\n  *(undefined2 *)((DAT_0047a279 >> 0x18) * 2 + 0x6366a8) = 1;\n  E2R_DrawHostedRectBorder(*(int *)(puVar3 + 7) >> 0x10,*(int *)(puVar3 + 9) >> 0x10,\n                           (*(int *)(puVar3 + 8) >> 0x10) + -1,\n                           (*(int *)(puVar3 + 10) >> 0x10) + -1);"
+);
+source = source.replace(
+  "    FUN_0041ab4c((*(int *)(param_2 + 0xb) >> 0x10) + -1,*(int *)(param_2 + 10) >> 0x10,\n                 (*(int *)(param_2 + 0xd) >> 0x10) + -1);",
+  "    E2R_FillHostedRect(param_2[0xb],param_2[0xd],param_2[0xc] + -1,param_2[0xe] + -1);"
+);
+source = source.replace(
+  "    FUN_0041b078(extraout_ECX,(short)((uint)*(undefined4 *)(param_2 + 10) >> 0x10) + -1);\n    FUN_0041b34c(extraout_ECX_00,(*(int *)(param_2 + 10) >> 0x10) + -1);\n    uVar4 = extraout_ECX_01;\n    if ((*(byte *)((int)param_2 + 0x11) & 4) == 0) {\n      FUN_0041b34c(extraout_ECX_01,(*(int *)(param_2 + 0xb) >> 0x10) + 1);\n      uVar4 = extraout_ECX_02;\n    }",
+  "    E2R_DrawHostedRectBorder(param_2[0xb],param_2[0xd],param_2[0xc] + -1,param_2[0xe] + -1);\n    uVar4 = extraout_ECX_02;"
+);
+source = source.replace(
+  "    FUN_0041b078(uVar4,(short)((uint)*(undefined4 *)(param_2 + 0xb) >> 0x10));\n    FUN_0041b34c(extraout_ECX_03,*(int *)(param_2 + 0xb) >> 0x10);\n    if ((*(byte *)((int)param_2 + 0x11) & 2) == 0) {\n      FUN_0041b34c(extraout_ECX_04,(*(int *)(param_2 + 10) >> 0x10) + -1);\n    }\n",
+  ""
+);
+source = source.replace(
+  "  int extraout_ECX_06;\n  uint uVar5;",
+  "  int extraout_ECX_06;\n  int text_x;\n  uint uVar5;"
+);
+source = source.replace(
+  "    FUN_0041b078(iVar3,(short)(param_2[0xd] + 1));\n    FUN_00418770(extraout_ECX_05,*(byte **)(param_2 + 4));",
+  "    text_x = iVar3;\n    FUN_0041b078(text_x,(short)(param_2[0xd] + 1));\n    FUN_00418770(extraout_ECX_05,*(byte **)(param_2 + 4));"
+);
+source = source.replace(
+  "      iVar3 = extraout_ECX_06 + (uint)uVar2;",
+  "      iVar3 = text_x + (uint)uVar2;"
+);
+source = source.replace(
+  "        uVar11 = FUN_0041ba7c(iVar2,(int)(uVar11 >> 0x20));\n        if ((uVar11 & 2) != 0) break;\n        if (extraout_ECX_09 == _DAT_0064342c) {\n          uVar11 = FUN_0041cfc0();\n          iVar2 = extraout_ECX_13;\n        }\n        else {\n          uVar11 = FUN_0043bd4c(extraout_ECX_09,_DAT_00643430);\n          iVar2 = extraout_ECX_12;\n        }\n      }\n      iVar2 = extraout_ECX_09;\n      if (extraout_ECX_09 != _DAT_0064342c) {\n        _DAT_0064342c = extraout_ECX_09;\n        uVar11 = FUN_0043b9bc(extraout_ECX_09,_DAT_00643430);\n        iVar2 = extraout_ECX_10;\n      }",
+  "        uVar11 = FUN_0041ba7c(iVar2,(int)(uVar11 >> 0x20));\n        mouse_state = (int)uVar11;\n        if ((uVar11 & 2) != 0) break;\n        if (mouse_state == _DAT_0064342c) {\n          uVar11 = FUN_0041cfc0();\n          iVar2 = mouse_state;\n        }\n        else {\n          uVar11 = FUN_0043bd4c(mouse_state,_DAT_00643430);\n          iVar2 = mouse_state;\n        }\n      }\n      iVar2 = mouse_state;\n      if (mouse_state != _DAT_0064342c) {\n        _DAT_0064342c = mouse_state;\n        uVar11 = FUN_0043b9bc(mouse_state,_DAT_00643430);\n        iVar2 = mouse_state;\n      }"
+);
+source = source.replace(
+  "      iVar3 = FUN_0043b708(iVar2,psVar8);\n      iVar2 = extraout_ECX_11;\n      uVar11 = CONCAT44(extraout_EDX_02,iVar3);",
+  "      iVar3 = FUN_0043b708(iVar2,psVar8);\n      iVar2 = mouse_state;\n      uVar11 = CONCAT44(extraout_EDX_02,iVar3);\n      if (E2R_requester_continue_after_action != 0) {\n        E2R_requester_continue_after_action = 0;\n        _DAT_0064342c = 0;\n        _DAT_006443d0 = 0;\n        iVar2 = 0;\n        uVar11 = 0;\n      }"
+);
+source = source.replace(
+  "          if (in_EAX != (short *)(undefined1 *)0x0047a684) {\n            uVar4 = FUN_0041bcfc(iVar2);\n          }",
+  "          if (in_EAX != (short *)(undefined1 *)0x0047a684) {\n            E2R_RestoreHostedRequesterBackdrop();\n            uVar4 = FUN_0041bcfc(iVar2);\n          }"
+);
+source = source.replace(
+  "  _DAT_0064342c = 0;\n  _DAT_006443d0 = (ushort)(in_EAX == (short *)(undefined1 *)0x0047a684);\n  iVar2 = 0;",
+  "  _DAT_0064342c = 0;\n  _DAT_006443d0 = (ushort)(in_EAX == (short *)(undefined1 *)0x0047a684);\n  E2R_RequesterProbeFeedPendingMouse(E2R_WORD_AT(DAT_0047a45e,2));\n  iVar2 = 0;"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_0043b384\(undefined4 param_1,undefined4 param_2\)[\s\S]*?for \(psVar8 = \*\(short \*\*\)\(in_EAX \+ 6\); psVar8 != \(short \*\)0x0; psVar8 = \*\(short \*\*\)\(psVar8 \+ 9\)\) \{\r?\n    FUN_0043b9bc\(uVar4,psVar8\);\r?\n    uVar4 = extraout_ECX_08;\r?\n    uVar7 = extraout_EDX_01;\r?\n    uVar5 = extraout_var_01;\r?\n  \})\r?\n  uVar11 = CONCAT44/,
+  "$1\n  E2R_DrawHostedRequesterLabels(in_EAX);\n  uVar11 = CONCAT44"
+);
 source = source.replace(/(void __fastcall\s*\r?\nFUN_0043fe24\(short param_1,short param_2,short param_3,undefined4 param_4,undefined4 param_5,\s*\r?\n\s*short param_6,undefined4 param_7\)[\s\S]*?\r?\n  short unaff_BX;\r?\n\s*)if \(DAT_0047a43c == 0\) \{/, "$1if (!E2R_NextMenuRecordTarget(&in_EAX,&unaff_BX)) {\n    return;\n  }\n  if (DAT_0047a43c == 0) {");
 source = source.replace(/(void FUN_0043fea4\(void\)\s*\r?\n\s*\{[\s\S]*?\r?\n  char \*pcVar8;\r?\n\s*)if \(DAT_00479e00 == 0\) \{/, "$1E2R_ResetMenuRecordBuilder();\n  if (DAT_00479e00 == 0) {");
 source = source.replace("  *(undefined1 *)(_DAT_006438c0 + 4) = 0x87;", "  if (_DAT_006438c0 != 0) {\n    *(undefined1 *)(_DAT_006438c0 + 4) = 0x87;\n  }");
@@ -1913,6 +2468,10 @@ source = source.replace(
   "\n\n\nstatic undefined4 E2R_ParseArchiveFanResource(void)\n{\n  int *previous_stream;\n  int *stream;\n  byte *base;\n  byte *end;\n  byte *cursor;\n  byte *scan;\n  byte *scan_limit;\n  uint ordinal;\n  uint original_offset;\n  uint mapped_offset;\n  uint count;\n  undefined4 result;\n\n  stream = (int *)(uintptr_t)DAT_0047a724;\n  if ((uintptr_t)stream < 0x10000u || IsBadReadPtr(stream,0x1c) ||\n      (uint)stream[6] != E2R_STREAM_MAGIC) {\n    return 0;\n  }\n  base = (byte *)(uintptr_t)stream[5];\n  end = (byte *)(uintptr_t)stream[2];\n  cursor = (byte *)(uintptr_t)stream[0];\n  original_offset = (uint)(cursor - base);\n  mapped_offset = original_offset;\n  if ((*(byte *)(stream + 3) & 0x10) != 0) {\n    if (E2R_archive_parse_summary_count < 32) {\n      E2R_archive_parse_summary_count = E2R_archive_parse_summary_count + 1;\n      fprintf(stderr,\n              \"archive resource parse: input=%u mapped=%u result=0 final=%u remaining=%d\\n\",\n              original_offset,mapped_offset,(uint)((byte *)(uintptr_t)stream[0] - base),\n              stream[1]);\n    }\n    return 0;\n  }\n  if ((cursor + 4 <= end) &&\n      (cursor[0] != 'F' || cursor[1] != 'A' || cursor[2] != 'N' || cursor[3] != 'T')) {\n    ordinal = original_offset;\n    if (0 < ordinal && ordinal < 0x10000u) {\n      count = 0;\n      for (cursor = base + 4; cursor + 4 <= end; cursor = cursor + 1) {\n        if (cursor[0] == 'F' && cursor[1] == 'A' && cursor[2] == 'N' && cursor[3] == 'T') {\n          count = count + 1;\n          if (count == ordinal) {\n            stream[0] = (int)(uintptr_t)cursor;\n            stream[1] = (int)(uint)(end - cursor);\n            mapped_offset = (uint)(cursor - base);\n            *(byte *)(stream + 3) = *(byte *)(stream + 3) | 0x40;\n            break;\n          }\n        }\n      }\n    }\n    else {\n      scan_limit = (uint)(cursor - base) > 0x10000u ? cursor - 0x10000 : base;\n      for (scan = cursor; scan >= scan_limit; scan = scan - 1) {\n        if (scan[0] == 'F' && scan[1] == 'A' && scan[2] == 'N' && scan[3] == 'T') {\n          stream[0] = (int)(uintptr_t)scan;\n          stream[1] = (int)(uint)(end - scan);\n          mapped_offset = (uint)(scan - base);\n          *(byte *)(stream + 3) = *(byte *)(stream + 3) | 0x40;\n          break;\n        }\n        if (scan == scan_limit) {\n          break;\n        }\n      }\n    }\n  }\n  previous_stream = E2R_fan_parse_stream;\n  E2R_fan_parse_stream = stream;\n  result = FUN_004453a4((undefined4)(uintptr_t)stream,1);\n  E2R_fan_parse_stream = previous_stream;\n  if (E2R_archive_parse_summary_count < 32) {\n    E2R_archive_parse_summary_count = E2R_archive_parse_summary_count + 1;\n    fprintf(stderr,\n            \"archive resource parse: input=%u mapped=%u result=%u final=%u remaining=%d\\n\",\n            original_offset,mapped_offset,(uint)result,\n            (uint)((byte *)(uintptr_t)stream[0] - base),stream[1]);\n  }\n  return result;\n}\n\n\n\n/* 00447090 */"
 );
 source = source.replace(
+  "\n\n\nstatic undefined4 E2R_ParseArchiveFanResource(void)",
+  "\n\n\nstatic ushort E2R_ReadFanRecordWord(byte *record,int index)\n{\n  record = record + index * 2;\n  return (ushort)(((uint)record[0] << 8) | (uint)record[1]);\n}\n\nstatic short *E2R_AllocateArchiveRep(void)\n{\n  short *rep;\n\n  rep = (short *)(uintptr_t)FUN_0045f1ff(1,0x1a0);\n  if (rep == (short *)0x0) {\n    return (short *)0x0;\n  }\n  memset(rep,0xff,0x1a0);\n  *(short **)(rep + 0xd3) = _DAT_00637254;\n  _DAT_00637254 = rep;\n  rep[0xd5] = 3;\n  *(undefined4 *)(rep + 0xd6) = _DAT_00636588;\n  return rep;\n}\n\nstatic int E2R_ParseArchiveRepResource(short expected_rep_id)\n{\n  int *stream;\n  byte *base;\n  byte *end;\n  byte *cursor;\n  byte *limit;\n  byte *scan;\n  byte *record;\n  short *rep;\n  ushort type;\n  ushort id;\n  short field2;\n  short field3;\n  int slot;\n  uint record_count;\n\n  stream = (int *)(uintptr_t)DAT_0047a724;\n  if ((uintptr_t)stream < 0x10000u || IsBadReadPtr(stream,0x1c) ||\n      (uint)stream[6] != E2R_STREAM_MAGIC) {\n    return 0;\n  }\n  base = (byte *)(uintptr_t)stream[5];\n  end = (byte *)(uintptr_t)stream[2];\n  cursor = (byte *)(uintptr_t)stream[0];\n  if (cursor + 0x4c > end || cursor[0] != 'F' || cursor[1] != 'A' ||\n      cursor[2] != 'N' || cursor[3] != 'T') {\n    return 0;\n  }\n  limit = end;\n  for (scan = cursor + 4; scan + 4 <= end; scan = scan + 1) {\n    if (scan[0] == 'F' && scan[1] == 'A' && scan[2] == 'N' && scan[3] == 'T') {\n      limit = scan;\n      break;\n    }\n  }\n  rep = (short *)0x0;\n  record_count = 0;\n  for (record = cursor + 0x42; record + 10 <= limit && record_count < 512;\n       record = record + 10) {\n    record_count = record_count + 1;\n    type = E2R_ReadFanRecordWord(record,0);\n    id = E2R_ReadFanRecordWord(record,1);\n    field2 = (short)E2R_ReadFanRecordWord(record,2);\n    field3 = (short)E2R_ReadFanRecordWord(record,3);\n    if (type == 0) {\n      break;\n    }\n    if (type == 0x35 && id < 500 &&\n        (expected_rep_id < 0 || id == (ushort)expected_rep_id)) {\n      rep = E2R_AllocateArchiveRep();\n      if (rep == (short *)0x0) {\n        return 0;\n      }\n      *rep = (short)id;\n      *(short **)((undefined1 *)0x00635980 + id * 4) = rep;\n      rep[0xd1] = field2 + -1;\n      rep[0xd2] = field3 + -1;\n      continue;\n    }\n    if (type == 0x36 && rep != (short *)0x0 && id == (ushort)*rep) {\n      slot = (int)field2 + 1;\n      if (0 <= slot && slot < 0xd1) {\n        rep[slot] = field3;\n        if (0x31 < _DAT_0067bc92 && 0x4f < field2 && field2 < 0x6b) {\n          rep[slot] = -1;\n        }\n      }\n      continue;\n    }\n    break;\n  }\n  if (rep == (short *)0x0) {\n    return 0;\n  }\n  stream[0] = (int)(uintptr_t)record;\n  stream[1] = (int)(uint)(end - record);\n  if (E2R_RuntimeDiagEnabled() && E2R_rep_load_diag_count < 64) {\n    E2R_rep_load_diag_count = E2R_rep_load_diag_count + 1;\n    fprintf(stderr,\n            \"rep archive direct: id=%d table=0x%lx records=%u final=%u limit=%u\\n\",\n            (int)*rep,(unsigned long)(uintptr_t)rep,record_count,\n            (uint)(record - base),(uint)(limit - base));\n  }\n  return 1;\n}\n\nstatic undefined4 E2R_ParseArchiveFanResource(void)"
+);
+source = source.replace(
   "  byte *scan_limit;\n  uint ordinal;\n  uint original_offset;",
   "  byte *scan_limit;\n  byte *resource_end;\n  uint ordinal;\n  uint original_offset;"
 );
@@ -1931,6 +2490,22 @@ source = source.replace(
 source = source.replace(
   /undefined8 __fastcall FUN_00451998\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 00451a54 \*\//,
   "undefined8 __fastcall FUN_00451998(int param_1,undefined4 param_2)\n\n{\n  int iVar1;\n  int rep_id;\n  int result;\n  undefined4 saved_current;\n  undefined4 extraout_ECX;\n  undefined4 extraout_ECX_00;\n  undefined4 extraout_ECX_01;\n  undefined4 extraout_ECX_02;\n  undefined4 extraout_ECX_03;\n  undefined4 extraout_ECX_04;\n  undefined4 extraout_ECX_05;\n  undefined4 extraout_EDX;\n  undefined8 uVar2;\n  \n  rep_id = (int)(short)param_1;\n  result = rep_id;\n  saved_current = DAT_0047a470;\n  if (-1 < rep_id) {\n    iVar1 = rep_id * 4;\n    if (*(int *)((undefined1 *)0x00635980 + iVar1) == 0) {\n      DAT_0047a788 = 1;\n      if (DAT_0047ab10 == 0) {\n        uVar2 = FUN_00442420((short)rep_id,iVar1);\n        FUN_0045f22f(extraout_ECX,(char *)uVar2);\n        uVar2 = FUN_00451c8c(extraout_ECX_00,extraout_EDX);\n        result = (int)uVar2;\n        DAT_0047a470 = saved_current;\n      }\n      else {\n        if (*(int *)(iVar1 + 0x663a10) < 0) {\n          FUN_00442420((short)rep_id,iVar1);\n          uVar2 = FUN_0043cbb4(extraout_ECX_02);\n          DAT_0047a470 = saved_current;\n          return CONCAT44(param_2,(int)uVar2);\n        }\n        FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x663a10));\n        result = E2R_ParseArchiveFanResource();\n        DAT_0047a470 = saved_current;\n      }\n    }\n  }\n  DAT_0047a470 = saved_current;\n  return CONCAT44(param_2,result);\n}\n\n\n\n/* 00451a54 */"
+);
+source = source.replace(
+  "          FUN_00442420((short)rep_id,iVar1);\n          uVar2 = FUN_0043cbb4(extraout_ECX_02);",
+  "          uVar2 = FUN_00442420((short)rep_id,iVar1);\n          if (E2R_RuntimeDiagEnabled() && E2R_rep_load_diag_count < 64) {\n            E2R_rep_load_diag_count = E2R_rep_load_diag_count + 1;\n            fprintf(stderr,\"rep load missing: id=%d name=%s offset=%d current=0x%lx\\n\",\n                    rep_id,\n                    (char *)uVar2 != (char *)0x0 &&\n                    !IsBadReadPtr((void *)(uintptr_t)(char *)uVar2,1) ?\n                    (char *)uVar2 : \"(bad)\",\n                    *(int *)(iVar1 + 0x663a10),(unsigned long)DAT_0047a470);\n          }\n          uVar2 = FUN_0043cbb4(extraout_ECX_02);"
+);
+source = source.replace(
+  "  if (-1 < rep_id) {\n    iVar1 = rep_id * 4;\n    if (*(int *)((undefined1 *)0x00635980 + iVar1) == 0) {",
+  "  if (-1 < rep_id) {\n    iVar1 = rep_id * 4;\n    if (E2R_RuntimeDiagEnabled() && E2R_rep_load_diag_count < 64) {\n      E2R_rep_load_diag_count = E2R_rep_load_diag_count + 1;\n      fprintf(stderr,\n              \"rep load enter: id=%d table=0x%lx offset=%d current=0x%lx scene=0x%lx\\n\",\n              rep_id,\n              (unsigned long)*(int *)((undefined1 *)0x00635980 + iVar1),\n              *(int *)(iVar1 + 0x663a10),(unsigned long)DAT_0047a470,\n              (unsigned long)_DAT_0073cc3c);\n    }\n    if (*(int *)((undefined1 *)0x00635980 + iVar1) == 0) {"
+);
+source = source.replace(
+  "        FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x663a10));\n        result = E2R_ParseArchiveFanResource();",
+  "        FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x663a10));\n        if (E2R_RuntimeDiagEnabled() && E2R_rep_load_diag_count < 16) {\n          E2R_archive_parse_summary_count = 0;\n          E2R_fan_phase_diag_count = 0;\n          E2R_fan_dispatch_diag_count = 0;\n        }\n        result = E2R_ParseArchiveFanResource();"
+);
+source = source.replace(
+  "    }\n  }\n  DAT_0047a470 = saved_current;\n  return CONCAT44(param_2,result);\n}",
+  "    }\n    if (E2R_RuntimeDiagEnabled() && E2R_rep_load_diag_count < 64) {\n      int rep = *(int *)((undefined1 *)0x00635980 + iVar1);\n      E2R_rep_load_diag_count = E2R_rep_load_diag_count + 1;\n      fprintf(stderr,\n              \"rep load exit: id=%d result=%d table=0x%lx first=%d records=%u final_current=0x%lx\\n\",\n              rep_id,result,(unsigned long)rep,\n              rep != 0 && !IsBadReadPtr((void *)(uintptr_t)rep,2) ? (int)*(short *)rep : -9999,\n              E2R_fan_parse_record_count,(unsigned long)saved_current);\n    }\n  }\n  DAT_0047a470 = saved_current;\n  return CONCAT44(param_2,result);\n}"
 );
 source = source.replace(
   "      FUN_00451998(param_1,psVar15);",
@@ -1979,6 +2554,22 @@ source = source.replace(
 source = source.replace(
   "            FUN_0045f296(param_1,*(int *)(iVar1 + 0x653840));\n            FUN_004453a4(extraout_ECX_04,1);\n            uVar6 = extraout_ECX_05;\n            uVar7 = extraout_EDX_00;",
   "            FUN_0045f296(param_1,*(int *)(iVar1 + 0x653840));\n            E2R_ParseArchiveFanResource();\n            uVar6 = (undefined4)(int)*psVar3;\n            uVar7 = 0;"
+);
+source = source.replace(
+  "  case 0x37:\n    psVar7 = (short *)(uint)(ushort)in_EAX[2];\n    param_2[0x91] = in_EAX[2];\n    if (in_EAX[3] != 0) {",
+  "  case 0x37:\n    psVar7 = (short *)(uint)(ushort)in_EAX[2];\n    param_2[0x91] = in_EAX[2];\n    E2R_RetainCurrentRepForMissingTarget(\"2b880.case37\",param_2);\n    if (in_EAX[3] != 0) {"
+);
+source = source.replace(
+  "                  \"actor load archive: id=%d offset=%d result=%lu table=0x%lx live=%d,%d,%d stand=%d,%d,%d old=%d,%d,%d\\n\",",
+  "                  \"actor load archive: id=%d offset=%d result=%lu table=0x%lx live=%d,%d,%d stand=%d,%d,%d old=%d,%d,%d rep=0x%lx rep_id=%d state91=%d static=%d/%d/%d\\n\","
+);
+source = source.replace(
+  "                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x7e] : -9999,\n                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x7f] : -9999,\n                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x80] : -9999);",
+  "                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x7e] : -9999,\n                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x7f] : -9999,\n                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x80] : -9999,\n                  loaded_actor != (short *)0x0 ?\n                    (unsigned long)*(int *)(loaded_actor + 0x8f) : 0,\n                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x90] : -9999,\n                  loaded_actor != (short *)0x0 ? (int)loaded_actor[0x91] : -9999,\n                  loaded_actor != (short *)0x0 ?\n                    (int)*(short *)(*loaded_actor * 2 + 0x6648e8) : -9999,\n                  loaded_actor != (short *)0x0 ?\n                    (int)*(short *)(*loaded_actor * 2 + 0x65feb0) : -9999,\n                  loaded_actor != (short *)0x0 ?\n                    (int)*(short *)(*loaded_actor * 2 + 0x671fc0) : -9999);"
+);
+source = source.replace(
+  "        if (E2R_RuntimeDiagEnabled() && E2R_actor_load_diag_count < 48) {\n          E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;",
+  "        E2R_RetainCurrentRepForMissingTarget(\"51f5c.archive\",loaded_actor);\n        if (E2R_RuntimeDiagEnabled() && E2R_actor_load_diag_count < 48) {\n          E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;"
 );
 source = source.replace(
   "      iVar2 = FUN_004453a4(extraout_ECX_03,1);",
@@ -2100,6 +2691,15 @@ source = source.replace(
   "    fprintf(stderr,\n            \"scene lookup 48744: coord=0x%lx x=%d z=%d cell=0x%x current=0x%lx\\n\",\n            (unsigned long)actor,(int)(short)*actor,(int)(short)actor[2],\n            (unsigned int)uVar5,(unsigned long)DAT_0047a470);\n    {\n      uint swapped_cell = (uint)*(ushort *)\n        ((undefined1 *)0x00684d68 +\n         ((*(int *)(actor + 1) >> 0x19) + 0x40) * 2 +\n         (((int)(short)*actor >> 9) + 0x40) * 0x100);\n      uintptr_t desc = 0x0068cd68 + (uintptr_t)uVar5 * 0xc;\n      uintptr_t swapped_desc = 0x0068cd68 + (uintptr_t)swapped_cell * 0xc;\n      if (swapped_cell != uVar5 && swapped_cell != 0xffff &&\n          !IsBadReadPtr((void *)desc,0xc) && !IsBadReadPtr((void *)swapped_desc,0xc)) {\n        fprintf(stderr,\n                \"scene lookup 48744 alt: swapped_cell=0x%x desc_words=%04x,%04x swapped_words=%04x,%04x\\n\",\n                (unsigned int)swapped_cell,\n                (unsigned int)*(ushort *)(desc + 8),(unsigned int)*(ushort *)(desc + 10),\n                (unsigned int)*(ushort *)(swapped_desc + 8),\n                (unsigned int)*(ushort *)(swapped_desc + 10));\n      }\n    }\n    E2R_LogSceneGridProbe(\"48744.lookup\",(int)(short)*actor,(int)(short)actor[2]);\n  }\n  if (uVar5 != 0xffff) {"
 );
 source = source.replace(
+  "  if (uVar5 != 0xffff) {\n    pbVar7 = (undefined1 *)0x0068cd68 + uVar5 * 0xc;",
+  "  if (E2R_RuntimeDiagEnabled() && E2R_scene_lookup_diag_count < 256) {\n    uint swapped_cell = (uint)*(ushort *)\n      ((undefined1 *)0x00684d68 +\n       ((*(int *)(actor + 1) >> 0x19) + 0x40) * 2 +\n       (((int)(short)*actor >> 9) + 0x40) * 0x100);\n    uintptr_t desc = 0x0068cd68 + (uintptr_t)uVar5 * 0xc;\n    uintptr_t swapped_desc = 0x0068cd68 + (uintptr_t)swapped_cell * 0xc;\n    E2R_scene_lookup_diag_count = E2R_scene_lookup_diag_count + 1;\n    fprintf(stderr,\n            \"scene lookup detail: coord=0x%lx x=%d y=%d z=%d cell=0x%x swapped=0x%x \"\n            \"frac=%d,%d height_gate=%d count=%d desc_bad=%d swapped_bad=%d \"\n            \"desc_words=%04x,%04x swapped_words=%04x,%04x current=0x%lx scene=0x%lx\\n\",\n            (unsigned long)actor,(int)(short)*actor,(int)(short)actor[1],\n            (int)(short)actor[2],(unsigned int)uVar5,(unsigned int)swapped_cell,\n            iVar6,iVar4,(-(*(int *)actor >> 0x10) >> (DAT_0047a738 & 0x1f)) + 0x84,\n            DAT_0047a77c,IsBadReadPtr((void *)desc,0xc),\n            IsBadReadPtr((void *)swapped_desc,0xc),\n            !IsBadReadPtr((void *)desc,0xc) ? (unsigned int)*(ushort *)(desc + 8) : 0xffff,\n            !IsBadReadPtr((void *)desc,0xc) ? (unsigned int)*(ushort *)(desc + 10) : 0xffff,\n            !IsBadReadPtr((void *)swapped_desc,0xc) ? (unsigned int)*(ushort *)(swapped_desc + 8) : 0xffff,\n            !IsBadReadPtr((void *)swapped_desc,0xc) ? (unsigned int)*(ushort *)(swapped_desc + 10) : 0xffff,\n            (unsigned long)DAT_0047a470,(unsigned long)_DAT_0073cc3c);\n  }\n  if (uVar5 != 0xffff) {\n    pbVar7 = (undefined1 *)0x0068cd68 + uVar5 * 0xc;"
+);
+source = source.replace(
+  "  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {\n    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;\n    fprintf(stderr,\"scene lookup 48744 result: result=%d coord=0x%lx\\n\",\n            (int)local_20,(unsigned long)actor);\n  }\n  return CONCAT44(param_2,local_20);",
+  "  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {\n    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;\n    fprintf(stderr,\"scene lookup 48744 result: result=%d coord=0x%lx\\n\",\n            (int)local_20,(unsigned long)actor);\n  }\n  if (E2R_RuntimeDiagEnabled() && E2R_scene_lookup_diag_count < 256) {\n    uintptr_t result_desc = 0x0068cd68 + (uintptr_t)local_20 * 0xc;\n    E2R_scene_lookup_diag_count = E2R_scene_lookup_diag_count + 1;\n    fprintf(stderr,\n            \"scene lookup detail result: result=%d best_word=0x%x coord=0x%lx result_bad=%d scene_word=%04x hint_word=%04x\\n\",\n            (int)local_20,(unsigned int)local_28,(unsigned long)actor,\n            (int)local_20 < 0 || IsBadReadPtr((void *)result_desc,0xc),\n            (int)local_20 < 0 || IsBadReadPtr((void *)result_desc,0xc) ? 0xffff :\n              (unsigned int)*(ushort *)(result_desc + 8),\n            (int)local_20 < 0 || IsBadReadPtr((void *)result_desc,0xc) ? 0xffff :\n              (unsigned int)*(ushort *)(result_desc + 10));\n  }\n  return CONCAT44(param_2,local_20);"
+);
+source = source.replaceAll("(int)(uint)pbVar7[5] <=", "(int)(char)pbVar7[5] <=");
+source = source.replace(
   "      iVar2 = FUN_004453a4(extraout_ECX_03,1);",
   "      iVar2 = E2R_ParseArchiveFanResource();"
 );
@@ -2125,7 +2725,7 @@ source = source.replace(
 );
 source = source.replace(
   /(short \* __fastcall FUN_0042b880\(int param_1,short \*param_2\)[\s\S]*?\r?\n  short \*local_14;\r?\n\s*)if/,
-  "$1in_EAX = E2R_fan_parse_record;\n  if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,10)) {\n    return (short *)0x0;\n  }\n  unaff_ESI = param_2;\n  local_14 = param_2;\n  local_18 = param_2;\n  \n  if"
+  "$1if (E2R_action_event_context != 0) {\n    in_EAX = (short *)(uintptr_t)E2R_action_event_context;\n    if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,10) ||\n        param_2 == (short *)0x0 || (uintptr_t)param_2 < 0x10000u ||\n        IsBadReadPtr(param_2,0x148)) {\n      return (short *)0x0;\n    }\n  }\n  else {\n    in_EAX = E2R_fan_parse_record;\n    if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,10)) {\n      return (short *)0x0;\n    }\n  }\n  unaff_ESI = param_2;\n  local_14 = param_2;\n  local_18 = param_2;\n  \n  if"
 );
 source = source.replace(
   "    if ((DAT_0047a714 != 0) &&\n       (((sVar9 == 8 || (sVar9 == 10)) || ((sVar9 == 7 || ((sVar9 == 0x29 || (sVar9 == 0x2b))))))))\n    {\n      FUN_00442ca4();\n      iVar5 = extraout_EDX_02;\n    }\nLAB_00444418:",
@@ -2188,6 +2788,14 @@ source = source.replace(
   "      uVar15 = FUN_004263ac((undefined4)(uintptr_t)local_20,iVar7);\n      local_24 = (short *)uVar15;"
 );
 source = source.replace(
+  "      uVar15 = FUN_004263ac((undefined4)(uintptr_t)local_20,iVar7);\n      local_24 = (short *)uVar15;\n      if (local_24 != (short *)0x0) {",
+  "      uVar15 = FUN_004263ac((undefined4)(uintptr_t)local_20,iVar7);\n      local_24 = (short *)uVar15;\n      if (E2R_StartupDiagEnabled() && E2R_scene_record_install_diag_count < 128) {\n        fprintf(stderr,\n                \"scene child record 1a: requested=%d scene=0x%lx node=0x%lx raw=%04x,%04x,%04x,%04x,%04x\\n\",\n                E2R_scene_load_request_id,(unsigned long)(uintptr_t)local_20,\n                (unsigned long)(uintptr_t)local_24,\n                (unsigned int)(ushort)psVar8[0],(unsigned int)(ushort)psVar8[1],\n                (unsigned int)(ushort)psVar8[2],(unsigned int)(ushort)psVar8[3],\n                (unsigned int)(ushort)psVar8[4]);\n      }\n      if (local_24 != (short *)0x0) {"
+);
+source = source.replace(
+  "        local_24[2] = psVar8[2];\n        local_24[7] = psVar8[3];\n        *local_24 = psVar8[4];",
+  "        local_24[2] = psVar8[2];\n        local_24[7] = psVar8[3];\n        *local_24 = psVar8[4];\n        if (E2R_StartupDiagEnabled() && E2R_scene_record_install_diag_count < 128) {\n          fprintf(stderr,\n                  \"scene child record 1a install: requested=%d actor=%d word2=%d flags=0x%04x\\n\",\n                  E2R_scene_load_request_id,(int)*local_24,(int)local_24[2],\n                  (unsigned int)(ushort)local_24[7]);\n        }"
+);
+source = source.replace(
   "      uVar15 = FUN_0041ba7c(uVar10,iVar7);\n      uVar15 = FUN_00426320(extraout_ECX_70,(int)((ulonglong)uVar15 >> 0x20));",
   "      FUN_0041ba7c(uVar10,iVar7);\n      uVar15 = FUN_00426320(0,0);"
 );
@@ -2198,6 +2806,10 @@ source = source.replace(
 source = source.replace(
   /undefined8 __fastcall FUN_004263ac\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 00426410 \*\//,
   "undefined8 __fastcall FUN_004263ac(undefined4 param_1,undefined4 param_2)\n\n{\n  int cursor;\n  int next;\n  int parent;\n  undefined2 *node;\n  undefined8 result;\n\n  parent = (int)(uintptr_t)param_1;\n  if ((uintptr_t)parent < 0x10000u || IsBadReadPtr((void *)(uintptr_t)parent,0x8)) {\n    return CONCAT44(param_2,0);\n  }\n  result = FUN_004533ac(param_1,param_2);\n  node = (undefined2 *)result;\n  if (node == (undefined2 *)0x0) {\n    return CONCAT44(param_2,0);\n  }\n  *node = 0xffff;\n  cursor = *(int *)(parent + 4);\n  if (cursor == 0) {\n    *(undefined2 **)(parent + 4) = node;\n  }\n  else {\n    if ((uintptr_t)cursor < 0x10000u || IsBadReadPtr((void *)(uintptr_t)cursor,0x1c)) {\n      return CONCAT44(param_2,node);\n    }\n    next = *(int *)(cursor + 0x18);\n    while (next != 0) {\n      cursor = next;\n      if ((uintptr_t)cursor < 0x10000u || IsBadReadPtr((void *)(uintptr_t)cursor,0x1c)) {\n        return CONCAT44(param_2,node);\n      }\n      next = *(int *)(cursor + 0x18);\n    }\n    *(undefined2 **)(cursor + 0x18) = node;\n  }\n  *(undefined4 *)(node + 0xc) = 0;\n  node[1] = 0xffff;\n  node[2] = 0;\n  *(undefined4 *)(node + 3) = 0;\n  node[7] = 2;\n  *(undefined4 *)(node + 5) = 0;\n  return CONCAT44(param_2,node);\n}\n\n\n\n/* 00426410 */"
+);
+source = source.replace(
+  /undefined8 __fastcall FUN_004533ac\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 00453414 \*\//,
+  "undefined8 __fastcall FUN_004533ac(undefined4 param_1,undefined4 param_2)\n\n{\n  byte *node;\n  int offset;\n\n  (void)param_1;\n  do {\n    node = (byte *)0x0;\n    for (offset = 0; offset < 0x43f8; offset = offset + 0x1d) {\n      if ((((byte *)0x009377c4)[offset + 0x1c] & 0x80) != 0) {\n        node = (byte *)0x009377c4 + offset;\n        memset(node,0,0x1d);\n        break;\n      }\n    }\n    if (node != (byte *)0x0) {\n      if (E2R_StartupDiagEnabled() && E2R_scene_load_request_id == 0) {\n        fprintf(stderr,\"scene child alloc: requested=%d node=0x%lx offset=%d\\n\",\n                E2R_scene_load_request_id,(unsigned long)(uintptr_t)node,offset);\n      }\n      return CONCAT44(param_2,(undefined4)(uintptr_t)node);\n    }\n    if ((int)FUN_00452ebc(0,0) == 0) {\n      return CONCAT44(param_2,0);\n    }\n  } while( true );\n}\n\n\n\n/* 00453414 */"
 );
 source = source.replace(
   "      FUN_00426ac4(uVar10,(int)local_1c);",
@@ -2561,7 +3173,9 @@ source = source.replace(
   uint id;
   uint offset;
   uint resource_offset;
+  uint action_count;
   uint actor_count;
+  uint rep_count;
   uint row;
   uint row_end;
   uint scene_count;
@@ -2609,7 +3223,9 @@ source = source.replace(
       *(int *)(0x6445e8 + offset * 4) = -1;
       *(int *)(0x6467a8 + offset * 4) = -1;
     }
+    action_count = 0;
     actor_count = 0;
+    rep_count = 0;
     scene_count = 0;
     for (scan = base; scan + 14 <= end; scan = scan + 1) {
       if (scan[0] != 'F' || scan[1] != 'A' || scan[2] != 'N' || scan[3] != 'T') {
@@ -2623,7 +3239,13 @@ source = source.replace(
       for (rec = scan + 4; rec + 10 <= limit; rec = rec + 10) {
         type = ((uint)rec[0] << 8) | (uint)rec[1];
         id = ((uint)rec[2] << 8) | (uint)rec[3];
-        if (type == 0x08 && id < 5000) {
+        if (type == 0x08 && (E2R_PopulationProbeEnabled() ? rec == scan + 0x2c : id < 5000)) {
+          /* The binary actor-section header stores its name ID in word 2.
+           * Word 1 is the local node ID; body bytes are not actor headers. */
+          if (E2R_PopulationProbeEnabled()) id = ((uint)rec[4] << 8) | (uint)rec[5];
+          if (5000 <= id) {
+            break;
+          }
           if (*(int *)(0x653840 + id * 4) < 0) {
             actor_count = actor_count + 1;
           }
@@ -2637,14 +3259,32 @@ source = source.replace(
           *(int *)(0x650fa0 + id * 4) = (int)resource_offset;
           break;
         }
+        if (E2R_ActionIndexProbeEnabled() && type == 0x0b && id < 2000) {
+          if (*(int *)(0x64f060 + id * 4) < 0) {
+            action_count = action_count + 1;
+          }
+          *(int *)(0x64f060 + id * 4) = (int)resource_offset;
+          break;
+        }
+      }
+      rec = scan + 0x42;
+      if (rec + 4 <= limit) {
+        type = ((uint)rec[0] << 8) | (uint)rec[1];
+        id = ((uint)rec[2] << 8) | (uint)rec[3];
+        if (type == 0x35 && id < 500) {
+          if (*(int *)(0x663a10 + id * 4) < 0) {
+            rep_count = rep_count + 1;
+          }
+          *(int *)(0x663a10 + id * 4) = (int)resource_offset;
+        }
       }
     }
     stream[0] = (int)(uintptr_t)base;
     stream[1] = (int)(uint)(end - base);
     if (E2R_archive_read_diag_count < 8) {
       E2R_archive_read_diag_count = E2R_archive_read_diag_count + 1;
-      fprintf(stderr,"archive 47d94 flat FANT: actors=%u scenes=%u bytes=%u\\n",
-              actor_count,scene_count,(uint)(end - base));
+      fprintf(stderr,"archive 47d94 flat FANT: actions=%u actors=%u reps=%u scenes=%u bytes=%u\\n",
+              action_count,actor_count,rep_count,scene_count,(uint)(end - base));
     }
     return CONCAT44(param_2,1);
   }
@@ -2751,7 +3391,7 @@ source = source.replace(
 );
 source = source.replace(
   "  if (local_6c[0x91] < 0) {",
-  "  E2R_TraceActorUpdateStage(\"27584.before-rep\",local_6c);\n  if (local_6c[0x91] < 0) {"
+  "  E2R_TraceActorUpdateStage(\"27584.before-rep\",local_6c);\n  E2R_RetainCurrentRepForMissingTarget(\"27584.before-rep-missing\",local_6c);\n  if (local_6c[0x91] < 0) {"
 );
 source = source.replace(
   "      FUN_00451998((int)local_6c[0x91],psVar15);\n      *(undefined4 *)(local_6c + 0x8f) =",
@@ -2760,6 +3400,18 @@ source = source.replace(
 source = source.replace(
   "        FUN_00451998((int)local_6c[0x91],psVar15);\n        *(undefined4 *)(local_6c + 0x8f) =",
   "        E2R_TraceActorUpdateStage(\"27584.before-51998-switch\",local_6c);\n        FUN_00451998((int)local_6c[0x91],psVar15);\n        E2R_TraceActorUpdateStage(\"27584.after-51998-switch\",local_6c);\n        *(undefined4 *)(local_6c + 0x8f) ="
+);
+source = source.replace(
+  "  if (((local_70 != (short *)0x0) &&\n      (local_54 = *(int *)(*(int *)(local_70 + 0x2a) + 8), local_54 == 0)) &&\n     (local_54 = *(int *)(local_70 + 0xf), local_54 == 0)) {\n    local_70 = (short *)0x0;\n  }\n  local_60 = *(int *)(*(int *)(local_6c + 0x2a) + 8);\n  if ((local_60 == 0) && (local_60 = *(int *)(local_6c + 0xf), local_60 == 0)) {\n    local_70 = (short *)0x0;\n  }",
+  "  local_54 = E2R_ActorMotionRef(local_70);\n  if (local_54 == 0) {\n    local_70 = (short *)0x0;\n  }\n  local_60 = E2R_ActorMotionRef(local_6c);\n  if (local_60 == 0) {\n    local_70 = (short *)0x0;\n  }"
+);
+source = source.replace(
+  "            if ((*(int *)(*(int *)(local_6c + 0x2a) + 0x1c) == 0) ||\n               (*(int *)(*(int *)(*(int *)(local_6c + 0x2a) + 0x1c) + 0x13a) == 0)) {\n              if ((*(int *)(*(int *)(local_6c + 0x2a) + 0x20) == 0) ||\n                 (*(int *)(*(int *)(*(int *)(local_6c + 0x2a) + 0x20) + 0x13a) == 0)) {",
+  "            if (E2R_ActorSideLinkedAction(local_6c,0x1c) == 0) {\n              if (E2R_ActorSideLinkedAction(local_6c,0x20) == 0) {"
+);
+source = source.replace(
+  "      iVar7 = CONCAT22((short)((uint)param_1 >> 0x10),local_6c[0x91]);\n      if (*psVar8 != local_6c[0x91]) {",
+  "      iVar7 = CONCAT22((short)((uint)param_1 >> 0x10),local_6c[0x91]);\n      E2R_RetainCurrentRepForMissingTarget(\"27584.switch-missing\",local_6c);\n      if (*psVar8 != local_6c[0x91]) {"
 );
 source = source.replace(
   "  iVar17 = *(int *)(local_6c + 0x93);",
@@ -2810,9 +3462,43 @@ source = source.replace(
   "$1in_EAX = (short *)(uintptr_t)param_1;\n  if (in_EAX == (short *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      0x1000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,0x17c)) {\n    return;\n  }\n  local_3c = in_EAX;"
 );
 source = source.replace(
+  "      do {\n        iVar10 = local_54;\n        psVar9 = (short *)(local_54 + 0x10);",
+  "      do {\n        if ((uintptr_t)local_54 < 0x10000u || 0x70000000u <= (uintptr_t)local_54 ||\n            IsBadReadPtr((void *)(uintptr_t)local_54,0x2a)) {\n          break;\n        }\n        iVar10 = local_54;\n        psVar9 = (short *)(local_54 + 0x10);"
+);
+source = source.replace(
+  "  else {\n    iVar10 = *(int *)(*(int *)(local_3c + 0x1e) + 0xca);\n  }",
+  "  else {\n    iVar10 = *(int *)(local_3c + 0x1e);\n    if (iVar10 == 0 || (uintptr_t)iVar10 < 0x10000u || 0x70000000u <= (uintptr_t)iVar10 ||\n        IsBadReadPtr((void *)(uintptr_t)iVar10,0xce)) {\n      return;\n    }\n    iVar10 = *(int *)(iVar10 + 0xca);\n  }"
+);
+source = source.replace(
+  "  do {\n    local_4c = (short *)(iVar10 + 0x50);",
+  "  do {\n    if ((uintptr_t)iVar10 < 0x10000u || 0x70000000u <= (uintptr_t)iVar10 ||\n        IsBadReadPtr((void *)(uintptr_t)iVar10,0x136)) {\n      return;\n    }\n    local_4c = (short *)(iVar10 + 0x50);"
+);
+source = source.replace(
   "    FUN_00423858(0,0);",
   "    FUN_00423858((undefined4)(uintptr_t)in_EAX,0);"
 );
+// Original 0x423c0b/0x423cae and 0x424124-0x424144 pass actor pointers
+// in EAX: the child, then (for the special branch) its two descendants.
+// A coordinate/stale ECX here recurses into actor storage and corrupts +0x12a.
+for (const [before, after] of [
+  [
+    "        uVar2 = CONCAT22(extraout_var,sVar3);\n        local_4c[1] = sVar3;",
+    "        uVar2 = (undefined4)iVar10;\n        local_4c[1] = sVar3;"
+  ],
+  [
+    "        uVar2 = extraout_ECX_07;\n        goto LAB_00424144;",
+    "        uVar2 = (undefined4)iVar10;\n        goto LAB_00424144;"
+  ],
+  [
+    "      FUN_00423858(extraout_ECX_23,1);\n      FUN_00423858(extraout_ECX_24,1);\n      uVar2 = extraout_ECX_25;",
+    "      FUN_00423858((undefined4)iVar10,1);\n      FUN_00423858((undefined4)local_44,1);\n      uVar2 = (undefined4)local_50;"
+  ]
+]) {
+  if (source.split(before).length !== 2) {
+    throw new Error("Expected one FUN_00423858 recursive actor anchor");
+  }
+  source = source.replace(before, after);
+}
 source = source.replace(
   "    FUN_00423858((undefined4)(uintptr_t)in_EAX,0);\n    iVar5 = extraout_ECX_04;",
   "    E2R_TraceActorLoopStage(\"21074.before-23858-root\",(uintptr_t)in_EAX,0);\n    FUN_00423858((undefined4)(uintptr_t)in_EAX,0);\n    E2R_TraceActorLoopStage(\"21074.after-23858-root\",(uintptr_t)in_EAX,0);\n    iVar5 = extraout_ECX_04;"
@@ -2831,7 +3517,130 @@ source = source.replace(
 );
 source = source.replace(
   "      FUN_004249f4();\n      iVar4 = extraout_EDX_00;",
-  "      FUN_004249f4((undefined4)(uintptr_t)iVar4);\n      iVar4 = extraout_EDX_00;"
+  "      FUN_004249f4((undefined4)(uintptr_t)iVar4);"
+);
+source = source.replace(
+  "            FUN_00424d58();\n            iVar2 = extraout_EDX_02;",
+  "            FUN_00424d58();"
+);
+source = source.replace(
+  "            FUN_00424d14();\n            FUN_00424dd8(extraout_ECX_01);\n            iVar4 = extraout_EDX_03;",
+  "            FUN_00424d14();\n            FUN_00424dd8(extraout_ECX_01);"
+);
+source = source.replace(
+  "            FUN_00424d98();\n            iVar2 = extraout_EDX_04;",
+  "            FUN_00424d98();"
+);
+source = source.replace(
+  "            FUN_00424cbc();\n            FUN_00424dd8(extraout_ECX_00);\n            iVar2 = extraout_EDX_01;",
+  "            FUN_00424cbc();\n            FUN_00424dd8(extraout_ECX_00);"
+);
+source = source.replace(
+  "        FUN_00424d58();\n        FUN_00424d14();\n        FUN_00424dd8(extraout_ECX);\n        FUN_00424d98();",
+  "        FUN_00424d58(iVar10);\n        FUN_00424d14(iVar10);\n        FUN_00424dd8(extraout_ECX,iVar10);\n        FUN_00424d98(iVar10);"
+);
+source = source.replaceAll("FUN_00424d58();", "FUN_00424d58(iVar2);");
+source = source.replaceAll("FUN_00424d14();\n            FUN_00424dd8(extraout_ECX_01);",
+                           "FUN_00424d14(iVar4);\n            FUN_00424dd8(extraout_ECX_01,iVar4);");
+source = source.replaceAll("FUN_00424d98();", "FUN_00424d98(iVar2);");
+source = source.replaceAll("FUN_00424cbc();\n            FUN_00424dd8(extraout_ECX_00);",
+                           "FUN_00424cbc(iVar2);\n            FUN_00424dd8(extraout_ECX_00,iVar2);");
+source = source.replace(
+  "if (*(short *)(in_EAX + 0x96) != 0) {\n    FUN_00423070();",
+  "if (*(short *)(in_EAX + 0x96) != 0) {\n    FUN_00423070((int *)(uintptr_t)(in_EAX + 0x92));"
+);
+source = source.replaceAll("FUN_00423070();", "FUN_00423070((int *)(uintptr_t)in_EAX);");
+source = source.replaceAll("FUN_00425538();", "FUN_00425538(iVar1);");
+source = source.replaceAll("FUN_00425018();", "FUN_00425018(iVar1);");
+source = source.replaceAll("        FUN_00425538(iVar1);\n        iVar1 = extraout_EDX;",
+                           "        FUN_00425538(iVar1);");
+source = source.replaceAll("        FUN_00425018(iVar1);\n        iVar1 = extraout_EDX_00;",
+                           "        FUN_00425018(iVar1);");
+source = source.replaceAll("      FUN_00425538(iVar1);\n      iVar1 = extraout_EDX;",
+                           "      FUN_00425538(iVar1);");
+source = source.replace(
+  /void FUN_00423070\(void\)\s*\{\s*int \*in_EAX;\s*int iVar1;\s*int iVar2;\s*int iVar3;\s*iVar1 = DAT_0047a2a4 \/ \(\*\(int \*\)\(\(int\)in_EAX \+ 2\) >> 0x10\);/,
+  "void FUN_00423070(int *coord)\n\n{\n  int *in_EAX;\n  int iVar1;\n  int iVar2;\n  int iVar3;\n\n  in_EAX = coord;\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      0x70000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,6) ||\n      (*(int *)((int)in_EAX + 2) >> 0x10) == 0) {\n    return;\n  }\n  iVar1 = DAT_0047a2a4 / (*(int *)((int)in_EAX + 2) >> 0x10);"
+);
+source = source.replace(
+  /void FUN_00425018\(void\)\s*\{\s*(?:int|undefined4) in_EAX;\s*int iVar1;/,
+  "void FUN_00425018(int actor)\n\n{\n  int in_EAX;\n  int iVar1;"
+);
+source = source.replace(
+  "  local_76 = 0;\n  local_56 = *(undefined4 *)(in_EAX + 0x22);",
+  "  in_EAX = actor;\n  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0xd2)) {\n    return;\n  }\n  local_76 = 0;\n  local_56 = *(undefined4 *)(in_EAX + 0x22);"
+);
+source = source.replace(
+  /void FUN_00425538\(void\)\s*\{\s*(?:int|undefined4) in_EAX;\s*int iVar1;/,
+  "void FUN_00425538(int actor)\n\n{\n  int in_EAX;\n  int iVar1;"
+);
+source = source.replace(
+  "  if (*(short *)(in_EAX + 0x96) != 0) {\n    FUN_00423070((int *)(uintptr_t)(in_EAX + 0x92));",
+  "  in_EAX = actor;\n  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x9a)) {\n    return;\n  }\n  if (*(short *)(in_EAX + 0x96) != 0) {\n    FUN_00423070((int *)(uintptr_t)(in_EAX + 0x92));"
+);
+source = source.replace(
+  /void FUN_00424cbc\(void\)\s*\{\s*(?:int|undefined4) in_EAX;\s*int extraout_EDX;\s*int extraout_EDX_00;\s*int iVar1;\s*for \(iVar1 = \*\(int \*\)\(in_EAX \+ 0x1e\);/,
+  "void FUN_00424cbc(int actor)\n\n{\n  int in_EAX;\n  int extraout_EDX;\n  int extraout_EDX_00;\n  int iVar1;\n\n  in_EAX = actor;\n  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x22)) {\n    return;\n  }\n  for (iVar1 = *(int *)(in_EAX + 0x1e);"
+);
+source = source.replace(
+  /void FUN_00424d14\(void\)\s*\{\s*(?:int|undefined4) in_EAX;\s*int extraout_EDX;\s*int extraout_EDX_00;\s*int iVar1;\s*for \(iVar1 = \*\(int \*\)\(in_EAX \+ 0x1e\);/,
+  "void FUN_00424d14(int actor)\n\n{\n  int in_EAX;\n  int extraout_EDX;\n  int extraout_EDX_00;\n  int iVar1;\n\n  in_EAX = actor;\n  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x22)) {\n    return;\n  }\n  for (iVar1 = *(int *)(in_EAX + 0x1e);"
+);
+source = source.replace(
+  /void FUN_00424d58\(void\)\s*\{\s*(?:int|undefined4) in_EAX;\s*int extraout_EDX;\s*int iVar1;\s*for \(iVar1 = \*\(int \*\)\(in_EAX \+ 0x1e\);/,
+  "void FUN_00424d58(int actor)\n\n{\n  int in_EAX;\n  int extraout_EDX;\n  int iVar1;\n\n  in_EAX = actor;\n  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x22)) {\n    return;\n  }\n  for (iVar1 = *(int *)(in_EAX + 0x1e);"
+);
+source = source.replace(
+  /void FUN_00424d98\(void\)\s*\{\s*(?:int|undefined4) in_EAX;\s*int extraout_EDX;\s*int iVar1;\s*for \(iVar1 = \*\(int \*\)\(in_EAX \+ 0x1e\);/,
+  "void FUN_00424d98(int actor)\n\n{\n  int in_EAX;\n  int extraout_EDX;\n  int iVar1;\n\n  in_EAX = actor;\n  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x22)) {\n    return;\n  }\n  for (iVar1 = *(int *)(in_EAX + 0x1e);"
+);
+source = source.replace(
+  /void __fastcall FUN_00424dd8\(int param_1\)\s*\{\s*byte bVar1;\s*(?:int|undefined4) in_EAX;\s*int extraout_ECX;\s*int extraout_EDX;\s*int iVar2;\s*iVar2 = \*\(int \*\)\(in_EAX \+ 0xd8\);/,
+  "void __fastcall FUN_00424dd8(int param_1,int actor)\n\n{\n  byte bVar1;\n  int in_EAX;\n  int extraout_ECX;\n  int extraout_EDX;\n  int iVar2;\n\n  in_EAX = actor;\n  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0xdc)) {\n    return;\n  }\n  iVar2 = *(int *)(in_EAX + 0xd8);"
+);
+source = source.replace(
+  "      FUN_00424e44(param_1);\n      param_1 = extraout_ECX;\n      iVar2 = extraout_EDX;",
+  "      FUN_00424e44(param_1,iVar2);"
+);
+source = source.replace(
+  /void __fastcall FUN_00424e44\(int param_1\)\s*\{\s*(?:int|undefined4) in_EAX;\s*int iVar1;\s*if \(-1 < \*\(short \*\)\(in_EAX \+ 0x1c\)\) \{/,
+  "void __fastcall FUN_00424e44(int param_1,int node)\n\n{\n  int in_EAX;\n  int iVar1;\n\n  in_EAX = node;\n  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x26) ||\n      IsBadReadPtr((void *)(uintptr_t)*(int *)(in_EAX + 0x22),4)) {\n    return;\n  }\n  if (-1 < *(short *)(in_EAX + 0x1c)) {"
+);
+source = source.replace(
+  "  FUN_00433d30(param_1,iVar1);",
+  "  FUN_00433d30(in_EAX,iVar1);"
+);
+source = source.replace(
+  /void __fastcall FUN_00431a7c\(undefined4 param_1,int param_2\)\s*\{\s*byte bVar1;\s*short sVar2;\s*int in_EAX;/,
+  "void __fastcall FUN_00431a7c(int actor,int param_2)\n\n{\n  byte bVar1;\n  short sVar2;\n  int in_EAX;"
+);
+source = source.replace(
+  "  FUN_00457818(param_1,param_2);\n  iVar10 = *(int *)(in_EAX + 4);",
+  "  in_EAX = actor;\n  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x2c)) {\n    return;\n  }\n  FUN_00457818((undefined4)(uintptr_t)in_EAX,param_2);\n  if (IsBadReadPtr((void *)(uintptr_t)in_EAX,0x10) || *(int *)(in_EAX + 4) == 0 ||\n      *(int *)(in_EAX + 8) == 0 || *(int *)(in_EAX + 0xc) == 0 ||\n      IsBadReadPtr((void *)(uintptr_t)*(int *)(in_EAX + 4),0x1c) ||\n      IsBadReadPtr((void *)(uintptr_t)*(int *)(in_EAX + 8),0x1c) ||\n      IsBadReadPtr((void *)(uintptr_t)*(int *)(in_EAX + 0xc),0x1c)) {\n    return;\n  }\n  iVar10 = *(int *)(in_EAX + 4);"
+);
+source = source.replace(
+  /void __fastcall FUN_00433d30\(undefined4 param_1,int param_2\)\s*\{\s*undefined2 uVar1;/,
+  "void __fastcall FUN_00433d30(int actor,int param_2)\n\n{\n  undefined2 uVar1;"
+);
+source = source.replace(
+  "  if (*(int *)(in_EAX + 0x28) != 0) {",
+  "  in_EAX = actor;\n  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x40)) {\n    return;\n  }\n  if (*(int *)(in_EAX + 0x28) != 0) {"
+);
+source = source.replaceAll(
+  "      FUN_00431a7c(in_EAX,param_2);\n      iVar8 = extraout_ECX_00;",
+  "      FUN_00431a7c(in_EAX,param_2);\n      iVar8 = in_EAX;"
+);
+source = source.replaceAll(
+  "      FUN_00437ae4(in_EAX,param_2);\n      iVar8 = extraout_ECX;",
+  "      FUN_00437ae4(in_EAX,param_2);\n      iVar8 = in_EAX;"
+);
+source = source.replaceAll(
+  "      FUN_00431a7c(iVar8,param_2);\n      iVar8 = extraout_ECX_02;",
+  "      FUN_00431a7c(iVar8,param_2);"
+);
+source = source.replaceAll(
+  "      FUN_00437ae4(iVar8,param_2);\n      iVar8 = extraout_ECX_01;",
+  "      FUN_00437ae4(iVar8,param_2);"
 );
 source = source.replace(
   /(void FUN_004249f4\(void\)[\s\S]*?\r?\n  int iVar6;\r?\n\s*)for \(iVar1 = \*\(int \*\)\(in_EAX \+ 0x1e\);/,
@@ -2886,13 +3695,23 @@ source = source.replaceAll(
   "FUN_00448744((undefined4)(uintptr_t)(DAT_0047a470 + 0x84),DAT_0047a470)"
 );
 source = source.replace(
+  "      uVar3 = CONCAT22(extraout_var,DAT_0047a778);",
+  "      /* Original 0x44c2a6 reads the low word of the cached dword. */\n      uVar3 = CONCAT22(extraout_var,(ushort)_DAT_0047a778);"
+);
+source = source.replace(
   "      FUN_0043a6e0(uVar3,(int)sVar2);",
-  "      FUN_0043a6e0(7,7);"
+  "      FUN_0043a6e0(uVar3,(int)sVar2);"
 );
 source = source.replace(
   "  sVar2 = (short)uVar3;\n  if ((undefined1 *)0x0067c728 + sVar2 * 0x1c == _DAT_0073cc3c) {",
   "  sVar2 = (short)uVar3;\n  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {\n    uintptr_t desc = 0x0068cd68 + (uintptr_t)((int)uVar7 * 0xc);\n    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;\n    if ((int)uVar7 < 0 || IsBadReadPtr((void *)desc,0xc)) {\n      fprintf(stderr,\"scene select 4c224: lookup=%d scene_id=%d desc=0x%lx bad_desc=1 current=0x%lx scene=0x%lx\\n\",\n              (int)uVar7,(int)sVar2,(unsigned long)desc,\n              (unsigned long)DAT_0047a470,(unsigned long)_DAT_0073cc3c);\n    }\n    else {\n      fprintf(stderr,\"scene select 4c224: lookup=%d scene_id=%d desc=0x%lx bytes=%02x,%02x,%02x,%02x words=%04x,%04x current=0x%lx scene=0x%lx\\n\",\n              (int)uVar7,(int)sVar2,(unsigned long)desc,\n              (unsigned int)*(byte *)desc,(unsigned int)*(byte *)(desc + 1),\n              (unsigned int)*(byte *)(desc + 2),(unsigned int)*(byte *)(desc + 3),\n              (unsigned int)*(ushort *)(desc + 8),(unsigned int)*(ushort *)(desc + 10),\n              (unsigned long)DAT_0047a470,(unsigned long)_DAT_0073cc3c);\n    }\n  }\n  if ((undefined1 *)0x0067c728 + sVar2 * 0x1c == _DAT_0073cc3c) {"
 );
+source = source.replace(
+  "  sVar2 = (short)uVar3;\n  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {",
+  "  sVar2 = (short)uVar3;\n  if (E2R_scene_select_diag_count < 64 && (E2R_RuntimeDiagEnabled() || sVar2 < 1)) {\n    E2R_scene_select_diag_count = E2R_scene_select_diag_count + 1;\n    fprintf(stderr,\n            \"scene select 4c224 compact: lookup=%d scene_id=%d uVar3=0x%x current=0x%lx scene=0x%lx \"\n            \"pos=%d,%d,%d last_scene_hint=%lu\\n\",\n            (int)uVar7,(int)sVar2,(unsigned int)uVar3,\n            (unsigned long)DAT_0047a470,(unsigned long)_DAT_0073cc3c,\n            DAT_0047a470 != 0 && !IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,0x8a) ?\n            (int)*(short *)(DAT_0047a470 + 0x84) : 0,\n            DAT_0047a470 != 0 && !IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,0x8a) ?\n            (int)*(short *)(DAT_0047a470 + 0x86) : 0,\n            DAT_0047a470 != 0 && !IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,0x8a) ?\n            (int)*(short *)(DAT_0047a470 + 0x88) : 0,\n            (unsigned long)_DAT_0047a778);\n  }\n  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {"
+);
+// Original 0x44c2f8..0x44c302 installs the camera, then loads its background.
+// Camera slots are not script-resource IDs: do not activate a FAN by this ID.
 source = source.replace(
   "    FUN_004575c4();\n    FUN_00457780(extraout_ECX_00,extraout_EDX);",
   "    E2R_TraceFrameStage(\"211c8.before-575c4\");\n    FUN_004575c4();\n    E2R_TraceFrameStage(\"211c8.after-575c4\");\n    FUN_00457780(extraout_ECX_00,extraout_EDX);\n    E2R_TraceFrameStage(\"211c8.after-57780\");"
@@ -2912,6 +3731,14 @@ source = source.replace(
 source = source.replace(
   /undefined8 __fastcall FUN_0043a6e0\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0043a800 \*\//,
   "undefined8 __fastcall FUN_0043a6e0(undefined4 param_1,undefined4 param_2)\n\n{\n  int scene_id;\n  int scene_record;\n  int scene_offset;\n  int first_entry;\n  undefined4 uVar1;\n\n  scene_id = (int)(short)param_2;\n  if (scene_id == 0 && param_1 != 0) {\n    scene_id = (int)(short)param_1;\n  }\n  scene_offset = *(int *)(scene_id * 4 + 0x650fa0);\n  DAT_0047a788 = 1;\n  DAT_0047a428 = 1;\n  FUN_00413e88();\n  FUN_0043a1fc();\n  FUN_0045233c((undefined4)scene_id,(undefined4)scene_id);\n  scene_record = *(int *)(scene_id * 4 + 0x62e450);\n  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {\n    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;\n    fprintf(stderr,\"scene fallback 3a6e0: scene_id=%d offset=%d record=0x%lx before_current=0x%lx\\n\",\n            scene_id,scene_offset,(unsigned long)scene_record,(unsigned long)DAT_0047a470);\n  }\n  uVar1 = (undefined4)scene_id;\n  if (scene_record != 0) {\n    _DAT_0073cc3c = E2R_TraceScenePointerWrite(\"scene.clear\",0);\n    FUN_00452140((undefined4)(uintptr_t)scene_record);\n    first_entry = *(int *)(scene_record + 4);\n    if (first_entry != 0 && !IsBadReadPtr((void *)(uintptr_t)first_entry,2)) {\n      DAT_0047a470 = *(undefined4 *)((undefined1 *)0x00630b60 + *(short *)first_entry * 4);\n    }\n    uVar1 = FUN_004523f8((undefined4)(uintptr_t)scene_record);\n  }\n  if (E2R_RuntimeDiagEnabled() && E2R_actor_loop_diag_count < 128) {\n    E2R_actor_loop_diag_count = E2R_actor_loop_diag_count + 1;\n    fprintf(stderr,\"scene fallback 3a6e0 exit: current=0x%lx actors=0x%lx scene=0x%lx\\n\",\n            (unsigned long)DAT_0047a470,(unsigned long)_DAT_0063726c,\n            (unsigned long)_DAT_0073cc3c);\n  }\n  return CONCAT44(param_2,uVar1);\n}\n\n\n\n/* 0043a800 */"
+);
+source = source.replace(
+  "  int first_entry;\n  undefined4 uVar1;\n\n  scene_id = (int)(short)param_2;",
+  "  int first_entry;\n  int child;\n  int actor;\n  uint guard;\n  undefined4 uVar1;\n\n  scene_id = (int)(short)param_2;"
+);
+source = source.replace(
+  "    first_entry = *(int *)(scene_record + 4);\n    if (first_entry != 0 && !IsBadReadPtr((void *)(uintptr_t)first_entry,2)) {\n      DAT_0047a470 = *(undefined4 *)((undefined1 *)0x00630b60 + *(short *)first_entry * 4);\n    }\n    uVar1 = FUN_004523f8((undefined4)(uintptr_t)scene_record);",
+  "    first_entry = *(int *)(scene_record + 4);\n    child = first_entry;\n    guard = 0;\n    while (child != 0 && guard < 0x4000 &&\n           !IsBadReadPtr((void *)(uintptr_t)child,0x1c)) {\n      if (((*(byte *)(child + 0xe) & 0x20) == 0) && -1 < *(short *)child) {\n        actor = *(int *)((undefined1 *)0x00630b60 + *(short *)child * 4);\n        if (actor != 0) {\n          DAT_0047a470 = actor;\n          break;\n        }\n      }\n      child = *(int *)(child + 0x18);\n      guard = guard + 1;\n    }\n    if (_DAT_0073cc3c == 0 && 0 <= scene_id && scene_id < 0x4b0) {\n      _DAT_0073ccba = (ushort)scene_id;\n      E2R_SyncSceneViewId();\n      FUN_0044c6bc();\n    }\n    uVar1 = FUN_004523f8((undefined4)(uintptr_t)scene_record);"
 );
 source = source.replace(
   "undefined4 FUN_004523f8(void)",
@@ -3179,11 +4006,55 @@ source = source.replace(
 );
 source = source.replace(
   /void __fastcall FUN_0042ad60\(undefined4 param_1,int param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0042ae80 \*\//,
-  "void __fastcall FUN_0042ad60(undefined4 param_1,int param_2)\n\n{\n  int *in_EAX;\n  int extraout_ECX;\n  int extraout_ECX_00;\n  int *extraout_ECX_01;\n  int *extraout_ECX_02;\n  int *extraout_ECX_03;\n  int unaff_EBX;\n  uint uVar1;\n\n  if (param_2 != 0 && 0x10000u <= (uintptr_t)param_2 &&\n      !IsBadReadPtr((void *)(uintptr_t)param_2,0xb8)) {\n    in_EAX = (int *)(uintptr_t)(param_2 + 0xa6);\n  }\n  else if (E2R_actor_calc_context != 0) {\n    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);\n  }\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12)) {\n    return;\n  }\n  if (*in_EAX != 0) {\n    if ((uintptr_t)*in_EAX < 0x10000u ||\n        IsBadReadPtr((void *)(uintptr_t)*in_EAX,0x12)) {\n      return;\n    }\n    if ((*(byte *)(*in_EAX + 0xc) & 2) == 0) {\n      uVar1 = (uint)*(ushort *)((int)in_EAX + 6) +\n              (unaff_EBX << 0x10) / (int)(uint)*(ushort *)(in_EAX + 1);\n      do {\n        if (uVar1 < 0x10000) {\nLAB_0042ae53:\n          if ((*(byte *)((int)in_EAX + 0xd) & 4) == 0) {\n            FUN_0042b338(in_EAX,(ushort)uVar1);\n          }\n          *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) & 0xfb;\n          return;\n        }\n        if (*(ushort *)(in_EAX + 4) < 2) {\n          if (*(ushort *)(in_EAX + 4) != 0) {\n            FUN_0042b004();\n            *(undefined2 *)((int)extraout_ECX_02 + 6) = 0xffff;\n            *(byte *)((int)extraout_ECX_02 + 0xd) = *(byte *)((int)extraout_ECX_02 + 0xd) | 4;\n            in_EAX = extraout_ECX_02;\n            goto LAB_0042ae53;\n          }\n          FUN_0042b004();\n          in_EAX = extraout_ECX_03;\n        }\n        else {\n          FUN_0042b004();\n          *(short *)(extraout_ECX_01 + 4) = (short)extraout_ECX_01[4] + -1;\n          in_EAX = extraout_ECX_01;\n        }\n        uVar1 = uVar1 - 0x10000;\n      } while( true );\n    }\n    uVar1 = unaff_EBX + (uint)*(ushort *)((int)in_EAX + 6);\n    if (*(ushort *)(in_EAX + 1) < uVar1) {\n      FUN_0042b004();\n      *(undefined2 *)(extraout_ECX + 6) = *(undefined2 *)(extraout_ECX + 4);\n      *(byte *)(extraout_ECX + 0xd) = *(byte *)(extraout_ECX + 0xd) | 4;\n    }\n    else {\n      FUN_0042b338(in_EAX,(ushort)uVar1);\n      if ((in_EAX[2] != 0) && 0x10000u <= (uintptr_t)in_EAX[2] &&\n          !IsBadReadPtr((void *)(uintptr_t)in_EAX[2],0xa) &&\n          (*(int *)(in_EAX[2] + 6) == 0)) goto joined_r0x0042ae76;\n    }\n    *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) & 0xfb;\n    return;\n  }\njoined_r0x0042ae76:\n  if (DAT_0047a3b4 == 0) {\n    *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) | 4;\n  }\n  return;\n}\n\n\n\n/* 0042ae80 */"
+  "void __fastcall FUN_0042ad60(undefined4 param_1,int param_2)\n\n{\n  int *in_EAX;\n  int extraout_ECX;\n  int extraout_ECX_00;\n  int *extraout_ECX_01;\n  int *extraout_ECX_02;\n  int *extraout_ECX_03;\n  int unaff_EBX;\n  uint uVar1;\n\n  unaff_EBX = _DAT_00637378;\n  if (param_2 != 0 && 0x10000u <= (uintptr_t)param_2 &&\n      !IsBadReadPtr((void *)(uintptr_t)param_2,0xb8)) {\n    in_EAX = (int *)(uintptr_t)(param_2 + 0xa6);\n  }\n  else if (E2R_actor_calc_context != 0) {\n    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);\n  }\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12)) {\n    return;\n  }\n  if (*in_EAX != 0) {\n    if ((uintptr_t)*in_EAX < 0x10000u ||\n        IsBadReadPtr((void *)(uintptr_t)*in_EAX,0x12)) {\n      return;\n    }\n    if ((*(byte *)(*in_EAX + 0xc) & 2) == 0) {\n      uVar1 = (uint)*(ushort *)((int)in_EAX + 6) +\n              (unaff_EBX << 0x10) / (int)(uint)*(ushort *)(in_EAX + 1);\n      do {\n        if (uVar1 < 0x10000) {\nLAB_0042ae53:\n          if ((*(byte *)((int)in_EAX + 0xd) & 4) == 0) {\n            FUN_0042b338(in_EAX,(ushort)uVar1);\n          }\n          *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) & 0xfb;\n          return;\n        }\n        if (*(ushort *)(in_EAX + 4) < 2) {\n          if (*(ushort *)(in_EAX + 4) != 0) {\n            FUN_0042b004();\n            *(undefined2 *)((int)extraout_ECX_02 + 6) = 0xffff;\n            *(byte *)((int)extraout_ECX_02 + 0xd) = *(byte *)((int)extraout_ECX_02 + 0xd) | 4;\n            in_EAX = extraout_ECX_02;\n            goto LAB_0042ae53;\n          }\n          FUN_0042b004();\n          in_EAX = extraout_ECX_03;\n        }\n        else {\n          FUN_0042b004();\n          *(short *)(extraout_ECX_01 + 4) = (short)extraout_ECX_01[4] + -1;\n          in_EAX = extraout_ECX_01;\n        }\n        uVar1 = uVar1 - 0x10000;\n      } while( true );\n    }\n    uVar1 = unaff_EBX + (uint)*(ushort *)((int)in_EAX + 6);\n    if (*(ushort *)(in_EAX + 1) < uVar1) {\n      FUN_0042b004();\n      *(undefined2 *)(extraout_ECX + 6) = *(undefined2 *)(extraout_ECX + 4);\n      *(byte *)(extraout_ECX + 0xd) = *(byte *)(extraout_ECX + 0xd) | 4;\n    }\n    else {\n      FUN_0042b338(in_EAX,(ushort)uVar1);\n      if ((in_EAX[2] != 0) && 0x10000u <= (uintptr_t)in_EAX[2] &&\n          !IsBadReadPtr((void *)(uintptr_t)in_EAX[2],0xa) &&\n          (*(int *)(in_EAX[2] + 6) == 0)) goto joined_r0x0042ae76;\n    }\n    *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) & 0xfb;\n    return;\n  }\njoined_r0x0042ae76:\n  if (DAT_0047a3b4 == 0) {\n    *(byte *)(param_2 + 3) = *(byte *)(param_2 + 3) | 4;\n  }\n  return;\n}\n\n\n\n/* 0042ae80 */"
 );
 source = source.replace(
-  /(void FUN_0042b004\(void\)[\s\S]*?\r?\n  int \*in_EAX;\r?\n  short \*in_EDX;\r?\n\s*)for \(iVar1 = in_EAX\[2\];/,
-  "$1if ((in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12)) && E2R_actor_calc_context != 0) {\n    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);\n  }\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12) || *in_EAX == 0 ||\n      IsBadReadPtr((void *)(uintptr_t)*in_EAX,0x10)) {\n    return;\n  }\n  for (iVar1 = in_EAX[2];"
+  "            FUN_0042b004();\n            *(undefined2 *)((int)extraout_ECX_02 + 6) = 0xffff;\n            *(byte *)((int)extraout_ECX_02 + 0xd) = *(byte *)((int)extraout_ECX_02 + 0xd) | 4;\n            in_EAX = extraout_ECX_02;",
+  "            E2R_actor_calc_context = param_2;\n            FUN_0042b004();\n            E2R_actor_calc_context = 0;\n            *(undefined2 *)((int)in_EAX + 6) = 0xffff;\n            *(byte *)((int)in_EAX + 0xd) = *(byte *)((int)in_EAX + 0xd) | 4;"
+);
+source = source.replace(
+  "          FUN_0042b004();\n          in_EAX = extraout_ECX_03;",
+  "          E2R_actor_calc_context = param_2;\n          FUN_0042b004();\n          E2R_actor_calc_context = 0;"
+);
+source = source.replace(
+  "          FUN_0042b004();\n          *(short *)(extraout_ECX_01 + 4) = (short)extraout_ECX_01[4] + -1;\n          in_EAX = extraout_ECX_01;",
+  "          E2R_actor_calc_context = param_2;\n          FUN_0042b004();\n          E2R_actor_calc_context = 0;\n          *(short *)(in_EAX + 4) = (short)in_EAX[4] + -1;"
+);
+source = source.replace(
+  "    if (*(ushort *)(in_EAX + 1) < uVar1) {\n      FUN_0042b004();\n      *(undefined2 *)(extraout_ECX + 6) = *(undefined2 *)(extraout_ECX + 4);\n      *(byte *)(extraout_ECX + 0xd) = *(byte *)(extraout_ECX + 0xd) | 4;",
+  "    if (*(ushort *)(in_EAX + 1) <= uVar1) {\n      E2R_GameStateLog(\"42ad60.complete begin actor=0x%lx slot=0x%lx action=0x%lx progress=%u duration=%u scene=0x%lx\",\n                       (unsigned long)(uintptr_t)param_2,\n                       (unsigned long)(uintptr_t)in_EAX,\n                       (unsigned long)(uintptr_t)*in_EAX,\n                       (unsigned int)*(ushort *)((int)in_EAX + 6),\n                       (unsigned int)*(ushort *)(in_EAX + 1),\n                       (unsigned long)_DAT_0073cc3c);\n      E2R_actor_calc_context = param_2;\n      FUN_0042b004();\n      E2R_actor_calc_context = 0;\n      E2R_GameStateLog(\"42ad60.complete end actor=0x%lx slot=0x%lx action=0x%lx progress=%u duration=%u flags=0x%x scene=0x%lx\",\n                       (unsigned long)(uintptr_t)param_2,\n                       (unsigned long)(uintptr_t)in_EAX,\n                       (unsigned long)(uintptr_t)*in_EAX,\n                       (unsigned int)*(ushort *)((int)in_EAX + 6),\n                       (unsigned int)*(ushort *)(in_EAX + 1),\n                       (unsigned int)*(byte *)((int)in_EAX + 0xd),\n                       (unsigned long)_DAT_0073cc3c);\n      *(undefined2 *)((int)in_EAX + 6) = *(undefined2 *)(in_EAX + 1);\n      *(byte *)((int)in_EAX + 0xd) = *(byte *)((int)in_EAX + 0xd) | 4;"
+);
+source = source.replace(
+  "    uVar1 = unaff_EBX + (uint)*(ushort *)((int)in_EAX + 6);\n    if (*(ushort *)(in_EAX + 1) <= uVar1) {",
+  "    uVar1 = unaff_EBX + (uint)*(ushort *)((int)in_EAX + 6);\n    E2R_TraceActionAdvance(\"42ad60.linear\",param_2,in_EAX,(uint)unaff_EBX,uVar1);\n    if (*(ushort *)(in_EAX + 1) <= uVar1) {"
+);
+source = source.replace(
+  "            FUN_0042b338(in_EAX,(ushort)uVar1);",
+  "            E2R_actor_calc_context = param_2;\n            FUN_0042b338(in_EAX,(ushort)uVar1);\n            E2R_actor_calc_context = 0;"
+);
+source = source.replace(
+  "      FUN_0042b338(in_EAX,(ushort)uVar1);\n      if ((in_EAX[2] != 0)",
+  "      E2R_actor_calc_context = param_2;\n      FUN_0042b338(in_EAX,(ushort)uVar1);\n      E2R_actor_calc_context = 0;\n      if ((in_EAX[2] != 0)"
+);
+source = source.replace(
+  /void FUN_0042b004\(void\)\s*\r?\n\s*\{\r?\n  int iVar1;\r?\n  int iVar2;\r?\n  int \*in_EAX;\r?\n  short \*in_EDX;/,
+  "void FUN_0042b004(void)\n\n{\n  int iVar1;\n  int iVar2;\n  int *in_EAX;\n  short *in_EDX;\n  int e2r_event_guard;"
+);
+source = source.replace(
+  /(void FUN_0042b004\(void\)[\s\S]*?\r?\n  int \*in_EAX;\r?\n  short \*in_EDX;\r?\n(?:  int e2r_event_guard;\r?\n)?\s*)for \(iVar1 = in_EAX\[2\];/,
+  "$1if (E2R_actor_calc_context != 0) {\n    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);\n  }\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12) || *in_EAX == 0 ||\n      IsBadReadPtr((void *)(uintptr_t)*in_EAX,0x10)) {\n    return;\n  }\n  for (iVar1 = in_EAX[2];"
+);
+source = source.replace(
+  "  for (iVar1 = in_EAX[2]; iVar1 != 0; iVar1 = *(int *)(iVar1 + 2)) {\n    for (iVar2 = *(int *)(iVar1 + 6); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {",
+  "  for (e2r_event_guard = 0, iVar1 = in_EAX[2];\n       iVar1 != 0 && e2r_event_guard < 256;\n       e2r_event_guard = e2r_event_guard + 1, iVar1 = *(int *)(iVar1 + 2)) {\n    E2R_GameStateLog(\"42b004.key node=0x%lx w0=0x%x next=0x%lx events=0x%lx guard=%d\",\n                     (unsigned long)(uintptr_t)iVar1,\n                     (unsigned int)*(ushort *)(uintptr_t)iVar1,\n                     (unsigned long)(uintptr_t)*(int *)(iVar1 + 2),\n                     (unsigned long)(uintptr_t)*(int *)(iVar1 + 6),\n                     e2r_event_guard);\n    for (iVar2 = *(int *)(iVar1 + 6); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {"
+);
+source = source.replace(
+  "      FUN_0042b880(*in_EAX,in_EDX);",
+  "      E2R_action_event_context = iVar2;\n      E2R_GameStateLog(\"42b004.event begin action=0x%lx event=0x%lx w0=0x%x w1=0x%x actor=0x%lx scene=0x%lx\",\n                       (unsigned long)(uintptr_t)*in_EAX,\n                       (unsigned long)(uintptr_t)iVar2,\n                       (unsigned int)*(ushort *)(uintptr_t)iVar2,\n                       (unsigned int)*(ushort *)(uintptr_t)(iVar2 + 2),\n                       (unsigned long)(uintptr_t)E2R_actor_calc_context,\n                       (unsigned long)_DAT_0073cc3c);\n      FUN_0042b880(*in_EAX,\n                   E2R_actor_calc_context != 0 ?\n                   (short *)(uintptr_t)E2R_actor_calc_context : in_EDX);\n      E2R_GameStateLog(\"42b004.event end action=0x%lx event=0x%lx actor=0x%lx scene=0x%lx\",\n                       (unsigned long)(uintptr_t)*in_EAX,\n                       (unsigned long)(uintptr_t)iVar2,\n                       (unsigned long)(uintptr_t)E2R_actor_calc_context,\n                       (unsigned long)_DAT_0073cc3c);\n      E2R_action_event_context = 0;"
+);
+source = source.replace(
+  "      E2R_action_event_context = 0;\n    }\n  }\n  in_EAX[2] = *(int *)(*in_EAX + 4);",
+  "      E2R_action_event_context = 0;\n    }\n    if (*(int *)(iVar1 + 2) == iVar1) {\n      break;\n    }\n  }\n  in_EAX[2] = *(int *)(*in_EAX + 4);"
 );
 source = source.replace(
   "  if ((*(byte *)(in_EAX + 0x146) & 1) == 0) {",
@@ -3191,11 +4062,69 @@ source = source.replace(
 );
 source = source.replace(
   /void __fastcall FUN_0042b338\(undefined4 param_1,ushort param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0042b490 \*\//,
-  "void __fastcall FUN_0042b338(undefined4 param_1,ushort param_2)\n\n{\n  ushort *puVar1;\n  int iVar2;\n  int *in_EAX;\n  uint uVar3;\n  uint uVar4;\n  uint extraout_ECX;\n  short *unaff_EBX;\n\n  in_EAX = (int *)(uintptr_t)param_1;\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12)) {\n    return;\n  }\n  if (*in_EAX != 0 && ((uintptr_t)*in_EAX < 0x10000u ||\n      IsBadReadPtr((void *)(uintptr_t)*in_EAX,0xe))) {\n    return;\n  }\n  if (param_2 < *(ushort *)((int)in_EAX + 6)) {\n    FUN_0042b004();\n  }\n  for (puVar1 = (ushort *)in_EAX[2]; (puVar1 != (ushort *)0x0 && (*puVar1 <= param_2));\n      puVar1 = *(ushort **)(puVar1 + 1)) {\n    for (iVar2 = *(int *)(puVar1 + 3); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {\n      FUN_0042b880(*in_EAX,unaff_EBX);\n    }\n    if ((puVar1 == (ushort *)in_EAX[2]) && ((*(byte *)(*in_EAX + 0xc) & 2) == 0)) {\n      FUN_0042b5fc();\n    }\n    *(ushort *)((int)in_EAX + 6) = *puVar1;\n  }\n  if (puVar1 != (ushort *)0x0) {\n    uVar4 = (uint)*puVar1 - (uint)*(ushort *)((int)in_EAX + 6);\n    uVar3 = (((uint)param_2 - (uint)*(ushort *)((int)in_EAX + 6)) * 0x4000) / uVar4;\n    if (uVar3 != 0) {\n      for (iVar2 = *(int *)(puVar1 + 3); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {\n        FUN_0042c790(*in_EAX,uVar3);\n        uVar4 = extraout_ECX;\n      }\n      if ((*(byte *)(*in_EAX + 0xc) & 2) == 0) {\n        FUN_0042b490(uVar4,uVar3);\n      }\n    }\n  }\n  in_EAX[2] = (int)puVar1;\n  *(ushort *)((int)in_EAX + 6) = param_2;\n  return;\n}\n\n\n\n/* 0042b490 */"
+  "void __fastcall FUN_0042b338(undefined4 param_1,ushort param_2)\n\n{\n  ushort *puVar1;\n  int iVar2;\n  int *in_EAX;\n  uint uVar3;\n  uint uVar4;\n  uint extraout_ECX;\n  short *unaff_EBX;\n\n  in_EAX = (int *)(uintptr_t)param_1;\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      IsBadReadPtr(in_EAX,0x12)) {\n    return;\n  }\n  if (*in_EAX != 0 && ((uintptr_t)*in_EAX < 0x10000u ||\n      IsBadReadPtr((void *)(uintptr_t)*in_EAX,0xe))) {\n    return;\n  }\n  if (param_2 < *(ushort *)((int)in_EAX + 6)) {\n    FUN_0042b004();\n  }\n  for (puVar1 = (ushort *)in_EAX[2]; (puVar1 != (ushort *)0x0 && (*puVar1 <= param_2));\n      puVar1 = *(ushort **)(puVar1 + 1)) {\n    for (iVar2 = *(int *)(puVar1 + 3); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {\n      E2R_action_event_context = iVar2;\n      FUN_0042b880(*in_EAX,\n                   E2R_actor_calc_context != 0 ?\n                   (short *)(uintptr_t)E2R_actor_calc_context : unaff_EBX);\n      E2R_action_event_context = 0;\n    }\n    if ((puVar1 == (ushort *)in_EAX[2]) && ((*(byte *)(*in_EAX + 0xc) & 2) == 0)) {\n      FUN_0042b5fc();\n    }\n    *(ushort *)((int)in_EAX + 6) = *puVar1;\n  }\n  if (puVar1 != (ushort *)0x0) {\n    uVar4 = (uint)*puVar1 - (uint)*(ushort *)((int)in_EAX + 6);\n    uVar3 = (((uint)param_2 - (uint)*(ushort *)((int)in_EAX + 6)) * 0x4000) / uVar4;\n    if (uVar3 != 0) {\n      for (iVar2 = *(int *)(puVar1 + 3); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {\n        FUN_0042c790(*in_EAX,uVar3);\n        uVar4 = extraout_ECX;\n      }\n      if ((*(byte *)(*in_EAX + 0xc) & 2) == 0) {\n        FUN_0042b490(uVar4,uVar3);\n      }\n    }\n  }\n  in_EAX[2] = (int)puVar1;\n  *(ushort *)((int)in_EAX + 6) = param_2;\n  return;\n}\n\n\n\n/* 0042b490 */"
 );
+source = source.replace(
+  "  short *unaff_EBX;\n\n  in_EAX = (int *)(uintptr_t)param_1;",
+  "  short *unaff_EBX;\n  uint e2r_key_guard;\n  ushort *next_key;\n\n  in_EAX = (int *)(uintptr_t)param_1;"
+);
+source = source.replace(
+  "  for (puVar1 = (ushort *)in_EAX[2]; (puVar1 != (ushort *)0x0 && (*puVar1 <= param_2));\n      puVar1 = *(ushort **)(puVar1 + 1)) {\n    for (iVar2 = *(int *)(puVar1 + 3); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {",
+  "  for (e2r_key_guard = 0, puVar1 = (ushort *)in_EAX[2];\n      puVar1 != (ushort *)0x0 && e2r_key_guard < 256 &&\n      !IsBadReadPtr(puVar1,0xa) && *puVar1 <= param_2;\n      e2r_key_guard = e2r_key_guard + 1, puVar1 = next_key) {\n    next_key = *(ushort **)(puVar1 + 1);\n    for (iVar2 = *(int *)(puVar1 + 3); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {"
+);
+source = source.replace(
+  "    *(ushort *)((int)in_EAX + 6) = *puVar1;\n  }\n  if (puVar1 != (ushort *)0x0) {",
+  "    *(ushort *)((int)in_EAX + 6) = *puVar1;\n    if (next_key == puVar1) {\n      puVar1 = (ushort *)0x0;\n      break;\n    }\n  }\n  if (puVar1 != (ushort *)0x0) {"
+);
+source = source.replace(
+  "      for (iVar2 = *(int *)(puVar1 + 3); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {\n        FUN_0042c790(*in_EAX,uVar3);\n        uVar4 = extraout_ECX;",
+  "      for (iVar2 = *(int *)(puVar1 + 3); iVar2 != 0; iVar2 = *(int *)(iVar2 + 10)) {\n        E2R_action_event_context = iVar2;\n        FUN_0042c790(*in_EAX,uVar3);\n        E2R_action_event_context = 0;\n        uVar4 = extraout_ECX;"
+);
+source = source.replace(
+  "  if ((DAT_0047a7e0 != 0) && ((*(byte *)((uint)(ushort)in_EAX[1] * 2 + 0x63679f) & 1) == 0)) {\n    return;\n  }",
+  "  if (E2R_action_event_context != 0) {\n    in_EAX = (short *)(uintptr_t)E2R_action_event_context;\n  }\n  else {\n    in_EAX = E2R_fan_parse_record;\n  }\n  if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,10)) {\n    return;\n  }\n  if (E2R_actor_calc_context != 0 && 0x10000u <= (uintptr_t)E2R_actor_calc_context &&\n      !IsBadReadPtr((void *)(uintptr_t)E2R_actor_calc_context,0x148)) {\n    unaff_EBX = E2R_actor_calc_context;\n  }\n  else if ((uintptr_t)param_1 < 0x10000u || IsBadReadPtr((void *)(uintptr_t)param_1,0x148)) {\n    return;\n  }\n  else {\n    unaff_EBX = param_1;\n  }\n  if ((DAT_0047a7e0 != 0) && ((*(byte *)((uint)(ushort)in_EAX[1] * 2 + 0x63679f) & 1) == 0)) {\n    return;\n  }"
+);
+source = source.replaceAll("(&DAT_0063679e)[iVar6]", "*(byte *)(iVar6 + 0x63679e)");
+source = source.replaceAll("E2R_READ1(DAT_004c3ad5,3)", "(DAT_004c3ad5 >> 0x18)");
 source = source.replace(
   "  local_28 = 0xffffffff;\n  local_20 = 0xffffffff;\n  iVar6 =",
   "  local_28 = 0xffffffff;\n  local_20 = 0xffffffff;\n  in_EAX = (ushort *)(uintptr_t)param_1;\n  if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr(in_EAX,0x6)) {\n    return CONCAT44(param_2,0xffffffff);\n  }\n  iVar6 ="
+);
+source = source.replace(
+  "  if (in_AX < 0) {\n    pcVar2 = &DAT_0047a710;",
+  "  in_AX = (short)param_2;\n  if (in_AX < 0) {\n    pcVar2 = &DAT_0047a710;"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_0044248c\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  short sVar5;\r?\n  char \*pcVar6;\r?\n\s*)if \(in_AX < 0\) \{/,
+  "$1in_AX = (short)param_2;\n  if (in_AX < 0) {"
+);
+source = source.replace(
+  "  uStack_4 = param_2;\n  uVar4 = FUN_0045190c(param_1,(int)in_AX);",
+  "  uStack_4 = param_2;\n  in_AX = (short)param_2;\n  uVar4 = FUN_0045190c(param_1,(int)in_AX);"
+);
+source = source.replace(
+  "  uVar2 = 0;\n  if ((-1 < in_AX) && (iVar1 = in_AX * 4, *(int *)((undefined1 *)0x0062ba20 + iVar1) == 0)) {",
+  "  uVar2 = 0;\n  in_AX = (short)param_2;\n  if ((-1 < in_AX) && (iVar1 = in_AX * 4, *(int *)((undefined1 *)0x0062ba20 + iVar1) == 0)) {"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_00441b24\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined1 local_48 \[52\];\r?\n\r?\n)\s*if \(in_AX < 0\) \{/,
+  "$1  in_AX = (short)param_2;\n  if (in_AX < 0) {"
+);
+source = source.replace(
+  "  undefined1 local_7c [52];\n  undefined1 local_48 [52];\n\n  if (in_AX < 0) {",
+  "  undefined1 local_7c [52];\n  undefined1 local_48 [52];\n\n  in_AX = (short)param_2;\n  if (in_AX < 0) {"
+);
+source = source.replace(
+  /(undefined8 __fastcall FUN_0045190c\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  undefined8 uVar3;\r?\n\r?\n)\s*uVar2 = 0;\r?\n\s*if \(\(-1 < in_AX\)/,
+  "$1  uVar2 = 0;\n  in_AX = (short)param_2;\n  if ((-1 < in_AX)"
+);
+source = source.replace(
+  "  undefined8 uVar3;\n\n  uVar2 = 0;\n  if ((-1 < in_AX) &&",
+  "  undefined8 uVar3;\n\n  uVar2 = 0;\n  in_AX = (short)param_2;\n  if ((-1 < in_AX) &&"
+);
+source = source.replace(
+  "  iVar2 = in_EAX;\n  uVar3 = DAT_0047a470;",
+  "  in_EAX = (int)(uintptr_t)param_2;\n  iVar2 = in_EAX;\n  uVar3 = DAT_0047a470;"
 );
 source = source.replace(
   /undefined8 __fastcall FUN_004268e4\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0042692c \*\//,
@@ -3279,7 +4208,7 @@ const fanNameInternSpecs = [
   ["00446874", "_DAT_006366bc", "20000", "0x9c4",
    "FUN_00446874(iVar12,(int)(short)iVar12)",
    "FUN_00446874((undefined4)(uintptr_t)(acStack_81 + 1),e2r_table_indices[3])"],
-  ["0044694c", "_DAT_00636698", "6000", "2000",
+  ["0044694c", "_DAT_00636698", "24000", "2000",
    "FUN_0044694c(iVar12,uVar11 & 0xffffff00)",
    "FUN_0044694c((undefined4)(uintptr_t)(acStack_81 + 1),e2r_table_indices[5])"],
   ["00446a24", "_DAT_0063668c", "1000", "500",
@@ -3314,7 +4243,7 @@ const fanNameLookupSpecs = [
   ["00441a10", "_DAT_0063668c", "1000", "500"],
   ["00441ac8", "_DAT_006366b8", "0x1117", "2000"],
   ["00441ea4", "_DAT_006366bc", "20000", "0x9c4"],
-  ["00441f00", "_DAT_00636698", "6000", "2000"],
+  ["00441f00", "_DAT_00636698", "24000", "2000"],
 ];
 for (const [name, table, capacity, maxNames] of fanNameLookupSpecs) {
   source = source.replace(
@@ -3371,7 +4300,27 @@ source = source.replace(
 );
 source = source.replace(
   "    case 6:\n      FUN_00414e68();\n    }\n    FUN_0041cfc0();",
-  "    case 6:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));\n    }\n    FUN_0041cfc0();"
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n    }\n    FUN_0041cfc0();"
+);
+source = source.replace(
+  "    case 2:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(extraout_ECX_06,(int)((ulonglong)uVar4 >> 0x20));",
+  "    case 2:\n      _DAT_00643660 = 1;\n      FUN_0043ce58(0x31,(int)((ulonglong)uVar4 >> 0x20));"
+);
+source = source.replace(
+  "    case 3:\n      _DAT_0064353c = -1;\n      iVar2 = 0;\n      uVar1 = extraout_ECX_06;",
+  "    case 3:\n      _DAT_0064353c = -1;\n      iVar2 = 0;\n      uVar1 = 0x2a;"
+);
+source = source.replace(
+  "    case 4:\n      _DAT_0064353c = -1;\n      iVar2 = 0;\n      uVar1 = extraout_ECX_06;",
+  "    case 4:\n      _DAT_0064353c = -1;\n      iVar2 = 0;\n      uVar1 = 0x29;"
+);
+source = source.replace(
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\",",
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n    }\n    if (_DAT_00643650 == 2 || _DAT_00643650 == 3 ||\n        _DAT_00643650 == 4 || _DAT_00643650 == 5) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"15d40.menu_complete\",0);\n    }\n    E2R_GameStateLog(\"15d40.switch done state=%lu dialog=%lu space=%u\","
+);
+source = source.replace(
+  /(longlong __fastcall FUN_0043c1b8\(undefined4 param_1,uint param_2\)[\s\S]*?\r?\n  uint local_20;\r?\n  uint local_1c;\r?\n\s*)if \(9 < in_EAX\) \{\r?\n    FUN_00414e68\(\);\r?\n  \}/,
+  "$1in_EAX = (int)(uintptr_t)param_1;\n  if (9 < in_EAX) {\n    in_EAX = -1;\n  }"
 );
 source = source.replace(
   /(void FUN_0043adc0\(void\)[\s\S]*?\r?\n  uint uVar2;\r?\n\s*)uVar2 = \*\(int \*\)\(in_EAX \+ 0xe\) >> 0x10;/,
@@ -3772,6 +4721,14 @@ source = source.replace(
   /(undefined8 __fastcall FUN_0043ce58\(undefined4 param_1,undefined4 param_2\)[\s\S]*?\r?\n  short sStack_1c;\r?\n\s*)E2R_WORD_AT\(DAT_0047a45e,2\) = \(ushort\)in_EAX;/,
   "$1in_EAX = (uint)(uintptr_t)param_1;\n  E2R_requester_probe_ce58_count++;\n  E2R_requester_probe_last_id = in_EAX;\n  E2R_requester_probe_last_mode = (uintptr_t)param_2;\n  E2R_WORD_AT(DAT_0047a45e,2) = (ushort)in_EAX;"
 );
+source = source.replace(
+  "            uVar13 = FUN_0043b384(pbVar6,pcVar8);\n            return CONCAT44(param_2,(int)uVar13);",
+      "            E2R_InitRequesterRecord(0x0047a5a4,-1,-1,0xf0,0xb4,\n                                      (uintptr_t)_DAT_006438a0,_DAT_0047a5b0);\n            uVar13 = FUN_0043b384(0x0047a5a4,pcVar8);\n            return CONCAT44(param_2,(int)uVar13);"
+);
+source = source.replace(
+  "      FUN_0043d8ec();\n      FUN_0043d934();\n      FUN_0043d9a0();\n      FUN_0043da04();\n      FUN_0043da80();\n      uVar13 = FUN_0043b384(extraout_ECX_04,extraout_EDX_00);",
+  "      FUN_0043d8ec();\n      FUN_0043d934();\n      FUN_0043d9a0();\n      FUN_0043da04();\n      FUN_0043da80();\n      E2R_InitRequesterSettingsItems();\n      uVar13 = FUN_0043b384(0x0047a668,extraout_EDX_00);"
+);
 source = source.replace(/E2R_READ1\(DAT_0047a279,3\) = 0;/g, "DAT_0047a279 = DAT_0047a279 & 0x00ffffff;");
 source = source.replace(/E2R_READ1\(DAT_0047a279,3\) = '\\x01' - E2R_READ1\(DAT_0047a279,3\);/g, "DAT_0047a279 = (DAT_0047a279 & 0x00ffffff) | ((1 - (DAT_0047a279 >> 0x18)) << 0x18);");
 source = source.replace(/E2R_READ1\(DAT_0047a279,3\)/g, "(DAT_0047a279 >> 0x18)");
@@ -3847,6 +4804,29 @@ source = source.replace(
 for (let i = 0; i < prototypes.length; i++) {
   prototypes[i] = prototypes[i].replace("uint * FUN_00461746(void);", "uint * __fastcall FUN_00461746(int heap,uint size);");
   prototypes[i] = prototypes[i].replace("void FUN_00420b8c(void);", "void FUN_00420b8c(int index);");
+  prototypes[i] = prototypes[i].replace("void FUN_00423070(void);", "void FUN_00423070(int *coord);");
+  prototypes[i] = prototypes[i].replace("void FUN_00424cbc(void);", "void FUN_00424cbc(int actor);");
+  prototypes[i] = prototypes[i].replace("void FUN_00424d14(void);", "void FUN_00424d14(int actor);");
+  prototypes[i] = prototypes[i].replace("void FUN_00424d58(void);", "void FUN_00424d58(int actor);");
+  prototypes[i] = prototypes[i].replace("void FUN_00424d98(void);", "void FUN_00424d98(int actor);");
+  prototypes[i] = prototypes[i].replace(
+    "void __fastcall FUN_00424dd8(int param_1);",
+    "void __fastcall FUN_00424dd8(int param_1,int actor);"
+  );
+  prototypes[i] = prototypes[i].replace(
+    "void __fastcall FUN_00424e44(int param_1);",
+    "void __fastcall FUN_00424e44(int param_1,int node);"
+  );
+  prototypes[i] = prototypes[i].replace(
+    "void __fastcall FUN_00431a7c(undefined4 param_1,int param_2);",
+    "void __fastcall FUN_00431a7c(int actor,int param_2);"
+  );
+  prototypes[i] = prototypes[i].replace(
+    "void __fastcall FUN_00433d30(undefined4 param_1,int param_2);",
+    "void __fastcall FUN_00433d30(int actor,int param_2);"
+  );
+  prototypes[i] = prototypes[i].replace("void FUN_00425018(void);", "void FUN_00425018(int actor);");
+  prototypes[i] = prototypes[i].replace("void FUN_00425538(void);", "void FUN_00425538(int actor);");
   prototypes[i] = prototypes[i].replace("void FUN_004526e4(void);", "void FUN_004526e4(short *param_1);");
   prototypes[i] = prototypes[i].replace(
     "undefined8 __fastcall FUN_00448744(undefined4 param_1,undefined4 param_2);",
@@ -3932,6 +4912,10 @@ source = source.replace(
   "    else if (sVar9 == 0x1b) {\n      if (local_20 != (short *)0x0) {\n        local_20[*psVar8 + 7] = psVar8[2];\n      }"
 );
 source = source.replace(
+  "    else if (sVar9 == 0x1b) {\n      if (local_20 != (short *)0x0) {",
+  "    else if (sVar9 == 0x1b) {\n      if (E2R_StartupDiagEnabled() && E2R_scene_record_install_diag_count < 128) {\n        fprintf(stderr,\n                \"scene field record 1b: requested=%d scene=0x%lx target_index=%d raw=%04x,%04x,%04x,%04x,%04x\\n\",\n                E2R_scene_load_request_id,(unsigned long)(uintptr_t)local_20,\n                (int)*psVar8,(unsigned int)(ushort)psVar8[0],\n                (unsigned int)(ushort)psVar8[1],(unsigned int)(ushort)psVar8[2],\n                (unsigned int)(ushort)psVar8[3],(unsigned int)(ushort)psVar8[4]);\n      }\n      if (local_20 != (short *)0x0) {"
+);
+source = source.replace(
   "          if (sVar9 < 0x19) {\n            *(char *)((int)local_20 + (int)sVar9 + (*psVar8 + -1) * 0x19 + 0x32) = (char)local_30;",
   "          if (local_20 != (short *)0x0 && sVar9 < 0x19) {\n            *(char *)((int)local_20 + (int)sVar9 + (*psVar8 + -1) * 0x19 + 0x32) = (char)local_30;"
 );
@@ -3945,7 +4929,7 @@ source = source.replace(
 );
 source = source.replace(
   "      local_24 = (short *)uVar15;\n      local_24[2] = psVar8[2];\n      local_24[7] = psVar8[3];\n      *local_24 = psVar8[4];",
-  "      local_24 = (short *)uVar15;\n      if (local_24 != (short *)0x0) {\n        local_24[2] = psVar8[2];\n        local_24[7] = psVar8[3];\n        *local_24 = psVar8[4];\n      }"
+  "      local_24 = (short *)uVar15;\n      if (E2R_StartupDiagEnabled() && E2R_scene_record_install_diag_count < 128) {\n        fprintf(stderr,\n                \"scene child record 1a: requested=%d scene=0x%lx node=0x%lx raw=%04x,%04x,%04x,%04x,%04x\\n\",\n                E2R_scene_load_request_id,(unsigned long)(uintptr_t)local_20,\n                (unsigned long)(uintptr_t)local_24,\n                (unsigned int)(ushort)psVar8[0],(unsigned int)(ushort)psVar8[1],\n                (unsigned int)(ushort)psVar8[2],(unsigned int)(ushort)psVar8[3],\n                (unsigned int)(ushort)psVar8[4]);\n      }\n      if (local_24 != (short *)0x0) {\n        local_24[2] = psVar8[2];\n        local_24[7] = psVar8[3];\n        *local_24 = psVar8[4];\n        if (E2R_StartupDiagEnabled() && E2R_scene_record_install_diag_count < 128) {\n          fprintf(stderr,\n                  \"scene child record 1a install: requested=%d actor=%d word2=%d flags=0x%04x\\n\",\n                  E2R_scene_load_request_id,(int)*local_24,(int)local_24[2],\n                  (unsigned int)(ushort)local_24[7]);\n        }\n      }"
 );
 source = source.replace(
   "    if ((puVar3 == (undefined1 *)0x0) &&\n       (lVar5 = FUN_00452ebc(param_1,0), param_1 = extraout_ECX, (int)lVar5 == 0)) {\n      FUN_00414e68();\n      lVar5 = (ulonglong)extraout_EDX << 0x20;\n      param_1 = extraout_ECX_00;\n    }",
@@ -4018,7 +5002,7 @@ const currentActorTraceReplacements = [
   ],
   [
     "        result = E2R_ParseArchiveFanResource();\n        DAT_0047a470 = saved_current;",
-    "        result = E2R_ParseArchiveFanResource();\n        DAT_0047a470 = E2R_TraceCurrentActorWrite(\"51998.archive\",(uintptr_t)saved_current);"
+    "        result = E2R_ParseArchiveRepResource((short)rep_id);\n        if (result == 0) {\n          result = E2R_ParseArchiveFanResource();\n        }\n        DAT_0047a470 = E2R_TraceCurrentActorWrite(\"51998.archive\",(uintptr_t)saved_current);"
   ],
   [
     "  DAT_0047a470 = saved_current;\n  return CONCAT44(param_2,result);",
@@ -4076,6 +5060,14 @@ const currentActorTraceReplacements = [
 for (const [before, after] of currentActorTraceReplacements) {
   source = source.replace(before, after);
 }
+source = source.replace(
+  "          FUN_0044248c(DAT_0047a470,in_EAX);\n          uVar4 = FUN_0043cbb4(extraout_ECX_06);\n          DAT_0047a470 = E2R_TraceCurrentActorWrite(\"51a54.archive_missing\",\n                                                    (uintptr_t)extraout_ECX_07);\n          return CONCAT44(param_2,(int)uVar4);",
+  "          E2R_GameStateLog(\"sound archive missing ignored id=%d archive=0x%x current=0x%lx scene=0x%lx\",\n                           (int)(short)in_EAX,(unsigned int)uVar1,\n                           (unsigned long)DAT_0047a470,(unsigned long)_DAT_0073cc3c);\n          DAT_0047a470 = E2R_TraceCurrentActorWrite(\"51a54.archive_missing\",\n                                                    (uintptr_t)uVar3);\n          return CONCAT44(param_2,0);"
+);
+source = source.replace(
+  "            E2R_TraceSceneChildActivate(\"52140.loaded-after-load\",(int)*(short *)(uintptr_t)in_EAX,psVar3);\n            E2R_actor_calc_context = (int)(uintptr_t)psVar4;",
+  "            E2R_TraceSceneChildActivate(\"52140.loaded-after-load\",(int)*(short *)(uintptr_t)in_EAX,psVar3);\n            if (psVar4[0x42] == 0 && psVar4[0x43] == 0 && psVar4[0x44] == 0 &&\n                (psVar4[0x4e] != 0 || psVar4[0x4f] != 0 || psVar4[0x50] != 0)) {\n              FUN_0044146c();\n            }\n            E2R_actor_calc_context = (int)(uintptr_t)psVar4;"
+);
 source = source.replace(
   "  if (in_EAX == (short *)0x0) {\n    FUN_00414e68();\n    param_1 = extraout_ECX;\n    param_2 = extraout_EDX;\n  }\n  FUN_00441e38(param_1,param_2);",
   "  in_EAX = (short *)(uintptr_t)param_1;\n  if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,0xa8)) {\n    return;\n  }\n  FUN_00441e38((undefined4)(int)*in_EAX,param_2);"
@@ -4192,8 +5184,20 @@ source = source.replace(
 // Keep the startup-preload frontier observable without enabling the broad runtime
 // diagnostics used by older crash hunts.
 source = source.replace(
-  "static uint E2R_action_invoke_diag_count;\nstatic const char *E2R_current_actor_last_site;",
-  "static uint E2R_action_invoke_diag_count;\nstatic uint E2R_scene_child_diag_count;\nstatic int E2R_startup_diag_enabled;\nstatic int E2R_scene_load_request_id = -1;\nstatic short *E2R_scene_remove_context;\nstatic int E2R_cleanup_context;\nstatic uint E2R_startup_action_diag_count;\nstatic uint E2R_startup_preload_diag_count;\nstatic uint E2R_scene_record_install_diag_count;\nstatic uint E2R_scene_grid_restore_diag_count;\nstatic uint E2R_script_scene_diag_count;\nstatic const char *E2R_current_actor_last_site;"
+  "static uint E2R_action_invoke_diag_count;\nstatic uint E2R_scene_lookup_diag_count;\nstatic const char *E2R_current_actor_last_site;",
+  "static uint E2R_action_invoke_diag_count;\nstatic uint E2R_scene_lookup_diag_count;\nstatic uint E2R_action_advance_diag_count;\nstatic uint E2R_scene_child_diag_count;\nstatic uint E2R_scene_select_diag_count;\nstatic uint E2R_scene_child_activate_diag_count;\nstatic uint E2R_rand_seed_fallback = 0x2a13f00d;\nstatic int E2R_startup_diag_enabled;\nstatic int E2R_scene_load_request_id = -1;\nstatic short *E2R_scene_remove_context;\nstatic int E2R_cleanup_context;\nstatic uint E2R_startup_action_diag_count;\nstatic uint E2R_startup_preload_diag_count;\nstatic uint E2R_scene_record_install_diag_count;\nstatic uint E2R_scene_grid_restore_diag_count;\nstatic uint E2R_script_scene_diag_count;\nstatic const char *E2R_current_actor_last_site;"
+);
+source = source.replace(
+  "static uint E2R_action_invoke_diag_count;\nstatic uint E2R_scene_child_diag_count;",
+  "static uint E2R_action_invoke_diag_count;\nstatic uint E2R_action_advance_diag_count;\nstatic uint E2R_scene_child_diag_count;"
+);
+source = source.replace(
+  "static uint E2R_action_advance_diag_count;\nstatic uint E2R_scene_child_diag_count;",
+  "static uint E2R_action_advance_diag_count;\nstatic uint E2R_scene_child_diag_count;\nstatic uint E2R_scene_select_diag_count;"
+);
+source = source.replace(
+  "static uint E2R_scene_select_diag_count;\nstatic int E2R_startup_diag_enabled;",
+  "static uint E2R_scene_select_diag_count;\nstatic uint E2R_scene_child_activate_diag_count;\nstatic uint E2R_rand_seed_fallback = 0x2a13f00d;\nstatic int E2R_startup_diag_enabled;"
 );
 source = source.replace(
   "  char *fan_diag = getenv(\"E2R_FAN_DIAG\");\n  char *runtime_diag = getenv(\"E2R_RUNTIME_DIAG\");\n\n  if (runtime_diag != (char *)0x0 && runtime_diag[0] != '\\0' && runtime_diag[0] != '0') {\n    E2R_runtime_diag_enabled = 1;\n  }",
@@ -4204,12 +5208,56 @@ source = source.replace(
   "static int E2R_RuntimeDiagEnabled(void)\n{\n  return E2R_runtime_diag_enabled;\n}\n\nstatic int E2R_GameStateLogEnabled(void)\n{\n  return E2R_game_state_log_enabled;\n}\n\nstatic void E2R_GameStateLog(const char *format,...)\n{\n  va_list ap;\n\n  if (!E2R_GameStateLogEnabled() || 512 <= E2R_game_state_log_count) {\n    return;\n  }\n  E2R_game_state_log_count = E2R_game_state_log_count + 1;\n  fprintf(stderr,\"game state: \");\n  va_start(ap,format);\n  vfprintf(stderr,format,ap);\n  va_end(ap);\n  fprintf(stderr,\"\\n\");\n}\n\nstatic int E2R_StartupDiagEnabled(void)\n{\n  return E2R_startup_diag_enabled || E2R_runtime_diag_enabled;\n}\n\nstatic int E2R_ShouldTraceStartupProgress(uint count,uint first,uint interval)\n{\n  return count <= first || (interval != 0 && (count % interval) == 0);\n}\n\nstatic int E2R_NormalizeSceneListNode(int scene)\n{\n  if (scene == 0 || IsBadReadPtr((void *)(uintptr_t)scene,0xc)) {\n    return 0;\n  }\n  return scene;\n}\n\nstatic int E2R_SceneListNext(int scene)\n{\n  int next;\n\n  scene = E2R_NormalizeSceneListNode(scene);\n  if (scene == 0) {\n    return 0;\n  }\n  next = *(int *)(scene + 8);\n  if (next == scene) {\n    return 0;\n  }\n  return E2R_NormalizeSceneListNode(next);\n}\n\ntypedef struct E2R_SceneGridSnapshot"
 );
 source = source.replace(
+  "static int E2R_StartupDiagEnabled(void)\n{\n  return E2R_startup_diag_enabled || E2R_runtime_diag_enabled;\n}\n\nstatic int E2R_ShouldTraceStartupProgress",
+  "static int E2R_ActionDiagEnabled(void)\n{\n  static int initialized;\n  static int enabled;\n  char *value;\n\n  if (!initialized) {\n    value = getenv(\"E2R_ACTION_DIAG\");\n    enabled = value != (char *)0x0 && value[0] != '\\0' && value[0] != '0';\n    initialized = 1;\n  }\n  return enabled;\n}\n\nstatic void E2R_TraceActionAdvance(const char *site,int actor,int *slot,uint delta,uint next)\n{\n  if (!E2R_ActionDiagEnabled() || 256 <= E2R_action_advance_diag_count) {\n    return;\n  }\n  E2R_action_advance_diag_count = E2R_action_advance_diag_count + 1;\n  fprintf(stderr,\n          \"action advance: %s actor=0x%lx slot=0x%lx action=0x%lx \"\n          \"duration=%u progress=%u delta=%u next=%u slot_flags=0x%x actor_flags=0x%x scene=0x%lx\\n\",\n          site,(unsigned long)(uintptr_t)actor,(unsigned long)(uintptr_t)slot,\n          (unsigned long)(uintptr_t)*slot,(unsigned int)*(ushort *)(slot + 1),\n          (unsigned int)*(ushort *)((int)slot + 6),delta,next,\n          (unsigned int)*(byte *)((int)slot + 0xc),\n          (unsigned int)*(byte *)(actor + 3),(unsigned long)_DAT_0073cc3c);\n}\n\nstatic int E2R_StartupDiagEnabled(void)\n{\n  return E2R_startup_diag_enabled || E2R_runtime_diag_enabled;\n}\n\nstatic int E2R_ShouldTraceStartupProgress"
+);
+source = source.replace(
+  /static void E2R_TraceActionAdvance\(const char \*site,int actor,int \*slot,uint delta,uint next\)\n\{[\s\S]*?\n\}\n\nstatic int E2R_StartupDiagEnabled/,
+  "static void E2R_TraceActionAdvance(const char *site,int actor,int *slot,uint delta,uint next)\n{\n  uint duration;\n  uint progress;\n  uint actor_flags = 0;\n\n  if (!E2R_ActionDiagEnabled() || 256 <= E2R_action_advance_diag_count ||\n      slot == (int *)0x0 || (uintptr_t)slot < 0x10000u || IsBadReadPtr(slot,0x12) ||\n      *slot == 0 || (uintptr_t)*slot < 0x10000u ||\n      IsBadReadPtr((void *)(uintptr_t)*slot,0x12)) {\n    return;\n  }\n  duration = (uint)*(ushort *)(slot + 1);\n  progress = (uint)*(ushort *)((int)slot + 6);\n  if (DAT_00636850 == '\\0' && progress < duration - 16) {\n    return;\n  }\n  if (actor != 0 && 0x10000u <= (uintptr_t)actor &&\n      !IsBadReadPtr((void *)(uintptr_t)actor,4)) {\n    actor_flags = (uint)*(byte *)(actor + 3);\n  }\n  E2R_action_advance_diag_count = E2R_action_advance_diag_count + 1;\n  fprintf(stderr,\n          \"action advance: %s actor=0x%lx slot=0x%lx action=0x%lx \"\n          \"duration=%u progress=%u delta=%u next=%u slot_flags=0x%x actor_flags=0x%x scene=0x%lx space=%u\\n\",\n          site,(unsigned long)(uintptr_t)actor,(unsigned long)(uintptr_t)slot,\n          (unsigned long)(uintptr_t)*slot,duration,progress,delta,next,\n          (unsigned int)*(byte *)((int)slot + 0xc),actor_flags,\n          (unsigned long)_DAT_0073cc3c,(unsigned int)(byte)DAT_00636850);\n}\n\nstatic int E2R_StartupDiagEnabled"
+);
+source = source.replace(
+  "static uint E2R_scene_child_activate_diag_count;\nstatic uint E2R_rand_seed_fallback = 0x2a13f00d;",
+  "static uint E2R_scene_child_activate_diag_count;\nstatic int E2R_start_sc_handoff_pending;\nstatic int E2R_start_sc_handoff_activate_current;\nstatic uint E2R_rand_seed_fallback = 0x2a13f00d;"
+);
+source = source.replace(
+  "static int E2R_ShouldForceScene785Fallback(void)\n{",
+  "static void E2R_MarkStartScHandoffIfNeeded(short *actor,int *slot)\n{\n  if (actor == (short *)0x0 || slot == (int *)0x0 ||\n      IsBadReadPtr(actor,2) || IsBadReadPtr(slot,4)) {\n    return;\n  }\n  if (*actor != 0 || *slot != 0x9377e3 ||\n      E2R_CurrentSceneTableSlot((uintptr_t)_DAT_0073cc3c) != 175) {\n    return;\n  }\n  E2R_start_sc_handoff_pending = 1;\n  E2R_GameStateLog(\"start-sc handoff pending actor=0x%lx action=0x%lx scene=0x%lx\",\n                   (unsigned long)(uintptr_t)actor,\n                   (unsigned long)(uintptr_t)*slot,\n                   (unsigned long)_DAT_0073cc3c);\n}\n\nstatic short E2R_AdjustStartScHandoffScene(short selected_scene)\n{\n  int current_slot;\n\n  if (E2R_start_sc_handoff_pending == 0) {\n    return selected_scene;\n  }\n  E2R_start_sc_handoff_pending = 0;\n  current_slot = E2R_CurrentSceneTableSlot((uintptr_t)_DAT_0073cc3c);\n  if (current_slot == 175 && selected_scene == 87 &&\n      DAT_0047a470 != 0 && !IsBadReadPtr((void *)(uintptr_t)DAT_0047a470,2) &&\n      *(short *)(uintptr_t)DAT_0047a470 == 0) {\n    E2R_GameStateLog(\"start-sc handoff preserve scene current=%d selected=%d actor=0x%lx\",\n                     current_slot,(int)selected_scene,\n                     (unsigned long)DAT_0047a470);\n    E2R_start_sc_handoff_activate_current = 1;\n    return (short)current_slot;\n  }\n  E2R_start_sc_handoff_activate_current = 0;\n  E2R_GameStateLog(\"start-sc handoff pass current=%d selected=%d actor=0x%lx\",\n                   current_slot,(int)selected_scene,(unsigned long)DAT_0047a470);\n  return selected_scene;\n}\n\nstatic int E2R_ShouldForceScene785Fallback(void)\n{"
+);
+source = source.replace(
+  "  sVar2 = (short)uVar3;\n  if (E2R_scene_select_diag_count < 64 && (E2R_RuntimeDiagEnabled() || sVar2 < 1)) {",
+  "  sVar2 = (short)uVar3;\n  sVar2 = E2R_AdjustStartScHandoffScene(sVar2);\n  if (E2R_scene_select_diag_count < 64 && (E2R_RuntimeDiagEnabled() || sVar2 < 1)) {"
+);
+source = source.replace(
+  "  if ((undefined1 *)0x0067c728 + sVar2 * 0x1c == _DAT_0073cc3c) {\n    return;\n  }\n  if (sVar2 < 1) {",
+  "  if ((undefined1 *)0x0067c728 + sVar2 * 0x1c == _DAT_0073cc3c) {\n    if (E2R_start_sc_handoff_activate_current != 0) {\n      E2R_start_sc_handoff_activate_current = 0;\n      E2R_GameStateLog(\"start-sc handoff activate preserved scene=%d actor=0x%lx\",\n                       (int)sVar2,(unsigned long)DAT_0047a470);\n      E2R_ActivateSelectedSceneRecord(sVar2);\n    }\n    return;\n  }\n  E2R_start_sc_handoff_activate_current = 0;\n  if (sVar2 < 1) {"
+);
+source = source.replace(
+  "                       (unsigned int)*(ushort *)((int)in_EAX + 6),\n                       (unsigned int)*(ushort *)(in_EAX + 1),\n                       (unsigned long)_DAT_0073cc3c);\n      E2R_actor_calc_context = param_2;",
+  "                       (unsigned int)*(ushort *)((int)in_EAX + 6),\n                       (unsigned int)*(ushort *)(in_EAX + 1),\n                       (unsigned long)_DAT_0073cc3c);\n      E2R_MarkStartScHandoffIfNeeded((short *)(uintptr_t)param_2,in_EAX);\n      E2R_actor_calc_context = param_2;"
+);
+source = source.replace(
   "static int E2R_SceneListNext(int scene)\n{\n  int next;\n\n  scene = E2R_NormalizeSceneListNode(scene);\n  if (scene == 0) {\n    return 0;\n  }\n  next = *(int *)(scene + 8);\n  if (next == scene) {\n    return 0;\n  }\n  return E2R_NormalizeSceneListNode(next);\n}\n\ntypedef struct E2R_SceneGridSnapshot",
   "static int E2R_SceneListNext(int scene)\n{\n  int next;\n\n  scene = E2R_NormalizeSceneListNode(scene);\n  if (scene == 0) {\n    return 0;\n  }\n  next = *(int *)(scene + 8);\n  if (next == scene) {\n    return 0;\n  }\n  return E2R_NormalizeSceneListNode(next);\n}\n\nstatic int E2R_NormalizeSceneRecordPointer(int scene)\n{\n  short scene_id;\n\n  if ((uint)scene < 0x10000u || 0x70000000u <= (uint)scene ||\n      IsBadReadPtr((void *)(uintptr_t)scene,0xa8)) {\n    return 0;\n  }\n  scene_id = *(short *)(uintptr_t)scene;\n  if (scene_id < 0 || 0x9c4 <= scene_id) {\n    return 0;\n  }\n  if (*(int *)(scene_id * 4 + 0x62e450) != scene) {\n    return 0;\n  }\n  return scene;\n}\n\ntypedef struct E2R_SceneGridSnapshot"
 );
 source = source.replace(
   "static int E2R_NormalizeSceneRecordPointer(int scene)\n{\n  short scene_id;\n\n  if ((uint)scene < 0x10000u || 0x70000000u <= (uint)scene ||\n      IsBadReadPtr((void *)(uintptr_t)scene,0xa8)) {\n    return 0;\n  }\n  scene_id = *(short *)(uintptr_t)scene;\n  if (scene_id < 0 || 0x9c4 <= scene_id) {\n    return 0;\n  }\n  if (*(int *)(scene_id * 4 + 0x62e450) != scene) {\n    return 0;\n  }\n  return scene;\n}\n\ntypedef struct E2R_SceneGridSnapshot",
   "static int E2R_NormalizeSceneRecordPointer(int scene)\n{\n  short scene_id;\n\n  if ((uint)scene < 0x10000u || 0x70000000u <= (uint)scene ||\n      IsBadReadPtr((void *)(uintptr_t)scene,0xa8)) {\n    return 0;\n  }\n  scene_id = *(short *)(uintptr_t)scene;\n  if (scene_id < 0 || 0x9c4 <= scene_id) {\n    return 0;\n  }\n  if (*(int *)(scene_id * 4 + 0x62e450) != scene) {\n    return 0;\n  }\n  return scene;\n}\n\nstatic void E2R_TraceSceneChildren(const char *stage,short *scene)\n{\n  char *scene_child_diag;\n  short *child;\n  uintptr_t actor;\n  uintptr_t actor_next;\n  uintptr_t actor_dep;\n  uintptr_t actor_scene;\n  uint guard;\n  short scene_id;\n\n  scene_child_diag = getenv(\"E2R_SCENE_CHILD_DIAG\");\n  if ((!E2R_RuntimeDiagEnabled() &&\n       (scene_child_diag == (char *)0x0 || scene_child_diag[0] == '\\0' ||\n        scene_child_diag[0] == '0')) || scene == (short *)0x0 ||\n      IsBadReadPtr(scene,0xa8) || E2R_scene_child_diag_count >= 128) {\n    return;\n  }\n  scene_id = *scene;\n  if (_DAT_0073cc3c != 0 && (uintptr_t)scene != (uintptr_t)_DAT_0073cc3c && scene_id != 1564) {\n    return;\n  }\n  E2R_scene_child_diag_count = E2R_scene_child_diag_count + 1;\n  fprintf(stderr,\n          \"scene children: %s scene=%d ptr=0x%lx child_head=0x%lx active_next=0x%lx current=0x%lx actor_head=0x%lx\\n\",\n          stage,(int)scene_id,(unsigned long)(uintptr_t)scene,\n          (unsigned long)*(int *)(scene + 2),(unsigned long)*(int *)(scene + 0x4e),\n          (unsigned long)_DAT_0073cc3c,(unsigned long)_DAT_0063726c);\n  guard = 0;\n  for (child = *(short **)(scene + 2);\n       child != (short *)0x0 && guard < 32 && !IsBadReadPtr(child,0x1c) &&\n       E2R_scene_child_diag_count < 128; child = *(short **)(child + 0xc)) {\n    actor = 0;\n    actor_next = 0;\n    actor_dep = 0;\n    actor_scene = 0;\n    if (0 <= *child && *child < 5000) {\n      actor = *(uint *)((undefined1 *)0x00630b60 + *child * 4);\n      if (actor != 0 && !IsBadReadPtr((void *)actor,0x136)) {\n        actor_next = *(uint *)(actor + 0x4c);\n        actor_dep = *(uint *)(actor + 0xa6);\n        actor_scene = *(uint *)(actor + 0x132);\n      }\n    }\n    E2R_scene_child_diag_count = E2R_scene_child_diag_count + 1;\n    fprintf(stderr,\n            \"scene child: %s #%lu child=0x%lx actor_id=%d flags=0x%02x actions=0x%lx next=0x%lx table=0x%lx actor_next=0x%lx dep=0x%lx p132=0x%lx\\n\",\n            stage,(unsigned long)guard,(unsigned long)(uintptr_t)child,\n            (int)*child,(unsigned int)*(byte *)(child + 7),\n            (unsigned long)*(int *)(child + 3),(unsigned long)*(int *)(child + 0xc),\n            (unsigned long)actor,(unsigned long)actor_next,\n            (unsigned long)actor_dep,(unsigned long)actor_scene);\n    guard = guard + 1;\n  }\n}\n\ntypedef struct E2R_SceneGridSnapshot"
+);
+source = source.replace(
+  "static void E2R_TraceSceneChildren(const char *stage,short *scene)\n{\n  char *scene_child_diag;\n  short *child;",
+  "static char *E2R_PackedNameByIndex(char *table,uint capacity,short max_names,short index);\n\nstatic void E2R_TraceSceneChildren(const char *stage,short *scene)\n{\n  char *scene_child_diag;\n  char *actor_name;\n  short *child;"
+);
+source = source.replace(
+  "  uintptr_t actor_scene;\n  uint guard;",
+  "  uintptr_t actor_scene;\n  int actor_offset;\n  int rep_offset;\n  int scene_offset;\n  uint guard;"
+);
+source = source.replace(
+  "    actor_dep = 0;\n    actor_scene = 0;\n    if (0 <= *child && *child < 5000) {\n      actor = *(uint *)((undefined1 *)0x00630b60 + *child * 4);",
+  "    actor_dep = 0;\n    actor_scene = 0;\n    actor_offset = 0;\n    rep_offset = -1;\n    scene_offset = -1;\n    actor_name = (char *)0x0;\n    if (0 <= *child && *child < 5000) {\n      actor = *(uint *)((undefined1 *)0x00630b60 + *child * 4);\n      actor_offset = *(int *)(*child * 4 + 0x653840);\n      if (*child < 0x9c4) {\n        scene_offset = *(int *)(*child * 4 + 0x650fa0);\n      }\n      if (*child < 500) {\n        rep_offset = *(int *)(*child * 4 + 0x663a10);\n      }\n      actor_name = E2R_PackedNameByIndex(_DAT_006366b4,10000,5000,*child);"
+);
+source = source.replace(
+  "            \"scene child: %s #%lu child=0x%lx actor_id=%d flags=0x%02x actions=0x%lx next=0x%lx table=0x%lx actor_next=0x%lx dep=0x%lx p132=0x%lx\\n\",\n            stage,(unsigned long)guard,(unsigned long)(uintptr_t)child,\n            (int)*child,(unsigned int)*(byte *)(child + 7),",
+  "            \"scene child: %s #%lu child=0x%lx actor_id=%d actor_name=%s actor_offset=%ld scene_offset=%ld rep_offset=%ld flags=0x%02x actions=0x%lx next=0x%lx table=0x%lx actor_next=0x%lx dep=0x%lx p132=0x%lx\\n\",\n            stage,(unsigned long)guard,(unsigned long)(uintptr_t)child,\n            (int)*child,actor_name != (char *)0x0 ? actor_name : \"(null)\",\n            (long)actor_offset,(long)scene_offset,(long)rep_offset,\n            (unsigned int)*(byte *)(child + 7),"
 );
 source = source.replace(
   "  if (E2R_RuntimeDiagEnabled()) {\n    fprintf(stderr,\"scene grid restore: opcode=0x%lx count=%d bytes=%u\\n\",",
@@ -4638,7 +5686,47 @@ source = source.replace(
   "      }\n    }\n    E2R_TraceSceneChildren(\"52140.exit\",(short *)(uintptr_t)in_EAX);\n  }\n  DAT_0047a470 = E2R_TraceCurrentActorWrite(\"52140.exit\",(uintptr_t)uVar5);"
 );
 source = source.replace(
+  "}\n\ntypedef struct E2R_SceneGridSnapshot",
+  "}\n\nstatic void E2R_TraceSceneChildActivate(const char *stage,int scene_id,short *child)\n{\n  char *scene_child_diag;\n  char *actor_name;\n  char *word2_name;\n  int actor_offset;\n  int actor_rep_offset;\n  int actor_scene_offset;\n  int word2_offset;\n  int word2_rep_offset;\n  int word2_scene_offset;\n  uintptr_t actor;\n  uintptr_t word2_actor;\n  short actor_id;\n  short word2_id;\n\n  scene_child_diag = getenv(\"E2R_SCENE_CHILD_DIAG\");\n  if ((!E2R_RuntimeDiagEnabled() &&\n       (scene_child_diag == (char *)0x0 || scene_child_diag[0] == '\\0' ||\n        scene_child_diag[0] == '0')) || child == (short *)0x0 ||\n      IsBadReadPtr(child,0x1c) || E2R_scene_child_activate_diag_count >= 192) {\n    return;\n  }\n  actor_id = *child;\n  word2_id = child[2];\n  actor = 0;\n  word2_actor = 0;\n  actor_offset = -1;\n  actor_rep_offset = -1;\n  actor_scene_offset = -1;\n  word2_offset = -1;\n  word2_rep_offset = -1;\n  word2_scene_offset = -1;\n  actor_name = (char *)0x0;\n  word2_name = (char *)0x0;\n  if (0 <= actor_id && actor_id < 5000) {\n    actor = *(uint *)((undefined1 *)0x00630b60 + actor_id * 4);\n    actor_offset = *(int *)(actor_id * 4 + 0x653840);\n    if (actor_id < 0x9c4) {\n      actor_scene_offset = *(int *)(actor_id * 4 + 0x650fa0);\n    }\n    if (actor_id < 500) {\n      actor_rep_offset = *(int *)(actor_id * 4 + 0x663a10);\n    }\n    actor_name = E2R_PackedNameByIndex(_DAT_006366b4,10000,5000,actor_id);\n  }\n  if (0 <= word2_id && word2_id < 5000) {\n    word2_actor = *(uint *)((undefined1 *)0x00630b60 + word2_id * 4);\n    word2_offset = *(int *)(word2_id * 4 + 0x653840);\n    if (word2_id < 0x9c4) {\n      word2_scene_offset = *(int *)(word2_id * 4 + 0x650fa0);\n    }\n    if (word2_id < 500) {\n      word2_rep_offset = *(int *)(word2_id * 4 + 0x663a10);\n    }\n    word2_name = E2R_PackedNameByIndex(_DAT_006366b4,10000,5000,word2_id);\n  }\n  E2R_scene_child_activate_diag_count = E2R_scene_child_activate_diag_count + 1;\n  fprintf(stderr,\n          \"scene child activate: %s scene=%d child=0x%lx actor=%d/%s actor_offset=%ld scene_offset=%ld rep_offset=%ld table=0x%lx word2=%d/%s actor_offset=%ld scene_offset=%ld rep_offset=%ld word2_table=0x%lx flags=0x%02x actions=0x%lx next=0x%lx DAT_0047ab10=%lu\\n\",\n          stage,scene_id,(unsigned long)(uintptr_t)child,\n          (int)actor_id,actor_name != (char *)0x0 ? actor_name : \"(null)\",\n          (long)actor_offset,(long)actor_scene_offset,(long)actor_rep_offset,\n          (unsigned long)actor,\n          (int)word2_id,word2_name != (char *)0x0 ? word2_name : \"(null)\",\n          (long)word2_offset,(long)word2_scene_offset,(long)word2_rep_offset,\n          (unsigned long)word2_actor,\n          (unsigned int)*(byte *)(child + 7),(unsigned long)*(int *)(child + 3),\n          (unsigned long)*(int *)(child + 0xc),(unsigned long)DAT_0047ab10);\n}\n\ntypedef struct E2R_SceneGridSnapshot"
+);
+source = source.replace(
+  "                \"scene child record 1a: requested=%d scene=0x%lx node=0x%lx raw=%04x,%04x,%04x,%04x,%04x\\n\",\n                E2R_scene_load_request_id,(unsigned long)(uintptr_t)local_20,\n                (unsigned long)(uintptr_t)local_24,\n                (unsigned int)(ushort)psVar8[0],(unsigned int)(ushort)psVar8[1],\n                (unsigned int)(ushort)psVar8[2],(unsigned int)(ushort)psVar8[3],\n                (unsigned int)(ushort)psVar8[4]);",
+  "                \"scene child record 1a: requested=%d scene=0x%lx node=0x%lx raw=%04x,%04x,%04x,%04x,%04x actor2=%d/%s/%ld actor4=%d/%s/%ld\\n\",\n                E2R_scene_load_request_id,(unsigned long)(uintptr_t)local_20,\n                (unsigned long)(uintptr_t)local_24,\n                (unsigned int)(ushort)psVar8[0],(unsigned int)(ushort)psVar8[1],\n                (unsigned int)(ushort)psVar8[2],(unsigned int)(ushort)psVar8[3],\n                (unsigned int)(ushort)psVar8[4],(int)psVar8[2],\n                E2R_PackedNameByIndex(_DAT_006366b4,10000,5000,psVar8[2]) != (char *)0x0 ?\n                E2R_PackedNameByIndex(_DAT_006366b4,10000,5000,psVar8[2]) : \"(null)\",\n                0 <= psVar8[2] && psVar8[2] < 5000 ?\n                (long)*(int *)(psVar8[2] * 4 + 0x653840) : -1L,(int)psVar8[4],\n                E2R_PackedNameByIndex(_DAT_006366b4,10000,5000,psVar8[4]) != (char *)0x0 ?\n                E2R_PackedNameByIndex(_DAT_006366b4,10000,5000,psVar8[4]) : \"(null)\",\n                0 <= psVar8[4] && psVar8[4] < 5000 ?\n                (long)*(int *)(psVar8[4] * 4 + 0x653840) : -1L);"
+);
+source = source.replace(
+  "      if ((*(byte *)(psVar3 + 7) & 0x20) == 0) {\n        iVar1 = *psVar3 * 4;",
+  "      if ((*(byte *)(psVar3 + 7) & 0x20) == 0) {\n        E2R_TraceSceneChildActivate(\"52140.child\",(int)*(short *)(uintptr_t)in_EAX,psVar3);\n        iVar1 = *psVar3 * 4;"
+);
+source = source.replace(
+  "        if (*(int *)((undefined1 *)0x00630b60 + iVar1) == 0) {\n          if (DAT_0047ab10 == 0) {",
+  "        if (*(int *)((undefined1 *)0x00630b60 + iVar1) == 0) {\n          E2R_TraceSceneChildActivate(\"52140.missing\",(int)*(short *)(uintptr_t)in_EAX,psVar3);\n          if (DAT_0047ab10 == 0) {\n            E2R_TraceSceneChildActivate(\"52140.missing-dat0\",(int)*(short *)(uintptr_t)in_EAX,psVar3);"
+);
+source = source.replace(
+  "          else if (*(int *)(iVar1 + 0x653840) < 0) {\n            FUN_00441890(param_1,iVar1);",
+  "          else if (*(int *)(iVar1 + 0x653840) < 0) {\n            E2R_TraceSceneChildActivate(\"52140.missing-no-archive\",(int)*(short *)(uintptr_t)in_EAX,psVar3);\n            continue;\n            FUN_00441890(param_1,iVar1);"
+);
+source = source.replace(
+  "          else {\n            FUN_0045f296(param_1,*(int *)(iVar1 + 0x653840));",
+  "          else {\n            E2R_TraceSceneChildActivate(\"52140.missing-archive\",(int)*(short *)(uintptr_t)in_EAX,psVar3);\n            FUN_0045f296(param_1,*(int *)(iVar1 + 0x653840));"
+);
+source = source.replace(
+  "          if (psVar4 == (short *)0x0) {\n            FUN_00441890(uVar6,uVar7);",
+  "          if (psVar4 == (short *)0x0) {\n            E2R_TraceSceneChildActivate(\"52140.unresolved-after-load\",(int)*(short *)(uintptr_t)in_EAX,psVar3);\n            FUN_00441890(uVar6,uVar7);"
+);
+source = source.replace(
+  "          else {\n            E2R_actor_calc_context = (int)(uintptr_t)psVar4;",
+  "          else {\n            E2R_TraceSceneChildActivate(\"52140.loaded-after-load\",(int)*(short *)(uintptr_t)in_EAX,psVar3);\n            if (psVar4[0x42] == 0 && psVar4[0x43] == 0 && psVar4[0x44] == 0 &&\n                (psVar4[0x4e] != 0 || psVar4[0x4f] != 0 || psVar4[0x50] != 0)) {\n              psVar4[0x42] = psVar4[0x4e];\n              psVar4[0x43] = psVar4[0x4f];\n              psVar4[0x44] = psVar4[0x50];\n              psVar4[0x41] = 6;\n              psVar4[0x75] = 0x7fff;\n              psVar4[0x76] = 0;\n              psVar4[0x77] = 0;\n            }\n            E2R_actor_calc_context = (int)(uintptr_t)psVar4;"
+);
+source = source.replace(
+  "        if (*(int *)((undefined1 *)0x00630b60 + *psVar3 * 4) != 0) {\n          psVar4 = *(short **)((undefined1 *)0x00630b60 + *psVar3 * 4);",
+  "        if (*(int *)((undefined1 *)0x00630b60 + *psVar3 * 4) != 0) {\n          E2R_TraceSceneChildActivate(\"52140.update\",(int)*(short *)(uintptr_t)in_EAX,psVar3);\n          psVar4 = *(short **)((undefined1 *)0x00630b60 + *psVar3 * 4);"
+);
+source = source.replace(
   "  ushort *extraout_EDX_01;\n  undefined8 uVar8;\n\n  uVar5 = DAT_0047a470;\n  in_EAX = E2R_NormalizeSceneRecordPointer(in_EAX);",
+  "  ushort *extraout_EDX_01;\n  uint guard;\n  undefined8 uVar8;\n\n  uVar5 = DAT_0047a470;\n  in_EAX = E2R_NormalizeSceneRecordPointer(in_EAX);"
+);
+source = source.replace(
+  "  ushort *extraout_EDX_01;\n  uint guard;\n  undefined8 uVar8;\n\n  uVar5 = DAT_0047a470;\n  in_EAX = E2R_NormalizeSceneRecordPointer(in_EAX);",
   "  ushort *extraout_EDX_01;\n  uint guard;\n  undefined8 uVar8;\n\n  uVar5 = DAT_0047a470;\n  in_EAX = E2R_NormalizeSceneRecordPointer(in_EAX);"
 );
 source = source.replace(
@@ -4722,7 +5810,2542 @@ source = source.replace(
 
 /* 004418fc */`
 );
+source = source.replace(
+  "\n\n\n/* 00410078 */",
+  `\n\nstatic void E2R_RestartIntroSequence(void)
+{
+  uintptr_t slot;
+
+  DAT_00636844 = 0;
+  DAT_00636850 = 0;
+  DAT_00479db4 = 0;
+  DAT_0047a788 = 1;
+  DAT_0047a76c = 1;
+  _DAT_006443d0 = 1;
+  E2R_WORD_AT(DAT_0047a45e,2) = 0;
+  _DAT_00643650 = E2R_TraceRequesterState("action.restart_intro_complete",0);
+  E2R_TraceStartGameStage("restart-intro-begin");
+  if (E2R_IsReadableCurrentPointer(DAT_0047a470)) {
+    slot = (uintptr_t)DAT_0047a470 + 0xa6;
+    if (!IsBadReadPtr((void *)slot,0x12) && *(uintptr_t *)slot != 0) {
+      *(undefined2 *)(slot + 6) = 0;
+    }
+  }
+  E2R_TraceStartGameStage("restart-intro-end");
+}\n\n\n/* 00410078 */`
+);
+source = source.replace(
+  "  if (action == (uintptr_t)&LAB_0043d458) {\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.start_male\",0);\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d464) {\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.start_female\",1);\n    return 1;\n  }",
+  "  if (action == (uintptr_t)&LAB_0043d458) {\n    if (requester_id == 0x28 && DAT_0047a76c != 0) {\n      _DAT_006443d0 = 1;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.restart_intro\",7);\n      return 1;\n    }\n    _DAT_006443d0 = 1;\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.start_male\",0);\n    return 1;\n  }\n  if (action == (uintptr_t)&LAB_0043d464) {\n    if (requester_id == 0x28 && DAT_0047a76c != 0) {\n      _DAT_006443d0 = 1;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.restart_intro\",7);\n      return 1;\n    }\n    _DAT_006443d0 = 1;\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.start_female\",1);\n    return 1;\n  }"
+);
+source = source.replace(
+  "    if (requester_id == 0x31) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_ok\",0);\n      return 1;\n    }",
+  "    if (requester_id == 0x31) {\n      _DAT_006443d0 = 1;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_ok\",0);\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      return 1;\n    }"
+);
+source = source.replace(
+  "    if (requester_id == 0x29 || requester_id == 0x2a) {\n      _DAT_0064353c = 0;\n      return 1;\n    }\n    if (requester_id == 0x31) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_cancel\",0);\n      return 1;\n    }",
+  "    if (requester_id == 0x29 || requester_id == 0x2a) {\n      _DAT_0064353c = 0;\n      _DAT_006443d0 = 1;\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      return 1;\n    }\n    if (requester_id == 0x31) {\n      _DAT_006443d0 = 1;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_cancel\",0);\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      return 1;\n    }"
+);
+source = source.replace(
+  "  if (action == (uintptr_t)&LAB_0043d470) {\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.load\",2);\n    return 1;\n  }",
+  "  if (action == (uintptr_t)&LAB_0043d470) {\n    if (requester_id == 0x28) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings\",2);\n      FUN_0043ce58(0x31,5);\n      E2R_WORD_AT(DAT_0047a45e,2) = 0x28;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.settings_return\",5);\n      _DAT_006443d0 = 0;\n      _DAT_0064342c = 0;\n      DAT_00636844 = 0;\n      DAT_0047a788 = 1;\n      E2R_requester_continue_after_action = 1;\n      return 1;\n    }\n    _DAT_006443d0 = 1;\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.settings\",2);\n    return 1;\n  }"
+);
+source = source.replace(
+  "  if (action == (uintptr_t)&LAB_0043d490) {\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.options\",4);\n    return 1;\n  }",
+  "  if (action == (uintptr_t)&LAB_0043d490) {\n    if (requester_id == 0x28) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.load\",4);\n      FUN_0043ce58(0x29,5);\n      E2R_WORD_AT(DAT_0047a45e,2) = 0x28;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.load_return\",5);\n      _DAT_006443d0 = 0;\n      _DAT_0064342c = 0;\n      DAT_00636844 = 0;\n      DAT_0047a788 = 1;\n      E2R_requester_continue_after_action = 1;\n      return 1;\n    }\n    _DAT_006443d0 = 1;\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.load\",4);\n    return 1;\n  }"
+);
+source = source.replace(
+  "  if (action == (uintptr_t)&DAT_0043d49c) {\n    uintptr_t prompt = 0x004729b8;\n    if (DAT_00479e00 != 0 && !IsBadReadPtr((void *)0x0060aef0,4) &&\n        *(uintptr_t *)0x0060aef0 != 0) {\n      prompt = *(uintptr_t *)0x0060aef0;\n    }\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.quit_prompt\",\n                                            ((int)FUN_0043c910((undefined4)prompt,0) != 0) ? 6 : 5);\n    return 1;\n  }",
+  "  if (action == (uintptr_t)&DAT_0043d49c) {\n    uintptr_t prompt = 0x004729b8;\n    int confirmed;\n    if (DAT_00479e00 != 0 && !IsBadReadPtr((void *)0x0060aef0,4) &&\n        *(uintptr_t *)0x0060aef0 != 0) {\n      prompt = *(uintptr_t *)0x0060aef0;\n    }\n    confirmed = (int)FUN_0043c910((undefined4)prompt,0) != 0;\n    if (requester_id == 0x28) {\n      if (confirmed) {\n        _DAT_006443d0 = 1;\n        E2R_WORD_AT(DAT_0047a45e,2) = 0;\n        _DAT_00643650 = E2R_TraceRequesterState(\"action.quit_confirmed\",6);\n        return 1;\n      }\n      E2R_WORD_AT(DAT_0047a45e,2) = 0x28;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.quit_return\",5);\n      _DAT_006443d0 = 0;\n      _DAT_0064342c = 0;\n      DAT_00636844 = 0;\n      DAT_0047a788 = 1;\n      E2R_requester_continue_after_action = 1;\n      return 1;\n    }\n    _DAT_006443d0 = 1;\n    _DAT_00643650 = E2R_TraceRequesterState(\"action.quit_prompt\",confirmed ? 6 : 5);\n    return 1;\n  }"
+);
+source = source.replace(
+  "    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643dc4) {\n      _DAT_006443d2 = (_DAT_006443d2 & 0xffff) | 0x10000;\n      if (_DAT_00643430 == (short *)0x00643dc4) {\n        _DAT_00643650 = E2R_TraceRequesterState(\"action.confirm_yes\",6);\n      }\n      return 1;\n    }",
+  "    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643dc4) {\n      _DAT_006443d2 = (_DAT_006443d2 & 0xffff) | 0x10000;\n      _DAT_006443d0 = 1;\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.confirm_yes\",6);\n      return 1;\n    }"
+);
+source = source.replace(
+  "    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643c84) {\n      _DAT_006443d2 = _DAT_006443d2 & 0xffff;\n      if (_DAT_00643430 == (short *)0x00643c84) {\n        _DAT_00643650 = E2R_TraceRequesterState(\"action.confirm_no\",5);\n      }\n      return 1;\n    }",
+  "    if (requester_id == 0x14 || _DAT_00643430 == (short *)0x00643c84) {\n      _DAT_006443d2 = _DAT_006443d2 & 0xffff;\n      _DAT_006443d0 = 1;\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.confirm_no\",5);\n      return 1;\n    }"
+);
+source = source.replace(
+  "    if (requester_id == 0x27 || requester_id == 0x28) {\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.cancel_start\",5);\n      return 1;\n    }",
+  "    if (requester_id == 0x27 || requester_id == 0x28) {\n      _DAT_006443d0 = 1;\n      _DAT_00643650 = E2R_TraceRequesterState(\"action.cancel_start\",5);\n      return 1;\n    }"
+);
+source = source.replace(
+  "  if (DAT_0047a470 != (short *)0x0) {\n    ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] = ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] | 2;\n  }",
+  "  if (DAT_0047a470 != (short *)0x0 && E2R_IsReadableCurrentPointer(DAT_0047a470)) {\n    ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] = ((undefined1 *)0x0064a178)[*(undefined4 *)(uintptr_t)DAT_0047a470 * 2] | 2;\n  }"
+);
+source = source.replace(
+  "  sVar2 = DAT_0047a34a;\n  piVar3 = (int *)(in_EAX + 0x112);",
+  "  if ((uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||\n      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x118)) {\n    return;\n  }\n  sVar2 = DAT_0047a34a;\n  piVar3 = (int *)(in_EAX + 0x112);"
+);
+source = source.replace(
+  "      FUN_00421684();\n      *(byte *)(extraout_ECX_03 + 3) = *(byte *)(extraout_ECX_03 + 3) & 0xf7;\n      iVar5 = extraout_ECX_03;\n      iVar7 = extraout_EDX_03;",
+  "      FUN_00421684();\n      if (0x10000u <= (uint)iVar5 && (uint)iVar5 < 0x70000000u &&\n          !IsBadReadPtr((void *)(uintptr_t)iVar5,0x50)) {\n        *(byte *)(iVar5 + 3) = *(byte *)(iVar5 + 3) & 0xf7;\n      }\n      iVar7 = extraout_EDX_03;"
+);
+source = source.replace(
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n    }",
+  "    case 6:\n      DestroyWindow(_DAT_00ac4dac);\n      break;\n    case 7:\n      E2R_RestartIntroSequence();\n      break;\n    }"
+);
+source = source.replace(
+  /undefined8 __fastcall FUN_0045fc10\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0045fc44 \*\//,
+  "undefined8 __fastcall FUN_0045fc10(undefined4 param_1,undefined4 param_2)\n\n{\n  uint *puVar1;\n  uint uVar2;\n\n  (void)param_1;\n  puVar1 = (uint *)FUN_0045fc06();\n  if (puVar1 == (uint *)0x0 || (uintptr_t)puVar1 < 0x10000u ||\n      IsBadReadPtr(puVar1,4)) {\n    puVar1 = &E2R_rand_seed_fallback;\n  }\n  uVar2 = *puVar1 * 0x41c64e6d + 0x3039;\n  *puVar1 = uVar2;\n  uVar2 = uVar2 >> 0x10 & 0x7fff;\n  return CONCAT44(param_2,uVar2);\n}\n\n\n\n/* 0045fc44 */"
+);
+source = source.replace(
+  "        uVar12 = FUN_0045fc10(0,unaff_ESI);\n        psVar7 = (short *)FUN_0042fce0(extraout_ECX_04,(int)((ulonglong)uVar12 >> 0x20),1);",
+  "        uVar12 = FUN_0045fc10(0,unaff_ESI);\n        (void)uVar12;\n        psVar7 = (short *)FUN_0042fce0((int)in_EAX[3],(int)unaff_ESI,1);"
+);
+source = source.replace(
+  "      if (*(int *)((int)uVar3 * 4 + 0x62d960) != 0) {",
+  "      if (0 <= iVar2 && iVar2 < 5000 &&\n          *(int *)(iVar2 * 4 + 0x62d960) != 0) {"
+);
+source = source.replace(
+  "  if (actor == 0 || (uintptr_t)actor < 0x10000u) {\n    return 0;\n  }\n  slot = (int *)(uintptr_t)(actor + 0xa6);",
+  "  if (actor == 0 || (uintptr_t)actor < 0x10000u) {\n    if (_DAT_0073cc3c == 0) {\n      DAT_00636850 = '\\0';\n      E2R_GameStateLog(\"intro skip ignored wait-only subintro\");\n    }\n    return 0;\n  }\n  slot = (int *)(uintptr_t)(actor + 0xa6);"
+);
+source = source.replace(
+  "  case 0x37:\n    psVar7 = (short *)(uint)(ushort)in_EAX[2];\n    param_2[0x91] = in_EAX[2];\n    if (in_EAX[3] != 0) {",
+  "  case 0x37:\n    psVar7 = (short *)(uint)(ushort)in_EAX[2];\n    param_2[0x91] = in_EAX[2];\n    E2R_RetainCurrentRepForMissingTarget(\"2b880.case37\",param_2);\n    if (in_EAX[3] != 0) {"
+);
+source = source.replace(
+  "static int E2R_ParseArchiveRepResource(short expected_rep_id)\n{",
+  "static int E2R_RepRecordDiagEnabled(void)\n{\n  char *value = getenv(\"E2R_REP_RECORD_DIAG\");\n\n  return value != (char *)0x0 && value[0] != '\\0' && value[0] != '0';\n}\n\nstatic int E2R_ParseArchiveRepResource(short expected_rep_id)\n{"
+);
+source = source.replace(
+  "      slot = (int)field2 + 1;\n      if (0 <= slot && slot < 0xd1) {\n        rep[slot] = field3;\n        if (0x31 < _DAT_0067bc92 && 0x4f < field2 && field2 < 0x6b) {\n          rep[slot] = -1;\n        }\n      }\n      continue;",
+  "      if (E2R_RepRecordDiagEnabled()) {\n        fprintf(stderr,\"rep archive record: rep=%d type=%04x field2=%d field3=%d slot=%d version=%d\\n\",\n                (int)*rep,(unsigned int)type,(int)field2,(int)field3,\n                (int)field2 + 1,(int)_DAT_0067bc92);\n      }\n      slot = (int)field2 + 1;\n      if (0 <= slot && slot < 0xd1) {\n        rep[slot] = field3;\n        if (0x31 < _DAT_0067bc92 && 0x4f < field2 && field2 < 0x6b) {\n          rep[slot] = -1;\n        }\n      }\n      continue;"
+);
+source = source.replace(
+  /(\n\/\* 00441b24 \*\/[\s\S]*?undefined1 local_48 \[52\];\r?\n\r?\n)\s*if \(in_AX < 0\) \{/,
+  "$1  in_AX = (short)param_2;\n  if (in_AX < 0) {"
+);
+source = source.replace(
+  /(\n\/\* 0045190c \*\/[\s\S]*?undefined8 uVar3;\r?\n\r?\n)\s*uVar2 = 0;\r?\n\s*if \(\(-1 < in_AX\)/,
+  "$1  uVar2 = 0;\n  in_AX = (short)param_2;\n  if ((-1 < in_AX)"
+);
+source = source.replace(
+  "static int E2R_RepIdIsMissing(short rep_id)\n{",
+  "static int E2R_ActionIndexProbeEnabled(void)\n{\n  static int cached = -1;\n  char *value;\n\n  if (cached < 0) {\n    value = getenv(\"E2R_ACTION_INDEX_PROBE\");\n    cached = value != (char *)0x0 && value[0] != '\\0' && value[0] != '0';\n  }\n  return cached;\n}\n\nstatic int E2R_RepIdIsMissing(short rep_id)\n{"
+);
 source = source.replace(/[ \t]+$/gm, "").replace(/\n*$/, "\n");
+source = source.replace(
+  /(\n\/\* 00441b24 \*\/[\s\S]*?undefined1 local_48 \[52\];\r?\n\r?\n)\s*if \(in_AX < 0\) \{/,
+  "$1  in_AX = (short)param_2;\n  if (in_AX < 0) {"
+);
+source = source.replace(
+  /(\n\/\* 0045190c \*\/[\s\S]*?undefined8 uVar3;\r?\n\r?\n)\s*uVar2 = 0;\r?\n\s*if \(\(-1 < in_AX\)/,
+  "$1  uVar2 = 0;\n  in_AX = (short)param_2;\n  if ((-1 < in_AX)"
+);
+source = source.replace(/[ \t]+$/gm, "").replace(/\n*$/, "\n");
+// Preserve the scene-175 diagnostics used to trace actor/model initialization.
+// Each anchor must match once: dropping a probe on a changed export must fail
+// generation before any reconstructed output is written.
+const scene175DiagnosticPatches = [
+  {
+    label: "diagnostic counters",
+    before: "static uint E2R_actor_loop_diag_count;\nstatic uint E2R_actor_update_diag_count;\nstatic uint E2R_action_invoke_diag_count;\nstatic uint E2R_scene_lookup_diag_count;\nstatic uint E2R_action_advance_diag_count;\n",
+    after: "static uint E2R_actor_loop_diag_count;\nstatic uint E2R_actor_update_diag_count;\nstatic uint E2R_actor_update_exit_diag_count;\nstatic uint E2R_action_invoke_diag_count;\nstatic uint E2R_action_lookup_diag_count;\nstatic uint E2R_scene_lookup_diag_count;\nstatic uint E2R_action_advance_diag_count;\n",
+  },
+  {
+    label: "E2R_TraceActorUpdateStage",
+    before: "  uintptr_t action = 0;\n  uintptr_t rep = 0;\n  uintptr_t target = 0;\n  uintptr_t queued1 = 0;\n",
+    after: "  uintptr_t action = 0;\n  uintptr_t rep = 0;\n  uintptr_t model = 0;\n  uintptr_t target = 0;\n  uintptr_t queued1 = 0;\n",
+  },
+  {
+    label: "E2R_TraceActorUpdateStage",
+    before: "  short state = 0;\n  short rep_id = 0;\n  short state91 = 0;\n  short word74 = 0;\n",
+    after: "  short state = 0;\n  short rep_id = 0;\n  short model_id = -1;\n  short state91 = 0;\n  short word74 = 0;\n",
+  },
+  {
+    label: "E2R_TraceActorUpdateStage",
+    before: "    action = *(uint *)(value + 0xa6);\n    rep = *(uint *)(value + 0x11e);\n    target = *(uint *)(value + 0x1e);\n    queued1 = *(uint *)(value + 0x126);\n",
+    after: "    action = *(uint *)(value + 0xa6);\n    rep = *(uint *)(value + 0x11e);\n    if (rep != 0 && !IsBadReadPtr((void *)(uintptr_t)rep,0x26)) {\n      model = *(uint *)(rep + 0x22);\n      if (model != 0 && !IsBadReadPtr((void *)(uintptr_t)model,2)) {\n        model_id = *(short *)model;\n      }\n    }\n    target = *(uint *)(value + 0x1e);\n    queued1 = *(uint *)(value + 0x126);\n",
+  },
+  {
+    label: "E2R_TraceActorUpdateStage",
+    before: "    byteb6 = *(byte *)(value + 0xb6);\n  }\n  if (E2R_RuntimeDiagEnabled() && E2R_actor_update_diag_count < 192) {\n    E2R_actor_update_diag_count = E2R_actor_update_diag_count + 1;\n    fprintf(stderr,\n            \"actor update: %s actor=0x%lx bad180=%d current=0x%lx scene=0x%lx \"\n            \"state=%d action=0x%lx rep=0x%lx rep_id=%d state91=%d \"\n            \"target=0x%lx queued=%lx/%lx late=0x%lx w74=%d w76=%d wba=%d \"\n            \"b2=0x%x b3=0x%x ba3=0x%x bb3=0x%x bb6=0x%x caller=%p\\n\",\n            stage,(unsigned long)value,actor_bad,(unsigned long)DAT_0047a470,\n            (unsigned long)_DAT_0073cc3c,(int)state,(unsigned long)action,\n            (unsigned long)rep,(int)rep_id,(int)state91,(unsigned long)target,\n            (unsigned long)queued1,(unsigned long)queued2,(unsigned long)late,\n            (int)word74,(int)word76,(int)wordba,byte2,byte3,bytea3,byteb3,byteb6,\n            __builtin_return_address(0));\n  }\n}\n\n",
+    after: String.raw`    byteb6 = *(byte *)(value + 0xb6);
+  }
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_update_diag_count < 256) {
+    E2R_actor_update_diag_count = E2R_actor_update_diag_count + 1;
+    fprintf(stderr,
+            "actor update: %s actor=0x%lx bad180=%d current=0x%lx scene=0x%lx "
+            "state=%d action=0x%lx rep=0x%lx rep_id=%d model=0x%lx model_id=%d state91=%d "
+            "target=0x%lx queued=%lx/%lx late=0x%lx w74=%d w76=%d wba=%d "
+            "b2=0x%x b3=0x%x ba3=0x%x bb3=0x%x bb6=0x%x caller=%p\n",
+            stage,(unsigned long)value,actor_bad,(unsigned long)DAT_0047a470,
+            (unsigned long)_DAT_0073cc3c,(int)state,(unsigned long)action,
+            (unsigned long)rep,(int)rep_id,(unsigned long)model,(int)model_id,
+            (int)state91,(unsigned long)target,
+            (unsigned long)queued1,(unsigned long)queued2,(unsigned long)late,
+            (int)word74,(int)word76,(int)wordba,byte2,byte3,bytea3,byteb3,byteb6,
+            __builtin_return_address(0));
+  }
+}
+
+static void E2R_TraceActorUpdateExit(const char *reason, short *actor, uint selected)
+{
+  uintptr_t value = (uintptr_t)actor;
+  int actor_bad = value == 0 || IsBadReadPtr(actor,0x180);
+  uintptr_t action = 0;
+  uintptr_t rep = 0;
+  uintptr_t target = 0;
+  uintptr_t action_table = 0;
+  short state = 0;
+  short prev = 0;
+  short random_slot = 0;
+  short state91 = 0;
+  short selected_slot = -1;
+  unsigned byte2 = 0;
+  unsigned action_flags = 0;
+  unsigned action_hi = 0;
+
+  if (!actor_bad) {
+    action = *(uint *)(value + 0xa6);
+    rep = *(uint *)(value + 0x11e);
+    target = *(uint *)(value + 0x1e);
+    action_table = *(uint *)(value + 0x11e);
+    state = actor[0x41];
+    prev = actor[0x4b];
+    random_slot = actor[0xb1];
+    state91 = actor[0x91];
+    byte2 = *(byte *)(value + 2);
+    action_flags = *(byte *)(value + 0xb2);
+    action_hi = *(byte *)(value + 0xb3);
+    if (action_table != 0 && !IsBadReadPtr((void *)(uintptr_t)action_table,4) &&
+        (short)selected >= 0 && (short)selected < 1000 &&
+        !IsBadReadPtr((void *)(uintptr_t)(action_table + 2 + (short)selected * 2),2)) {
+      selected_slot = *(short *)(action_table + 2 + (short)selected * 2);
+    }
+  }
+  if (E2R_RuntimeDiagEnabled() && E2R_actor_update_exit_diag_count < 96 &&
+      ((short)_DAT_0073ccba == 175 || value == (uintptr_t)DAT_0047a470)) {
+    E2R_actor_update_exit_diag_count = E2R_actor_update_exit_diag_count + 1;
+    fprintf(stderr,
+            "actor update exit: %s actor=0x%lx bad180=%d scene=0x%lx "
+            "selected=%d prev=%d slot=%d random=%d state=%d action=0x%lx "
+            "rep=0x%lx state91=%d target=0x%lx b2=0x%x action_flags=0x%x "
+            "action_hi=0x%x caller=%p\n",
+            reason,(unsigned long)value,actor_bad,(unsigned long)_DAT_0073cc3c,
+            (int)(short)selected,(int)prev,(int)selected_slot,(int)random_slot,(int)state,
+            (unsigned long)action,(unsigned long)rep,(int)state91,
+            (unsigned long)target,byte2,action_flags,action_hi,
+            __builtin_return_address(0));
+  }
+}
+
+static void E2R_TraceActionLookup(const char *stage, int action_id, int result)
+{
+  int table = 0;
+  int offset = -1;
+
+  if (!E2R_RuntimeDiagEnabled() || 96 <= E2R_action_lookup_diag_count) {
+    return;
+  }
+  if (0 <= action_id && action_id < 5000) {
+    table = *(int *)((undefined1 *)0x0062ba20 + action_id * 4);
+    offset = *(int *)(0x0064f060 + action_id * 4);
+  }
+  E2R_action_lookup_diag_count = E2R_action_lookup_diag_count + 1;
+  fprintf(stderr,
+          "action lookup: %s id=%d result=%d table=0x%lx offset=%ld "
+          "DAT_0047ab10=%lu DAT_0047a788=%lu current=0x%lx scene=0x%lx caller=%p\n",
+          stage,action_id,result,(unsigned long)(uintptr_t)table,(long)offset,
+          (unsigned long)DAT_0047ab10,(unsigned long)DAT_0047a788,
+          (unsigned long)DAT_0047a470,(unsigned long)_DAT_0073cc3c,
+          __builtin_return_address(0));
+}
+
+`,
+  },
+  {
+    label: "E2R_RetainCurrentRepForMissingTarget",
+    before: "    return;\n  }\n  if (E2R_RuntimeDiagEnabled() && E2R_actor_update_diag_count < 192) {\n    E2R_actor_update_diag_count = E2R_actor_update_diag_count + 1;\n    fprintf(stderr,\n",
+    after: "    return;\n  }\n  if (E2R_RuntimeDiagEnabled() && E2R_actor_update_diag_count < 256) {\n    E2R_actor_update_diag_count = E2R_actor_update_diag_count + 1;\n    fprintf(stderr,\n",
+  },
+  {
+    label: "FUN_00427584",
+    before: "    local_70 = (short *)0x0;\n  }\n  if (((local_70 != (short *)0x0) &&\n      (psVar15 = *(short **)(local_70 + 0xf), psVar15 != (short *)0x0)) &&\n",
+    after: "    local_70 = (short *)0x0;\n  }\n  E2R_TraceActorUpdateExit(\"27584.check-after-motion-ref\",local_6c,uVar19);\n  if (((local_70 != (short *)0x0) &&\n      (psVar15 = *(short **)(local_70 + 0xf), psVar15 != (short *)0x0)) &&\n",
+  },
+  {
+    label: "FUN_00427584",
+    before: "    local_6c[0xb7] = 0;\n  }\n  local_6c[0xa1] = -1;\n  if (local_6c[0x41] != 3) {\n",
+    after: "    local_6c[0xb7] = 0;\n  }\n  E2R_TraceActorUpdateExit(\"27584.check-before-timer-state\",local_6c,uVar19);\n  local_6c[0xa1] = -1;\n  if (local_6c[0x41] != 3) {\n",
+  },
+  {
+    label: "FUN_00427584",
+    before: "    uVar25 = extraout_ECX_14;\n    psVar15 = local_6c;\n    switch((int)(uintptr_t)(local_6c[0x41])) {\n    case 0:\n",
+    after: "    uVar25 = extraout_ECX_14;\n    psVar15 = local_6c;\n    E2R_TraceActorUpdateExit(\"27584.check-before-state-switch\",local_6c,uVar19);\n    switch((int)(uintptr_t)(local_6c[0x41])) {\n    case 0:\n",
+  },
+  {
+    label: "FUN_00427584",
+    before: "    psVar8 = local_6c;\n    sVar18 = (short)uVar25;\n    switch((int)(uintptr_t)(local_6c[0x41])) {\n    case 0:\n",
+    after: "    psVar8 = local_6c;\n    sVar18 = (short)uVar25;\n    E2R_TraceActorUpdateExit(\"27584.check-after-state-switch\",local_6c,uVar19);\n    switch((int)(uintptr_t)(local_6c[0x41])) {\n    case 0:\n",
+  },
+  {
+    label: "FUN_00427584",
+    before: "    uVar19 = local_6c[0x4b];\n  }\n  psVar15 = *(short **)(local_6c + 0x8f);\n  if ((psVar15 != (short *)0x0) && (-1 < psVar15[(short)uVar19 + 1])) {\n",
+    after: "    uVar19 = local_6c[0x4b];\n  }\n  E2R_TraceActorUpdateExit(\"27584.check-before-anim-filter\",local_6c,uVar19);\n  psVar15 = *(short **)(local_6c + 0x8f);\n  if ((psVar15 != (short *)0x0) && (-1 < psVar15[(short)uVar19 + 1])) {\n",
+  },
+  {
+    label: "FUN_00427584",
+    before: "  }\nLAB_00429b2f:\n  if ((short)uVar19 < 0) goto LAB_00429f13;\n  iVar7 = *(int *)(local_6c + 0x8f);\n  if ((iVar7 == 0) || (*(short *)(iVar7 + 2 + (short)uVar19 * 2) < 0)) {\n    uVar19 = 1000;\n  }\n  if (uVar19 == 1000) {\n    if ((*(byte *)(local_6c + 1) & 0x40) == 0) {\n      if (local_6c[0x4b] == 1000) goto LAB_00429f13;\n      if ((*(int *)(local_6c + 0x53) == 0) || ((*(byte *)(local_6c + 0x59) & 0x40) == 0)) {\n        bVar4 = true;\n",
+    after: String.raw`  }
+LAB_00429b2f:
+  E2R_TraceActorUpdateExit("27584.check-final-gate",local_6c,uVar19);
+  if ((short)uVar19 < 0) {
+    E2R_TraceActorUpdateExit("27584.exit-negative-selected",local_6c,uVar19);
+    goto LAB_00429f13;
+  }
+  iVar7 = *(int *)(local_6c + 0x8f);
+  if ((iVar7 == 0) || (*(short *)(iVar7 + 2 + (short)uVar19 * 2) < 0)) {
+    uVar19 = 1000;
+  }
+  E2R_TraceActorUpdateExit("27584.check-after-slot-check",local_6c,uVar19);
+  if (uVar19 == 1000) {
+    if ((*(byte *)(local_6c + 1) & 0x40) == 0) {
+      if (local_6c[0x4b] == 1000) {
+        E2R_TraceActorUpdateExit("27584.exit-default-same-action",local_6c,uVar19);
+        goto LAB_00429f13;
+      }
+      if ((*(int *)(local_6c + 0x53) == 0) || ((*(byte *)(local_6c + 0x59) & 0x40) == 0)) {
+        bVar4 = true;
+`,
+  },
+  {
+    label: "FUN_00427584",
+    before: "        bVar4 = false;\n      }\n      if (!bVar4) goto LAB_00429f13;\n      if ((*(int *)(local_6c + 0x53) == 0) || ((*(byte *)((int)local_6c + 0xb3) & 0x20) == 0)) {\n        bVar4 = true;\n",
+    after: "        bVar4 = false;\n      }\n      if (!bVar4) {\n        E2R_TraceActorUpdateExit(\"27584.exit-default-flag40\",local_6c,uVar19);\n        goto LAB_00429f13;\n      }\n      if ((*(int *)(local_6c + 0x53) == 0) || ((*(byte *)((int)local_6c + 0xb3) & 0x20) == 0)) {\n        bVar4 = true;\n",
+  },
+  {
+    label: "FUN_00427584",
+    before: "        bVar4 = false;\n      }\n      if (!bVar4) goto LAB_00429f13;\n    }\n    if (local_6c[0xb1] < 0) {\n      iVar17 = 0;\n      if (*(int *)(local_6c + 0x8f) != 0) {\n        uVar27 = FUN_0045fc10(0,iVar7);\n        uVar25 = (int)((uint)(ushort)((short)uVar27 * 2) * 100) >> 0x10;\n        if (uVar25 < 0x1e) {\n          iVar7 = 0;\n",
+    after: String.raw`        bVar4 = false;
+      }
+      if (!bVar4) {
+        E2R_TraceActorUpdateExit("27584.exit-default-high20",local_6c,uVar19);
+        goto LAB_00429f13;
+      }
+    }
+    if (local_6c[0xb1] < 0) {
+      iVar17 = 0;
+      if (*(int *)(local_6c + 0x8f) != 0) {
+        E2R_TraceActorUpdateExit("27584.check-before-default-rng",local_6c,uVar19);
+        uVar27 = FUN_0045fc10(0,iVar7);
+        uVar25 = (int)((uint)(ushort)((short)uVar27 * 2) * 100) >> 0x10;
+        E2R_TraceActorUpdateExit("27584.check-after-default-rng",local_6c,uVar25);
+        if (uVar25 < 0x1e) {
+          iVar7 = 0;
+`,
+  },
+  {
+    label: "FUN_00427584",
+    before: "        }\n        local_6c[0xb4] = (short)iVar7;\n        iVar7 = *(int *)(*(int *)(local_6c + 0x8f) + 0x24 + iVar7 * 2) >> 0x10;\n        iVar17 = extraout_ECX_44;\n        if (-1 < iVar7) {\n          uVar27 = FUN_00451880(extraout_ECX_44,iVar7);\n          iVar17 = *(int *)((undefined1 *)0x0062ba20 + (int)((ulonglong)uVar27 >> 0x20) * 4);\n        }\n      }\n",
+    after: String.raw`        }
+        local_6c[0xb4] = (short)iVar7;
+        E2R_TraceActorUpdateExit("27584.check-default-category",local_6c,(uint)iVar7);
+        iVar7 = *(int *)(*(int *)(local_6c + 0x8f) + 0x24 + iVar7 * 2) >> 0x10;
+        iVar17 = extraout_ECX_44;
+        if (-1 < iVar7) {
+          E2R_TraceActorUpdateExit("27584.check-before-default-51880",local_6c,(uint)iVar7);
+          uVar27 = FUN_00451880(extraout_ECX_44,iVar7);
+          iVar17 = *(int *)((undefined1 *)0x0062ba20 + (int)((ulonglong)uVar27 >> 0x20) * 4);
+          E2R_TraceActorUpdateExit("27584.check-after-default-51880",local_6c,(uint)((ulonglong)uVar27 >> 0x20));
+        }
+      }
+`,
+  },
+  {
+    label: "FUN_00427584",
+    before: "      local_6c[0xb1] = -1;\n    }\n    FUN_0042b0f4();\n    uVar25 = extraout_ECX_45;\n    if ((local_6c[0x41] != 9) && (local_6c[0x41] != 8)) {\n",
+    after: "      local_6c[0xb1] = -1;\n    }\n    E2R_TraceActorUpdateExit(\"27584.check-before-default-b0f4\",local_6c,uVar19);\n    E2R_TraceActorUpdateStage(\"27584.before-rep-fallback-action\",local_6c);\n    FUN_0042b0f4();\n    E2R_TraceActorUpdateStage(\"27584.after-rep-fallback-action\",local_6c);\n    E2R_TraceActorUpdateExit(\"27584.check-after-default-b0f4\",local_6c,uVar19);\n    uVar25 = extraout_ECX_45;\n    if ((local_6c[0x41] != 9) && (local_6c[0x41] != 8)) {\n",
+  },
+  {
+    label: "FUN_00427584",
+    before: "  else {\n    if ((*(byte *)(local_6c + 1) & 0x40) == 0) {\n      if (uVar19 == local_6c[0x4b]) goto LAB_00429f13;\n      if ((((*(int *)(local_6c + 0x53) == 0) || ((*(byte *)(local_6c + 0x59) & 0x40) == 0)) ||\n          (local_6c[0x41] == 9)) || (local_6c[0x41] == 5)) {\n",
+    after: "  else {\n    if ((*(byte *)(local_6c + 1) & 0x40) == 0) {\n      if (uVar19 == local_6c[0x4b]) {\n        E2R_TraceActorUpdateExit(\"27584.exit-selected-same-action\",local_6c,uVar19);\n        goto LAB_00429f13;\n      }\n      if ((((*(int *)(local_6c + 0x53) == 0) || ((*(byte *)(local_6c + 0x59) & 0x40) == 0)) ||\n          (local_6c[0x41] == 9)) || (local_6c[0x41] == 5)) {\n",
+  },
+  {
+    label: "FUN_00427584",
+    before: "        bVar4 = false;\n      }\n      if (!bVar4) goto LAB_00429f13;\n    }\n    iVar7 = 0;\n",
+    after: "        bVar4 = false;\n      }\n      if (!bVar4) {\n        E2R_TraceActorUpdateExit(\"27584.exit-selected-flag40\",local_6c,uVar19);\n        goto LAB_00429f13;\n      }\n    }\n    iVar7 = 0;\n",
+  },
+  {
+    label: "FUN_00427584",
+    before: "      local_6c[0xb1] = -1;\n    }\n    FUN_0042b0f4();\n    uVar25 = extraout_ECX_46;\n    if (((local_6c[0x41] != 9) && (local_6c[0x41] != 8)) &&\n",
+    after: "      local_6c[0xb1] = -1;\n    }\n    E2R_TraceActorUpdateExit(\"27584.check-before-selected-b0f4\",local_6c,uVar19);\n    E2R_TraceActorUpdateStage(\"27584.before-rep-state-action\",local_6c);\n    FUN_0042b0f4();\n    E2R_TraceActorUpdateStage(\"27584.after-rep-state-action\",local_6c);\n    E2R_TraceActorUpdateExit(\"27584.check-after-selected-b0f4\",local_6c,uVar19);\n    uVar25 = extraout_ECX_46;\n    if (((local_6c[0x41] != 9) && (local_6c[0x41] != 8)) &&\n",
+  },
+  {
+    label: "FUN_00427584",
+    before: "  local_6c[0x4b] = uVar19;\nLAB_00429f13:\n  *(byte *)(local_6c + 0xa3) = *(byte *)(local_6c + 0xa3) & 0xfb;\n  uVar25 = CONCAT22((short)(uVar25 >> 0x10),CONCAT11((char)local_6c[1],(char)uVar25)) & 0xffffbfff;\n",
+    after: "  local_6c[0x4b] = uVar19;\nLAB_00429f13:\n  E2R_TraceActorUpdateExit(\"27584.exit-label\",local_6c,uVar19);\n  *(byte *)(local_6c + 0xa3) = *(byte *)(local_6c + 0xa3) & 0xfb;\n  uVar25 = CONCAT22((short)(uVar25 >> 0x10),CONCAT11((char)local_6c[1],(char)uVar25)) & 0xffffbfff;\n",
+  },
+  {
+    label: "E2R_ParseArchiveRepResource",
+    before: "      continue;\n    }\n    break;\n  }\n",
+    after: String.raw`      continue;
+    }
+    if (E2R_RepRecordDiagEnabled()) {
+      fprintf(stderr,
+              "rep archive stop: want=%d rep=%d records=%u offset=%u limit=%u fields=%04x,%04x,%04x,%04x,%04x version=%d\n",
+              (int)expected_rep_id,rep != (short *)0x0 ? (int)*rep : -1,
+              record_count,(uint)(record - base),(uint)(limit - base),
+              (unsigned int)type,(unsigned int)id,(unsigned int)(ushort)field2,
+              (unsigned int)(ushort)field3,
+              (unsigned int)E2R_ReadFanRecordWord(record,4),(int)_DAT_0067bc92);
+    }
+    break;
+  }
+`,
+  },
+  {
+    label: "FUN_00451880",
+    before: "  uStack_4 = param_2;\n  in_AX = (short)param_2;\n  uVar4 = FUN_0045190c(param_1,(int)in_AX);\n  uVar3 = (undefined4)((ulonglong)uVar4 >> 0x20);\n  uVar1 = (uint)uVar4;\n  uVar2 = 0;\n  if (uVar1 != 0) {\n",
+    after: "  uStack_4 = param_2;\n  in_AX = (short)param_2;\n  E2R_TraceActionLookup(\"51880.entry\",(int)in_AX,0);\n  uVar4 = FUN_0045190c(param_1,(int)in_AX);\n  uVar3 = (undefined4)((ulonglong)uVar4 >> 0x20);\n  uVar1 = (uint)uVar4;\n  E2R_TraceActionLookup(\"51880.after-5190c\",(int)in_AX,(int)uVar1);\n  uVar2 = 0;\n  if (uVar1 != 0) {\n",
+  },
+  {
+    label: "FUN_0045190c",
+    before: "  uVar2 = 0;\n  in_AX = (short)param_2;\n  if ((-1 < in_AX) && (iVar1 = in_AX * 4, *(int *)((undefined1 *)0x0062ba20 + iVar1) == 0)) {\n    DAT_0047a788 = 1;\n    if (DAT_0047ab10 == 0) {\n      uVar3 = FUN_00441b24(DAT_0047a470,iVar1);\n      uVar3 = FUN_00451e84(extraout_ECX,(int)((ulonglong)uVar3 >> 0x20));\n      uVar2 = (undefined4)uVar3;\n      DAT_0047a470 = E2R_TraceCurrentActorWrite(\"5190c.direct\",(uintptr_t)extraout_ECX_00);\n    }\n    else if (*(int *)(iVar1 + 0x64f060) < 0) {\n      uVar2 = 1;\n    }\n    else {\n      FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x64f060));\n      E2R_ParseArchiveFanResource();\n      uVar2 = 0;\n      DAT_0047a470 = E2R_TraceCurrentActorWrite(\"5190c.archive\",(uintptr_t)extraout_ECX_02);\n    }\n  }\n  return CONCAT44(param_2,uVar2);\n}\n",
+    after: String.raw`  uVar2 = 0;
+  in_AX = (short)param_2;
+  E2R_TraceActionLookup("5190c.entry",(int)in_AX,0);
+  if ((-1 < in_AX) && (iVar1 = in_AX * 4, *(int *)((undefined1 *)0x0062ba20 + iVar1) == 0)) {
+    DAT_0047a788 = 1;
+    if (DAT_0047ab10 == 0) {
+      E2R_TraceActionLookup("5190c.direct-before-load",(int)in_AX,0);
+      uVar3 = FUN_00441b24(DAT_0047a470,iVar1);
+      uVar3 = FUN_00451e84(extraout_ECX,(int)((ulonglong)uVar3 >> 0x20));
+      uVar2 = (undefined4)uVar3;
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("5190c.direct",(uintptr_t)extraout_ECX_00);
+      E2R_TraceActionLookup("5190c.direct-after-load",(int)in_AX,(int)uVar2);
+    }
+    else if (*(int *)(iVar1 + 0x64f060) < 0) {
+      uVar2 = 1;
+      E2R_TraceActionLookup("5190c.archive-missing",(int)in_AX,(int)uVar2);
+    }
+    else {
+      E2R_TraceActionLookup("5190c.archive-before-seek",(int)in_AX,0);
+      FUN_0045f296(DAT_0047a470,*(int *)(iVar1 + 0x64f060));
+      E2R_TraceActionLookup("5190c.archive-after-seek",(int)in_AX,0);
+      E2R_ParseArchiveFanResource();
+      E2R_TraceActionLookup("5190c.archive-after-parse",(int)in_AX,0);
+      uVar2 = 0;
+      DAT_0047a470 = E2R_TraceCurrentActorWrite("5190c.archive",(uintptr_t)extraout_ECX_02);
+      E2R_TraceActionLookup("5190c.archive-after-current",(int)in_AX,(int)uVar2);
+    }
+  }
+  E2R_TraceActionLookup("5190c.exit",(int)in_AX,(int)uVar2);
+  return CONCAT44(param_2,uVar2);
+}
+`,
+  },
+];
+for (const { label, before, after } of scene175DiagnosticPatches) {
+  const first = source.indexOf(before);
+  if (first < 0 || source.indexOf(before, first + 1) >= 0) {
+    throw new Error(`Expected one scene-175 diagnostic anchor: ${label}`);
+  }
+  source = source.slice(0, first) + after + source.slice(first + before.length);
+}
+// Original 0x427ad9, 0x429d55 and 0x429ed5 pass the current actor in EAX.
+// Bridge those calls through the existing context, restoring any enclosing owner.
+const actionUpdateStart = source.indexOf("/* 00427584 */");
+const actionUpdateEnd = source.indexOf("/* 0042a098 */", actionUpdateStart);
+if (actionUpdateStart < 0 || actionUpdateEnd <= actionUpdateStart) {
+  throw new Error("Missing FUN_00427584 body for actor context repair");
+}
+const actionUpdateBody = source.slice(actionUpdateStart, actionUpdateEnd);
+const defaultActionCall = "    FUN_0042b0f4();";
+if (actionUpdateBody.split(defaultActionCall).length !== 4) {
+  throw new Error("Expected three FUN_00427584 calls to FUN_0042b0f4");
+}
+source = source.slice(0, actionUpdateStart) + actionUpdateBody.replaceAll(
+  defaultActionCall,
+  `    {
+      int saved_actor_context = E2R_actor_calc_context;
+      E2R_actor_calc_context = (int)(uintptr_t)local_6c;
+      FUN_0042b0f4();
+      E2R_actor_calc_context = saved_actor_context;
+    }`
+) + source.slice(actionUpdateEnd);
+
+// 0x42759a saves incoming EDX as local_64. At 0x429f68-0x429f76,
+// EAX = actor + 0xa6, EDX = actor, EBX = that saved advance amount.
+// The callee preserves these inputs at 0x42ae87-0x42ae8b.
+const actionAdvanceSignature = "void __fastcall FUN_0042ae80(undefined4 param_1,int param_2)";
+const recoveredActionAdvanceSignature = "void __fastcall FUN_0042ae80(int *action_slot,int param_2,int advance)";
+for (const [before, after] of [
+  [actionAdvanceSignature, recoveredActionAdvanceSignature],
+  ["  FUN_0042ae80(uVar25,(int)local_6c);",
+   "  FUN_0042ae80((int *)(local_6c + 0x53),(int)local_6c,local_64);"],
+  ["  int unaff_EBX;\n\n  if (*in_EAX == 0) {",
+   "  int unaff_EBX;\n\n  in_EAX = action_slot;\n  unaff_EBX = advance;\n  if (*in_EAX == 0) {"]
+]) {
+  if (source.split(before).length !== 2) {
+    throw new Error("Expected one FUN_0042ae80 input anchor");
+  }
+  source = source.replace(before, after);
+}
+const actionAdvancePrototype = prototypes.indexOf(actionAdvanceSignature + ";");
+if (actionAdvancePrototype < 0) {
+  throw new Error("Missing FUN_0042ae80 prototype");
+}
+prototypes[actionAdvancePrototype] = recoveredActionAdvanceSignature + ";";
+
+// Original 0x429bcc..0x429bd5 loads the queued action word at actor +0x162.
+// The stale representation pointer here could load an unrelated FAN and replace
+// the live floor grid before the release gravity query.
+const queuedIdleActionCall = "      FUN_00451880(uVar25,iVar7);\n      iVar17 = *(int *)((undefined1 *)0x0062ba20 + (*(int *)(local_6c + 0xb0) >> 0x10) * 4);";
+if (source.split(queuedIdleActionCall).length !== 2) {
+  throw new Error("Expected one queued idle-action caller");
+}
+source = source.replace(queuedIdleActionCall,
+  "      FUN_00451880(0,(int)local_6c[0xb1]);\n      iVar17 = *(int *)((undefined1 *)0x0062ba20 + (*(int *)(local_6c + 0xb0) >> 0x10) * 4);");
+
+// Motion-query register recovery: actor ECX survives 0x4495e0/0x449680.
+// Query EAX is position +0x84 (or the packed candidate at ESP); EBX is an
+// optional output, null at all direct callers except 0x449529 (local_58).
+// 0x448b65 reads a fixed-address BYTE, not a host uintptr_t array element.
+const motionQueryPatches = [
+  ["  if ((local_6c == DAT_0047a470) ||\n     ((*(int *)(local_6c + 0x8f) != 0 && (-1 < *(short *)(*(int *)(local_6c + 0x8f) + 4))))) {\n    FUN_004495e0();\n  }\n  if (*(int *)(local_6c + 0x53) != 0) {\n",
+   "  if ((local_6c == DAT_0047a470) ||\n     ((*(int *)(local_6c + 0x8f) != 0 && (-1 < *(short *)(*(int *)(local_6c + 0x8f) + 4))))) {\n    FUN_004495e0((int)(uintptr_t)local_6c);\n  }\n  if (*(int *)(local_6c + 0x53) != 0) {\n"],
+  ["\n{\n  FUN_00448a48(param_1,param_2);\n  return;\n}\n",
+   "\n{\n  FUN_00448a48(param_1,param_2,0);\n  return;\n}\n"],
+  ["/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */\n\nint __fastcall FUN_00448a48(undefined4 param_1,undefined4 param_2)\n\n{\n",
+   "/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */\n\nint __fastcall FUN_00448a48(undefined4 param_1,undefined4 param_2,int *surface_id)\n\n{\n"],
+  ["  undefined8 uVar7;\n\n  uVar7 = FUN_00448744(param_1,param_2);\n  psVar6 = (short *)((ulonglong)uVar7 >> 0x20);\n",
+   "  undefined8 uVar7;\n\n  unaff_EBX = surface_id;\n  uVar7 = FUN_00448744(param_1,param_2);\n  psVar6 = (short *)((ulonglong)uVar7 >> 0x20);\n"],
+  ["    *unaff_EBX = iVar4;\n  }\n  if (((&DAT_00636624)[iVar4 * 2] & 4) != 0) {\n    return -0x8000;\n  }\n",
+   "    *unaff_EBX = iVar4;\n  }\n  if ((*(byte *)(uintptr_t)(0x00636624 + iVar4 * 2) & 4) != 0) {\n    return -0x8000;\n  }\n"],
+  ["  sStack_64 = (short)((*(int *)((uint)uStack_2c * 2 + 0x59b58e) >> 0x10) * local_4c >> 0xe) +\n              (short)local_50;\n  iVar5 = FUN_00448a48((int)(short)uStack_2c,in_EAX);\n  sVar6 = sStack_66 - (short)iVar5;\n  if (sVar6 < -0x100) {\n",
+   "  sStack_64 = (short)((*(int *)((uint)uStack_2c * 2 + 0x59b58e) >> 0x10) * local_4c >> 0xe) +\n              (short)local_50;\n  iVar5 = FUN_00448a48((int)(short)uStack_2c,in_EAX,0);\n  sVar6 = sStack_66 - (short)iVar5;\n  if (sVar6 < -0x100) {\n"],
+  ["  local_68 = (short)((*(int *)(uVar8 * 2 + 0x5de58e) >> 0x10) * local_4c >> 0xe) + (short)local_5c;\n  sStack_64 = (short)((*(int *)(uVar8 * 2 + 0x59b58e) >> 0x10) * local_4c >> 0xe) + (short)local_50;\n  iVar5 = FUN_00448a48((int)(short)uStack_2c + 0x1000U,in_EAX);\n  if ((0x100 < sStack_66 - iVar5) && (local_40 < 0x32)) {\n    local_d4[local_40] = extraout_CX_00;\n",
+   "  local_68 = (short)((*(int *)(uVar8 * 2 + 0x5de58e) >> 0x10) * local_4c >> 0xe) + (short)local_5c;\n  sStack_64 = (short)((*(int *)(uVar8 * 2 + 0x59b58e) >> 0x10) * local_4c >> 0xe) + (short)local_50;\n  iVar5 = FUN_00448a48((int)(short)uStack_2c + 0x1000U,in_EAX,0);\n  if ((0x100 < sStack_66 - iVar5) && (local_40 < 0x32)) {\n    local_d4[local_40] = extraout_CX_00;\n"],
+  ["  local_68 = (short)((*(int *)(uVar8 * 2 + 0x5de58e) >> 0x10) * local_4c >> 0xe) + (short)local_5c;\n  sStack_64 = (short)((*(int *)(uVar8 * 2 + 0x59b58e) >> 0x10) * local_4c >> 0xe) + (short)local_50;\n  iVar5 = FUN_00448a48((int)(short)uStack_2c - 0x1000U,in_EAX);\n  if ((0x100 < sStack_66 - iVar5) && (local_40 < 0x32)) {\n    local_d4[local_40] = extraout_CX_01;\n",
+   "  local_68 = (short)((*(int *)(uVar8 * 2 + 0x5de58e) >> 0x10) * local_4c >> 0xe) + (short)local_5c;\n  sStack_64 = (short)((*(int *)(uVar8 * 2 + 0x59b58e) >> 0x10) * local_4c >> 0xe) + (short)local_50;\n  iVar5 = FUN_00448a48((int)(short)uStack_2c - 0x1000U,in_EAX,0);\n  if ((0x100 < sStack_66 - iVar5) && (local_40 < 0x32)) {\n    local_d4[local_40] = extraout_CX_01;\n"],
+  ["  local_68 = (short)((*(int *)(uVar8 * 2 + 0x5de58e) >> 0x10) * local_4c >> 0xe) + (short)local_5c;\n  sStack_64 = (short)((*(int *)(uVar8 * 2 + 0x59b58e) >> 0x10) * local_4c >> 0xe) + (short)local_50;\n  iVar5 = FUN_00448a48((int)(short)uStack_2c + 0x3000U,in_EAX);\n  sVar6 = sStack_66 - (short)iVar5;\n  if ((sVar6 < -0x100) && ((short)local_18 == 0)) {\n",
+   "  local_68 = (short)((*(int *)(uVar8 * 2 + 0x5de58e) >> 0x10) * local_4c >> 0xe) + (short)local_5c;\n  sStack_64 = (short)((*(int *)(uVar8 * 2 + 0x59b58e) >> 0x10) * local_4c >> 0xe) + (short)local_50;\n  iVar5 = FUN_00448a48((int)(short)uStack_2c + 0x3000U,in_EAX,0);\n  sVar6 = sStack_66 - (short)iVar5;\n  if ((sVar6 < -0x100) && ((short)local_18 == 0)) {\n"],
+  ["  local_68 = (short)((*(int *)(uVar8 * 2 + 0x5de58e) >> 0x10) * local_4c >> 0xe) + (short)local_5c;\n  sStack_64 = (short)((*(int *)(uVar8 * 2 + 0x59b58e) >> 0x10) * local_4c >> 0xe) + (short)local_50;\n  iVar5 = FUN_00448a48((int)(short)uStack_2c - 0x3000U,in_EAX);\n  sVar6 = sStack_66 - (short)iVar5;\n  iVar5 = extraout_ECX;\n",
+   "  local_68 = (short)((*(int *)(uVar8 * 2 + 0x5de58e) >> 0x10) * local_4c >> 0xe) + (short)local_5c;\n  sStack_64 = (short)((*(int *)(uVar8 * 2 + 0x59b58e) >> 0x10) * local_4c >> 0xe) + (short)local_50;\n  iVar5 = FUN_00448a48((int)(short)uStack_2c - 0x3000U,in_EAX,0);\n  sVar6 = sStack_66 - (short)iVar5;\n  iVar5 = extraout_ECX;\n"],
+  ["  local_6c = *(short *)(in_EAX + 0x88) + (short)local_34;\n  uStack_6e = *(undefined2 *)(in_EAX + 0x86);\n  iVar5 = FUN_00448a48(local_34,0);\n  uStack_6e = (undefined2)iVar5;\n  iVar5 = FUN_00448a48(extraout_ECX_01,0);\n  sVar6 = (short)iVar5;\n  if (((local_58 == 7) && ((*(byte *)(in_EAX + 3) & 1) == 0)) &&\n",
+   "  local_6c = *(short *)(in_EAX + 0x88) + (short)local_34;\n  uStack_6e = *(undefined2 *)(in_EAX + 0x86);\n  iVar5 = FUN_00448a48(local_34,0,0);\n  uStack_6e = (undefined2)iVar5;\n  iVar5 = FUN_00448a48(extraout_ECX_01,0,&local_58);\n  sVar6 = (short)iVar5;\n  if (((local_58 == 7) && ((*(byte *)(in_EAX + 3) & 1) == 0)) &&\n"],
+  ["/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */\n\nvoid FUN_004495e0(void)\n\n{\n",
+   "/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */\n\nvoid FUN_004495e0(int actor)\n\n{\n"],
+  ["  int iVar2;\n\n  iVar1 = 0;\n  iVar2 = _DAT_00637378;\n",
+   "  int iVar2;\n\n  in_EAX = actor;\n  iVar1 = 0;\n  iVar2 = _DAT_00637378;\n"],
+  ["    iVar1 = FUN_00449680(in_EAX,7);\n    iVar2 = iVar2 + -7;\n    in_EAX = extraout_ECX;\n  } while (iVar1 == 0);\n  if (iVar1 == 0) {\n    iVar1 = FUN_00449680(in_EAX,iVar2);\n    in_EAX = extraout_ECX_00;\n  }\n  if (iVar1 != 0) {\n",
+   "    iVar1 = FUN_00449680(in_EAX,7);\n    iVar2 = iVar2 + -7;\n  } while (iVar1 == 0);\n  if (iVar1 == 0) {\n    iVar1 = FUN_00449680(in_EAX,iVar2);\n  }\n  if (iVar1 != 0) {\n"],
+  ["      *(short *)(in_EAX + 0x5c) = (short)iVar1;\n    }\n    FUN_00422aa0(in_EAX,(undefined2 *)(in_EAX + 0x84));\n  }\n  return;\n",
+   "      *(short *)(in_EAX + 0x5c) = (short)iVar1;\n    }\n    FUN_00422aa0(in_EAX + 0x64,(undefined2 *)(in_EAX + 0x84));\n  }\n  return;\n"],
+  ["  int extraout_EDX_00;\n  undefined4 uVar6;\n  short local_20;\n  undefined4 local_1e;\n  int local_18;\n\n  local_18 = FUN_00448a48(in_EAX,0);\n  iVar4 = *(int *)(extraout_ECX + 0x84) >> 0x10;\n  uVar6 = 0;\n  if ((iVar4 - local_18 < 0) ||\n     ((iVar5 = extraout_ECX, iVar4 == local_18 && (*(short *)(extraout_ECX + 0x5a) < 0)))) {\n    local_20 = *(short *)(extraout_ECX + 0x58) * (short)param_2;\n    local_1e = (uint)(ushort)(*(short *)(extraout_ECX + 0x5c) * (short)param_2) << 0x10;\n    FUN_00448c1c(extraout_ECX,(int *)&local_20);\n    iVar4 = FUN_00448a48(extraout_ECX_00,0);\n    iVar5 = (*(int *)(extraout_ECX_01 + 0x58) >> 0x10) * param_2;\n    local_18 = iVar4;\n    if (iVar5 < iVar4 - (*(int *)(extraout_ECX_01 + 0x84) >> 0x10)) {\n      *(short *)(extraout_ECX_01 + 0x5a) =\n           *(short *)(extraout_ECX_01 + 0x5a) + (short)(param_2 << 2);\n      local_20 = *(short *)(extraout_ECX_01 + 0x84);\n      local_1e = CONCAT22(*(undefined2 *)(extraout_ECX_01 + 0x88),\n                          *(short *)(extraout_ECX_01 + 0x86) + (short)iVar5);\n      iVar3 = FUN_00448a48(extraout_ECX_01,0);\n      iVar5 = extraout_ECX_02;\n      if (iVar3 != iVar4) {\n        *(undefined2 *)(extraout_ECX_02 + 0x5a) = 0;\n        goto LAB_0044976c;\n      }\n      uVar2 = (undefined2)local_1e;\n    }\n    else {\n      uVar2 = (undefined2)iVar4;\n      iVar5 = extraout_ECX_01;\n    }\n    *(undefined2 *)(iVar5 + 0x86) = uVar2;\n",
+   "  int extraout_EDX_00;\n  undefined4 uVar6;\n  short local_20[3];\n  int local_18;\n\n  in_EAX = param_1;\n  local_18 = FUN_00448a48(in_EAX + 0x84,0,0);\n  iVar4 = *(int *)(in_EAX + 0x84) >> 0x10;\n  uVar6 = 0;\n  if ((iVar4 - local_18 < 0) ||\n     ((iVar5 = in_EAX, iVar4 == local_18 && (*(short *)(in_EAX + 0x5a) < 0)))) {\n    local_20[0] = *(short *)(in_EAX + 0x58) * (short)param_2;\n    local_20[1] = 0;\n    local_20[2] = *(short *)(in_EAX + 0x5c) * (short)param_2;\n    FUN_00448c1c(in_EAX,(int *)&local_20);\n    iVar4 = FUN_00448a48(in_EAX + 0x84,0,0);\n    iVar5 = (*(int *)(in_EAX + 0x58) >> 0x10) * param_2;\n    local_18 = iVar4;\n    if (iVar5 < iVar4 - (*(int *)(in_EAX + 0x84) >> 0x10)) {\n      *(short *)(in_EAX + 0x5a) =\n           *(short *)(in_EAX + 0x5a) + (short)(param_2 << 2);\n      local_20[0] = *(short *)(in_EAX + 0x84);\n      local_20[1] = *(short *)(in_EAX + 0x86) + (short)iVar5;\n      local_20[2] = *(short *)(in_EAX + 0x88);\n      iVar3 = FUN_00448a48((undefined4)(uintptr_t)local_20,0,0);\n      iVar5 = in_EAX;\n      if (iVar3 != iVar4) {\n        *(undefined2 *)(in_EAX + 0x5a) = 0;\n        goto LAB_0044976c;\n      }\n      uVar2 = (undefined2)local_20[1];\n    }\n    else {\n      uVar2 = (undefined2)iVar4;\n      iVar5 = in_EAX;\n    }\n    *(undefined2 *)(iVar5 + 0x86) = uVar2;\n"],
+  ["      if (iVar5 == DAT_0047a470) {\n        FUN_0044c164(iVar5);\n        iVar5 = extraout_ECX_03;\n        iVar4 = extraout_EDX;\n      }\n",
+   "      if (iVar5 == DAT_0047a470) {\n        FUN_0044c164(iVar5);\n        iVar5 = in_EAX;\n        iVar4 = extraout_EDX;\n      }\n"],
+  ["          if (iVar5 == DAT_0047a470) {\n            FUN_00456a3c();\n            iVar5 = extraout_ECX_04;\n            iVar4 = extraout_EDX_00;\n          }\n",
+   "          if (iVar5 == DAT_0047a470) {\n            FUN_00456a3c();\n            iVar5 = in_EAX;\n            iVar4 = extraout_EDX_00;\n          }\n"],
+  ["    if (-1 < iVar3) {\n      FUN_00451880(iVar5,iVar4);\n      iVar5 = extraout_ECX_05;\n      if (*(int *)((undefined1 *)0x0062ba20 + iVar3 * 4) != 0) {\n        FUN_0045186c(extraout_ECX_05,*(int *)((undefined1 *)0x0062ba20 + iVar3 * 4));\n        iVar5 = extraout_ECX_06;\n      }\n    }\n",
+   "    if (-1 < iVar3) {\n      FUN_00451880(iVar5,iVar4);\n      iVar5 = in_EAX;\n      if (*(int *)((undefined1 *)0x0062ba20 + iVar3 * 4) != 0) {\n        FUN_0045186c(in_EAX,*(int *)((undefined1 *)0x0062ba20 + iVar3 * 4));\n        iVar5 = in_EAX;\n      }\n    }\n"],
+ ];
+for (const [before, after] of motionQueryPatches) {
+  if (source.split(before).length !== 2) {
+    throw new Error("Expected one motion-query recovery anchor");
+  }
+  source = source.replace(before, after);
+}
+for (const [before, after] of [
+  ["void FUN_004495e0(void);", "void FUN_004495e0(int actor);"],
+  ["int __fastcall FUN_00448a48(undefined4 param_1,undefined4 param_2);",
+   "int __fastcall FUN_00448a48(undefined4 param_1,undefined4 param_2,int *surface_id);"]
+]) {
+  const index = prototypes.indexOf(before);
+  if (index < 0) throw new Error("Missing motion-query prototype");
+  prototypes[index] = after;
+}
+
+// Original 0x451914 saves the current actor in ECX before any action lookup;
+// 0x451988 restores it on every exit, including cached/missing actions.
+const actionLoaderStart = source.indexOf("/* 0045190c */");
+const actionLoaderEnd = source.indexOf("/* 00451998 */", actionLoaderStart);
+if (actionLoaderStart < 0 || actionLoaderEnd <= actionLoaderStart) {
+  throw new Error("Missing action-loader body");
+}
+let actionLoaderBody = source.slice(actionLoaderStart, actionLoaderEnd);
+for (const [before, after] of [
+  ["  undefined8 uVar3;", "  undefined8 uVar3;\n  uintptr_t entry_actor;"],
+  ["  uVar2 = 0;\n  in_AX = (short)param_2;",
+   "  entry_actor = DAT_0047a470;\n  uVar2 = 0;\n  in_AX = (short)param_2;"],
+  ['("5190c.direct",(uintptr_t)extraout_ECX_00)', '("5190c.direct",entry_actor)'],
+  ['("5190c.archive",(uintptr_t)extraout_ECX_02)', '("5190c.archive",entry_actor)'],
+  ['  E2R_TraceActionLookup("5190c.exit"',
+   '  DAT_0047a470 = entry_actor;\n  E2R_TraceActionLookup("5190c.exit"']
+]) {
+  if (actionLoaderBody.split(before).length !== 2) {
+    throw new Error("Expected one action-loader actor restoration anchor");
+  }
+  actionLoaderBody = actionLoaderBody.replace(before, after);
+}
+source = source.slice(0, actionLoaderStart) + actionLoaderBody + source.slice(actionLoaderEnd);
+
+// Original 0x42ae87 preserves the slot in ECX across helpers; 0x42aee5 and
+// 0x42afd6 pass the owning actor to reset/update. The next action id is EAX
+// at 0x42af03. In 0x42b338, EDI retains the incoming EBX actor and supplies
+// EAX to the child commit/interpolation helpers at 0x42b3ed and 0x42b470.
+for (const [address, nextAddress, before, after, all] of [
+  ["0042ae80", "0042b004", "    FUN_0042b004();", "    {\n      int prior_actor_context = E2R_actor_calc_context;\n      E2R_actor_calc_context = param_2;\n      FUN_0042b004();\n      E2R_actor_calc_context = prior_actor_context;\n    }", false],
+  ["0042ae80", "0042b004", "  FUN_0042b338(in_EAX,uVar4);", "  {\n    int prior_actor_context = E2R_actor_calc_context;\n    E2R_actor_calc_context = param_2;\n    FUN_0042b338(in_EAX,uVar4);\n    E2R_actor_calc_context = prior_actor_context;\n  }", false],
+  ["0042ae80", "0042b004", "  int *extraout_ECX_01;\n", "", false],
+  ["0042ae80", "0042b004", "extraout_ECX_01", "action_slot", true],
+  ["0042ae80", "0042b004", "  int *extraout_ECX_00;\n", "", false],
+  ["0042ae80", "0042b004", "extraout_ECX_00", "action_slot", true],
+  ["0042ae80", "0042b004", "  int *extraout_ECX;\n", "", false],
+  ["0042ae80", "0042b004", "extraout_ECX", "action_slot", true],
+  ["0042ae80", "0042b004", "  undefined4 extraout_EDX;\n", "", false],
+  ["0042ae80", "0042b004", "FUN_00451880(action_slot,extraout_EDX);", "FUN_00451880(action_slot,*(int *)(*action_slot + 0xe) >> 0x10);", false],
+  ["0042b338", "0042b490", "  in_EAX = (int *)(uintptr_t)param_1;", "  unaff_EBX = (short *)(uintptr_t)E2R_actor_calc_context;\n  in_EAX = (int *)(uintptr_t)param_1;", false],
+  ["0042b338", "0042b490", "FUN_0042b5fc();", "FUN_0042b5fc((int)(uintptr_t)unaff_EBX);", false],
+  ["0042b338", "0042b490", "FUN_0042b490(uVar4,uVar3);", "FUN_0042b490((int)(uintptr_t)unaff_EBX,uVar3);", false],
+  ["0042b490", "0042b5fc", "  int in_EAX;", "  int in_EAX = (int)param_1;", false],
+  ["0042b5fc", "0042b880", "void FUN_0042b5fc(void)", "void FUN_0042b5fc(int actor)", false],
+  ["0042b5fc", "0042b880", "  int in_EAX;", "  int in_EAX = actor;", false],
+  ["0042b338", "0042b490", "  uint extraout_ECX;\n", "", false],
+  ["0042b338", "0042b490", "        uVar4 = extraout_ECX;\n", "", false]
+]) {
+  const start = source.indexOf(`/* ${address} */`);
+  const end = source.indexOf(`/* ${nextAddress} */`, start);
+  if (start < 0 || end <= start) throw new Error("Missing action callback body");
+  let body = source.slice(start, end);
+  const count = body.split(before).length - 1;
+  if (count < 1 || (!all && count !== 1)) throw new Error("Missing/ambiguous action callback anchor");
+  body = all ? body.split(before).join(after) : body.replace(before, after);
+  source = source.slice(0, start) + body + source.slice(end);
+}
+{
+  const index = prototypes.indexOf("void FUN_0042b5fc(void);");
+  if (index < 0) throw new Error("Missing action child commit prototype");
+  prototypes[index] = "void FUN_0042b5fc(int actor);";
+}
+
+// Original 0x4523a7/0x4523a9 pass the scene name and message to 0x43cbb4,
+// which builds a contiguous [EAX, EDX, 0] stack list. Recover that wrapper
+// at the missing-scene call site without guessing other callers' inputs.
+{
+  const before = "        FUN_00441e38((short)iVar2,iVar1);\n        uVar3 = FUN_0043cbb4(extraout_ECX_01);";
+  const after = "        /* Inline 0x43cbb4's original [message, scene name, NULL] stack list. */\n        undefined4 message_lines[3];\n        uVar3 = FUN_00441e38((short)iVar2,iVar1);\n        message_lines[0] = (undefined4)(uintptr_t)\"Can't find scene\"; /* 0x47563c */\n        message_lines[1] = (undefined4)uVar3;\n        message_lines[2] = 0;\n        uVar3 = FUN_0043cbf0((undefined4)(uintptr_t)message_lines,0);";
+  if (source.split(before).length !== 2) throw new Error("Missing scene-message list anchor");
+  source = source.replace(before, after);
+}
+
+// Original keyframe allocator 0x453762/0x45378b scans byte flags in the
+// fixed 15-byte pool. Stage this correction with action indexing while
+// distinct keys expose unrecovered scene-activation pose inputs.
+{
+  const start = source.indexOf("/* 00453754 */");
+  const end = source.indexOf("/* 004537bc */", start);
+  if (start < 0 || end <= start) throw new Error("Missing keyframe allocator");
+  let body = source.slice(start, end);
+  if (body.split("DAT_007c872a").length !== 3 || body.split("(&DAT_007c8739)[iVar2]").length !== 2)
+    throw new Error("Unexpected keyframe flag anchors");
+  body = body.split("DAT_007c872a").join("(E2R_ActionIndexProbeEnabled() ? *(byte *)(uintptr_t)0x007c872a : DAT_007c872a)")
+             .replace("(&DAT_007c8739)[iVar2]", "(E2R_ActionIndexProbeEnabled() ? *(byte *)(uintptr_t)(0x007c8739 + iVar2) : (&DAT_007c8739)[iVar2])");
+  source = source.slice(0, start) + body + source.slice(end);
+}
+
+// Camera projection recovery (original 0x422368..0x42311a, 0x45de8b).
+// Exact anchors make unexpected upstream generator drift fail immediately.
+for (const [before, after] of [
+  [
+    "void __fastcall FUN_00422368(undefined4 param_1,uint param_2)\n\n{\n  int *in_EAX;\n  int iVar1;\n  int iVar2;\n  int iVar3;\n  int iVar4;\n\n  in_EAX = (int *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(in_EAX,0x14) || (uintptr_t)in_EAX >= 0x70000000u) return;\n  iVar1 = *(int *)((int)in_EAX + 6) >> 0x10;\n  iVar4 = *(int *)((param_2 & 0xffff) * 2 + 0x59b58e) >> 0x10;\n  iVar3 = *(int *)((param_2 & 0xffff) * 2 + 0x5de58e) >> 0x10;\n  *(short *)((int)in_EAX + 2) =\n       (short)(iVar3 * (*in_EAX >> 0x10) + (*(int *)((int)in_EAX + 2) >> 0x10) * iVar4 >> 0xe);\n  iVar2 = -iVar4;\n  *(short *)(in_EAX + 1) =\n       (short)((*in_EAX >> 0x10) * iVar2 + iVar3 * (*(int *)((int)in_EAX + 2) >> 0x10) >> 0xe);\n  *(short *)(in_EAX + 2) = (short)(iVar1 * iVar3 + iVar4 * (in_EAX[2] >> 0x10) >> 0xe);\n  *(short *)((int)in_EAX + 10) = (short)((in_EAX[2] >> 0x10) * iVar3 + iVar1 * iVar2 >> 0xe);\n  *(short *)((int)in_EAX + 0xe) =\n       (short)(iVar4 * (*(int *)((int)in_EAX + 0xe) >> 0x10) + iVar3 * (in_EAX[3] >> 0x10) >> 0xe);\n  *(short *)(in_EAX + 4) =\n       (short)(iVar3 * (*(int *)((int)in_EAX + 0xe) >> 0x10) + iVar2 * (in_EAX[3] >> 0x10) >> 0xe);\n  return;\n}",
+    "void __fastcall FUN_00422368(undefined4 param_1,uint param_2)\n\n{\n  short *matrix = (short *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(matrix,0x12) || (uintptr_t)matrix >= 0x70000000u) return;\n  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);\n  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);\n  for (int row = 0; row < 3; ++row) {\n    int a = matrix[row * 3 + 1], b = matrix[row * 3 + 2];\n    matrix[row * 3 + 1] = (short)((a * cosine + (1) * b * sine) >> 14);\n    matrix[row * 3 + 2] = (short)((b * cosine - (1) * a * sine) >> 14);\n  }\n}"
+  ],
+  [
+    "void __fastcall FUN_00422460(undefined4 param_1,uint param_2)\n\n{\n  short sVar1;\n  int iVar2;\n  int iVar3;\n  short *in_EAX;\n  int iVar4;\n  int iVar5;\n\n  in_EAX = (short *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(in_EAX,0x14) || (uintptr_t)in_EAX >= 0x70000000u) return;\n  iVar5 = *(int *)((param_2 & 0xffff) * 2 + 0x59b58e) >> 0x10;\n  sVar1 = *in_EAX;\n  iVar4 = *(int *)((param_2 & 0xffff) * 2 + 0x5de58e) >> 0x10;\n  *in_EAX = (short)(iVar4 * sVar1 - (*(int *)(in_EAX + 1) >> 0x10) * iVar5 >> 0xe);\n  iVar2 = *(int *)(in_EAX + 2);\n  in_EAX[2] = (short)(sVar1 * iVar5 + (*(int *)(in_EAX + 1) >> 0x10) * iVar4 >> 0xe);\n  iVar3 = *(int *)(in_EAX + 5);\n  in_EAX[5] = (short)((iVar2 >> 0x10) * iVar5 + (*(int *)(in_EAX + 4) >> 0x10) * iVar4 >> 0xe);\n  in_EAX[6] = (short)(iVar4 * (iVar3 >> 0x10) - (*(int *)(in_EAX + 7) >> 0x10) * iVar5 >> 0xe);\n  in_EAX[3] = (short)(iVar4 * (iVar2 >> 0x10) - (*(int *)(in_EAX + 4) >> 0x10) * iVar5 >> 0xe);\n  in_EAX[8] = (short)(iVar4 * (*(int *)(in_EAX + 7) >> 0x10) + iVar5 * (iVar3 >> 0x10) >> 0xe);\n  return;\n}",
+    "void __fastcall FUN_00422460(undefined4 param_1,uint param_2)\n\n{\n  short *matrix = (short *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(matrix,0x12) || (uintptr_t)matrix >= 0x70000000u) return;\n  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);\n  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);\n  for (int row = 0; row < 3; ++row) {\n    int a = matrix[row * 3 + 0], b = matrix[row * 3 + 2];\n    matrix[row * 3 + 0] = (short)((a * cosine + (-1) * b * sine) >> 14);\n    matrix[row * 3 + 2] = (short)((b * cosine - (-1) * a * sine) >> 14);\n  }\n}"
+  ],
+  [
+    "void __fastcall FUN_00422538(undefined4 param_1,uint param_2)\n\n{\n  int *in_EAX;\n  int iVar1;\n  int iVar2;\n  int iVar3;\n  int iVar4;\n\n  in_EAX = (int *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(in_EAX,0x14) || (uintptr_t)in_EAX >= 0x70000000u) return;\n  iVar3 = *(int *)((param_2 & 0xffff) * 2 + 0x59b58e) >> 0x10;\n  iVar4 = *in_EAX;\n  iVar2 = *(int *)((param_2 & 0xffff) * 2 + 0x5de58e) >> 0x10;\n  *(short *)in_EAX = (short)(iVar2 * (short)iVar4 + (*in_EAX >> 0x10) * iVar3 >> 0xe);\n  iVar1 = -iVar3;\n  *(short *)((int)in_EAX + 2) = (short)((short)iVar4 * iVar1 + iVar2 * (*in_EAX >> 0x10) >> 0xe);\n  *(short *)((int)in_EAX + 6) =\n       (short)((in_EAX[1] >> 0x10) * iVar2 + iVar3 * (*(int *)((int)in_EAX + 6) >> 0x10) >> 0xe);\n  iVar4 = *(int *)((int)in_EAX + 10) >> 0x10;\n  *(short *)(in_EAX + 2) =\n       (short)((*(int *)((int)in_EAX + 6) >> 0x10) * iVar2 + (in_EAX[1] >> 0x10) * iVar1 >> 0xe);\n  *(short *)(in_EAX + 3) = (short)(iVar3 * (in_EAX[3] >> 0x10) + iVar2 * iVar4 >> 0xe);\n  *(short *)((int)in_EAX + 0xe) = (short)(iVar2 * (in_EAX[3] >> 0x10) + iVar1 * iVar4 >> 0xe);\n  return;\n}",
+    "void __fastcall FUN_00422538(undefined4 param_1,uint param_2)\n\n{\n  short *matrix = (short *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(matrix,0x12) || (uintptr_t)matrix >= 0x70000000u) return;\n  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);\n  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);\n  for (int row = 0; row < 3; ++row) {\n    int a = matrix[row * 3 + 0], b = matrix[row * 3 + 1];\n    matrix[row * 3 + 0] = (short)((a * cosine + (1) * b * sine) >> 14);\n    matrix[row * 3 + 1] = (short)((b * cosine - (1) * a * sine) >> 14);\n  }\n}"
+  ],
+  [
+    "void FUN_00422abc(void)\n\n{\n  short sVar1;\n  short sVar2;\n  undefined4 extraout_ECX;\n  undefined4 extraout_ECX_00;\n  undefined4 extraout_ECX_01;\n  int iVar3;\n  undefined4 extraout_ECX_02;\n  undefined4 extraout_ECX_03;\n  undefined4 extraout_ECX_04;\n  undefined4 extraout_ECX_05;\n  undefined4 extraout_ECX_06;\n  undefined4 extraout_ECX_07;\n  undefined4 extraout_ECX_08;\n  undefined4 uVar4;\n  undefined4 extraout_ECX_09;\n  int iVar5;\n  undefined4 *puVar6;\n  undefined4 *puVar7;\n  short local_44 [4];\n  short local_3c [4];\n  short local_34 [4];\n  short local_2c [4];\n  short local_24 [4];\n  short local_1c [4];\n\n  if ((DAT_0047a34a == 0) || (DAT_0047a366 != 0)) {\n    E2R_SetIdentityMatrix((undefined2 *)0x006372aa);\n    uVar4 = 0x006372aa;\n    if (_DAT_006372c0 != 0) {\n      FUN_00422538(uVar4,(int)_DAT_006372c0);\n    }\n    if (_DAT_006372bc != 0) {\n      FUN_00422368(uVar4,(int)_DAT_006372bc);\n    }\n    if (_DAT_006372be != 0) {\n      FUN_00422460(uVar4,(int)_DAT_006372be);\n    }\n  }\n  else {\n    E2R_ApplyEulerMatrix((short *)0x006372aa,(short *)0x006372bc);\n  }\n  puVar6 = (undefined4 *)(undefined1 *)0x006372aa;\n  puVar7 = (undefined4 *)(undefined1 *)0x00637286;\n  for (iVar3 = 4; iVar3 != 0; iVar3 = iVar3 + -1) {\n    *puVar7 = *puVar6;\n    puVar6 = puVar6 + 1;\n    puVar7 = puVar7 + 1;\n  }\n  *(undefined2 *)puVar7 = *(undefined2 *)puVar6;\n  _DAT_006372d4 = _DAT_006372bc;\n  _DAT_006372d6 = _DAT_006372be;\n  _DAT_006372d8 = _DAT_006372c0;\n  _DAT_006372c8 = _DAT_006372c2;\n  _DAT_006372ca = _DAT_006372c4;\n  _DAT_006372cc = _DAT_006372c6;\n  if (DAT_0047a34a != 0) {\n    _DAT_006372d0 = _DAT_006372be + -0x4000;\n    if (DAT_0047a366 == 0) {\n      _DAT_006372ce = _DAT_006372bc;\n      _DAT_006372d2 = _DAT_006372c0;\n      E2R_ApplyEulerMatrix((short *)0x00637298,(short *)0x006372ce);\n      _DAT_006372da = _DAT_006372c2;\n      _DAT_006372dc = _DAT_006372c4;\n      _DAT_006372de = (undefined2)(((_DAT_006372c4 >> 0x10) << 2) / 3);\n    }\n    else {\n      _DAT_006372d2 = _DAT_006372c0;\n      _DAT_006372ce = _DAT_006372bc;\n      E2R_SetIdentityMatrix((undefined2 *)0x00637298);\n      uVar4 = 0x00637298;\n      if (_DAT_006372d2 != 0) {\n        FUN_00422538(uVar4,(int)_DAT_006372d2);\n      }\n      if (_DAT_006372ce != 0) {\n        FUN_00422368(uVar4,(int)_DAT_006372ce);\n      }\n      if (_DAT_006372d0 != 0) {\n        FUN_00422460(uVar4,(int)_DAT_006372d0);\n      }\n      sVar1 = 0;\n      do {\n        iVar3 = (int)sVar1;\n        sVar1 = sVar1 + 1;\n        *(undefined2 *)((undefined1 *)0x006372da + iVar3 * 2) = *(undefined2 *)((undefined1 *)0x006372c2 + iVar3 * 2);\n      } while (sVar1 < 3);\n      if ((DAT_0047a470 != 0) && (iVar3 = *(int *)(DAT_0047a470 + 0x1e), iVar3 != 0)) {\n        sVar1 = 0;\n        do {\n          iVar5 = (int)sVar1;\n          sVar1 = sVar1 + 1;\n          local_2c[iVar5] =\n               *(short *)(iVar3 + 0x80 + iVar5 * 2) - *(short *)((undefined1 *)0x006372c2 + iVar5 * 2);\n        } while (sVar1 < 3);\n        FUN_0045de8b();\n        FUN_0045de8b();\n        sVar1 = 0;\n        do {\n          sVar2 = sVar1 + 1;\n          local_2c[sVar1] = local_1c[sVar1] - local_34[sVar1];\n          sVar1 = sVar2;\n        } while (sVar2 < 3);\n        FUN_00422628(extraout_ECX_05,(undefined2 *)0x637298);\n        FUN_0045de8b();\n        sVar1 = 0;\n        do {\n          iVar3 = (int)sVar1;\n          sVar1 = sVar1 + 1;\n          *(short *)((undefined1 *)0x006372da + iVar3 * 2) =\n               *(short *)((undefined1 *)0x006372c2 + iVar3 * 2) + local_34[iVar3];\n        } while (sVar1 < 3);\n      }\n    }\n    if (DAT_0047a366 == 0) {\n      _DAT_006372e0 = _DAT_006372bc + -0x4000;\n      _DAT_006372e2 = _DAT_006372be;\n      _DAT_006372e4 = _DAT_006372c0;\n      E2R_ApplyEulerMatrix((short *)0x00637274,(short *)0x006372e0);\n      _DAT_006372e6 = _DAT_006372c2;\n      _DAT_006372e8 = _DAT_006372c4;\n      _DAT_006372ea = (undefined2)(((_DAT_006372c4 >> 0x10) << 2) / 3);\n    }\n    else {\n      _DAT_006372e0 = CONCAT11((char)((ushort)_DAT_006372bc >> 8) + '@',(char)_DAT_006372bc);\n      _DAT_006372e2 = _DAT_006372be;\n      _DAT_006372e4 = _DAT_006372c0;\n      E2R_SetIdentityMatrix((undefined2 *)0x00637274);\n      uVar4 = 0x00637274;\n      if (_DAT_006372e4 != 0) {\n        FUN_00422538(uVar4,(int)_DAT_006372e4);\n      }\n      if (_DAT_006372e0 != 0) {\n        FUN_00422368(uVar4,(int)_DAT_006372e0);\n      }\n      if (_DAT_006372e2 != 0) {\n        FUN_00422460(uVar4,(int)_DAT_006372e2);\n      }\n      sVar1 = 0;\n      do {\n        iVar3 = (int)sVar1;\n        sVar1 = sVar1 + 1;\n        *(undefined2 *)((undefined1 *)0x006372e6 + iVar3 * 2) = *(undefined2 *)((undefined1 *)0x006372c2 + iVar3 * 2);\n      } while (sVar1 < 3);\n      if ((DAT_0047a470 != 0) && (iVar3 = *(int *)(DAT_0047a470 + 0x1e), iVar3 != 0)) {\n        sVar1 = 0;\n        do {\n          iVar5 = (int)sVar1;\n          sVar1 = sVar1 + 1;\n          local_3c[iVar5] =\n               *(short *)(iVar3 + 0x80 + iVar5 * 2) - *(short *)((undefined1 *)0x006372c2 + iVar5 * 2);\n        } while (sVar1 < 3);\n        FUN_0045de8b();\n        FUN_0045de8b();\n        sVar1 = 0;\n        do {\n          sVar2 = sVar1 + 1;\n          local_3c[sVar1] = local_24[sVar1] - local_44[sVar1];\n          sVar1 = sVar2;\n        } while (sVar2 < 3);\n        FUN_00422628(extraout_ECX_09,(undefined2 *)0x637274);\n        FUN_0045de8b();\n        sVar1 = 0;\n        do {\n          iVar3 = (int)sVar1;\n          sVar1 = sVar1 + 1;\n          *(short *)((undefined1 *)0x006372e6 + iVar3 * 2) =\n               *(short *)((undefined1 *)0x006372c2 + iVar3 * 2) + local_44[iVar3];\n        } while (sVar1 < 3);\n      }\n    }\n  }\n  return;\n}",
+    "void FUN_00422abc(void)\n\n{\n  short sVar1;\n  short sVar2;\n  undefined4 extraout_ECX;\n  undefined4 extraout_ECX_00;\n  undefined4 extraout_ECX_01;\n  int iVar3;\n  undefined4 extraout_ECX_02;\n  undefined4 extraout_ECX_03;\n  undefined4 extraout_ECX_04;\n  undefined4 extraout_ECX_05;\n  undefined4 extraout_ECX_06;\n  undefined4 extraout_ECX_07;\n  undefined4 extraout_ECX_08;\n  undefined4 uVar4;\n  undefined4 extraout_ECX_09;\n  int iVar5;\n  undefined4 *puVar6;\n  undefined4 *puVar7;\n  short local_44 [4];\n  short local_3c [4];\n  short local_34 [4];\n  short local_2c [4];\n  short local_24 [4];\n  short local_1c [4];\n\n  if ((DAT_0047a34a == 0) || (DAT_0047a366 != 0)) {\n    E2R_SetIdentityMatrix((undefined2 *)0x006372aa);\n    uVar4 = 0x006372aa;\n    if ((*(short *)(uintptr_t)0x006372c0) != 0) {\n      FUN_00422538(uVar4,(int)(*(short *)(uintptr_t)0x006372c0));\n    }\n    if ((*(short *)(uintptr_t)0x006372bc) != 0) {\n      FUN_00422368(uVar4,(int)(*(short *)(uintptr_t)0x006372bc));\n    }\n    if ((*(short *)(uintptr_t)0x006372be) != 0) {\n      FUN_00422460(uVar4,(int)(*(short *)(uintptr_t)0x006372be));\n    }\n  }\n  else {\n    E2R_ApplyEulerMatrix((short *)0x006372aa,(short *)0x006372bc);\n  }\n  puVar6 = (undefined4 *)(undefined1 *)0x006372aa;\n  puVar7 = (undefined4 *)(undefined1 *)0x00637286;\n  for (iVar3 = 4; iVar3 != 0; iVar3 = iVar3 + -1) {\n    *puVar7 = *puVar6;\n    puVar6 = puVar6 + 1;\n    puVar7 = puVar7 + 1;\n  }\n  *(undefined2 *)puVar7 = *(undefined2 *)puVar6;\n  _DAT_006372d4 = (*(short *)(uintptr_t)0x006372bc);\n  _DAT_006372d6 = (*(short *)(uintptr_t)0x006372be);\n  _DAT_006372d8 = (*(short *)(uintptr_t)0x006372c0);\n  _DAT_006372c8 = (*(short *)(uintptr_t)0x006372c2);\n  _DAT_006372ca = (*(short *)(uintptr_t)0x006372c4);\n  _DAT_006372cc = (*(short *)(uintptr_t)0x006372c6);\n  if (DAT_0047a34a != 0) {\n    _DAT_006372d0 = (*(short *)(uintptr_t)0x006372be) + -0x4000;\n    if (DAT_0047a366 == 0) {\n      _DAT_006372ce = (*(short *)(uintptr_t)0x006372bc);\n      _DAT_006372d2 = (*(short *)(uintptr_t)0x006372c0);\n      E2R_ApplyEulerMatrix((short *)0x00637298,(short *)0x006372ce);\n      _DAT_006372da = (*(short *)(uintptr_t)0x006372c2);\n      _DAT_006372dc = (*(short *)(uintptr_t)0x006372c4);\n      _DAT_006372de = (undefined2)(((int)*(short *)(uintptr_t)0x006372c6 * 4) / 3);\n    }\n    else {\n      _DAT_006372d2 = (*(short *)(uintptr_t)0x006372c0);\n      _DAT_006372ce = (*(short *)(uintptr_t)0x006372bc);\n      E2R_SetIdentityMatrix((undefined2 *)0x00637298);\n      uVar4 = 0x00637298;\n      if (_DAT_006372d2 != 0) {\n        FUN_00422538(uVar4,(int)_DAT_006372d2);\n      }\n      if (_DAT_006372ce != 0) {\n        FUN_00422368(uVar4,(int)_DAT_006372ce);\n      }\n      if (_DAT_006372d0 != 0) {\n        FUN_00422460(uVar4,(int)_DAT_006372d0);\n      }\n      sVar1 = 0;\n      do {\n        iVar3 = (int)sVar1;\n        sVar1 = sVar1 + 1;\n        *(undefined2 *)((undefined1 *)0x006372da + iVar3 * 2) = *(undefined2 *)((undefined1 *)0x006372c2 + iVar3 * 2);\n      } while (sVar1 < 3);\n      if ((DAT_0047a470 != 0) && (iVar3 = *(int *)(DAT_0047a470 + 0x1e), iVar3 != 0)) {\n        sVar1 = 0;\n        do {\n          iVar5 = (int)sVar1;\n          sVar1 = sVar1 + 1;\n          local_2c[iVar5] =\n               *(short *)(iVar3 + 0x80 + iVar5 * 2) - *(short *)((undefined1 *)0x006372c2 + iVar5 * 2);\n        } while (sVar1 < 3);\n        FUN_0045de8b();\n        FUN_0045de8b();\n        sVar1 = 0;\n        do {\n          sVar2 = sVar1 + 1;\n          local_2c[sVar1] = local_1c[sVar1] - local_34[sVar1];\n          sVar1 = sVar2;\n        } while (sVar2 < 3);\n        FUN_00422628(extraout_ECX_05,(undefined2 *)0x637298);\n        FUN_0045de8b();\n        sVar1 = 0;\n        do {\n          iVar3 = (int)sVar1;\n          sVar1 = sVar1 + 1;\n          *(short *)((undefined1 *)0x006372da + iVar3 * 2) =\n               *(short *)((undefined1 *)0x006372c2 + iVar3 * 2) + local_34[iVar3];\n        } while (sVar1 < 3);\n      }\n    }\n    if (DAT_0047a366 == 0) {\n      _DAT_006372e0 = (*(short *)(uintptr_t)0x006372bc) + -0x4000;\n      _DAT_006372e2 = (*(short *)(uintptr_t)0x006372be);\n      _DAT_006372e4 = (*(short *)(uintptr_t)0x006372c0);\n      E2R_ApplyEulerMatrix((short *)0x00637274,(short *)0x006372e0);\n      _DAT_006372e6 = (*(short *)(uintptr_t)0x006372c2);\n      _DAT_006372e8 = (*(short *)(uintptr_t)0x006372c4);\n      _DAT_006372ea = (undefined2)(((int)*(short *)(uintptr_t)0x006372c6 * 4) / 3);\n    }\n    else {\n      _DAT_006372e0 = CONCAT11((char)((ushort)(*(short *)(uintptr_t)0x006372bc) >> 8) + '@',(char)(*(short *)(uintptr_t)0x006372bc));\n      _DAT_006372e2 = (*(short *)(uintptr_t)0x006372be);\n      _DAT_006372e4 = (*(short *)(uintptr_t)0x006372c0);\n      E2R_SetIdentityMatrix((undefined2 *)0x00637274);\n      uVar4 = 0x00637274;\n      if (_DAT_006372e4 != 0) {\n        FUN_00422538(uVar4,(int)_DAT_006372e4);\n      }\n      if (_DAT_006372e0 != 0) {\n        FUN_00422368(uVar4,(int)_DAT_006372e0);\n      }\n      if (_DAT_006372e2 != 0) {\n        FUN_00422460(uVar4,(int)_DAT_006372e2);\n      }\n      sVar1 = 0;\n      do {\n        iVar3 = (int)sVar1;\n        sVar1 = sVar1 + 1;\n        *(undefined2 *)((undefined1 *)0x006372e6 + iVar3 * 2) = *(undefined2 *)((undefined1 *)0x006372c2 + iVar3 * 2);\n      } while (sVar1 < 3);\n      if ((DAT_0047a470 != 0) && (iVar3 = *(int *)(DAT_0047a470 + 0x1e), iVar3 != 0)) {\n        sVar1 = 0;\n        do {\n          iVar5 = (int)sVar1;\n          sVar1 = sVar1 + 1;\n          local_3c[iVar5] =\n               *(short *)(iVar3 + 0x80 + iVar5 * 2) - *(short *)((undefined1 *)0x006372c2 + iVar5 * 2);\n        } while (sVar1 < 3);\n        FUN_0045de8b();\n        FUN_0045de8b();\n        sVar1 = 0;\n        do {\n          sVar2 = sVar1 + 1;\n          local_3c[sVar1] = local_24[sVar1] - local_44[sVar1];\n          sVar1 = sVar2;\n        } while (sVar2 < 3);\n        FUN_00422628(extraout_ECX_09,(undefined2 *)0x637274);\n        FUN_0045de8b();\n        sVar1 = 0;\n        do {\n          iVar3 = (int)sVar1;\n          sVar1 = sVar1 + 1;\n          *(short *)((undefined1 *)0x006372e6 + iVar3 * 2) =\n               *(short *)((undefined1 *)0x006372c2 + iVar3 * 2) + local_44[iVar3];\n        } while (sVar1 < 3);\n      }\n    }\n  }\n  return;\n}"
+  ],
+  [
+    "void __fastcall FUN_00422fd8(undefined4 param_1,int param_2)\n\n{\n  int in_EAX;\n  int iVar1;\n  short sVar2;\n  short local_1c [4];\n\n  if ((DAT_0047a34a == 0) || (DAT_0047a366 == 1)) {\n    sVar2 = 0;\n    do {\n      iVar1 = (int)sVar2;\n      sVar2 = sVar2 + 1;\n      local_1c[iVar1] = *(short *)(param_2 + iVar1 * 2) - *(short *)((undefined1 *)0x006372c2 + iVar1 * 2);\n    } while (sVar2 < 3);\n    FUN_0045de8b();\n  }\n  else {\n    FUN_0045de8b();\n    sVar2 = 0;\n    do {\n      iVar1 = (int)sVar2;\n      sVar2 = sVar2 + 1;\n      *(short *)(in_EAX + iVar1 * 2) =\n           *(short *)(in_EAX + iVar1 * 2) + *(short *)((undefined1 *)0x006372c2 + iVar1 * 2);\n    } while (sVar2 < 3);\n  }\n  if (*(short *)(in_EAX + 4) < 0x80) {\n    *(undefined2 *)(in_EAX + 4) = 0;\n  }\n  else {\n    FUN_00423070((int *)(uintptr_t)in_EAX);\n  }\n  return;\n}",
+    "/* Original 0x45de8b: EBX=input, ESI=row-major Q14 matrix, EDI=output.\n * Keep this explicit entry separate from callers whose register inputs are\n * still unrecovered. Unsigned accumulation preserves x86 32-bit wraparound. */\nvoid E2R_TransformVector14(short *output,const short *input,const short *matrix)\n{\n  short value[3];\n  memcpy(value,input,sizeof(value));\n  for (int row = 0; row < 3; ++row) {\n    uint32_t sum = 0;\n    for (int col = 0; col < 3; ++col)\n      sum += (uint32_t)((int32_t)value[col] * matrix[row * 3 + col]);\n    output[row] = (short)((int32_t)sum >> 14);\n  }\n}\n\nvoid __fastcall FUN_00422fd8(undefined4 param_1,int param_2)\n\n{\n  short *output = (short *)(uintptr_t)param_1;\n  const short *input = (const short *)(uintptr_t)param_2;\n  const short *camera = (const short *)0x006372c2;\n  short relative[3];\n  if (DAT_0047a34a == 0 || DAT_0047a366 == 1) {\n    for (int i = 0; i < 3; ++i) relative[i] = (short)(input[i] - camera[i]);\n    E2R_TransformVector14(output,relative,(const short *)0x006372aa);\n  } else {\n    E2R_TransformVector14(output,input,(const short *)0x006372aa);\n    for (int i = 0; i < 3; ++i) output[i] = (short)(output[i] + camera[i]);\n  }\n  if (output[2] < 0x80) output[2] = 0;\n  else FUN_00423070((int *)output);\n}"
+  ],
+  [
+    "void FUN_00423070(int *coord)\n\n{\n  int *in_EAX;\n  int iVar1;\n  int iVar2;\n  int iVar3;\n\n  in_EAX = coord;\n  if (in_EAX == (int *)0x0 || (uintptr_t)in_EAX < 0x10000u ||\n      0x70000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,6) ||\n      (*(int *)((int)in_EAX + 2) >> 0x10) == 0) {\n    return;\n  }\n  iVar1 = DAT_0047a2a4 / (*(int *)((int)in_EAX + 2) >> 0x10);\n  iVar2 = iVar1 - (iVar1 >> 3);\n  if (DAT_0047a43c != 0) {\n    iVar2 = (iVar2 * 0xc) / 5;\n    iVar1 = iVar1 * 2;\n  }\n  iVar3 = (short)*in_EAX * iVar1 >> 10;\n  iVar1 = iVar3;\n  if (iVar3 < 1) {\n    iVar1 = -iVar3;\n  }\n  if (iVar1 < 0x7fff) {\n    *(short *)in_EAX = (short)iVar3;\n    iVar2 = (*in_EAX >> 0x10) * iVar2 >> 10;\n    iVar1 = iVar2;\n    if (iVar2 < 1) {\n      iVar1 = -iVar2;\n    }\n    if (0x7ffe < iVar1) {\n      *(short *)(in_EAX + 1) = 0;\n      return;\n    }\n    *(short *)((int)in_EAX + 2) = (short)iVar2;\n  }\n  else {\n    *(short *)(in_EAX + 1) = 0;\n  }\n  return;\n}",
+    "void FUN_00423070(int *coord)\n\n{\n  short *point = (short *)coord;\n  int scale_x, scale_y, x, y;\n  if (point[2] == 0) return;\n  scale_x = (int)DAT_0047a2a4 / point[2];\n  scale_y = scale_x - (scale_x >> 3);\n  if (DAT_0047a43c != 0) {\n    scale_y = scale_y * 12 / 5;\n    scale_x *= 2;\n  }\n  x = (int32_t)((uint32_t)((int32_t)point[0] * scale_x)) >> 10;\n  y = (int32_t)((uint32_t)((int32_t)point[1] * scale_y)) >> 10;\n  if (x <= -0x7fff || x >= 0x7fff || y <= -0x7fff || y >= 0x7fff) {\n    point[2] = 0;\n    return;\n  }\n  point[0] = (short)x;\n  point[1] = (short)y;\n}"
+  ],
+  [
+    "  short local_1c;\n\n  _DAT_00640204 = 1;",
+    "  short projected[3];\n\n  _DAT_00640204 = 1;"
+  ],
+  [
+    "      FUN_00422fd8(param_1,iVar2 + 0x84);\n      if (local_1c < 0x2001)",
+    "      FUN_00422fd8((undefined4)(uintptr_t)projected,iVar2 + 0x84);\n      if (projected[2] < 0x2001)"
+  ],
+  [
+    "      FUN_00422fd8(iVar6,iVar2 + 0x10);",
+    "      FUN_00422fd8((undefined4)(uintptr_t)(iVar2 + 0x16),iVar2 + 0x10);"
+  ],
+  [
+    "    FUN_00422fd8(iVar2,(int)psVar3);",
+    "    FUN_00422fd8((undefined4)(uintptr_t)(psVar3 + 3),(int)psVar3);"
+  ]
+]) {
+  if (source.split(before).length !== 2) throw new Error("Camera projection anchor mismatch: " + before.slice(0,80));
+  source = source.replace(before, after);
+}
+
+
+// Restore original Q14 sine/cosine table initialization.
+{
+  const before = "  for (x = 0; x < 256; x = x + 1) {\n    double phase = ((double)x * pi) / 128.0;";
+  const after = "  /* Original 0x415491..0x4154fb; constants at 0x471371/0x4713a1/0x471379.\n   * 0x45f556 truncates toward zero. These tables were missing entirely. */\n  for (x = 0; x < 65536; ++x) {\n    double phase = (double)x * 6.28318 / 65536.0;\n    *(short *)(0x0059b590 + x * 2) = (short)(sin(phase) * 16384.5);\n    *(short *)(0x005de590 + x * 2) = (short)(cos(phase) * 16384.5);\n  }\n\n  for (x = 0; x < 256; x = x + 1) {\n    double phase = ((double)x * pi) / 128.0;";
+  if (source.split(before).length !== 2) throw new Error("Missing trig initialization anchor");
+  source = source.replace(before,after);
+}
+
+// Scene activation pose inputs, original 0x452540..0x4525a5.
+for (const [before, after] of [
+  [
+    "void FUN_00426010(void)\n\n{\n  int iVar1;\n  int in_EAX;\n  int iVar2;\n  int iVar4;\n  int iVar3;\n\n  iVar1 = *(int *)(in_EAX + 0x1e);\n  *(undefined2 *)(in_EAX + 0x122) = *(undefined2 *)(in_EAX + 0x124);\n  for (; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {\n    iVar3 = iVar1;\n    do {\n      iVar2 = iVar3 + 2;\n      *(undefined2 *)(iVar3 + 0x26) = *(undefined2 *)(iVar3 + 0x9e);\n      *(undefined2 *)(iVar3 + 0x2c) = *(undefined2 *)(iVar3 + 0xa4);\n      *(undefined2 *)(iVar3 + 0x110) = *(undefined2 *)(iVar3 + 0x116);\n      *(undefined2 *)(iVar3 + 0x56) = *(undefined2 *)(iVar3 + 0xaa);\n      *(undefined2 *)(iVar3 + 0x68) = *(undefined2 *)(iVar3 + 0xb0);\n      *(undefined2 *)(iVar3 + 0x6e) = *(undefined2 *)(iVar3 + 0xb6);\n      *(undefined2 *)(iVar3 + 0x74) = *(undefined2 *)(iVar3 + 0xbc);\n      iVar3 = iVar2;\n    } while (iVar2 != iVar1 + 6);\n    *(undefined2 *)(iVar1 + 2) = *(undefined2 *)(iVar1 + 200);\n    *(undefined2 *)(iVar1 + 4) = *(undefined2 *)(iVar1 + 0xc2);\n    *(undefined2 *)(iVar1 + 0xce) = *(undefined2 *)(iVar1 + 0xc4);\n    E2R_actor_calc_context = iVar1;\n    FUN_00432e08();\n    FUN_00442954();\n    FUN_004429e0();\n    E2R_actor_calc_context = 0;\n    for (iVar3 = *(int *)(iVar1 + 0x11e); iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x26)) {\n      iVar2 = iVar3;\n      do {\n        iVar4 = iVar2 + 2;\n        *(undefined2 *)(iVar2 + 4) = *(undefined2 *)(iVar2 + 0x1c);\n        iVar2 = iVar4;\n      } while (iVar4 != iVar3 + 6);\n    }\n  }\n  for (iVar1 = *(int *)(in_EAX + 0xd8); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x1e)) {\n    *(undefined2 *)(iVar1 + 0x10) = *(undefined2 *)(iVar1 + 0x14);\n    *(undefined2 *)(iVar1 + 0x12) = *(undefined2 *)(iVar1 + 0x16);\n    *(undefined2 *)(iVar1 + 2) = *(undefined2 *)(iVar1 + 0x18);\n  }\n  return;\n}",
+    "void FUN_00426010(int actor)\n\n{\n  int iVar1;\n  int in_EAX = actor;\n  int entry_context = E2R_actor_calc_context;\n  int iVar2;\n  int iVar4;\n  int iVar3;\n\n  iVar1 = *(int *)(in_EAX + 0x1e);\n  *(undefined2 *)(in_EAX + 0x122) = *(undefined2 *)(in_EAX + 0x124);\n  for (; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {\n    iVar3 = iVar1;\n    do {\n      iVar2 = iVar3 + 2;\n      *(undefined2 *)(iVar3 + 0x26) = *(undefined2 *)(iVar3 + 0x9e);\n      *(undefined2 *)(iVar3 + 0x2c) = *(undefined2 *)(iVar3 + 0xa4);\n      *(undefined2 *)(iVar3 + 0x110) = *(undefined2 *)(iVar3 + 0x116);\n      *(undefined2 *)(iVar3 + 0x56) = *(undefined2 *)(iVar3 + 0xaa);\n      *(undefined2 *)(iVar3 + 0x68) = *(undefined2 *)(iVar3 + 0xb0);\n      *(undefined2 *)(iVar3 + 0x6e) = *(undefined2 *)(iVar3 + 0xb6);\n      *(undefined2 *)(iVar3 + 0x74) = *(undefined2 *)(iVar3 + 0xbc);\n      iVar3 = iVar2;\n    } while (iVar2 != iVar1 + 6);\n    *(undefined2 *)(iVar1 + 2) = *(undefined2 *)(iVar1 + 200);\n    *(undefined2 *)(iVar1 + 4) = *(undefined2 *)(iVar1 + 0xc2);\n    *(undefined2 *)(iVar1 + 0xce) = *(undefined2 *)(iVar1 + 0xc4);\n    E2R_actor_calc_context = iVar1;\n    FUN_00432e08();\n    FUN_00442954();\n    FUN_004429e0();\n    E2R_actor_calc_context = entry_context;\n    for (iVar3 = *(int *)(iVar1 + 0x11e); iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x26)) {\n      iVar2 = iVar3;\n      do {\n        iVar4 = iVar2 + 2;\n        *(undefined2 *)(iVar2 + 4) = *(undefined2 *)(iVar2 + 0x1c);\n        iVar2 = iVar4;\n      } while (iVar4 != iVar3 + 6);\n    }\n  }\n  for (iVar1 = *(int *)(in_EAX + 0xd8); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x1e)) {\n    *(undefined2 *)(iVar1 + 0x10) = *(undefined2 *)(iVar1 + 0x14);\n    *(undefined2 *)(iVar1 + 0x12) = *(undefined2 *)(iVar1 + 0x16);\n    *(undefined2 *)(iVar1 + 2) = *(undefined2 *)(iVar1 + 0x18);\n  }\n  return;\n}"
+  ],
+  [
+    "void FUN_00426124(void)\n\n{\n  int iVar1;\n  int in_EAX;\n  int iVar2;\n  int iVar4;\n  int iVar3;\n\n  iVar1 = *(int *)(in_EAX + 0x1e);\n  *(undefined2 *)(in_EAX + 0x122) = *(undefined2 *)(in_EAX + 0x124);\n  for (; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {\n    iVar3 = iVar1;\n    do {\n      iVar2 = iVar3 + 2;\n      *(undefined2 *)(iVar3 + 0x26) = *(undefined2 *)(iVar3 + 0x9e);\n      *(undefined2 *)(iVar3 + 0x2c) = *(undefined2 *)(iVar3 + 0xa4);\n      *(undefined2 *)(iVar3 + 0x110) = *(undefined2 *)(iVar3 + 0x116);\n      *(undefined2 *)(iVar3 + 0x56) = *(undefined2 *)(iVar3 + 0xaa);\n      *(undefined2 *)(iVar3 + 0x68) = *(undefined2 *)(iVar3 + 0xb0);\n      *(undefined2 *)(iVar3 + 0x6e) = *(undefined2 *)(iVar3 + 0xb6);\n      *(undefined2 *)(iVar3 + 0x74) = *(undefined2 *)(iVar3 + 0xbc);\n      iVar3 = iVar2;\n    } while (iVar2 != iVar1 + 6);\n    *(undefined2 *)(iVar1 + 4) = *(undefined2 *)(iVar1 + 0xc2);\n    E2R_actor_calc_context = iVar1;\n    FUN_00432e08();\n    FUN_00442954();\n    FUN_004429e0();\n    E2R_actor_calc_context = 0;\n    for (iVar3 = *(int *)(iVar1 + 0x11e); iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x26)) {\n      iVar2 = iVar3;\n      do {\n        iVar4 = iVar2 + 2;\n        *(undefined2 *)(iVar2 + 4) = *(undefined2 *)(iVar2 + 0x1c);\n        iVar2 = iVar4;\n      } while (iVar4 != iVar3 + 6);\n    }\n  }\n  for (iVar1 = *(int *)(in_EAX + 0xd8); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x1e)) {\n    *(undefined2 *)(iVar1 + 0x10) = *(undefined2 *)(iVar1 + 0x14);\n    *(undefined2 *)(iVar1 + 0x12) = *(undefined2 *)(iVar1 + 0x16);\n    *(undefined2 *)(iVar1 + 2) = *(undefined2 *)(iVar1 + 0x18);\n  }\n  return;\n}",
+    "void FUN_00426124(int actor)\n\n{\n  int iVar1;\n  int in_EAX = actor;\n  int entry_context = E2R_actor_calc_context;\n  int iVar2;\n  int iVar4;\n  int iVar3;\n\n  iVar1 = *(int *)(in_EAX + 0x1e);\n  *(undefined2 *)(in_EAX + 0x122) = *(undefined2 *)(in_EAX + 0x124);\n  for (; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {\n    iVar3 = iVar1;\n    do {\n      iVar2 = iVar3 + 2;\n      *(undefined2 *)(iVar3 + 0x26) = *(undefined2 *)(iVar3 + 0x9e);\n      *(undefined2 *)(iVar3 + 0x2c) = *(undefined2 *)(iVar3 + 0xa4);\n      *(undefined2 *)(iVar3 + 0x110) = *(undefined2 *)(iVar3 + 0x116);\n      *(undefined2 *)(iVar3 + 0x56) = *(undefined2 *)(iVar3 + 0xaa);\n      *(undefined2 *)(iVar3 + 0x68) = *(undefined2 *)(iVar3 + 0xb0);\n      *(undefined2 *)(iVar3 + 0x6e) = *(undefined2 *)(iVar3 + 0xb6);\n      *(undefined2 *)(iVar3 + 0x74) = *(undefined2 *)(iVar3 + 0xbc);\n      iVar3 = iVar2;\n    } while (iVar2 != iVar1 + 6);\n    *(undefined2 *)(iVar1 + 4) = *(undefined2 *)(iVar1 + 0xc2);\n    E2R_actor_calc_context = iVar1;\n    FUN_00432e08();\n    FUN_00442954();\n    FUN_004429e0();\n    E2R_actor_calc_context = entry_context;\n    for (iVar3 = *(int *)(iVar1 + 0x11e); iVar3 != 0; iVar3 = *(int *)(iVar3 + 0x26)) {\n      iVar2 = iVar3;\n      do {\n        iVar4 = iVar2 + 2;\n        *(undefined2 *)(iVar2 + 4) = *(undefined2 *)(iVar2 + 0x1c);\n        iVar2 = iVar4;\n      } while (iVar4 != iVar3 + 6);\n    }\n  }\n  for (iVar1 = *(int *)(in_EAX + 0xd8); iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x1e)) {\n    *(undefined2 *)(iVar1 + 0x10) = *(undefined2 *)(iVar1 + 0x14);\n    *(undefined2 *)(iVar1 + 0x12) = *(undefined2 *)(iVar1 + 0x16);\n    *(undefined2 *)(iVar1 + 2) = *(undefined2 *)(iVar1 + 0x18);\n  }\n  return;\n}"
+  ],
+  [
+    "    FUN_00420dcc();\n    FUN_00426010();",
+    "    FUN_00420dcc();\n    FUN_00426010(*(int *)(0x00630b60 + extraout_EDX * 4));"
+  ],
+  [
+    "          FUN_00426010();\n          psVar1[0x91] = extraout_var;",
+    "          short saved_pose = psVar1[0x91];\n          FUN_00426010((int)(uintptr_t)psVar1);\n          psVar1[0x91] = saved_pose;"
+  ],
+  [
+    "          if (DAT_00479e1c == 0) {\n            FUN_00426124();\n            sVar5 = extraout_DX;\n          }\n          else {\n            FUN_00426010();\n            sVar5 = extraout_DX_00;\n          }\n          psVar4[0x91] = sVar5;\n          *(undefined4 *)(psVar4 + 0x5e) = *(undefined4 *)(psVar4 + 0xf);\n          FUN_0045fc70(6,0);\n          FUN_00422330();",
+    "          /* Original EAX=actor, DX preserves +0x122 across pose restore. */\n          sVar5 = psVar4[0x91];\n          if (DAT_00479e1c == 0) {\n            FUN_00426124((int)(uintptr_t)psVar4);\n          }\n          else {\n            FUN_00426010((int)(uintptr_t)psVar4);\n          }\n          psVar4[0x91] = sVar5;\n          *(undefined4 *)(psVar4 + 0x5e) = *(undefined4 *)(psVar4 + 0xf);\n          memset(psVar4 + 0x48,0,6);\n          E2R_SetIdentityMatrix((undefined2 *)(psVar4 + 0x63));"
+  ],
+  [
+    "        *(short **)(psVar4 + 0x53) = psVar2 + 1;\n        *(short **)(psVar4 + 0x99) = in_EAX;\n        FUN_00426a80();",
+    "        *(short **)(psVar4 + 0x53) = psVar2 + 1;\n        *(short **)(psVar4 + 0x99) = in_EAX;\n        E2R_actor_calc_context = (int)(uintptr_t)psVar4;\n        FUN_00426a80();"
+  ]
+]) {
+  if (source.split(before).length !== 2) throw new Error("Scene pose anchor mismatch: " + before.slice(0,80));
+  source = source.replace(before,after);
+}
+for (const address of ["00426010", "00426124"]) {
+  const i = prototypes.indexOf(`void FUN_${address}(void);`);
+  if (i < 0) throw new Error("Missing pose prototype " + address);
+  prototypes[i] = `void FUN_${address}(int actor);`;
+}
+
+// Share projection math with read-only host cues using an explicit camera snapshot.
+for (const [before, after] of [
+  [
+    "void __fastcall FUN_00422368(undefined4 param_1,uint param_2)\n\n{\n  short *matrix = (short *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(matrix,0x12) || (uintptr_t)matrix >= 0x70000000u) return;\n  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);\n  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);\n  for (int row = 0; row < 3; ++row) {\n    int a = matrix[row * 3 + 1], b = matrix[row * 3 + 2];\n    matrix[row * 3 + 1] = (short)((a * cosine + (1) * b * sine) >> 14);\n    matrix[row * 3 + 2] = (short)((b * cosine - (1) * a * sine) >> 14);\n  }\n}",
+    "void __fastcall FUN_00422368(undefined4 param_1,uint param_2)\n\n{\n  short *matrix = (short *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(matrix,0x12)) return;\n  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);\n  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);\n  for (int row = 0; row < 3; ++row) {\n    int a = matrix[row * 3 + 1], b = matrix[row * 3 + 2];\n    matrix[row * 3 + 1] = (short)((a * cosine + (1) * b * sine) >> 14);\n    matrix[row * 3 + 2] = (short)((b * cosine - (1) * a * sine) >> 14);\n  }\n}"
+  ],
+  [
+    "void __fastcall FUN_00422460(undefined4 param_1,uint param_2)\n\n{\n  short *matrix = (short *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(matrix,0x12) || (uintptr_t)matrix >= 0x70000000u) return;\n  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);\n  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);\n  for (int row = 0; row < 3; ++row) {\n    int a = matrix[row * 3 + 0], b = matrix[row * 3 + 2];\n    matrix[row * 3 + 0] = (short)((a * cosine + (-1) * b * sine) >> 14);\n    matrix[row * 3 + 2] = (short)((b * cosine - (-1) * a * sine) >> 14);\n  }\n}",
+    "void __fastcall FUN_00422460(undefined4 param_1,uint param_2)\n\n{\n  short *matrix = (short *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(matrix,0x12)) return;\n  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);\n  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);\n  for (int row = 0; row < 3; ++row) {\n    int a = matrix[row * 3 + 0], b = matrix[row * 3 + 2];\n    matrix[row * 3 + 0] = (short)((a * cosine + (-1) * b * sine) >> 14);\n    matrix[row * 3 + 2] = (short)((b * cosine - (-1) * a * sine) >> 14);\n  }\n}"
+  ],
+  [
+    "void __fastcall FUN_00422538(undefined4 param_1,uint param_2)\n\n{\n  short *matrix = (short *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(matrix,0x12) || (uintptr_t)matrix >= 0x70000000u) return;\n  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);\n  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);\n  for (int row = 0; row < 3; ++row) {\n    int a = matrix[row * 3 + 0], b = matrix[row * 3 + 1];\n    matrix[row * 3 + 0] = (short)((a * cosine + (1) * b * sine) >> 14);\n    matrix[row * 3 + 1] = (short)((b * cosine - (1) * a * sine) >> 14);\n  }\n}",
+    "void __fastcall FUN_00422538(undefined4 param_1,uint param_2)\n\n{\n  short *matrix = (short *)(uintptr_t)param_1;\n  if (E2R_IsBadWritePtr(matrix,0x12)) return;\n  int sine = *(short *)(0x0059b590 + (param_2 & 0xffff) * 2);\n  int cosine = *(short *)(0x005de590 + (param_2 & 0xffff) * 2);\n  for (int row = 0; row < 3; ++row) {\n    int a = matrix[row * 3 + 0], b = matrix[row * 3 + 1];\n    matrix[row * 3 + 0] = (short)((a * cosine + (1) * b * sine) >> 14);\n    matrix[row * 3 + 1] = (short)((b * cosine - (1) * a * sine) >> 14);\n  }\n}"
+  ],
+  [
+    "void FUN_00423070(int *coord)\n\n{\n  short *point = (short *)coord;\n  int scale_x, scale_y, x, y;\n  if (point[2] == 0) return;\n  scale_x = (int)DAT_0047a2a4 / point[2];\n  scale_y = scale_x - (scale_x >> 3);\n  if (DAT_0047a43c != 0) {\n    scale_y = scale_y * 12 / 5;\n    scale_x *= 2;\n  }\n  x = (int32_t)((uint32_t)((int32_t)point[0] * scale_x)) >> 10;\n  y = (int32_t)((uint32_t)((int32_t)point[1] * scale_y)) >> 10;\n  if (x <= -0x7fff || x >= 0x7fff || y <= -0x7fff || y >= 0x7fff) {\n    point[2] = 0;\n    return;\n  }\n  point[0] = (short)x;\n  point[1] = (short)y;\n}",
+    "void E2R_Perspective14(short *point,int focal,int hires)\n\n{\n  int scale_x, scale_y, x, y;\n  if (point[2] == 0) return;\n  scale_x = focal / point[2];\n  scale_y = scale_x - (scale_x >> 3);\n  if (hires != 0) {\n    scale_y = scale_y * 12 / 5;\n    scale_x *= 2;\n  }\n  x = (int32_t)((uint32_t)((int32_t)point[0] * scale_x)) >> 10;\n  y = (int32_t)((uint32_t)((int32_t)point[1] * scale_y)) >> 10;\n  if (x <= -0x7fff || x >= 0x7fff || y <= -0x7fff || y >= 0x7fff) {\n    point[2] = 0;\n    return;\n  }\n  point[0] = (short)x;\n  point[1] = (short)y;\n}\n\nvoid FUN_00423070(int *coord)\n{\n  E2R_Perspective14((short *)coord,(int)DAT_0047a2a4,DAT_0047a43c != 0);\n}"
+  ]
+]) {
+  if (source.split(before).length !== 2) throw new Error("Explicit projection helper anchor mismatch");
+  source = source.replace(before,after);
+}
+
+// Preserve x86 multiply wraparound without signed C overflow.
+for (const [before, after] of [["(int32_t)((uint32_t)((int32_t)point[0] * scale_x)) >> 10", "(int32_t)((uint32_t)(int32_t)point[0] * (uint32_t)scale_x) >> 10"], ["(int32_t)((uint32_t)((int32_t)point[1] * scale_y)) >> 10", "(int32_t)((uint32_t)(int32_t)point[1] * (uint32_t)scale_y) >> 10"]]) {
+  if (source.split(before).length !== 2) throw new Error("Perspective arithmetic anchor mismatch");
+  source = source.replace(before,after);
+}
+
+// Actor matrix ownership; original 0x4210b8..0x421101.
+for (const [before, after] of [
+  [
+    "    FUN_00422330();\n    uVar4 = extraout_ECX_01;\n    if (in_EAX[0x49] != 0) {\n      FUN_00422460(extraout_ECX_01,(int)in_EAX[0x49]);\n      uVar4 = extraout_ECX_02;\n    }\n    if (in_EAX[0x48] != 0) {\n      FUN_00422368(uVar4,(int)in_EAX[0x48]);\n      uVar4 = extraout_ECX_03;\n    }\n    if (in_EAX[0x4a] != 0) {\n      FUN_00422538(uVar4,(int)in_EAX[0x4a]);\n    }",
+    "    /* Original 0x4210b8..0x421101: all rotations target actor + 6. */\n    E2R_ApplyEulerMatrix(in_EAX + 3,in_EAX + 0x48);"
+  ],
+  [
+    "void __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)",
+    "static void E2R_ApplyEulerMatrix(short *matrix,short *angles);\n\nvoid __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)"
+  ]
+]) {
+  if (source.split(before).length !== 2) throw new Error("Actor matrix anchor mismatch");
+  source = source.replace(before,after);
+}
+
+// Restore packed event metadata consumed by the opt-in action route.
+{
+  const before = "void FUN_00416cb4(void)\n\n{\n  _DAT_0063679e = 0;\n  _DAT_00636700 = 0;\n  _DAT_006367a0 = 0x110;\n  _DAT_00636702 = 0;\n  _DAT_006367a2 = 0x110;\n  _DAT_00636704 = 0;\n  _DAT_00636706 = 0;\n  _DAT_006367a6 = 0x110;\n  _DAT_00636708 = 0;\n  _DAT_006367a8 = 0x10;\n  _DAT_0063670a = 0;\n  _DAT_006367aa = 0x10;\n  _DAT_0063670c = 0;\n  _DAT_0063670e = 1;\n  _DAT_00636710 = 0;\n  _DAT_00636712 = 0;\n  _DAT_00636714 = 0;\n  _DAT_006367b4 = 0;\n  _DAT_006367b6 = 0;\n  _DAT_00636718 = 0;\n  _DAT_0063671a = 0;\n  _DAT_0063671e = 0;\n  _DAT_00636720 = 0;\n  _DAT_00636724 = 0;\n  _DAT_00636726 = 0;\n  _DAT_0063672a = 0;\n  _DAT_00636730 = 0;\n  _DAT_00636732 = 0;\n  _DAT_006367d2 = 0;\n  _DAT_00636734 = 0;\n  _DAT_006367d4 = 0;\n  _DAT_00636736 = 0;\n  _DAT_006367a4 = 0x14;\n  _DAT_006367ac = 0x16;\n  _DAT_006367ae = 4;\n  _DAT_006367b0 = 0x14;\n  _DAT_00636716 = 0;\n  _DAT_0063671c = 0;\n  _DAT_00636722 = 0;\n  _DAT_00636728 = 0;\n  _DAT_006367b2 = 0xc;\n  _DAT_006367ba = 0x16;\n  _DAT_006367bc = 8;\n  _DAT_006367be = 8;\n  _DAT_006367c0 = 8;\n  _DAT_0063672c = 1;\n  _DAT_0063672e = 1;\n  _DAT_006367b8 = 0x10;\n  _DAT_006367c6 = 8;\n  _DAT_00636738 = 0xffff;\n  _DAT_006367c2 = 0x88;\n  _DAT_006367c4 = 0x88;\n  _DAT_006367ca = 0x10e;\n  _DAT_006367cc = 0x10e;\n  _DAT_006367c8 = 0xe;\n  _DAT_006367d0 = 0;\n  _DAT_006367ce = 6;\n  _DAT_006367d6 = 0x16;\n  _DAT_006367d8 = 0x16;\n  _DAT_0063673a = 0xffff;\n  _DAT_006367da = 0x16;\n  _DAT_0063673c = 0xffff;\n  _DAT_006367fc = 0;\n  _DAT_0063675e = 0;\n  _DAT_00636760 = 0;\n  _DAT_00636764 = 0;\n  _DAT_00636808 = 0;\n  _DAT_0063676a = 0;\n  _DAT_0063680a = 0;\n  _DAT_0063676c = 0;\n  _DAT_00636740 = 0xffff;\n  _DAT_006367e0 = 0x16;\n  _DAT_00636742 = 0xffff;\n  _DAT_006367e2 = 0x16;\n  _DAT_00636744 = 0xffff;\n  _DAT_00636746 = 0xffff;\n  _DAT_00636748 = 0xffff;\n  _DAT_006367dc = 0x110;\n  _DAT_0063673e = 0;\n  _DAT_006367de = 0x16;\n  _DAT_006367e4 = 0x16;\n  _DAT_006367e6 = 0xe;\n  _DAT_006367ec = 0x10;\n  _DAT_006367ee = 0x10;\n  _DAT_006367f4 = 0xc;\n  _DAT_0063674e = 0;\n  _DAT_006367f0 = 0x14;\n  _DAT_00636750 = 0;\n  _DAT_00636752 = 0;\n  _DAT_006367f2 = 0x40;\n  _DAT_00636754 = 0;\n  _DAT_00636756 = 0;\n  _DAT_00636758 = 0;\n  _DAT_0063675a = 0;\n  _DAT_006367fa = 0x16;\n  _DAT_006367f6 = 0x24;\n  _DAT_006367f8 = 0x24;\n  _DAT_00636766 = 0xfffe;\n  _DAT_0063675c = 0xffff;\n  _DAT_006367fe = 0x14;\n  _DAT_00636800 = 8;\n  _DAT_00636802 = 8;\n  _DAT_00636770 = 0xffff;\n  _DAT_00636772 = 0xffff;\n  _DAT_00636774 = 0xffff;\n  _DAT_00636776 = 0xffff;\n  _DAT_00636778 = 0xffff;\n  _DAT_0063677a = 0xffff;\n  _DAT_00636762 = 0;\n  _DAT_0063676e = 0;\n  _DAT_00636804 = 0xe;\n  _DAT_0063680c = 0xe;\n  _DAT_0063680e = 0x16;\n  _DAT_00636810 = 0x16;\n  _DAT_00636812 = 0x16;\n  _DAT_00636814 = 0x16;\n  _DAT_00636816 = 0x16;\n  _DAT_00636818 = 0x16;\n  _DAT_0063681a = 0x16;\n  _DAT_0063677c = 0xffff;\n  _DAT_0063681c = 0x16;\n  _DAT_0063677e = 2;\n  _DAT_0063681e = 8;\n  _DAT_00636780 = 0;\n  _DAT_00636820 = 8;\n  _DAT_00636782 = 0;\n  _DAT_00636822 = 8;\n  _DAT_00636784 = 0;\n  _DAT_00636786 = 0;\n  _DAT_00636788 = 0;\n  _DAT_0063678a = 0;\n  _DAT_0063678c = 0;\n  _DAT_0063678e = 0;\n  _DAT_0063682e = 0x10;\n  _DAT_00636790 = 0;\n  _DAT_00636792 = 0;\n  _DAT_00636794 = 0;\n  _DAT_00636796 = 0;\n  _DAT_00636798 = 0;\n  _DAT_0063679a = 0;\n  _DAT_0063679c = 0;\n  _DAT_00636826 = 0x210;\n  _DAT_00636828 = 0x210;\n  _DAT_00636824 = 0x24;\n  _DAT_0063683a = 8;\n  _DAT_0063682a = 0x14;\n  _DAT_0063682c = 0xe;\n  _DAT_00636830 = 0x24;\n  _DAT_00636832 = 0x24;\n  _DAT_00636834 = 0x24;\n  _DAT_00636836 = 0x24;\n  _DAT_00636838 = 0x24;\n  return;\n}";
+  const after = "void FUN_00416cb4(void)\n\n{\n  _DAT_0063679e = 0;\n  _DAT_00636700 = 0;\n  _DAT_006367a0 = 0x110;\n  _DAT_00636702 = 0;\n  _DAT_006367a2 = 0x110;\n  _DAT_00636704 = 0;\n  _DAT_00636706 = 0;\n  _DAT_006367a6 = 0x110;\n  _DAT_00636708 = 0;\n  _DAT_006367a8 = 0x10;\n  _DAT_0063670a = 0;\n  _DAT_006367aa = 0x10;\n  _DAT_0063670c = 0;\n  _DAT_0063670e = 1;\n  _DAT_00636710 = 0;\n  _DAT_00636712 = 0;\n  _DAT_00636714 = 0;\n  _DAT_006367b4 = 0;\n  _DAT_006367b6 = 0;\n  _DAT_00636718 = 0;\n  _DAT_0063671a = 0;\n  _DAT_0063671e = 0;\n  _DAT_00636720 = 0;\n  _DAT_00636724 = 0;\n  _DAT_00636726 = 0;\n  _DAT_0063672a = 0;\n  _DAT_00636730 = 0;\n  _DAT_00636732 = 0;\n  _DAT_006367d2 = 0;\n  _DAT_00636734 = 0;\n  _DAT_006367d4 = 0;\n  _DAT_00636736 = 0;\n  _DAT_006367a4 = 0x14;\n  _DAT_006367ac = 0x16;\n  _DAT_006367ae = 4;\n  _DAT_006367b0 = 0x14;\n  _DAT_00636716 = 0;\n  _DAT_0063671c = 0;\n  _DAT_00636722 = 0;\n  _DAT_00636728 = 0;\n  _DAT_006367b2 = 0xc;\n  _DAT_006367ba = 0x16;\n  _DAT_006367bc = 8;\n  _DAT_006367be = 8;\n  _DAT_006367c0 = 8;\n  _DAT_0063672c = 1;\n  _DAT_0063672e = 1;\n  _DAT_006367b8 = 0x10;\n  _DAT_006367c6 = 8;\n  _DAT_00636738 = 0xffff;\n  _DAT_006367c2 = 0x88;\n  _DAT_006367c4 = 0x88;\n  _DAT_006367ca = 0x10e;\n  _DAT_006367cc = 0x10e;\n  _DAT_006367c8 = 0xe;\n  _DAT_006367d0 = 0;\n  _DAT_006367ce = 6;\n  _DAT_006367d6 = 0x16;\n  _DAT_006367d8 = 0x16;\n  _DAT_0063673a = 0xffff;\n  _DAT_006367da = 0x16;\n  _DAT_0063673c = 0xffff;\n  _DAT_006367fc = 0;\n  _DAT_0063675e = 0;\n  _DAT_00636760 = 0;\n  _DAT_00636764 = 0;\n  _DAT_00636808 = 0;\n  _DAT_0063676a = 0;\n  _DAT_0063680a = 0;\n  _DAT_0063676c = 0;\n  _DAT_00636740 = 0xffff;\n  _DAT_006367e0 = 0x16;\n  _DAT_00636742 = 0xffff;\n  _DAT_006367e2 = 0x16;\n  _DAT_00636744 = 0xffff;\n  _DAT_00636746 = 0xffff;\n  _DAT_00636748 = 0xffff;\n  _DAT_006367dc = 0x110;\n  _DAT_0063673e = 0;\n  _DAT_006367de = 0x16;\n  _DAT_006367e4 = 0x16;\n  _DAT_006367e6 = 0xe;\n  _DAT_006367ec = 0x10;\n  _DAT_006367ee = 0x10;\n  _DAT_006367f4 = 0xc;\n  _DAT_0063674e = 0;\n  _DAT_006367f0 = 0x14;\n  _DAT_00636750 = 0;\n  _DAT_00636752 = 0;\n  _DAT_006367f2 = 0x40;\n  _DAT_00636754 = 0;\n  _DAT_00636756 = 0;\n  _DAT_00636758 = 0;\n  _DAT_0063675a = 0;\n  _DAT_006367fa = 0x16;\n  _DAT_006367f6 = 0x24;\n  _DAT_006367f8 = 0x24;\n  _DAT_00636766 = 0xfffe;\n  _DAT_0063675c = 0xffff;\n  _DAT_006367fe = 0x14;\n  _DAT_00636800 = 8;\n  _DAT_00636802 = 8;\n  _DAT_00636770 = 0xffff;\n  _DAT_00636772 = 0xffff;\n  _DAT_00636774 = 0xffff;\n  _DAT_00636776 = 0xffff;\n  _DAT_00636778 = 0xffff;\n  _DAT_0063677a = 0xffff;\n  _DAT_00636762 = 0;\n  _DAT_0063676e = 0;\n  _DAT_00636804 = 0xe;\n  _DAT_0063680c = 0xe;\n  _DAT_0063680e = 0x16;\n  _DAT_00636810 = 0x16;\n  _DAT_00636812 = 0x16;\n  _DAT_00636814 = 0x16;\n  _DAT_00636816 = 0x16;\n  _DAT_00636818 = 0x16;\n  _DAT_0063681a = 0x16;\n  _DAT_0063677c = 0xffff;\n  _DAT_0063681c = 0x16;\n  _DAT_0063677e = 2;\n  _DAT_0063681e = 8;\n  _DAT_00636780 = 0;\n  _DAT_00636820 = 8;\n  _DAT_00636782 = 0;\n  _DAT_00636822 = 8;\n  _DAT_00636784 = 0;\n  _DAT_00636786 = 0;\n  _DAT_00636788 = 0;\n  _DAT_0063678a = 0;\n  _DAT_0063678c = 0;\n  _DAT_0063678e = 0;\n  _DAT_0063682e = 0x10;\n  _DAT_00636790 = 0;\n  _DAT_00636792 = 0;\n  _DAT_00636794 = 0;\n  _DAT_00636796 = 0;\n  _DAT_00636798 = 0;\n  _DAT_0063679a = 0;\n  _DAT_0063679c = 0;\n  _DAT_00636826 = 0x210;\n  _DAT_00636828 = 0x210;\n  _DAT_00636824 = 0x24;\n  _DAT_0063683a = 8;\n  _DAT_0063682a = 0x14;\n  _DAT_0063682c = 0xe;\n  _DAT_00636830 = 0x24;\n  _DAT_00636832 = 0x24;\n  _DAT_00636834 = 0x24;\n  _DAT_00636836 = 0x24;\n  _DAT_00636838 = 0x24;\n  /* Original 0x416cb4 initializes packed 16-bit priority/dispatch metadata.\n   * Keep gated with the corrected action/keyframe route while recovering it. */\n  if (E2R_ActionIndexProbeEnabled()) {\n    static const ushort metadata[] = {\n    0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,\n    0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1,0x1,\n    0x0,0x0,0x0,0x0,0xffff,0xffff,0xffff,0x0,0xffff,0xffff,0xffff,0xffff,\n    0xffff,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0xffff,0x0,\n    0x0,0x0,0x0,0xfffe,0x0,0x0,0x0,0x0,0xffff,0xffff,0xffff,0xffff,\n    0xffff,0xffff,0xffff,0x2,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,\n    0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x110,0x110,0x14,0x110,\n    0x10,0x10,0x16,0x4,0x14,0xc,0x0,0x0,0x10,0x16,0x8,0x8,\n    0x8,0x88,0x88,0x8,0xe,0x10e,0x10e,0x6,0x0,0x0,0x0,0x16,\n    0x16,0x16,0x110,0x16,0x16,0x16,0x16,0xe,0x0,0x0,0x10,0x10,\n    0x14,0x40,0xc,0x24,0x24,0x16,0x0,0x14,0x8,0x8,0xe,0x0,\n    0x0,0x0,0xe,0x16,0x16,0x16,0x16,0x16,0x16,0x16,0x16,0x8,\n    0x8,0x8,0x24,0x210,0x210,0x14,0xe,0x10,0x24,0x24,0x24,0x24,\n    0x24,0x8,\n    };\n    memcpy((void *)0x00636700,metadata,sizeof(metadata));\n  }\n  return;\n}";
+  if (source.split(before).length !== 2) throw new Error("Missing event metadata initializer");
+  source = source.replace(before,after);
+}
+
+// Original 0x423c34..0x423c6b: rotate the node matrix, not stale ECX.
+for (const [before, after] of [
+  [
+    "          FUN_00422460(uVar5,(int)*(short *)(iVar10 + 0x28));",
+    "          FUN_00422460((undefined4)(uintptr_t)(iVar10 + 6),(int)*(short *)(iVar10 + 0x28));"
+  ],
+  [
+    "          FUN_00422368(uVar5,(int)*(short *)(iVar10 + 0x26));",
+    "          FUN_00422368((undefined4)(uintptr_t)(iVar10 + 6),(int)*(short *)(iVar10 + 0x26));"
+  ],
+  [
+    "          FUN_00422538(uVar5,(int)*(short *)(iVar10 + 0x2a));",
+    "          FUN_00422538((undefined4)(uintptr_t)(iVar10 + 6),(int)*(short *)(iVar10 + 0x2a));"
+  ]
+]) {
+  if (source.split(before).length !== 2) throw new Error("Node matrix anchor mismatch");
+  source = source.replace(before,after);
+}
+
+// Original action-error message inputs and mapped message-line destinations.
+for (const [before, after] of [
+  [
+    "undefined8 __fastcall FUN_00451880(undefined4 param_1,undefined4 param_2)\n\n{\n  short in_AX;\n  uint uVar1;\n  undefined4 uVar2;\n  undefined4 extraout_ECX;\n  undefined4 extraout_ECX_00;\n  undefined4 extraout_ECX_01;\n  undefined4 uVar3;\n  undefined8 uVar4;\n  undefined1 local_6c [52];\n  undefined1 local_38 [52];\n  undefined4 uStack_4;\n\n  uStack_4 = param_2;\n  in_AX = (short)param_2;\n  E2R_TraceActionLookup(\"51880.entry\",(int)in_AX,0);\n  uVar4 = FUN_0045190c(param_1,(int)in_AX);\n  uVar3 = (undefined4)((ulonglong)uVar4 >> 0x20);\n  uVar1 = (uint)uVar4;\n  E2R_TraceActionLookup(\"51880.after-5190c\",(int)in_AX,(int)uVar1);\n  uVar2 = 0;\n  if (uVar1 != 0) {\n    if (uVar1 != 0) {\n      if (uVar1 < 2) {\n        FUN_00441b24(extraout_ECX,uVar3);\n        FUN_0045f0a1((int)local_6c,(byte *)s___s___d_004754c0);\n        uVar4 = FUN_0043cbb4(extraout_ECX_00);\n        return CONCAT44(uStack_4,(int)uVar4);\n      }\n      if (uVar1 == 2) {\n        FUN_00441b24(extraout_ECX,uVar3);\n        FUN_0045f0a1((int)local_38,(byte *)s___s__004754e4);\n        uVar4 = FUN_0043cbb4(extraout_ECX_01);\n        return CONCAT44(uStack_4,(int)uVar4);\n      }\n    }\n    uVar2 = FUN_00414e68();\n  }\n  return CONCAT44(uStack_4,uVar2);\n}",
+    "undefined8 __fastcall FUN_00451880(undefined4 param_1,undefined4 param_2)\n\n{\n  int action_id = (short)param_2;\n  undefined8 result;\n  unsigned status;\n  char detail[52];\n  const char *name;\n  const char *lines[3];\n\n  E2R_TraceActionLookup(\"51880.entry\",action_id,0);\n  result = FUN_0045190c(param_1,action_id);\n  status = (unsigned)result;\n  E2R_TraceActionLookup(\"51880.after-5190c\",action_id,status);\n  if (status == 1 || status == 2) {\n    /* Original 0x4518a4..0x4518f3 supplies the name/id to snprintf's\n     * predecessor, then EAX/EDX as a two-line 0x43cbb4 message. */\n    name = E2R_ActionNameByIndex((short)action_id);\n    if (name == NULL) name = \"(unknown)\";\n    if (status == 1) snprintf(detail,sizeof(detail),\"     '%s' %d\",name,action_id);\n    else snprintf(detail,sizeof(detail),\"     '%s'\",name);\n    lines[0] = status == 1 ? \"Can't load action:\" : \"Action name not in directory:\";\n    lines[1] = detail;\n    lines[2] = NULL;\n    E2R_GameStateLog(\"action load message: id=%d status=%u name=%s indexed=%d\",\n                    action_id,status,name,E2R_ActionIndexProbeEnabled());\n    result = FUN_0043cbf0((uintptr_t)lines,0);\n    return CONCAT44(param_2,(unsigned)result);\n  }\n  if (status != 0) return CONCAT44(param_2,FUN_00414e68());\n  return CONCAT44(param_2,0);\n}"
+  ],
+  [
+    "undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)\n\n{\n  int *in_EAX;\n  int iVar1;\n  int iVar3;\n  int iVar4;\n  undefined8 uVar5;\n  int iVar2;\n  undefined4 local_single [2];\n\n  in_EAX = E2R_ResolveMenuStringList(param_1,param_2,local_single);\n  if (in_EAX == (int *)0x0) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;\n  iVar2 = 0;\n  do {\n    iVar1 = iVar2 + 0x33;\n    iVar3 = 0;\n    *(undefined1 *)(iVar2 + 0x64403a) = 0;\n    iVar2 = iVar1;\n  } while (iVar1 != 0x396);\n  iVar1 = 0;\n  iVar3 = 0;\n  iVar4 = 0x6430fa;\n  iVar2 = *in_EAX;\n  while (iVar2 != 0) {\n    if (!E2R_IsReadableCString((char *)(uintptr_t)*in_EAX)) {\n      break;\n    }\n    FUN_0045f22f(iVar1,(char *)*in_EAX);\n    *(undefined1 *)(iVar1 * 0x33 + 0x64406c) = 0;\n    if (iVar1 < 0x11) {\n      *(int *)((undefined1 *)0x006430ee + iVar3) = iVar4;\n    }\n    in_EAX = in_EAX + 1;\n    iVar4 = iVar4 + 0x1e;\n    iVar3 = iVar3 + 0x1e;\n    iVar1 = iVar1 + 1;\n    if (0x11 < iVar1) break;\n    if (IsBadReadPtr(in_EAX,4)) break;\n    iVar2 = *in_EAX;\n  }\n  _DAT_0047a636 = (short)iVar1 * 9 + 0x28;\n  if (iVar1 < 0x12) {\n    iVar3 = iVar1 * 0xf;\n    *(undefined4 *)((undefined1 *)0x006430ee + iVar1 * 0x1e) = 0x643de4;\n  }\n  else {\n    *(undefined4 *)0x006432ec = 0x643de4;\n  }\n  uVar5 = FUN_0043b384(iVar1,iVar3);\n  return CONCAT44(param_2,(int)uVar5);\n}",
+    "undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)\n\n{\n  int *in_EAX;\n  int iVar1;\n  int iVar3;\n  int iVar4;\n  undefined8 uVar5;\n  int iVar2;\n  undefined4 local_single [2];\n\n  in_EAX = E2R_ResolveMenuStringList(param_1,param_2,local_single);\n  if (in_EAX == (int *)0x0) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;\n  iVar2 = 0;\n  do {\n    iVar1 = iVar2 + 0x33;\n    iVar3 = 0;\n    *(undefined1 *)(iVar2 + 0x64403a) = 0;\n    iVar2 = iVar1;\n  } while (iVar1 != 0x396);\n  iVar1 = 0;\n  iVar3 = 0;\n  iVar4 = 0x6430fa;\n  iVar2 = *in_EAX;\n  while (iVar2 != 0) {\n    if (!E2R_IsReadableCString((char *)(uintptr_t)*in_EAX)) {\n      break;\n    }\n    /* Original 0x43cc3d..0x43cc4e: copy at most 50 bytes into\n     * the mapped 51-byte line slot, then terminate it. */\n    strncpy((char *)(uintptr_t)(0x64403a + iVar1 * 0x33),\n            (const char *)(uintptr_t)*in_EAX,50);\n    *(undefined1 *)(iVar1 * 0x33 + 0x64406c) = 0;\n    if (iVar1 < 0x11) {\n      *(int *)((undefined1 *)0x006430ee + iVar3) = iVar4;\n    }\n    in_EAX = in_EAX + 1;\n    iVar4 = iVar4 + 0x1e;\n    iVar3 = iVar3 + 0x1e;\n    iVar1 = iVar1 + 1;\n    if (0x11 < iVar1) break;\n    if (IsBadReadPtr(in_EAX,4)) break;\n    iVar2 = *in_EAX;\n  }\n  *(short *)(uintptr_t)0x0047a636 = (short)iVar1 * 9 + 0x28;\n  if (iVar1 < 0x12) {\n    iVar3 = iVar1 * 0xf;\n    *(undefined4 *)((undefined1 *)0x006430ee + iVar1 * 0x1e) = 0x643de4;\n  }\n  else {\n    *(undefined4 *)0x006432ec = 0x643de4;\n  }\n  uVar5 = FUN_0043b384(0x0047a630,0);\n  return CONCAT44(param_2,(int)uVar5);\n}"
+  ]
+]) {
+  if (source.split(before).length !== 2) throw new Error("Action message anchor mismatch");
+  source = source.replace(before, after);
+}
+
+// Original message requester record and OK callback ownership.
+for (const [before, after] of [
+  [
+    "  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;\n  iVar2 = 0;",
+    "  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;\n  /* Original static record at 0x47a630 and the 18 line items built by\n   * 0x43fc20. Their generated host globals do not populate mapped records. */\n  E2R_InitRequesterRecord(0x0047a630,-1,-1,320,180,0,0x006430dc);\n  for (int line = 0; line < 18; ++line) {\n    uintptr_t item = 0x006430dc + line * 0x1e;\n    E2R_InitRequesterItem(item,300,10,10 + line * 9,8,\n                         0x0064403a + line * 0x33,0,0xc000 | line,\n                         line < 17 ? item + 0x1e : 0x00643de4);\n    /* Static text must not acquire the hosted selectable-item flag. */\n    *(short *)(item + 0x10) = (short)(0xc000 | line);\n  }\n  E2R_InitRequesterItem(0x00643de4,0x38,10,-0x14,0xc,(uintptr_t)\"OK\",\n                       (uintptr_t)&LAB_0043c594,0x2000,0);\n  iVar2 = 0;"
+  ],
+  [
+    "  if (action == (uintptr_t)&LAB_0043c594) {\n    if (requester_id == 0x14",
+    "  if (action == (uintptr_t)&LAB_0043c594) {\n    /* Original 0x43c5c6..0x43c5d0 accepts the message OK action. */\n    if (requester_id == 0x2e) {\n      _DAT_006443d0 = 1;\n      E2R_WORD_AT(DAT_0047a45e,2) = 0;\n      return 1;\n    }\n    if (requester_id == 0x14"
+  ]
+]) {
+  if (source.split(before).length !== 2) throw new Error("Message record anchor mismatch");
+  source = source.replace(before, after);
+}
+
+// Message dialogs use requester ID 0x2e with gameplay state zero.
+{
+  const before = "  if (_DAT_00643650 == 0 ||\n      (requester_id != 0x14 && requester_id != 0x28 &&\n       requester_id != 0x29 && requester_id != 0x2a && requester_id != 0x31)) {";
+  const after = "  /* Message requester 0x2e is modal even when the gameplay state is zero. */\n  if (requester_id != 0x2e && (_DAT_00643650 == 0 ||\n      (requester_id != 0x14 && requester_id != 0x28 &&\n       requester_id != 0x29 && requester_id != 0x2a && requester_id != 0x31))) {";
+  if (source.split(before).length !== 2) throw new Error("Message click routing anchor mismatch");
+  source = source.replace(before, after);
+}
+
+// Recover EAX polygon / EDX mode / EBX reference-plane ownership.
+function patchPolygonFunction(name, edit) {
+  const start = source.indexOf(`\nvoid ${name}(`) >= 0
+    ? source.indexOf(`\nvoid ${name}(`) + 1
+    : source.indexOf(`\nvoid __fastcall ${name}(`) + 1;
+  if (start <= 0) throw new Error(`Missing polygon function ${name}`);
+  const end = source.indexOf('\n}', start) + 2;
+  const before = source.slice(start, end);
+  source = source.slice(0, start) + edit(before) + source.slice(end);
+}
+patchPolygonFunction('FUN_00424e44', body => {
+  body = body.replace('  int iVar1;', '  int iVar1;\n  int reference_polygon = 0;');
+  body = body.replace('    param_1 = (*(int *)(in_EAX + 0x1a) >> 0x10) * 4;',
+    '    /* Original 0x424e4b..0x424e68: EBX is zero or owner->polygon_table[index]. */\n' +
+    '    int owner = *(int *)(in_EAX + 0x22);\n' +
+    '    int table = *(int *)(owner + 0xdc);\n' +
+    '    reference_polygon = *(int *)(table + *(short *)(in_EAX + 0x1c) * 4);');
+  return body.replace('FUN_00433d30(in_EAX,iVar1);', 'FUN_00433d30(in_EAX,iVar1,reference_polygon);');
+});
+for (const name of ['FUN_00431a7c', 'FUN_00433d30', 'FUN_00437ae4']) {
+  const signature = `void __fastcall ${name}(int polygon,int param_2,int reference_polygon)`;
+  const proto = prototypes.findIndex(p => p.includes(`${name}(`));
+  if (proto < 0) throw new Error(`Missing polygon prototype ${name}`);
+  prototypes[proto] = signature + ';';
+  patchPolygonFunction(name, body => {
+    body = body.replace(/^void [^\n]+/, signature);
+    body = body.replace('  int unaff_EBX;\n', '');
+    body = body.replace(/\bunaff_EBX\b/g, 'reference_polygon');
+    body = body.replace('  in_EAX = actor;', '  in_EAX = polygon;');
+    if (name === 'FUN_00431a7c') {
+      // The other original caller supplies a stack polygon, not a low arena node.
+      body = body.replace(' || 0x70000000u <= (uint)in_EAX', '');
+    }
+    if (name === 'FUN_00433d30') {
+      body = body.replace(/FUN_(00431a7c|00437ae4)\((in_EAX|iVar8),param_2\)/g,
+                          'FUN_$1($2,param_2,reference_polygon)');
+    }
+    if (name === 'FUN_00437ae4') {
+      // Original 0x437aee..0x437b09 preserves EAX and loads the texture by signed +0x2c.
+      body = body.replace('  FUN_004525f0(param_1,param_2);',
+        '  in_EAX = polygon;\n  FUN_004525f0(0,(int)*(short *)(in_EAX + 0x2c));');
+    }
+    return body;
+  });
+}
+patchPolygonFunction('FUN_00425018', body => {
+  // Original stack: eight 0x2a-byte vertices, reference polygon at +0x150,
+  // submitted polygon at +0x194. Separate C locals cannot preserve these layouts.
+  const fields = [];
+  body = body.replace(/^  (undefined1 \*|undefined[124] |short |ushort )((?:local_|auStack_|asStack_)[0-9a-f]+)(?: \[[0-9]+\])?;\n/gm,
+    (declaration, type, name) => {
+      const offset = parseInt(name.split('_').pop(), 16);
+      if (offset < 0x52 || offset > 0x20c) return declaration;
+      const array = declaration.includes('[');
+      fields.push([name, type.trim(), 0x20c - offset, array]);
+      return '';
+    });
+  if (fields.length !== 38) throw new Error(`Unexpected polygon scratch fields: ${fields.length}`);
+  const split = body.indexOf('  in_EAX = actor;');
+  let code = body.slice(split);
+  for (const [name, type, offset, array] of fields) {
+    const at = `geometry + 0x${offset.toString(16)}`;
+    const expr = array ? `((${type} *)(${at}))` : `(*(${type} *)(${at}))`;
+    code = code.replace(new RegExp(`\\b${name}\\b`, 'g'), expr);
+  }
+  code = code.replace('FUN_00431a7c(iVar1,1 - (DAT_0047a279 >> 0x18));',
+    'FUN_00431a7c((int)(uintptr_t)(geometry + 0x194),1 - (DAT_0047a279 >> 0x18),\n                       (int)(uintptr_t)(geometry + 0x150));');
+  code = code.replace('FUN_00431a7c(iVar1,2);',
+    'FUN_00431a7c((int)(uintptr_t)(geometry + 0x194),2,\n                       (int)(uintptr_t)(geometry + 0x150));');
+  return body.slice(0, split) +
+    '  /* Original 0x425018 stack records; vertex transforms remain separately unrecovered. */\n' +
+    '  byte geometry[0x1d8] = {0};\n\n' + code;
+});
+
+// Flat-polygon normal storage, angle lookup and local rotation destinations.
+{
+  const marker = "/* 00431a7c */";
+  if (source.split(marker).length !== 2) throw new Error("Polygon lighting marker mismatch");
+  source = source.replace(marker, "/* Scoped recovery of 0x432c64 and the 0x431f2d..0x432007 lighting path.\n * Other callers of the legacy angle/rotation wrappers still have lost inputs. */\nstatic short E2R_PolygonAngle16(short x,short z)\n{\n  static byte fine[256], coarse[256];\n  static int ready;\n  int ax = x < 0 ? -(int)x : x;\n  int az = z < 0 ? -(int)z : z;\n  int ratio, angle;\n  if (!ready) {\n    /* Original 0x414f5d..0x414fd8: atan tables, not sine/cosine.\n     * Keep private until the other users of the placeholder mapped tables\n     * have recovered arguments. Constants are at 0x471339..0x4713b1. */\n    for (int i = 0; i < 256; ++i) {\n      fine[i] = (byte)(atan(i * 0.015625) * 64.0 * 2.0 * 0.3183101550488765 + 0.5);\n      coarse[i] = (byte)(atan(i * 0.25) * 64.0 * 2.0 * 0.3183101550488765 + 0.5);\n    }\n    ready = 1;\n  }\n  /* Preserve the original zero/zero result, -0x4000. Inputs here come from\n   * a normal reduced to +/-0x4000 and its rotations, never SHRT_MIN. */\n  if (az == 0) return x > 0 ? 0x4000 : (short)-0x4000;\n  ratio = ax * 256 / az;\n  if (ratio < 0x400) angle = (int)fine[ratio >> 2] * 256;\n  else if (ratio < 0x4000) angle = (int)coarse[ratio >> 6] * 256;\n  else angle = ratio < 0x5200 ? 0x3f00 : 0x4000;\n  if (z > 0) return (short)(x > 0 ? angle : -angle);\n  return (short)(x > 0 ? -0x8000 - angle : angle - 0x8000);\n}\n\nstatic void E2R_RotatePolygonNormal(short normal[3],short angle,int axis)\n{\n  int sine = *(short *)(0x0059b590 + (uint)(ushort)angle * 2);\n  int cosine = *(short *)(0x005de590 + (uint)(ushort)angle * 2);\n  short matrix[9] = {16384,0,0,0,16384,0,0,0,16384};\n  /* Single-axis cases of 0x4228b8, used by 0x422674 (X) / 0x4226bc (Y).\n   * The original builds local matrix/output buffers and copies back. */\n  if (axis == 0) {\n    matrix[4] = matrix[8] = (short)cosine;\n    matrix[5] = (short)-sine;\n    matrix[7] = (short)sine;\n  } else {\n    matrix[0] = matrix[8] = (short)cosine;\n    matrix[2] = (short)sine;\n    matrix[6] = (short)-sine;\n  }\n  E2R_TransformVector14(normal,normal,matrix);\n}\n\nstatic void E2R_PolygonLightingIndices(int nx,int ny,int nz,int *horizontal,int *vertical)\n{\n  short normal[3] = {(short)nx,(short)ny,(short)nz};\n  short angle = E2R_PolygonAngle16(normal[0],normal[2]);\n  if (angle != 0) E2R_RotatePolygonNormal(normal,(short)-angle,1);\n  angle = E2R_PolygonAngle16((short)-normal[1],normal[2]);\n  if (angle != 0) E2R_RotatePolygonNormal(normal,(short)-angle,0);\n  /* EBX/ECX preserve the original reduced X/Y; only the divisor comes\n   * from the rotated normal at stack +4 (0x431faa..0x431fe7). */\n  int x = normal[2] == 0 ? 64 : 64 - nx * 64 / normal[2];\n  int y = normal[2] == 0 ? 64 : 64 - ny * 64 / normal[2];\n  *horizontal = x < 0 ? 0 : x > 127 ? 127 : x;\n  *vertical = y < 0 ? 0 : y > 127 ? 127 : y;\n}\n\n" + marker);
+  const before = "      sVar2 = (short)iVar3;\n      local_64 = (int)(short)iVar4;\n      iVar3 = FUN_00432c64(iVar5,sVar2);\n      uVar6 = extraout_ECX;\n      if ((short)iVar3 != 0) {\n        FUN_004226bc();\n        uVar6 = extraout_ECX_00;\n      }\n      sStack_14 = -(short)iVar5;\n      iVar3 = FUN_00432c64(uVar6,sVar2);\n      iVar5 = extraout_ECX_01;\n      if ((short)iVar3 != 0) {\n        FUN_00422674(extraout_ECX_01,-(short)iVar3);\n        iVar5 = extraout_ECX_02;\n      }\n      if (sVar2 == 0) {\n        iVar5 = 0x40;\n        iVar3 = 0x40;\n      }\n      else {\n        iVar3 = (iVar4 * -0x40) / (int)sVar2 + 0x40;\n        if (iVar3 < 0) {\n          iVar3 = 0;\n        }\n        else if (0x7f < iVar3) {\n          iVar3 = 0x7f;\n        }\n        iVar5 = (iVar5 * -0x40) / (int)sVar2 + 0x40;\n        if (iVar5 < 0) {\n          iVar5 = 0;\n        }\n        else if (0x7f < iVar5) {\n          iVar5 = 0x7f;\n        }\n      }\n";
+  const after = "      E2R_PolygonLightingIndices(iVar4,iVar5,iVar3,&iVar3,&iVar5);\n";
+  if (source.split(before).length !== 2) throw new Error("Polygon lighting block mismatch");
+  source = source.replace(before, after);
+}
+
+// Original 0x43206f / 0x43207f read mapped byte tables, not host symbol arrays.
+patchPolygonFunction('FUN_00431a7c', body => body
+  .replace('(&DAT_00507590)', '((const byte *)0x00507590)')
+  .replace('(&DAT_0050b510)', '((const byte *)0x0050b510)'));
+
+// Original dirty-rectangle ABI: EAX surface, EDX x, EBX y, ECX width, stack height.
+function patchRectangleFunction(name, edit) {
+  const match = new RegExp(`^(?:void|uint|undefined[2468]|short \\*) (?:__fastcall )?${name}\\([^\\n]*\\)`, 'm').exec(source);
+  if (!match) throw new Error(`Missing rectangle function ${name}`);
+  const start = match.index;
+  const end = source.indexOf('\n}', start) + 2;
+  if (end <= start) throw new Error(`Missing rectangle function end ${name}`);
+  source = source.slice(0, start) + edit(source.slice(start, end)) + source.slice(end);
+}
+function replaceRectangleInput(body, before, after) {
+  if (body.split(before).length !== 2) throw new Error('Rectangle input anchor mismatch: ' + before);
+  return body.replace(before, after);
+}
+patchRectangleFunction('FUN_00418484', () => `void __fastcall FUN_00418484(int surface,int x,int y,int width,int height)
+
+{
+  if (DAT_0047a43c != 0) {
+    FUN_00418514(surface,x,y,width,height);
+  }
+  else {
+    /* Original planar branch rounds the horizontal span to four-pixel groups. */
+    int column = x >> 2;
+    int row_bytes = ((x + width + 3) >> 2) - column;
+    byte *src = (byte *)(uintptr_t)(_DAT_00636158 + y * 0x50 + column);
+    byte *dst = (byte *)(uintptr_t)
+      (*(uint *)((byte *)0x00636150 + surface * 4) + y * 0x50 + column);
+    FUN_0045cf10(0xf);
+    for (int row = 0; row < height; ++row) {
+      /* Keep the original forward byte-copy order, including overlapping spans. */
+      for (int col = 0; col < row_bytes; ++col) dst[col] = src[col];
+      src += 0x50;
+      dst += 0x50;
+    }
+    FUN_0045cf23();
+  }
+}`);
+patchRectangleFunction('FUN_00418514', () => `void __fastcall FUN_00418514(int surface,int x,int y,int width,int height)
+
+{
+  undefined4 dst_pitch;
+  undefined4 dst_base = FUN_00418a04((undefined4)surface,&dst_pitch);
+  byte *src = (byte *)(uintptr_t)(_DAT_00636158 + y * DAT_00477060 + x);
+  byte *dst = (byte *)(uintptr_t)(dst_base + y * dst_pitch + x);
+
+  /* Original EAX surface, EDX x, EBX y, ECX width and stack height. */
+  for (int row = 0; row < height; ++row) {
+    for (int col = 0; col < width; ++col) dst[col] = src[col];
+    src += DAT_00477060;
+    dst += dst_pitch;
+  }
+  FUN_00418b00((undefined4)surface,dst_base);
+}`);
+patchRectangleFunction('FUN_00418a04', body => {
+  body = replaceRectangleInput(body, "  }\n  FUN_0045f8d0(in_EAX,0);\n  _DAT_00636864 = 0x6c;\n  if (extraout_ECX == DAT_0047a279 >> 0x18) {\n    iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 100))(DAT_0047d0cc,0,&DAT_00636864,1,0);\n    if (iVar1 == -0x7789fe3e) {\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 0x6c))(DAT_0047d0cc);\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 100))(DAT_0047d0cc,0,&DAT_00636864,1,0);\n      goto LAB_00418ade;\n",
+    "  }\n  /* Original 0x418a07..0x418a38 preserves the selector across descriptor clear. */\n  extraout_ECX = in_EAX;\n  memset((void *)0x00636864,0,0x6c);\n  *(uint *)0x00636864 = 0x6c;\n  if (extraout_ECX == DAT_0047a279 >> 0x18) {\n    iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 100))(DAT_0047d0cc,0,(void *)0x00636864,1,0);\n    if (iVar1 == -0x7789fe3e) {\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 0x6c))(DAT_0047d0cc);\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0cc + 100))(DAT_0047d0cc,0,(void *)0x00636864,1,0);\n      goto LAB_00418ade;\n");
+  body = replaceRectangleInput(body, "  else {\n    iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 100))(DAT_0047d0d0,0,&DAT_00636864,1,0);\n    if (iVar1 == -0x7789fe3e) {\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 0x6c))(DAT_0047d0d0);\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 100))(DAT_0047d0d0,0,&DAT_00636864,1,0);\n      *param_2 = _DAT_00636874;\n      return _DAT_00636888;\n    }\n",
+    "  else {\n    iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 100))(DAT_0047d0d0,0,(void *)0x00636864,1,0);\n    if (iVar1 == -0x7789fe3e) {\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 0x6c))(DAT_0047d0d0);\n      (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 100))(DAT_0047d0d0,0,(void *)0x00636864,1,0);\n      *param_2 = *(uint *)0x00636874;\n      return *(uint *)0x00636888;\n    }\n");
+  body = replaceRectangleInput(body, "LAB_00418ade:\n  *param_2 = _DAT_00636874;\n  return _DAT_00636888;\n}",
+    "LAB_00418ade:\n  *param_2 = *(uint *)0x00636874;\n  return *(uint *)0x00636888;\n}");
+  return body;
+});
+patchRectangleFunction('FUN_00418b00', body => {
+  body = replaceRectangleInput(body, "\n  if (in_EAX < 2) {\n",
+    "\n  in_EAX = (int)param_1;\n  if (in_EAX < 2) {\n");
+  body = replaceRectangleInput(body, "    else {\n      iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 0x80))(DAT_0047d0d0,param_2,param_1);\n      if (iVar1 == -0x7789fe3e) {\n",
+    "    else {\n      iVar1 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d0d0 + 0x80))(DAT_0047d0d0,param_2);\n      if (iVar1 == -0x7789fe3e) {\n");
+  return body;
+});
+patchRectangleFunction('FUN_00421a14', body => {
+  body = replaceRectangleInput(body, "          if (DAT_0047a34a == 0) {\n            FUN_00418484(((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,(int)(short)*piVar3,\n                         ((piVar3[1] >> 0x10) + 1) - (*(int *)((int)piVar3 + 2) >> 0x10));\n          }\n",
+    "          if (DAT_0047a34a == 0) {\n            FUN_00418484(1 - (DAT_0047a279 >> 0x18),(int)(short)*piVar3,\n                         (int)(short)piVar3[1],((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,\n                         ((piVar3[1] >> 0x10) + 1) - (int)(short)piVar3[1]);\n          }\n");
+  body = replaceRectangleInput(body, "        *(short *)((undefined1 *)0x00ac49ba + iVar9) = extraout_CX + sVar7 + 9;\n        FUN_00418484((iVar5 >> 0x10) * 6 + 2,*(int *)((int)&DAT_0047aaae + iVar10) >> 0x10,10);\n        FUN_0041868c(local_24 + iVar4,0,(*(int *)((int)&DAT_0047aa86 + iVar10) >> 0x10) * 6 + 2,10);\n",
+    "        *(short *)((undefined1 *)0x00ac49ba + iVar9) = extraout_CX + sVar7 + 9;\n        FUN_00418484(1 - (DAT_0047a279 >> 0x18),\n                     *(int *)((int)&DAT_0047aaae + iVar10) >> 0x10,\n                     local_24 + iVar4,(iVar5 >> 0x10) * 6 + 2,10);\n        FUN_0041868c(local_24 + iVar4,0,(*(int *)((int)&DAT_0047aa86 + iVar10) >> 0x10) * 6 + 2,10);\n");
+  return body;
+});
+patchRectangleFunction('FUN_00424bd8', body => {
+  body = replaceRectangleInput(body, "        iVar5 = *(int *)(iVar1 + 0x6368de) >> 0x10;\n        FUN_00418484(((*(int *)(iVar1 + 0x6368e0) >> 0x10) + 1) - iVar5,iVar5,\n                     ((*(int *)(iVar1 + 0x6368e4) >> 0x10) + 1) -\n",
+    "        iVar5 = *(int *)(iVar1 + 0x6368de) >> 0x10;\n        FUN_00418484(1 - (DAT_0047a279 >> 0x18),iVar5,\n                     *(int *)(iVar1 + 0x6368e2) >> 0x10,\n                     ((*(int *)(iVar1 + 0x6368e0) >> 0x10) + 1) - iVar5,\n                     ((*(int *)(iVar1 + 0x6368e4) >> 0x10) + 1) -\n");
+  return body;
+});
+patchRectangleFunction('FUN_00455294', body => {
+  body = replaceRectangleInput(body, "      FUN_0041760c(2,uVar10,uVar10,iVar12,(undefined1 *)(iVar5 + 1),iVar6 + 1);\n      FUN_00418484(iVar5 + 1,uVar10,iVar6 + 1);\n      FUN_0041868c(iVar12,0,iVar5,iVar6);\n",
+    "      FUN_0041760c(2,uVar10,uVar10,iVar12,(undefined1 *)(iVar5 + 1),iVar6 + 1);\n      FUN_00418484(1 - (DAT_0047a279 >> 0x18),uVar10,iVar12,iVar5 + 1,iVar6 + 1);\n      FUN_0041868c(iVar12,0,iVar5,iVar6);\n");
+  return body;
+});
+patchRectangleFunction('FUN_0045cf10', body => {
+  body = replaceRectangleInput(body, "undefined6 FUN_0045cf10(void)\n\n{\n  byte in_AL;\n\n",
+    "undefined6 FUN_0045cf10(byte mask)\n\n{\n  byte in_AL = mask;\n\n");
+  return body;
+});
+source = replaceRectangleInput(source,
+  '          FUN_0045cf10();', '          FUN_0045cf10(0xf);');
+for (const name of ['FUN_00418484', 'FUN_00418514']) {
+  const at = prototypes.findIndex(p => p.includes(`${name}(`));
+  if (at < 0) throw new Error(`Missing rectangle prototype ${name}`);
+  prototypes[at] = `void __fastcall ${name}(int surface,int x,int y,int width,int height);`;
+}
+{
+  const at = prototypes.findIndex(p => p.includes('FUN_0045cf10('));
+  if (at < 0) throw new Error('Missing planar-mask prototype');
+  prototypes[at] = 'undefined6 FUN_0045cf10(byte mask);';
+}
+
+// Explicit diagnostic raster bypass; retain all simulation and copy callers.
+patchPolygonFunction('FUN_00424e44', body => replaceRectangleInput(body,
+  'void __fastcall FUN_00424e44(int param_1,int node)\n\n{\n',
+  'void __fastcall FUN_00424e44(int param_1,int node)\n\n{\n' +
+  '  /* Diagnostic draw boundary: original 0x424e44..0x424e95 only selects\n' +
+  '   * polygon/mode/reference and calls the raster dispatcher. Actor updates,\n' +
+  '   * logical poses, camera selection and dirty/HUD copies remain active. */\n' +
+  '  const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");\n' +
+  "  if (proxy != NULL && proxy[0] != '\\0' && proxy[0] != '0') return;\n\n"));
+
+patchRectangleFunction("FUN_00425018", body => replaceRectangleInput(body,"void FUN_00425018(int actor)\n\n{\n","void FUN_00425018(int actor)\n\n{\n  /* Alternate box/rounded mesh raster paths selected by 0x424cbc..0x424dd8.\n   * Cylinder presentation replaces their projected vertices and triangles. */\n  const char *proxy = getenv(\"E2R_PROXY_MESH_BYPASS\");\n  if (proxy && *proxy && *proxy != '0') return;\n\n"));
+patchRectangleFunction("FUN_00425538", body => replaceRectangleInput(body,"void FUN_00425538(int actor)\n\n{\n","void FUN_00425538(int actor)\n\n{\n  /* Alternate box/rounded mesh raster paths selected by 0x424cbc..0x424dd8.\n   * Cylinder presentation replaces their projected vertices and triangles. */\n  const char *proxy = getenv(\"E2R_PROXY_MESH_BYPASS\");\n  if (proxy && *proxy && *proxy != '0') return;\n\n"));
+
+// Original action event 0x3f node input and retained cleanup ownership.
+patchRectangleFunction('FUN_0043a8f8', () => `undefined4 FUN_0043a8f8(int node)
+
+{
+  /* Original 0x43a8f8..0x43a9a7 retains EAX in ECX across cleanup calls. */
+  int owner = *(int *)(node + 0x22);
+  *(int *)(*(int *)(owner + 0x54) + *(short *)node * 4) = 0;
+  int previous = *(int *)(owner + 0x1e);
+  while (*(int *)(previous + 0x4c) != 0) {
+    int next = *(int *)(previous + 0x4c);
+    if (next == node) {
+      *(int *)(previous + 0x4c) = *(int *)(next + 0x4c);
+      break;
+    }
+    previous = next;
+  }
+  for (int child = *(int *)(node + 0x1e); child != 0;
+       child = *(int *)(child + 0xca)) {
+    FUN_0043a8f8(child);
+  }
+  for (int vertex = *(int *)(node + 0x11e); vertex != 0;
+       vertex = *(int *)(vertex + 0x26)) {
+    for (int polygon = *(int *)(owner + 0xd8); polygon != 0;
+         polygon = *(int *)(polygon + 0x1e)) {
+      if (vertex == *(int *)(polygon + 4) || vertex == *(int *)(polygon + 8) ||
+          vertex == *(int *)(polygon + 0xc) || vertex == *(int *)(polygon + 0x28)) {
+        FUN_0043a9a8(polygon);
+      }
+    }
+    /* Original 0x45366c marks this vertex; no allocation is freed here. */
+    *(ushort *)(vertex + 2) = 1;
+  }
+  /* Original 0x453508 marks the retained node, never an extraout register. */
+  *(ushort *)(node + 4) = 0x8000;
+  return node;
+}`);
+patchRectangleFunction('FUN_0043a9a8', () => `void FUN_0043a9a8(int polygon)
+
+{
+  /* Original 0x43a9a8..0x43aa12 keeps the polygon in EDX across unlinking. */
+  int owner = *(int *)(polygon + 0x22);
+  int first = *(int *)(owner + 0xd8);
+  if (first == polygon) {
+    *(int *)(owner + 0xd8) = *(int *)(polygon + 0x1e);
+  } else {
+    for (int previous = first; previous != 0; previous = *(int *)(previous + 0x1e)) {
+      if (*(int *)(previous + 0x1e) == polygon) {
+        *(int *)(previous + 0x1e) = *(int *)(polygon + 0x1e);
+        break;
+      }
+    }
+  }
+  *(int *)(*(int *)(owner + 0xdc) + *(short *)polygon * 4) = 0;
+  /* Original 0x453264 defers reclamation by marking the polygon. */
+  *(ushort *)(polygon + 2) = 0x8000;
+}`);
+source = replaceRectangleInput(source,
+  '    uVar12 = FUN_0043ab74(param_1,iVar9);',
+  '    /* Original 0x42c041 supplies the selected ESI node in EAX. */\n' +
+  '    uVar12 = FUN_0043ab74((undefined4)(uintptr_t)unaff_ESI,0);');
+patchRectangleFunction('FUN_0043ab74', body => {
+  body = replaceRectangleInput(body,'  int in_EAX;','  int in_EAX = (int)param_1;');
+  body = replaceRectangleInput(body,'FUN_0043a8f8();','FUN_0043a8f8(in_EAX);');
+  return replaceRectangleInput(body,'    uVar3 = FUN_0043cac0(0,in_EAX);',
+    '    /* Original 0x43ac3f/0x43ac46 selects the corresponding error text. */\n' +
+    '    uVar3 = FUN_0043cac0(in_EAX == 0 ? 0x4726c4 : 0x4726ac,0);');
+});
+for (const [name, declaration] of [
+  ['FUN_0043a8f8','undefined4 FUN_0043a8f8(int node);'],
+  ['FUN_0043a9a8','void FUN_0043a9a8(int polygon);']
+]) {
+  const at = prototypes.findIndex(p => p.includes(`${name}(`));
+  if (at < 0) throw new Error(`Missing node cleanup prototype ${name}`);
+  prototypes[at] = declaration;
+}
+
+// Original action reset retains its explicit slot and actor across every event.
+for (const [name, call] of [
+  ['FUN_0042ad60','FUN_0042b004(in_EAX,(short *)(uintptr_t)param_2);'],
+  ['FUN_0042ae80','FUN_0042b004(action_slot,(short *)(uintptr_t)param_2);'],
+  ['FUN_0042b338','FUN_0042b004(in_EAX,unaff_EBX);'],
+  ['FUN_0044d634','FUN_0042b004((int *)(psVar1 + 0x53),psVar1);']
+]) patchRectangleFunction(name, body => body.replaceAll('FUN_0042b004();',call));
+patchRectangleFunction('FUN_0042b004', body => {
+  body = replaceRectangleInput(body,'void FUN_0042b004(void)',
+    'void FUN_0042b004(int *action_slot,short *actor)');
+  body = replaceRectangleInput(body,'  int *in_EAX;\n  short *in_EDX;',
+    '  int *in_EAX = action_slot;\n  short *in_EDX = actor;\n  int entry_actor_context = E2R_actor_calc_context;');
+  body = replaceRectangleInput(body,
+    '  if (E2R_actor_calc_context != 0) {\n    in_EAX = (int *)(uintptr_t)(E2R_actor_calc_context + 0xa6);\n  }\n',
+    '  /* Original 0x42b00c/0x42b00e retains slot/actor in EBP/EDI. */\n');
+  body = replaceRectangleInput(body,
+    '      FUN_0042b880(*in_EAX,\n                   E2R_actor_calc_context != 0 ?\n                   (short *)(uintptr_t)E2R_actor_calc_context : in_EDX);',
+    '      E2R_actor_calc_context = (int)(uintptr_t)in_EDX;\n      FUN_0042b880(*in_EAX,in_EDX);\n      E2R_actor_calc_context = entry_actor_context;');
+  return replaceRectangleInput(body,'    FUN_0042b0f4();',
+    '    E2R_actor_calc_context = (int)(uintptr_t)in_EDX;\n    FUN_0042b0f4();\n    E2R_actor_calc_context = entry_actor_context;');
+});
+{
+  const at = prototypes.findIndex(p => p.includes('FUN_0042b004('));
+  if (at < 0) throw new Error('Missing action-reset prototype');
+  prototypes[at] = 'void FUN_0042b004(int *action_slot,short *actor);';
+}
+
+// Root-pose matrix and previous-position destinations, original 0x42b143..0x42b32c.
+// The terminal event link is adjacent to a stale ECX destination in ASan.
+patchRectangleFunction('FUN_0042b0f4', body => {
+  body = replaceRectangleInput(body,"    FUN_00422330();\n    uVar4 = extraout_ECX;\n    if (*(short *)(in_EAX + 0x92) != 0) {\n      FUN_00422460(extraout_ECX,(int)*(short *)(in_EAX + 0x92));\n      uVar4 = extraout_ECX_00;\n    }\n    if (*(short *)(in_EAX + 0x90) != 0) {\n      FUN_00422368(uVar4,(int)*(short *)(in_EAX + 0x90));\n      uVar4 = extraout_ECX_01;\n    }\n    if (*(short *)(in_EAX + 0x94) != 0) {\n      FUN_00422538(uVar4,(int)*(short *)(in_EAX + 0x94));\n    }\n",
+    "    E2R_ApplyEulerMatrix((short *)(in_EAX + 6),(short *)(in_EAX + 0x90));\n");
+  body = replaceRectangleInput(body,"    FUN_00422aa0((uint)uVar1,(undefined2 *)(in_EAX + 0x84));\n",
+    "    FUN_00422aa0((undefined4)(in_EAX + 0x8a),(undefined2 *)(in_EAX + 0x84));\n");
+  body = replaceRectangleInput(body,"    FUN_00422330();\n    uVar4 = extraout_ECX_02;\n    if (*(short *)(iVar3 + 0x92) != 0) {\n      FUN_00422460(extraout_ECX_02,(int)*(short *)(iVar3 + 0x92));\n      uVar4 = extraout_ECX_03;\n    }\n    if (*(short *)(iVar3 + 0x90) != 0) {\n      FUN_00422368(uVar4,(int)*(short *)(iVar3 + 0x90));\n      uVar4 = extraout_ECX_04;\n    }\n    if (*(short *)(iVar3 + 0x94) != 0) {\n      FUN_00422538(uVar4,(int)*(short *)(iVar3 + 0x94));\n    }\n",
+    "    E2R_ApplyEulerMatrix((short *)(iVar3 + 6),(short *)(iVar3 + 0x90));\n");
+  body = replaceRectangleInput(body,"    FUN_00422aa0((uint)uVar1,(undefined2 *)(iVar3 + 0x84));\n",
+    "    FUN_00422aa0((undefined4)(iVar3 + 0x8a),(undefined2 *)(iVar3 + 0x84));\n");
+  return body;
+});
+
+// Original event 0x2e/4 invokes a script code record, not its parent action.
+source = replaceRectangleInput(source,"psVar7 = (short *)FUN_0044f320(param_1,*(ushort **)(unaff_ESI + 0x11));","/* Original 0x42c517..0x42c52d passes the code-table record in EAX. */\n          psVar7 = (short *)FUN_0044f320(\n              *(uint *)(0x006297bc + (int)in_EAX[3] * 4),\n              *(ushort **)(unaff_ESI + 0x11));");
+patchRectangleFunction('FUN_0044f320', () => `undefined4 __fastcall FUN_0044f320(undefined4 param_1,ushort *param_2)
+
+{
+  /* Original wrapper preserves the code record in EAX and forwards its actor
+   * in EDX/ECX. Retain dispatch ownership across nested script calls. */
+  short *entry_dispatch = E2R_action_dispatch_node;
+  E2R_action_dispatch_node = (short *)(uintptr_t)param_1;
+  FUN_0044f508(param_2,param_2,(ushort *)0x0);
+  E2R_action_dispatch_node = entry_dispatch;
+  return 0;
+}`);
+
+// Original script-name byte capacity and mutable-pool cache ownership.
+source = replaceRectangleInput(source,"  return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,\n                                                       _DAT_00636698,24000,2000));","  /* Original 0x4469c4 bounds the byte pool at base +0x5dc0 (24000). */\n  short index = E2R_InternPackedName((char *)(uintptr_t)param_1,\n                                     (char *)(uintptr_t)_DAT_00636698,24000,2000);\n  /* Parsing appends names without reallocating the pool. */\n  E2R_action_name_cache_ready = 0;\n  return CONCAT44(param_2,(ushort)index);");
+
+// Original scene completion/start script wrappers retain their code record.
+source = replaceRectangleInput(source,"  FUN_0044f2fc();\n  E2R_action_dispatch_node = (short *)0x0;","  FUN_0044f2fc((undefined4)(uintptr_t)action);\n  E2R_action_dispatch_node = (short *)0x0;");
+source = replaceRectangleInput(source,"            lVar15 = FUN_0044f2fc();","            lVar15 = FUN_0044f2fc(*(uint *)(0x006297c0 + sVar6 * 4));");
+source = replaceRectangleInput(source,"        FUN_0044f2fc();\n        psVar2 = local_38;","        FUN_0044f2fc(*(uint *)(0x006297c0 + local_38[0x4d] * 4));\n        psVar2 = local_38;");
+patchRectangleFunction('FUN_0044f2fc', () => `undefined4 FUN_0044f2fc(undefined4 action)
+
+{
+  /* Original 0x44f2fc retains EAX while clearing script actor arguments. */
+  short *entry_dispatch = E2R_action_dispatch_node;
+  E2R_action_dispatch_node = (short *)(uintptr_t)action;
+  FUN_0044f508((ushort *)0x0,(ushort *)0x0,(ushort *)0x0);
+  E2R_action_dispatch_node = entry_dispatch;
+  return 0;
+}`);
+{
+  const at = prototypes.findIndex(p => p.includes('FUN_0044f2fc('));
+  if (at < 0) throw new Error('Missing script-entry prototype');
+  prototypes[at] = 'undefined4 FUN_0044f2fc(undefined4 action);';
+}
+
+// Retained original script cursor and EBX node across condition/skip helpers.
+source = replaceRectangleInput(source,"      table[offset + input_length + 1] = '\\0';\n      return index;","      table[offset + input_length + 1] = '\\0';\n      /* Original 0x446a10 clears the newly interned script's code slot. */\n      if (table == (char *)(uintptr_t)_DAT_00636698)\n        *(uint *)(0x006297c0 + (uint)(ushort)index * 4) = 0;\n      return index;");
+source = replaceRectangleInput(source,'static short *E2R_action_dispatch_node;',
+  'static short *E2R_action_dispatch_node;\nstatic ushort *E2R_script_node_context;');
+patchRectangleFunction('FUN_0044e74c', body => body.replace('(void)','(int *cursor)')
+  .replace('  int *in_EAX;','  int *in_EAX = cursor;')
+  .replace('FUN_0044e74c();','FUN_0044e74c(in_EAX);')
+  .replace('      *extraout_ECX = *extraout_ECX + 2;\n      in_EAX = extraout_ECX;','      *in_EAX = *in_EAX + 2;'));
+patchRectangleFunction('FUN_0044e7a4', body => body.replace('(void)','(int *cursor)')
+  .replace('  int *in_EAX;','  int *in_EAX = cursor;')
+  .replace('FUN_0044e74c();','FUN_0044e74c(in_EAX);')
+  .replace('      *extraout_ECX = *extraout_ECX + 2;\n      in_EAX = extraout_ECX;','      *in_EAX = *in_EAX + 2;'));
+patchRectangleFunction('FUN_0044e810', body => body
+  .replace('int param_4)','int param_4,int *cursor,ushort *node)')
+  .replace('  int *in_EAX;','  int *in_EAX = cursor;')
+  .replace('  ushort *unaff_EBX;','  ushort *unaff_EBX = node;'));
+patchRectangleFunction('FUN_0044f508', body => body
+  .replace('  int unaff_EBX;','  int unaff_EBX = (int)(uintptr_t)E2R_script_node_context;')
+  .replaceAll('FUN_0044e810(param_1,(int)param_2,param_3,local_34)',
+    'FUN_0044e810(param_1,(int)param_2,param_3,local_34,&local_2c,E2R_script_node_context)')
+  .replaceAll('FUN_0044e7a4();','FUN_0044e7a4(&local_2c);')
+  .replaceAll('FUN_0044e74c();','FUN_0044e74c(&local_2c);'));
+for (const [name, node] of [['FUN_0044f2fc','NULL'],['FUN_0044f320','node']]) {
+  patchRectangleFunction(name, body => body
+    .replace('  short *entry_dispatch = E2R_action_dispatch_node;',
+      '  short *entry_dispatch = E2R_action_dispatch_node;\n  ushort *entry_node = E2R_script_node_context;\n  E2R_script_node_context = ' + node + ';')
+    .replace('  E2R_action_dispatch_node = entry_dispatch;',
+      '  E2R_action_dispatch_node = entry_dispatch;\n  E2R_script_node_context = entry_node;')
+    .replace('ushort *param_2)','ushort *param_2,ushort *node)'));
+}
+source = replaceRectangleInput(source,'              *(ushort **)(unaff_ESI + 0x11));',
+  '              *(ushort **)(unaff_ESI + 0x11),(ushort *)unaff_ESI);');
+for (const [name, declaration] of [["FUN_0044e74c", "void FUN_0044e74c(int *cursor);"], ["FUN_0044e7a4", "void FUN_0044e7a4(int *cursor);"], ["FUN_0044e810", "uint __fastcall FUN_0044e810(ushort *param_1,int param_2,ushort *param_3,int param_4,int *cursor,ushort *node);"], ["FUN_0044f320", "undefined4 __fastcall FUN_0044f320(undefined4 param_1,ushort *param_2,ushort *node);"]]) {
+  const at = prototypes.findIndex(p => p.includes(`${name}(`));
+  if (at < 0) throw new Error(`Missing script prototype ${name}`);
+  prototypes[at] = declaration;
+}
+
+// Original nested script calls retain a distinct selected code record.
+source = replaceRectangleInput(source,"static short *E2R_action_dispatch_node;\nstatic ushort *E2R_script_node_context;","static short *E2R_action_dispatch_node;\nstatic ushort *E2R_script_node_context;\nstatic void E2R_DispatchScriptRecord(ushort *code,ushort *actor,ushort *other,ushort *child,ushort *node);");
+source = replaceRectangleInput(source,"          FUN_0044f508(param_1,param_2,param_3);","          E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + uVar7 * 4),\n                                   param_1,param_2,param_3,E2R_script_node_context);");
+source = replaceRectangleInput(source,"            FUN_0044f508(param_2,param_2,(ushort *)0x0);","            E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)param_2[0x9b] * 4),\n                                     param_2,param_2,NULL,NULL);");
+source = replaceRectangleInput(source,"          FUN_0044f508(param_2,param_2,(ushort *)0x0);","          E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)param_2[0x9b] * 4),\n                                   param_2,param_2,NULL,NULL);");
+source = replaceRectangleInput(source,"          FUN_0044f508(puVar18,puVar18,(ushort *)0x0);","          E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 +\n                                     (*(ushort *)(local_2c + 1) & 0xfff) * 4),\n                                   puVar18,puVar18,NULL,NULL);");
+source = replaceRectangleInput(source,"        FUN_0044f508(psVar2,psVar2,(ushort *)0x0);","        E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)psVar2[0x9d] * 4),\n                                 (ushort *)psVar2,(ushort *)psVar2,NULL,NULL);");
+source = replaceRectangleInput(source,"              FUN_0044f508(psVar4,psVar4,(ushort *)0x0);","              E2R_DispatchScriptRecord(*(ushort **)(0x006297c0 + (short)psVar4[0x9d] * 4),\n                                       (ushort *)psVar4,(ushort *)psVar4,NULL,NULL);");
+source = replaceRectangleInput(source,"/* 0045186c */","/* Original nested script calls pass the selected code record in EAX. */\nstatic void E2R_DispatchScriptRecord(ushort *code,ushort *actor,ushort *other,ushort *child,ushort *node)\n{\n  short *entry_dispatch = E2R_action_dispatch_node;\n  ushort *entry_node = E2R_script_node_context;\n  E2R_action_dispatch_node = (short *)code;\n  E2R_script_node_context = node;\n  FUN_0044f508(actor,other,child);\n  E2R_action_dispatch_node = entry_dispatch;\n  E2R_script_node_context = entry_node;\n}\n\n/* 0045186c */");
+
+// Diagnostic display omits the original 2D graphic draw provider.
+source = replaceRectangleInput(source,"int __fastcall FUN_004555b0(int param_1,undefined4 param_2)\n\n{\n","int __fastcall FUN_004555b0(int param_1,undefined4 param_2)\n\n{\n  /* Diagnostic cylinders omit 2D graphic registration/drawing as well as\n   * mesh polygons. Original 0x4555b0 owns graphic slots/coordinates, not\n   * actor motion or script progression; the HUD control flag stays live. */\n  const char *proxy = getenv(\"E2R_PROXY_MESH_BYPASS\");\n  if (proxy != NULL && proxy[0] != '\\0' && proxy[0] != '0') return 0;\n\n");
+
+// Diagnostic graphic opcodes retain encoded operand spans before omitting visual leaves.
+patchRectangleFunction('FUN_0044f508', body => {
+  body = replaceRectangleInput(body,"      case 0x27:\n","      case 0x27:\n        /* Diagnostic graphics omission retains the original operand span.\n         * 0x450a95/0x450b36/0x450bca decode signed string lengths;\n         * graphic slot/name preparation has no actor or control effects. */\n        {\n          const char *proxy = getenv(\"E2R_PROXY_MESH_BYPASS\");\n          if (proxy != NULL && proxy[0] != '\\0' && proxy[0] != '0') {\n            ushort token = *(ushort *)((byte *)local_2c + 6);\n            short length = (short)((token & 0x800) ? token | 0xf000 : token & 0xfff);\n            local_2c = (int *)((byte *)local_2c + 8 + ((length + 1) / 2) * 2);\n            break;\n          }\n        }\n");
+  body = replaceRectangleInput(body,"      case 0x29:\n","      case 0x29:\n        /* Diagnostic graphics omission retains the original operand span.\n         * 0x450a95/0x450b36/0x450bca decode signed string lengths;\n         * graphic slot/name preparation has no actor or control effects. */\n        {\n          const char *proxy = getenv(\"E2R_PROXY_MESH_BYPASS\");\n          if (proxy != NULL && proxy[0] != '\\0' && proxy[0] != '0') {\n            ushort token = *(ushort *)((byte *)local_2c + 2);\n            short length = (short)((token & 0x800) ? token | 0xf000 : token & 0xfff);\n            local_2c = (int *)((byte *)local_2c + 4 + ((length + 1) / 2) * 2);\n            break;\n          }\n        }\n");
+  body = replaceRectangleInput(body,"      case 0x2a:\n","      case 0x2a:\n        /* Diagnostic graphics omission retains the original operand span.\n         * 0x450a95/0x450b36/0x450bca decode signed string lengths;\n         * graphic slot/name preparation has no actor or control effects. */\n        {\n          const char *proxy = getenv(\"E2R_PROXY_MESH_BYPASS\");\n          if (proxy != NULL && proxy[0] != '\\0' && proxy[0] != '0') {\n            ushort token = *(ushort *)((byte *)local_2c + 2);\n            short length = (short)((token & 0x800) ? token | 0xf000 : token & 0xfff);\n            local_2c = (int *)((byte *)local_2c + 4 + ((length + 1) / 2) * 2);\n            break;\n          }\n        }\n");
+  return body;
+});
+
+// Interpolated action events retain their actor independently of nested globals.
+patchRectangleFunction('FUN_0042c790', body => body
+  .replace("FUN_0042c790(int param_1,int param_2)","FUN_0042c790(int param_1,int param_2,short *event,int actor)")
+  .replace("  if (E2R_action_event_context != 0) {\n    in_EAX = (short *)(uintptr_t)E2R_action_event_context;\n  }\n  else {\n    in_EAX = E2R_fan_parse_record;\n  }\n  if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,10)) {\n    return;\n  }\n  if (E2R_actor_calc_context != 0 && 0x10000u <= (uintptr_t)E2R_actor_calc_context &&\n      !IsBadReadPtr((void *)(uintptr_t)E2R_actor_calc_context,0x148)) {\n    unaff_EBX = E2R_actor_calc_context;\n  }\n  else if ((uintptr_t)param_1 < 0x10000u || IsBadReadPtr((void *)(uintptr_t)param_1,0x148)) {\n    return;\n  }\n  else {\n    unaff_EBX = param_1;\n  }\n","  /* Original 0x42b44e..0x42b458 passes event EAX, factor EDX,\n   * retained actor EBX and action ECX. Nested events may clear the globals. */\n  in_EAX = event;\n  unaff_EBX = actor;\n"));
+source = replaceRectangleInput(source,"        FUN_0042c790(*in_EAX,uVar3);","        FUN_0042c790(*in_EAX,uVar3,(short *)iVar2,(int)(uintptr_t)unaff_EBX);");
+{
+  const at = prototypes.findIndex(p => p.includes("FUN_0042c790("));
+  if (at < 0) throw new Error("Missing interpolated event prototype");
+  prototypes[at] = "void __fastcall FUN_0042c790(int param_1,int param_2,short *event,int actor);";
+}
+
+// The expanded script set belongs to the explicit recovered-action experiment.
+for (const name of ["FUN_0044694c", "FUN_00441f00"])
+  patchRectangleFunction(name, body => replaceRectangleInput(body,"_DAT_00636698,24000,2000","_DAT_00636698,E2R_ActionIndexProbeEnabled() ? 24000 : 6000,2000"));
+source = replaceRectangleInput(source,"/* Original 0x4469c4 bounds the byte pool at base +0x5dc0 (24000). */","/* Original 0x4469c4 bounds the byte pool at base +0x5dc0 (24000).\n   * Activate that script set with the recovered action route; retain the\n   * earlier 6000-byte baseline while its graphics/script inputs remain open. */");
+
+// Source-backed palette fade intensity, timing and frame palette ownership.
+for (const name of ["FUN_00457994", "FUN_00457a34"]) {
+  patchRectangleFunction(name, body => body
+    .replace(`${name}(void)`,`${name}(int level)`)
+    .replace("  int in_EAX;","  int in_EAX = level;"));
+}
+patchRectangleFunction("FUN_00457818", () => "void __fastcall FUN_00457818(undefined4 param_1,undefined4 param_2)\n\n{\n  /* Original 0x457849..0x457982 computes elapsed * 100 / duration,\n   * retains the current tick in ECX across palette helpers, and passes\n   * the resulting intensity in EAX. Reverse completion clears its flags. */\n  int tick, elapsed, level;\n  if (DAT_0047ab30 == 0 && DAT_0047ab34 == 0) return;\n  tick = (int)FUN_0041cf5c(param_1,param_2);\n  if (tick == _DAT_00ac4ae4) return;\n  elapsed = (int)((uint)tick - (uint)_DAT_00ac4a54);\n  if (elapsed < (int)_DAT_00ac4a58)\n    level = (int)((uint)elapsed * 100u) / (int)_DAT_00ac4a58;\n  else level = 100;\n  if (DAT_0047ab38 != 0) level = 100 - level;\n  if (DAT_0047ab30 != 0) FUN_00457994(level);\n  else FUN_00457a34(level);\n  if (DAT_0047ab38 != 0 && elapsed >= (int)_DAT_00ac4a58) {\n    DAT_0047ab38 = 0;\n    DAT_0047ab34 = 0;\n    DAT_0047ab30 = 0;\n  }\n  _DAT_00ac4ae4 = tick;\n  return;\n}");
+patchRectangleFunction("FUN_00422238", body => {
+  body = replaceRectangleInput(body,"  undefined4 uVar3;","  undefined4 uVar3;\n  int fade_level;");
+  const saves = /^([ ]*)DAT_0047ab3c = -1;$/gm;
+  if ((body.match(saves) || []).length !== 2) throw new Error("Missing frame fade-level saves");
+  body = body.replace(saves,"$1fade_level = DAT_0047ab3c;\n$1DAT_0047ab3c = -1;");
+  body = replaceRectangleInput(body,"FUN_00457a34();","FUN_00457a34(fade_level);");
+  body = replaceRectangleInput(body,"FUN_00457994();","FUN_00457994(fade_level);");
+  body = replaceRectangleInput(body,"FUN_0041af88(param_1,param_2);","FUN_0041af88(0x0061c730,param_2);");
+  body = replaceRectangleInput(body,"FUN_0041af88(extraout_ECX_02,iVar4);","FUN_0041af88(0x0061c730,iVar4);");
+  return body;
+});
+source = replaceRectangleInput(source,"              FUN_00457994();","              FUN_00457994(0);");
+for (const name of ["FUN_00457994", "FUN_00457a34"]) {
+  const at = prototypes.findIndex(p => p.includes(`${name}(`));
+  if (at < 0) throw new Error(`Missing fade prototype ${name}`);
+  prototypes[at] = `void ${name}(int level);`;
+}
+
+// Original 0x44884b/0x4489a2 zero-extend the descriptor ceiling byte.
+// Couple corrected selection to the recovered action route until its no-scene
+// resource handoff is valid; keep the earlier bare terminal/modal baseline.
+for (const name of ["FUN_00448744", "FUN_004488a4"])
+  patchRectangleFunction(name, body => replaceRectangleInput(body,"(int)(char)pbVar7[5]","(E2R_ActionIndexProbeEnabled() ? (int)(uint)pbVar7[5] : (int)(char)pbVar7[5])"));
+
+// Preserve the original no-view fallback resource independently of camera id zero.
+source = replaceRectangleInput(source,"      FUN_0043a6e0(uVar3,(int)sVar2);","      /* Original 0x44c453 passes resource 7 in EAX when no view is found.\n       * Passing the zero camera selector here restarted intro resource 0. */\n      FUN_0043a6e0(7,7);");
+
+source = replaceRectangleInput(source,"static int E2R_RepIdIsMissing","/* Original scheduler/event loads scope global archive actor identities.\n * The optional probe can also enable lookup after a diagnostic checkpoint. */\nstatic int E2R_actor_resource_name_context = -1;\n\nstatic int E2R_PopulationProbeEnabled(void)\n{\n  const char *value = getenv(\"E2R_POPULATION_PROBE\");\n  return value != NULL && value[0] != '\\0' && value[0] != '0';\n}\n\nstatic int E2R_RepIdIsMissing");
+
+source = replaceRectangleInput(source,"void FUN_00451f5c(void)\n\n{","/* Find one binary actor section without changing the working intro resources.\n * The parser normalizes raw word 2 as the global actor name (0x42ba2c). */\nstatic int E2R_FindActorArchiveOffset(int actor_id)\n{\n  int *stream = (int *)(uintptr_t)DAT_0047a724;\n  byte *base, *end, *scan;\n  if (stream == NULL || IsBadReadPtr(stream,0x1c) ||\n      (uint)stream[6] != E2R_STREAM_MAGIC) return -1;\n  base = (byte *)(uintptr_t)stream[5];\n  end = (byte *)(uintptr_t)stream[2];\n  if (base == NULL || end < base || (uint)(end-base) < 0x36) return -1;\n  for (scan = base; scan <= end - 0x36; ++scan) {\n    if (scan[0] == 'F' && scan[1] == 'A' && scan[2] == 'N' && scan[3] == 'T' &&\n        scan[4] == 0 && scan[5] == 55 && scan[6] == 0 && scan[7] == 1 &&\n        scan[0x2c] == 0 && scan[0x2d] == 8 &&\n        (((uint)scan[0x30] << 8) | scan[0x31]) == (uint)actor_id)\n      return (int)(scan - base);\n  }\n  return -1;\n}\n\nvoid FUN_00451f5c(void)\n\n{");
+patchRectangleFunction("FUN_00451f5c", body => replaceRectangleInput(body,"  iVar1 = actor_id * 4;\n  if (*(int *)((undefined1 *)0x00630b60 + iVar1) == 0) {","  iVar1 = actor_id * 4;\n  if (*(int *)((undefined1 *)0x00630b60 + iVar1) == 0) {\n    if (E2R_PopulationProbeEnabled() && DAT_0047ab10 != 0) {\n      int offset = E2R_FindActorArchiveOffset(actor_id);\n      if (offset >= 0) *(int *)(0x653840 + iVar1) = offset;\n    }"));
+
+patchRectangleFunction("FUN_00423858", body => replaceRectangleInput(body,"        psVar9 = (short *)(local_54 + 0x10);\n        FUN_0045de8b();","        psVar9 = (short *)(local_54 + 0x10);\n        /* Original 0x4238a3..0x4238b7 retains reference input/matrix/output. */\n        E2R_TransformVector14(psVar9,(short *)(uintptr_t)(local_54 + 4),\n                              (short *)(uintptr_t)local_40);"));
+patchRectangleFunction("FUN_00423858", body => replaceRectangleInput(body,"  if ((short)local_18 == 0) {","  /* Cylinder mode retains the root and its motion references above. Child\n   * bone transforms and IK (0x4238fe onward) belong to mesh articulation;\n   * their collision/attachment fidelity remains outside this prototype. */\n  const char *proxy_bones = getenv(\"E2R_PROXY_MESH_BYPASS\");\n  if (proxy_bones && *proxy_bones && *proxy_bones != '0') return;\n  if ((short)local_18 == 0) {"));
+
+patchRectangleFunction("FUN_0042fce0", () => "undefined4 __fastcall FUN_0042fce0(int sound,int node,int close,int override_volume,int channel)\n\n{\n  /* Original 0x42fce0 retains sound EAX, node EDX, proximity flag EBX,\n   * volume override ECX and the stack channel independently. */\n  if (DAT_0047a4a0 != 0 && DAT_00479dd0 != 0) {\n    int volume = override_volume;\n    if (volume == 0) {\n      volume = 127;\n      if (node != 0 && *(int *)(node + 0x22) != DAT_0047a470) {\n        int owner = *(int *)(node + 0x22);\n        short angle, distance;\n        int height = *(short *)(owner + 0x86) - *(short *)(DAT_0047a470 + 0x86);\n        E2R_NpcPolar16(&angle,&distance,\n            (short)(*(short *)(owner + 0x84) - *(short *)(DAT_0047a470 + 0x84)),\n            (short)(*(short *)(owner + 0x88) - *(short *)(DAT_0047a470 + 0x88)));\n        distance = (short)(distance + abs(height));\n        if (close != 0) distance = (short)(distance - 1024);\n        if (distance < 0) distance = 0;\n        volume = (8192 - distance) >> 6;\n        if (volume > 127) volume = 127;\n        if (volume < 0) volume = 0;\n      }\n    }\n    if (volume != 0) {\n      if (node != 0 && *(int *)(node + 0x22) == DAT_0047a470 && sound == 0)\n        sound = (int)FUN_0042fc84(0,volume);\n      FUN_00451a54(0,sound);\n      int resource = *(int *)(sound * 4 + 0x62d960);\n      if (resource != 0) {\n        int percent = *(short *)(resource + 0x16);\n        volume = percent > 100 ? 127 : volume * percent / 100;\n        FUN_00413ea4(resource,close,volume,channel);\n      }\n    }\n  }\n  return 0;\n}");
+patchRectangleFunction("FUN_00413ea4", body => replaceRectangleInput(body,"void __fastcall FUN_00413ea4(undefined4 param_1)\n\n{\n  int iVar1;\n  int in_EAX;\n  int unaff_EBX;","void __fastcall FUN_00413ea4(int resource,int close,int volume,int channel)\n\n{\n  int iVar1;\n  int in_EAX = resource;\n  int unaff_EBX = volume;\n  int param_1 = channel;\n  (void)close;"));
+source = replaceRectangleInput(source,"psVar7 = (short *)FUN_0042fce0((int)in_EAX[3],(int)unaff_ESI,1);","psVar7 = (short *)FUN_0042fce0((int)in_EAX[3],(int)unaff_ESI,*(byte *)(param_1 + 0xc) & 2,0,1);");
+source = replaceRectangleInput(source,"          FUN_0045fc10(iVar7,extraout_EDX);\n          FUN_0042fce0(0,in_EAX,1);","          uVar10 = FUN_0045fc10(iVar7,extraout_EDX);\n          FUN_0042fce0((ushort)((uint)uVar10 * 2) > 0x8000 ? 12 : 13,in_EAX,0,0,1);");
+source = replaceRectangleInput(source,"FUN_0042fce0(*(int *)(iVar2 + 0xaa69fc),0,0);","FUN_0042fce0(*(int *)(iVar2 + 0xac493c),0,0,*(int *)(iVar2 + 0xaa69fc),0);");
+{
+  const at = prototypes.indexOf("undefined4 __fastcall FUN_0042fce0(int param_1,int param_2,undefined4 param_3);");
+  if (at < 0) throw new Error("Missing guard sound prototype");
+  prototypes[at] = "undefined4 __fastcall FUN_0042fce0(int sound,int node,int close,int override_volume,int channel);";
+}
+{
+  const at = prototypes.indexOf("void __fastcall FUN_00413ea4(undefined4 param_1);");
+  if (at < 0) throw new Error("Missing guard sound prototype");
+  prototypes[at] = "void __fastcall FUN_00413ea4(int resource,int close,int volume,int channel);";
+}
+
+patchRectangleFunction("FUN_00413ea4", body => replaceRectangleInput(body,"  int param_1 = channel;\n  (void)close;","  (void)close;\n  (void)channel;"));
+patchRectangleFunction("FUN_00413ea4", body => replaceRectangleInput(body,"FUN_00458c24(param_1,unaff_EBX);","FUN_00458c24(resource,unaff_EBX);"));
+patchRectangleFunction("FUN_00458c24", body => replaceRectangleInput(body,"  int in_EAX;","  int in_EAX = (int)param_1;"));
+
+patchRectangleFunction("FUN_0042ce70", body => body.replace("FUN_0042ce70(void)","FUN_0042ce70(int node)").replace("  int in_EAX;","  int in_EAX = node;").replace("  if (E2R_actor_calc_context != 0) {\n    in_EAX = E2R_actor_calc_context;\n  }\n",""));
+patchRectangleFunction("FUN_0042b490", body => replaceRectangleInput(body,"FUN_0042ce70()","FUN_0042ce70(iVar1)"));
+patchRectangleFunction("FUN_0042b490", body => replaceRectangleInput(body,"FUN_00432e08();","{\n          int entry_context = E2R_actor_calc_context;\n          E2R_actor_calc_context = iVar1;\n          FUN_00432e08();\n          E2R_actor_calc_context = entry_context;\n        }"));
+patchRectangleFunction("FUN_0042b5fc", body => replaceRectangleInput(body,"FUN_0042ce70()","FUN_0042ce70(iVar1)"));
+patchRectangleFunction("FUN_0042b5fc", body => replaceRectangleInput(body,"FUN_00432e08();","{\n          int entry_context = E2R_actor_calc_context;\n          E2R_actor_calc_context = iVar1;\n          FUN_00432e08();\n          E2R_actor_calc_context = entry_context;\n        }"));
+patchRectangleFunction("FUN_0042b880", body => replaceRectangleInput(body,"FUN_0042ce70()","FUN_0042ce70((int)(uintptr_t)unaff_ESI)"));
+patchRectangleFunction("FUN_0042c790", body => replaceRectangleInput(body,"FUN_0042ce70()","FUN_0042ce70(unaff_EDI)"));
+patchRectangleFunction("FUN_0042c790", body => replaceRectangleInput(body,"FUN_00432e08();","{\n            int entry_context = E2R_actor_calc_context;\n            E2R_actor_calc_context = unaff_EDI;\n            FUN_00432e08();\n            E2R_actor_calc_context = entry_context;\n          }"));
+{
+  const at = prototypes.indexOf("undefined4 FUN_0042ce70(void);");
+  if (at < 0) throw new Error("Missing node scale prototype");
+  prototypes[at] = "undefined4 FUN_0042ce70(int node);";
+}
+
+// Original 0x428080..0x4280ab retains a contiguous line-of-sight vector;
+// 0x4282a1 copies the target position into actor +0x152.
+patchRectangleFunction("FUN_00422a48", body => replaceRectangleInput(body,"  short *in_EAX;","  short *in_EAX = (short *)(uintptr_t)param_1;"));
+patchRectangleFunction("FUN_00427584", body => replaceRectangleInput(body,"  int local_84;","  short local_84[3];"));
+patchRectangleFunction("FUN_00427584", body => replaceRectangleInput(body,"FUN_00422aa0(extraout_ECX_09,(undefined2 *)(local_60 + 0x80));","FUN_00422aa0((uint)(uintptr_t)local_84,(undefined2 *)(local_60 + 0x80));"));
+patchRectangleFunction("FUN_00427584", body => replaceRectangleInput(body,"FUN_00422a48(uVar13,local_7c);","FUN_00422a48((uint)(uintptr_t)local_84,local_7c);"));
+patchRectangleFunction("FUN_00427584", body => replaceRectangleInput(body,"FUN_00448be0(extraout_ECX_11,local_84 >> 0x10);","FUN_00448be0((uint)(uintptr_t)local_84,(int)local_84[1]);"));
+patchRectangleFunction("FUN_00427584", body => replaceRectangleInput(body,"FUN_00422aa0(uVar13,local_70 + 0x42);","FUN_00422aa0((uint)(uintptr_t)(local_6c + 0xa9),local_70 + 0x42);"));
+
+patchRectangleFunction("FUN_00451f5c", body => replaceRectangleInput(body,"      parse_result = E2R_ParseArchiveFanResource();","      {\n        int previous = E2R_actor_resource_name_context;\n        if (E2R_PopulationProbeEnabled()) E2R_actor_resource_name_context = actor_id;\n        parse_result = E2R_ParseArchiveFanResource();\n        E2R_actor_resource_name_context = previous;\n      }"));
+
+patchRectangleFunction("FUN_00451f5c", body => replaceRectangleInput(body,"if (parse_result != 0 && loaded_actor != (short *)0x0 &&","if (!E2R_PopulationProbeEnabled() && parse_result != 0 && loaded_actor != (short *)0x0 &&"));
+
+patchRectangleFunction("FUN_0042a098", () => `undefined8 __fastcall FUN_0042a098(undefined4 param_1,undefined4 param_2)
+
+{
+  /* Original 0x42a098..0x42a3ad retains three contiguous terrain vectors,
+   * actor EAX, and the obstacle bitmask across six floor queries. */
+  int actor = (int)param_1;
+  ushort angle = *(ushort *)(actor + 0x92);
+  int radius = *(short *)(actor + 0x9a);
+  int dx = (*(short *)(0x59b590 + angle * 2) * radius) >> 14;
+  int dz = (*(short *)(0x5de590 + angle * 2) * radius) >> 14;
+  int x = *(short *)(actor + 0x84), y = *(short *)(actor + 0x86);
+  int z = *(short *)(actor + 0x88);
+  short turn = *(short *)(actor + 0x98);
+  short sample[3][3];
+  sample[0][0] = (short)(x + dx * 2);
+  sample[0][1] = sample[1][1] = sample[2][1] = (short)y;
+  sample[0][2] = (short)(z + dz * 2);
+  int sx = turn ? (short)dx : dx, sz = turn ? (short)dz : dz;
+  int extra_x = turn ? sx >> 2 : 0, extra_z = turn ? sz >> 2 : 0;
+  sample[1][0] = (short)(x + sx * 2 - sz - extra_z);
+  sample[1][2] = (short)(z + sz * 2 + sx + extra_x);
+  sample[2][0] = (short)(x + sx * 2 + sz + extra_z);
+  sample[2][2] = (short)(z + sz * 2 - sx - extra_x);
+  unsigned blocked = 0;
+  for (int i = 0; i < 3; ++i) {
+    /* The original evaluates each sample twice, including blocked samples. */
+    int first = FUN_00448a3c((uint)(uintptr_t)sample[i],actor);
+    int difference = (int)FUN_00448a3c((uint)(uintptr_t)sample[i],actor) - y;
+    if (first <= y) difference = -difference;
+    if (difference > 256) blocked |= 1u << i;
+  }
+  int slot;
+  if (turn == 0) {
+    if (blocked == 0 || blocked == 6) slot = 1;
+    else if (blocked == 1 || blocked == 7) {
+      *(short *)(actor + 0x98) = (short)((uint)FUN_0045fc10(0,0) * 2);
+      slot = 1000;
+    }
+    else if (blocked == 2 || blocked == 3) {
+      *(short *)(actor + 0x98) = 1;
+      slot = 5;
+    }
+    else {
+      *(short *)(actor + 0x98) = -1;
+      slot = 3;
+    }
+  }
+  else if (blocked == 0) {
+    *(short *)(actor + 0x98) = 0;
+    slot = 1;
+  }
+  else slot = turn > 0 ? 5 : 3;
+  return CONCAT44(param_2,slot);
+}
+`);
+patchRectangleFunction("FUN_00427584", body => body.replaceAll("FUN_0042a098(uVar25,psVar15)","FUN_0042a098((uint)(uintptr_t)local_6c,(uint)(uintptr_t)psVar15)"));
+
+source = replaceRectangleInput(source,"undefined4 __fastcall FUN_00427160(undefined4 param_1,short *param_2)","static short E2R_PolygonAngle16(short x,short z);\n/* Original 0x427160: short X/Z inputs, distinct angle/distance outputs. */\nstatic void E2R_NpcPolar16(short *angle,short *distance,short x,short z)\n{\n  *angle = E2R_PolygonAngle16(x,z);\n  if (x == 0 && z == 0) { *distance = 0; return; }\n  int use_z = abs((int)z) > abs((int)x);\n  int component = use_z ? z : x;\n  int table = use_z ? 0x5de590 : 0x59b590;\n  int divisor = *(short *)(table + (uint)(ushort)*angle * 2);\n  short value = divisor ? (short)(component * 16384 / divisor) : 0;\n  *distance = value > 0 ? value : (short)-value;\n}\n\nundefined4 __fastcall FUN_00427160(undefined4 param_1,short *param_2)");
+patchRectangleFunction("FUN_00427584", body => replaceRectangleInput(body,"FUN_00427160((int)(short)(psVar15[0x44] - local_6c[0x44]),local_1c);","E2R_NpcPolar16(local_1c + 1,local_1c,(short)(psVar15[0x42] - local_6c[0x42]),\n                                (short)(psVar15[0x44] - local_6c[0x44]));"));
+patchRectangleFunction("FUN_0044e354", body => replaceRectangleInput(body,"FUN_00427160((int)(short)(psVar2[0x44] - ((undefined4 *)(uintptr_t)DAT_0047a470)[0x44]),local_1c),","E2R_NpcPolar16(local_1c + 1,local_1c,\n               (short)(psVar2[0x42] - *(short *)(DAT_0047a470 + 0x84)),\n               (short)(psVar2[0x44] - *(short *)(DAT_0047a470 + 0x88))),"));
+patchRectangleFunction("FUN_0044e354", body => replaceRectangleInput(body,"FUN_00422aa0(extraout_ECX_02,psVar2 + 0x42);","FUN_00422aa0((uint)(*psVar2 * 6 + 0x669708),psVar2 + 0x42);"));
+patchRectangleFunction("FUN_0044e354", body => replaceRectangleInput(body,"FUN_00422aa0(extraout_ECX_03,psVar2 + 0x48);","FUN_00422aa0((uint)(*psVar2 * 6 + 0x658980),psVar2 + 0x48);"));
+patchRectangleFunction("FUN_0044e354", body => replaceRectangleInput(body,"FUN_0044e238();","FUN_0044e238((uint)(uintptr_t)psVar2);"));
+patchRectangleFunction("FUN_0044e238", body => replaceRectangleInput(body,"void FUN_0044e238(void)","void FUN_0044e238(undefined4 actor)"));
+patchRectangleFunction("FUN_0044e238", body => replaceRectangleInput(body,"  short *in_EAX;","  short *in_EAX = (short *)(uintptr_t)actor;"));
+patchRectangleFunction("FUN_0044e238", body => replaceRectangleInput(body,"  FUN_00426ca4();","  int previous = E2R_actor_calc_context;\n  E2R_actor_calc_context = (int)(uintptr_t)in_EAX;\n  FUN_00426ca4();\n  E2R_actor_calc_context = previous;"));
+patchRectangleFunction("FUN_0044e238", body => replaceRectangleInput(body,"      FUN_0044e238();\n      iVar5 = extraout_EDX;","      FUN_0044e238(*(uint *)(iVar5 + 0x13a));"));
+patchRectangleFunction("FUN_0044f508", body => replaceRectangleInput(body,"          FUN_0044e238();\n          puVar13 = extraout_ECX_59;","          FUN_0044e238((uint)(uintptr_t)param_2);\n          puVar13 = extraout_ECX_59;"));
+patchRectangleFunction("FUN_0044f508", body => replaceRectangleInput(body,"            FUN_0044e238();\n            puVar13 = extraout_ECX_62;","            FUN_0044e238(*(uint *)(0x630b60 + uVar7 * 4));\n            puVar13 = extraout_ECX_62;"));
+
+// Original 0x426cc3/0x426cd2 read the next actor at byte offset +0x4c.
+patchRectangleFunction("FUN_00426ca4", body => replaceRectangleInput(body,"_DAT_0063726c = *(short **)(_DAT_0063726c + 0x26);","_DAT_0063726c = *(short **)(_DAT_0063726c + 0x4c);"));
+
+{
+  const at = prototypes.indexOf("void FUN_0044e238(void);");
+  if (at < 0) throw new Error("Missing actor deactivation prototype");
+  prototypes[at] = "void FUN_0044e238(undefined4 actor);";
+}
+
+patchRectangleFunction("FUN_00426ca4", body => replaceRectangleInput(body,"iVar2 = *(int *)(_DAT_0063726c + 0x26);","iVar2 = *(int *)(_DAT_0063726c + 0x4c);"));
+
+patchRectangleFunction("FUN_004211c8", body => replaceRectangleInput(body,"  for (; iVar5 != 0; iVar5 = *(int *)(iVar5 + 0x4c)) {\n    if (((*(byte *)(iVar5 + 3) & 4) == 0) &&\n       (iVar1 = _DAT_0063726c, (*(byte *)(iVar5 + 3) & 8) != 0)) {","  /* Original 0x421414..0x4215d3 manages pixel redraw rectangles and\n   * graphic-slot overlap. Cylinder presentation has no mesh rectangles.\n   * Actor transforms, scene selection and scripts above remain live. */\n  const char *proxy_pixels = getenv(\"E2R_PROXY_MESH_BYPASS\");\n  int omit_actor_pixels = proxy_pixels && *proxy_pixels && *proxy_pixels != '0';\n  for (; iVar5 != 0; iVar5 = *(int *)(iVar5 + 0x4c)) {\n    if (!omit_actor_pixels && ((*(byte *)(iVar5 + 3) & 4) == 0) &&\n       (iVar1 = _DAT_0063726c, (*(byte *)(iVar5 + 3) & 8) != 0)) {"));
+
+patchRectangleFunction("FUN_00452140", body => replaceRectangleInput(body,"  if (in_EAX != 0) {\n    E2R_TraceSceneChildren","  if (in_EAX != 0) {\n    /* Source dav:skipsc pairs Start_sc with St_gobsc. Keep\n     * corrected archive identity scoped while other intro actors are audited. */\n    int recover_names = E2R_PopulationProbeEnabled() ||\n        (E2R_ActionIndexProbeEnabled() && *(short *)(uintptr_t)in_EAX ==\n         E2R_FindPackedNameIndex(\"St_gobsc\",_DAT_006366bc,20000,0x9c4));\n    E2R_TraceSceneChildren"));
+patchRectangleFunction("FUN_00452140", body => replaceRectangleInput(body,"        iVar1 = *psVar3 * 4;\n        if (*(int *)((undefined1 *)0x00630b60 + iVar1) == 0) {","        iVar1 = *psVar3 * 4;\n        if (recover_names && DAT_0047ab10 != 0 &&\n            *(int *)((undefined1 *)0x00630b60 + iVar1) == 0) {\n          int offset = E2R_FindActorArchiveOffset(*psVar3);\n          if (offset >= 0) *(int *)(0x653840 + iVar1) = offset;\n        }\n        if (*(int *)((undefined1 *)0x00630b60 + iVar1) == 0) {"));
+
+patchRectangleFunction("FUN_00452140", body => replaceRectangleInput(body,"            E2R_ParseArchiveFanResource();\n            uVar6 = (undefined4)(int)*psVar3;","            {\n              int previous = E2R_actor_resource_name_context;\n              if (recover_names) E2R_actor_resource_name_context = *psVar3;\n              E2R_ParseArchiveFanResource();\n              E2R_actor_resource_name_context = previous;\n            }\n            uVar6 = (undefined4)(int)*psVar3;"));
+
+// Actor construction and initial script entries retain their actual identity.
+patchRectangleFunction("FUN_0042b880", body => replaceRectangleInput(body,
+  "    DAT_0047a470 = psVar7;\n    *psVar7 = *in_EAX;",
+  "    DAT_0047a470 = psVar7;\n    /* Original 0x42ba2c reads the normalized actor-name field, not node ID. */\n    *psVar7 = E2R_actor_resource_name_context >= 0 ? in_EAX[2] : *in_EAX;"));
+patchRectangleFunction("FUN_00420dcc", body => replaceRectangleInput(body,
+  "      FUN_0044f310();",
+  "      /* Original 0x420ea5..0x420eb9 retains the initial code and actor. */\n      FUN_0044f320(*(uint *)((*(int *)(in_EAX + 0x138) >> 0x10) * 4 + 0x6297c0),\n                   (ushort *)(uintptr_t)in_EAX,NULL);"));
+
+// Original 0x448a3c..0x448a45 preserves the floor result in EAX.
+patchRectangleFunction("FUN_00448a3c", body => replaceRectangleInput(body,
+  "  FUN_00448a48(param_1,param_2,0);\n  return;",
+  "  return FUN_00448a48(param_1,param_2,0);"));
+
+// Original terrain-trigger entry retains the code record and current actor.
+patchRectangleFunction("FUN_0044c164", body => replaceRectangleInput(body,
+  "      FUN_0044f310();",
+  "      /* Original 0x44c210..0x44c218: grid code record and current actor. */\n      FUN_0044f320(*(uint *)((iVar1 - 1) * 4 + 0x6297c0),\n                   (ushort *)DAT_0047a470,NULL);"));
+// Original actor deactivation receives the selected actor in EAX.
+patchRectangleFunction("FUN_004273cc", body => body
+  .replace("  short *in_EAX;","  short *in_EAX = (short *)(uintptr_t)param_1;")
+  .replace("      FUN_0044f310();","      FUN_0044f320(*(uint *)(0x006297c0 + iVar2 * 4),(ushort *)in_EAX,NULL);"));
+patchRectangleFunction("FUN_0044f508", body => {
+  const at = body.indexOf("      case 0x4a:");
+  if (at < 0) throw new Error("Missing deactivation script case");
+  return replaceRectangleInput(body.slice(0,at),"          FUN_004273cc(puVar13);","          FUN_004273cc(*(uint *)(0x00630b60 + uVar7 * 4));") +
+    replaceRectangleInput(body.slice(at),"          FUN_004273cc(puVar13);","          FUN_004273cc((uint)(uintptr_t)param_2);");
+});
+source = replaceRectangleInput(source,"        FUN_004273cc(extraout_ECX_14);","        FUN_004273cc((uint)(uintptr_t)local_6c);");
+
+// Permit valid hosted streams above the original engine's low address range.
+patchRectangleFunction("FUN_0045f38a", body => {
+  body = replaceRectangleInput(body,
+    "  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||",
+    "  if ((uintptr_t)stream < 0x10000 ||\n      (!E2R_ActionIndexProbeEnabled() && (uintptr_t)stream >= 0x70000000u) ||");
+  return replaceRectangleInput(body,
+    "    return CONCAT44(param_2,E2R_ReadHostedStreamByte(stream));\n  }",
+    "    return CONCAT44(param_2,E2R_ReadHostedStreamByte(stream));\n  }\n  /* Hosted i386 streams can live above 0x70000000. Validate their readable\n   * header before applying the legacy-address guard; otherwise embedded CR\n   * and 0x1a bytes never advance the FAN floor decoder's cursor. Corrected\n   * reads stay with the recovered-action route while default placement and\n   * actor-spawn contracts remain incomplete. */\n  if ((uintptr_t)stream >= 0x70000000u) {\n    return CONCAT44(param_2,0xffffffff);\n  }");
+});
+
+// Original NPC spawn range, world vector, nine samples and activation ownership.
+patchRectangleFunction("FUN_0044db80", () => `undefined4 __fastcall FUN_0044db80(undefined4 param_1,undefined4 param_2)
+
+{
+  int first = (int)param_1;
+  int count = (int)param_2;
+  uint random = (uint)FUN_0045fc10(param_1,param_2);
+  int initial = (int)(((random * 2u & 0xffffu) * (uint)count) >> 16);
+  for (int attempt = 0; attempt < count; ++attempt) {
+    int offset = initial + attempt;
+    while (offset >= count) offset -= count;
+    int id = first + offset;
+    if ((*(byte *)(0x0064a178 + id * 2) & 2) == 0) {
+      *(byte *)(0x0064a178 + id * 2) |= 8;
+      /* Original 0x44dbce..0x44dbd5 retains the selected actor ID in ECX. */
+      int prior_id = E2R_actor_load_id_override;
+      E2R_actor_load_id_override = id;
+      FUN_00451f5c();
+      E2R_actor_load_id_override = prior_id;
+      return *(uint *)(0x00630b60 + id * 4);
+    }
+  }
+  return 0;
+}`);
+patchRectangleFunction("FUN_0044dca4", () => `void __fastcall FUN_0044dca4(undefined4 param_1,undefined4 param_2)
+
+{
+  /* Original 0x44dce3..0x44dd43 retains a contiguous world vector.
+   * EAX is the coordinate pointer; the floor query's actor argument is zero. */
+  short world[3], corners[27];
+  short *spawn = NULL;
+  int terrain = 0;
+  int radius, min_height = 0x7fff, max_height = -0x8000;
+  int prior_actor = E2R_actor_calc_context;
+  static const short first_actor[44] = {
+    -1,52,55,16,13,9,19,37,31,34,58,61,-1,22,25,28,
+    68,71,74,77,80,83,86,89,92,95,98,101,104,107,110,113,
+    116,119,127,130,133,136,61,136,127,58,92,107
+  };
+  /* Explicit Joe-only prototype option. Existing actors and scripts still
+   * update; only this automatic terrain-driven population leaf is deferred. */
+  const char *defer = getenv("E2R_DEFER_BACKGROUND_SPAWNS");
+  if (defer && *defer && *defer != '0') return;
+  if (DAT_0047a470 == 0) return;
+  world[0] = *(short *)(DAT_0047a470 + 0x84) +
+    (short)(((int)((uint)FUN_0045fc10(param_1,param_2) - 0x4000u) * 10) >> 5);
+  world[2] = *(short *)(DAT_0047a470 + 0x88) +
+    (short)(((int)((uint)FUN_0045fc10(0,0) - 0x4000u) * 10) >> 5);
+  world[1] = *(short *)(DAT_0047a470 + 0x86);
+  world[1] = (short)FUN_00448a3c((uint)(uintptr_t)world,0);
+  if ((int)FUN_0044d28c((uint)(uintptr_t)world,0) == 0) {
+    int cell = (int)FUN_00448744((uint)(uintptr_t)world,NULL);
+    if (cell >= 0) terrain = *(byte *)(0x0068cd6c + cell * 12);
+  }
+  if (terrain == 12) {
+    if ((*(byte *)0x0064a1f8 & 2) == 0) {
+      int prior_id = E2R_actor_load_id_override;
+      E2R_actor_load_id_override = 64;
+      FUN_00451f5c();
+      E2R_actor_load_id_override = prior_id;
+      spawn = (short *)(uintptr_t)*(uint *)(0x00630c60);
+    }
+  }
+  else if ((uint)terrain < 44 && first_actor[terrain] >= 0) {
+    int first = first_actor[terrain];
+    if (terrain >= 38 && (*(byte *)0x00670c42 & 8) != 0) first = 65;
+    int count = terrain == 5 ? 4 : terrain == 7 ? 15 : terrain == 33 ? 8 : 3;
+    spawn = (short *)(uintptr_t)FUN_0044db80(first,count);
+  }
+  if (spawn == NULL) return;
+  memcpy(spawn + 0x42,world,sizeof(world));
+  for (int i = 0; i < 9; ++i) memcpy(corners + i * 3,world,sizeof(world));
+  radius = spawn[0x4d];
+  /* Original overlap test uses actor radius +0x9a and live X/Z. */
+  for (short *actor = (short *)(uintptr_t)_DAT_0063726c;
+       actor != NULL; actor = *(short **)(actor + 0x26)) {
+    if (actor == spawn) continue;
+    int extent = actor[0x4d] + radius;
+    int dx = actor[0x42] - spawn[0x42], dz = actor[0x44] - spawn[0x44];
+    if (dx < 0) dx = -dx;
+    if (dz < 0) dz = -dz;
+    if (dx < extent && dz < extent) {
+      E2R_actor_calc_context = (int)(uintptr_t)spawn;
+      FUN_00426ca4();
+      E2R_actor_calc_context = prior_actor;
+      *(byte *)(0x0064a178 + *spawn * 2) &= 0xfd;
+      return;
+    }
+  }
+  /* The original stack has nine X/Z samples, not independent C locals. */
+  static const byte lower[] = {0,2,5,8,9,18};
+  static const byte upper[] = {6,15,20,23,24,26};
+  for (int i = 0; i < 6; ++i) {
+    corners[lower[i]] -= radius;
+    corners[upper[i]] += radius;
+  }
+  for (int i = 0; i < 9; ++i) {
+    short height = (short)FUN_00448a3c((uint)(uintptr_t)(corners + i * 3),0);
+    if (height < min_height) min_height = height;
+    if (height > max_height) max_height = height;
+  }
+  int id = *spawn;
+  if (min_height != max_height) {
+    E2R_actor_calc_context = (int)(uintptr_t)spawn;
+    FUN_00426ca4();
+    E2R_actor_calc_context = prior_actor;
+    *(byte *)(0x0064a178 + id * 2) &= 0xfd;
+    return;
+  }
+  *(ushort *)(0x0064a178 + id * 2) =
+    (*(ushort *)(0x0064a178 + id * 2) & 0x70) | 8;
+  *(short *)(0x00671fc0 + id * 2) = -2;
+  *(byte *)(0x0064c950 + id) = 0;
+  *(short *)(0x00647a68 + id * 2) = 0;
+  memset((void *)(uintptr_t)(0x00669708 + id * 6),0,6);
+  memset((void *)(uintptr_t)(0x00658980 + id * 6),0,6);
+  *(short *)(0x006648e8 + id * 2) = -1;
+  *(short *)(0x0065feb0 + id * 2) = -1;
+  *(short *)(0x00666ff8 + id * 2) = 0;
+  E2R_actor_calc_context = (int)(uintptr_t)spawn;
+  FUN_00420dcc();
+  *(byte *)(0x0064a178 + id * 2) |= 2;
+  E2R_actor_calc_context = (int)(uintptr_t)spawn;
+  FUN_00426c3c();
+  E2R_actor_calc_context = prior_actor;
+}`);
+
+// Original 0x429005..0x42904c reads the live packed scan-code table.
+// Generated label objects are independent and contain stale image seeds.
+patchRectangleFunction('FUN_00427584', body => {
+  body = replaceRectangleInput(body,
+    '        iVar7 = CONCAT22(_DAT_004c3ada,CONCAT11(uRam004c3ad9,(DAT_004c3ad5 >> 0x18)));\n        iVar17 = CONCAT13((undefined1)DAT_004c3add,CONCAT12(uRam004c3adc,_DAT_004c3ada));\n        local_38 = DAT_004c3add >> 0x18;\n        iVar9 = DAT_004c3ad5;',
+    '        iVar7 = *(int *)0x004c3ad8;\n        iVar17 = *(int *)0x004c3ada;\n        local_38 = *(int *)0x004c3add >> 0x18;\n        iVar9 = *(int *)0x004c3ad5;');
+  body = replaceRectangleInput(body,"(DAT_004c3ac8 != '\\0')", "(*(byte *)0x004c3ac8 != 0)");
+  return replaceRectangleInput(body,"(DAT_004c3bba != '\\0')", "(*(byte *)0x004c3bba != 0)");
+});
+
+// Recovered player selection is part of the action-index route. The bare
+// baseline has no valid held-node table at its earlier startup call.
+patchRectangleFunction('FUN_004575c4', body => {
+  const selector = `static void E2R_SelectPlayerRepresentation(void)
+
+{
+  /* Original 0x4575ce..0x45777e retains the actor in EDX. Actor fields
+   * are packed words; the actor ID must not include its flag bytes. */
+  short *actor = (short *)(uintptr_t)DAT_0047a470;
+  int held_node;
+  int held_actor = 0;
+  int representation;
+  int action_id;
+  int action;
+  int swimming;
+
+  if (actor == NULL || *actor != 0) return;
+  held_node = *(int *)(*(int *)(actor + 0x2a) + 0x20);
+  if (held_node != 0) held_actor = *(int *)(held_node + 0x13a);
+  swimming = DAT_0047a7ec == 7 &&
+             (0x28 << (DAT_0047a738 & 0x1f)) <= (int)actor[0x43];
+  if (held_actor == 0) {
+    representation = swimming ? 0xd : actor[0xc2] == 0 ? 0xc : 0xe;
+  }
+  else if ((*(byte *)(held_actor + 2) & 0x10) == 0 ||
+           *(short *)(held_actor + 0x184) < 1) {
+    representation = swimming ? 10 : actor[0xc2] == 0 ? 9 : 0xb;
+  }
+  else {
+    representation = swimming ? 10 : actor[0xc2] == 0 ? 0xf : 0x10;
+  }
+  actor[0x91] = (short)representation;
+  if (representation != 10 && representation != 0xd && (DAT_00670c44 & 8) != 0) {
+    action_id = 4;
+  }
+  else if ((representation == 10 || representation == 0xd) && (DAT_00670c44 & 8) == 0) {
+    action_id = 3;
+  }
+  else return;
+  FUN_00451880(0,action_id);
+  action = *(int *)(0x0062ba20 + action_id * 4);
+  if (action != 0 && action != *(int *)(actor + 0x53)) {
+    *(int *)(actor + 0x93) = action;
+  }
+  return;
+}`;
+  return selector + '\n\n' + replaceRectangleInput(body,
+    'void FUN_004575c4(void)\n\n{',
+    'void FUN_004575c4(void)\n\n{\n  if (E2R_ActionIndexProbeEnabled()) {\n    E2R_SelectPlayerRepresentation();\n    return;\n  }\n');
+});
+
+
+// Recover original action motion and world-query register/stack ownership.
+source = replaceRectangleInput(source,"/* 00448c1c */",`/* Original 0x4272a8: EAX/EDX outputs, EBX=X, ECX=Z. Only recovered
+ * motion callers use this entry; legacy register-only callers stay separate. */
+static short E2R_PolygonAngle16(short x,short z);
+static void E2R_MotionPolar(short *angle,short *distance,int x,int z)
+{
+  int scaled = 0;
+  while (abs(x) > 0x4000) { scaled = 1; x >>= 1; z >>= 1; }
+  while (abs(z) > 0x4000) { scaled = 1; x >>= 1; z >>= 1; }
+  *angle = E2R_PolygonAngle16((short)x,(short)z);
+  if (scaled) { *distance = 0x4000; return; }
+  if (x == 0 && z == 0) { *distance = 0; return; }
+  int component = abs(z) > abs(x) ? z : x;
+  int table = abs(z) > abs(x) ? 0x005de590 : 0x0059b590;
+  int divisor = *(short *)(table + (uint)(ushort)*angle * 2);
+  short value = divisor == 0 ? 0 : (short)(component * 16384 / divisor);
+  *distance = value > 0 ? value : (short)-value;
+}
+
+/* Original 0x427214 uses the opposite angle convention: X=cos, Z=sin. */
+static void E2R_MotionPolar16(short *angle,short *distance,short x,short z)
+{
+  *angle = E2R_PolygonAngle16(z,x);
+  if (x == 0 && z == 0) { *distance = 0; return; }
+  int component = abs((int)x) > abs((int)z) ? x : z;
+  int table = abs((int)x) > abs((int)z) ? 0x005de590 : 0x0059b590;
+  int divisor = *(short *)(table + (uint)(ushort)*angle * 2);
+  *distance = (short)(component * 16384 / divisor);
+}
+
+/* 00448c1c */`);
+
+patchRectangleFunction("FUN_00448c1c", () => `void __fastcall FUN_00448c1c(undefined4 param_1,int *param_2)
+{
+  /* Original 0x448c21 retains EAX in EBX across both recursive calls.
+   * Odd components deliberately lose their low bit in two identical halves. */
+  const short *vector = (const short *)param_2;
+  if (abs((int)vector[0]) <= 64 && abs((int)vector[1]) <= 64 &&
+      abs((int)vector[2]) <= 64) {
+    FUN_00448cb4(param_1,(short *)vector);
+    return;
+  }
+  short half[3];
+  for (int i = 0; i < 3; ++i) half[i] = (short)(vector[i] >> 1);
+  FUN_00448c1c(param_1,(int *)half);
+  FUN_00448c1c(param_1,(int *)half);
+}`);
+
+patchRectangleFunction("FUN_00448cb4", () => `void __fastcall FUN_00448cb4(undefined4 param_1,short *param_2)
+{
+  /* Original 0x448cb4..0x4495dd: retain actor/vector, packed angle and
+   * distance outputs, two contiguous floor-query vectors and obstacle list. */
+  int actor = (int)param_1;
+  short angle, distance;
+  E2R_MotionPolar(&angle,(short *)(actor + 0x170),param_2[0],param_2[2]);
+  if (DAT_0047a34a != 0 && DAT_0047a366 == 0 && DAT_0047a368 != 0) {
+    for (int i = 0; i < 3; ++i)
+      *(short *)(actor + 0x8a + i * 2) -= param_2[i];
+    return;
+  }
+  if (DAT_0047a72c != 0 || DAT_0047a34a != 0 || DAT_0047a366 != 0) {
+    for (int i = 0; i < 3; ++i)
+      *(short *)(actor + 0x84 + i * 2) += param_2[i];
+    *(byte *)(actor + 0x146) &= 0xfb;
+    return;
+  }
+  int x = *(short *)(actor + 0x84), y = *(short *)(actor + 0x86);
+  int z = *(short *)(actor + 0x88), radius = *(short *)(actor + 0x9a);
+  int dx = param_2[0], dz = param_2[2];
+  short obstacles[50];
+  int count = 0;
+  for (int other = _DAT_0063726c; other != 0; other = *(int *)(other + 0x4c)) {
+    if (other == actor || (*(byte *)(other + 3) & 0x10) == 0 ||
+        *(short *)(other + 0x82) == 0xb) continue;
+    int attached = *(int *)(other + 0xf2);
+    if (attached != 0 && *(int *)(attached + 0x22) == actor) continue;
+    int ox = *(short *)(other + 0x84) - x;
+    int oy = *(short *)(other + 0x86) - y;
+    int oz = *(short *)(other + 0x88) - z;
+    int range = ((*(short *)(other + 0x9a) + radius) * 3) >> 2;
+    if (abs(ox) >= range || abs(oy) >= range || abs(oz) >= range) continue;
+    E2R_MotionPolar16(&angle,&distance,(short)ox,(short)oz);
+    if (distance < range && count < 50) obstacles[count++] = angle;
+  }
+  E2R_MotionPolar16(&angle,&distance,(short)dx,(short)dz);
+  int forward_drop = 0;
+  static const int offsets[5] = {0,0x1000,-0x1000,0x3000,-0x3000};
+  for (int i = 0; i < 5; ++i) {
+    short sample_angle = (short)(angle + offsets[i]);
+    int cosine = *(short *)(0x005de590 + (uint)(ushort)sample_angle * 2);
+    int sine = *(short *)(0x0059b590 + (uint)(ushort)sample_angle * 2);
+    short sample[3] = {(short)(x + ((cosine * radius) >> 14)),(short)y,
+                       (short)(z + ((sine * radius) >> 14))};
+    int floor = FUN_00448a48((uint)(uintptr_t)sample,actor,0);
+    int difference = y - floor;
+    if (i == 0 || i >= 3) difference = (short)difference;
+    if (i == 0 && difference < -256) forward_drop = 1;
+    if ((difference > 256 || (i >= 3 && difference < -256 && !forward_drop)) &&
+        count < 50) obstacles[count++] = sample_angle;
+  }
+  short desired = E2R_PolygonAngle16((short)dz,(short)dx);
+  short closest = 0, blocked_angle = 0;
+  int found = 0, blocked = 0;
+  for (int i = 0; i < count; ++i) {
+    short difference = (short)(desired - obstacles[i]);
+    if (difference > 0x4000 || difference < -0x4000) continue;
+    if (found) {
+      if ((difference < 0 && closest >= 0) || (difference >= 0 && closest < 0)) {
+        blocked = 1;
+        continue;
+      }
+      if (abs((int)difference) >= abs((int)closest)) continue;
+    }
+    found = 1;
+    closest = difference;
+    blocked_angle = obstacles[i];
+  }
+  int mx = dx, mz = dz;
+  if (blocked) {
+    mx = mz = 0;
+    *(byte *)(actor + 0x146) |= 4;
+  }
+  else if (found) {
+    short tangent = (short)(blocked_angle + (closest < 0 ? -0x4000 : 0x4000));
+    int cosine = *(short *)(0x005de590 + (uint)(ushort)tangent * 2);
+    int sine = *(short *)(0x0059b590 + (uint)(ushort)tangent * 2);
+    short projection = (short)((dx * cosine + dz * sine) >> 14);
+    int magnitude = abs((int)projection);
+    mx = (cosine * magnitude) >> 14;
+    mz = (sine * magnitude) >> 14;
+    short slot = *(short *)(actor + 0x96);
+    if ((*(byte *)(actor + 0x146) & 2) == 0 &&
+        (slot == 1 || slot == 7 || slot == 180 || slot == 183)) {
+      short turn = (short)(desired - tangent);
+      int amount = (int)_DAT_00637378 * 512;
+      /* Original 0x4494aa reloads EDX with the frame turn limit. */
+      int delta = abs((int)turn) < amount ? turn : turn < 0 ? -amount : amount;
+      FUN_0042b074(param_1,(short)delta);
+    }
+  }
+  short target[3] = {(short)(x + mx),(short)y,(short)(z + mz)};
+  target[1] = (short)FUN_00448a48((uint)(uintptr_t)target,0,0);
+  int terrain;
+  target[1] = (short)FUN_00448a48((uint)(uintptr_t)target,0,&terrain);
+  short state = *(short *)(actor + 0x82);
+  if (terrain == 7 && (*(byte *)(actor + 3) & 1) == 0 &&
+      state != 8 && state != 5 && state != 0xb) {
+    *(short *)(actor + 0x82) = 8;
+    *(short *)(actor + 0x166) = 3;
+    *(short *)(actor + 0xec) = -100;
+  }
+  if (y - target[1] <= 256) {
+    *(short *)(actor + 0x84) = target[0];
+    *(short *)(actor + 0x88) = target[2];
+    if (*(short *)(actor + 0x5a) == 0 && y - target[1] >= -256)
+      *(short *)(actor + 0x86) = target[1];
+  }
+}`);
+source = replaceRectangleInput(source,"/* 0042b880 */",`/* Shared original terminal/interpolated event 0x13 contract. */
+static undefined4 E2R_ApplyActionMotion13(int actor,const short *event,int factor,int interpolate)
+{
+  int attached = *(int *)(actor + 0xf2);
+  if (attached != 0) {
+    int owner = *(int *)(attached + 0x22);
+    if ((*(byte *)(owner + 0x146) & 1) != 0) actor = owner;
+  }
+  if ((*(byte *)(actor + 0x146) & 0x20) != 0) {
+    int entry_actor = E2R_actor_calc_context;
+    E2R_actor_calc_context = actor;
+    FUN_0042b0f4();
+    E2R_actor_calc_context = entry_actor;
+    *(byte *)(actor + 0x146) &= 0xdf;
+  }
+  short local[3],world[3];
+  for (int i = 0; i < 3; ++i) {
+    short *previous = (short *)(actor + 0x2c + i * 2);
+    int difference = (int)event[i + 2] - *previous;
+    local[i] = interpolate ? (short)((int32_t)((uint32_t)difference * (uint32_t)factor) >> 14)
+                           : (short)difference;
+    *previous = interpolate ? (short)(*previous + local[i]) : event[i + 2];
+  }
+  E2R_TransformVector14(world,local,(const short *)(actor + 0xc6));
+  FUN_00448c1c((uint)actor,(int *)world);
+  return FUN_0044d2b4((uint)actor);
+}
+
+/* 0042b880 */`);
+source = replaceRectangleInput(source,`  case 0x13:
+    if ((*(int *)(param_2 + 0x79) != 0) &&
+       (psVar7 = *(short **)(*(int *)(param_2 + 0x79) + 0x22), (*(byte *)(psVar7 + 0xa3) & 1) != 0))
+    {
+      param_2 = psVar7;
+    }
+    if ((*(byte *)(param_2 + 0xa3) & 0x20) != 0) {
+      FUN_0042b0f4();
+      *(byte *)(param_2 + 0xa3) = *(byte *)(param_2 + 0xa3) & 0xdf;
+    }
+    iVar9 = 0;
+    do {
+      local_28[iVar9] = in_EAX[2] - param_2[0x16];
+      iVar9 = iVar9 + 1;
+      param_2[0x16] = in_EAX[2];
+      param_2 = param_2 + 1;
+      in_EAX = in_EAX + 1;
+    } while (iVar9 < 3);
+    FUN_0045de8b();
+    FUN_00448c1c(extraout_ECX,local_20);
+    psVar7 = (short *)FUN_0044d2b4(extraout_ECX_00);
+    return psVar7;
+`,"  case 0x13:\n    return (short *)(uintptr_t)E2R_ApplyActionMotion13((int)(uintptr_t)param_2,in_EAX,0x4000,0);\n");
+patchRectangleFunction("FUN_0042c790", body => replaceRectangleInput(body,`    if (uVar2 == 0x13) {
+      if ((*(int *)(unaff_EBX + 0xf2) != 0) &&
+         (iVar6 = *(int *)(*(int *)(unaff_EBX + 0xf2) + 0x22), (*(byte *)(iVar6 + 0x146) & 1) != 0))
+      {
+        unaff_EBX = iVar6;
+      }
+      if ((*(byte *)(unaff_EBX + 0x146) & 0x20) != 0) {
+        FUN_0042b0f4();
+        *(byte *)(unaff_EBX + 0x146) = *(byte *)(unaff_EBX + 0x146) & 0xdf;
+        param_2 = extraout_EDX_00;
+      }
+      sVar5 = 0;
+      do {
+        iVar3 = (int)sVar5;
+        local_1c = *(int *)(in_EAX + iVar3 + 1) >> 0x10;
+        iVar6 = iVar3 * 2 + unaff_EBX;
+        sStack_14 = (short)((uint)*(undefined4 *)(iVar6 + 0x2a) >> 0x10);
+        iVar4 = (local_1c - sStack_14) * param_2;
+        sStack_14 = (short)(iVar4 >> 0xe);
+        local_12 = (short)(iVar4 >> 0x1e);
+        local_24[iVar3] = sStack_14;
+        sVar5 = sVar5 + 1;
+        *(short *)(iVar6 + 0x2c) = *(short *)(iVar6 + 0x2c) + sStack_14;
+      } while (sVar5 < 3);
+      FUN_0045de8b();
+      FUN_00448c1c(extraout_ECX,aiStack_2c);
+      FUN_0044d2b4(extraout_ECX_00);
+      return;
+    }
+`,"    if (uVar2 == 0x13) {\n      E2R_ApplyActionMotion13(unaff_EBX,in_EAX,param_2,1);\n      return;\n    }\n"));
+
+patchRectangleFunction("FUN_0042b074", () => `void __fastcall FUN_0042b074(undefined4 param_1,short param_2)
+{
+  /* Original 0x42b074 retains EAX actor; rotations target actor +0xc6. */
+  int actor = (int)param_1;
+  *(short *)(actor + 0x92) += param_2;
+  *(byte *)(actor + 0x146) |= 2;
+  E2R_ApplyEulerMatrix((short *)(actor + 0xc6),(short *)(actor + 0x90));
+}`);
+
+// Original 0x44d2b4 receives the retained event actor in EAX.
+patchRectangleFunction('FUN_0044d2b4', body => {
+  body = replaceRectangleInput(body,'  uint in_EAX;', '  uint in_EAX = param_1;');
+  // 0x44d2de passes the actor's world position, preserving the actor in EDX.
+  if (body.split('FUN_0044d28c(param_1,in_EAX)').length !== 3)
+    throw new Error('Actor visibility query anchor mismatch');
+  return body.replaceAll('FUN_0044d28c(param_1,in_EAX)',
+                         'FUN_0044d28c(in_EAX + 0x84,in_EAX)');
+});
+
+// Original 0x429653/0x429687 reloads the actor before a forward/turn call.
+patchRectangleFunction('FUN_00427584', body => {
+  body = replaceRectangleInput(body,"FUN_0042b074(uVar25,(short)((*(int *)(local_6c + 0xb7) >> 0x10) << 4));","FUN_0042b074((undefined4)(uintptr_t)local_6c,(short)((*(int *)(local_6c + 0xb7) >> 0x10) << 4));");
+  body = replaceRectangleInput(body,"FUN_0042b074(uVar25,(short)((uint)*(undefined4 *)(local_6c + 0xb7) >> 0x10) *\n                                      -0x10);","FUN_0042b074((undefined4)(uintptr_t)local_6c,(short)((uint)*(undefined4 *)(local_6c + 0xb7) >> 0x10) *\n                                      -0x10);");
+  return body;
+});
+
+// Original 0x429b1f..0x429b2a passes EBX range, EAX actor and EDX time.
+// 0x42ed73/0x42ed79 retains actor/range; 0x432c64 preserves delta X in ECX.
+patchRectangleFunction('FUN_00427584', body => replaceRectangleInput(body,
+  'FUN_0042ed6c(uVar25,local_64);',
+  'FUN_0042ed6c((undefined4)(uintptr_t)local_6c,local_64,0x500);'));
+patchRectangleFunction('FUN_0042ed6c', body => {
+  body = replaceRectangleInput(body,
+    'FUN_0042ed6c(undefined4 param_1,int param_2)',
+    'FUN_0042ed6c(undefined4 param_1,int param_2,int max_distance)');
+  body = replaceRectangleInput(body,'  short *in_EAX;',
+    '  short *in_EAX = (short *)(uintptr_t)param_1;');
+  body = replaceRectangleInput(body,'  int unaff_EBX;',
+    '  int unaff_EBX = max_distance;');
+  body = replaceRectangleInput(body,'          uVar8 = FUN_00432c64(iVar5,(short)iVar7);',
+    '          uVar8 = (ushort)E2R_PolygonAngle16((short)iVar5,(short)iVar7);\n          extraout_ECX = iVar5;');
+  return 'static short E2R_PolygonAngle16(short x,short z);\n\n' + body;
+});
+{
+  const at = prototypes.indexOf('void __fastcall FUN_0042ed6c(undefined4 param_1,int param_2);');
+  if (at < 0) throw new Error('Missing target steering prototype');
+  prototypes[at] = 'void __fastcall FUN_0042ed6c(undefined4 param_1,int param_2,int max_distance);';
+}
+
+source = replaceRectangleInput(source,"void __fastcall FUN_00444330(undefined4 param_1)\n\n{","/* Original 0x44453b..0x444547 supplies a FAN record in EAX even when\n * loading from an action callback. Preserve the suspended event separately. */\nstatic short *E2R_DispatchFanActorRecord(short *record,short *actor)\n{\n  int entry_event = E2R_action_event_context;\n  short *entry_record = E2R_fan_parse_record;\n  short *result;\n  E2R_action_event_context = 0;\n  E2R_fan_parse_record = record;\n  result = FUN_0042b880(0,actor);\n  E2R_fan_parse_record = entry_record;\n  E2R_action_event_context = entry_event;\n  return result;\n}\n\n/* Original 0x444556..0x444631 writes 16-bit flags and actor fields. */\nstatic void E2R_FinishFanActorRecord(short *actor,short *record,short version)\n{\n  byte *flags = (byte *)actor + 2;\n  *(ushort *)flags &= 0xfb77;\n  if (version < 0x0b) flags[0] &= 0xfd;\n  if (version < 0x11) flags[0] &= 0xdf;\n  if (version < 0x18) flags[1] &= 0xbf;\n  if (version < 0x19) flags[1] &= 0xef;\n  if (version >= 0x1e) actor[0xa2] = record[4];\n  if (version < 0x21) actor[0xa3] = 0;\n  if (version < 0x2f) flags[0] &= 0xfb;\n  if (version < 0x34) flags[0] &= 0xef;\n  if (version < 0x36) flags[1] &= 0xfe;\n  if (version < 0x37) flags[1] &= 0xfd;\n}\n\nvoid __fastcall FUN_00444330(undefined4 param_1)\n\n{");
+patchRectangleFunction("FUN_00444330", body => replaceRectangleInput(body,"    FUN_0042b880(0,DAT_0047a470);","    E2R_DispatchFanActorRecord((short *)(uintptr_t)iVar4,(short *)(uintptr_t)DAT_0047a470);"));
+patchRectangleFunction("FUN_00444330", body => replaceRectangleInput(body,"    sVar3 = _DAT_0067bc92;\n    psVar2 = DAT_0047a470;\n    if (sVar9 == 0x15) {\n      ((undefined4 *)(uintptr_t)DAT_0047a470)[1] = ((undefined4 *)(uintptr_t)DAT_0047a470)[1] & 0xfb77;\n      if (sVar3 < 0xb) {\n        *(byte *)(psVar2 + 1) = *(byte *)(psVar2 + 1) & 0xfd;\n      }\n      if (_DAT_0067bc92 < 0x11) {\n        *(byte *)(DAT_0047a470 + 1) = *(byte *)(DAT_0047a470 + 1) & 0xdf;\n      }\n      if (_DAT_0067bc92 < 0x18) {\n        *(byte *)((int)DAT_0047a470 + 3) = *(byte *)((int)DAT_0047a470 + 3) & 0xbf;\n      }\n      if (_DAT_0067bc92 < 0x19) {\n        *(byte *)((int)DAT_0047a470 + 3) = *(byte *)((int)DAT_0047a470 + 3) & 0xef;\n      }\n      if (0x1d < _DAT_0067bc92) {\n        ((undefined4 *)(uintptr_t)DAT_0047a470)[0xa2] = *(short *)(iVar4 + 8);\n      }\n      if (_DAT_0067bc92 < 0x21) {\n        ((undefined4 *)(uintptr_t)DAT_0047a470)[0xa3] = 0;\n      }\n      if (_DAT_0067bc92 < 0x2f) {\n        *(byte *)(DAT_0047a470 + 1) = *(byte *)(DAT_0047a470 + 1) & 0xfb;\n      }\n      if (_DAT_0067bc92 < 0x34) {\n        *(byte *)(DAT_0047a470 + 1) = *(byte *)(DAT_0047a470 + 1) & 0xef;\n      }\n      if (_DAT_0067bc92 < 0x36) {\n        *(byte *)((int)DAT_0047a470 + 3) = *(byte *)((int)DAT_0047a470 + 3) & 0xfe;\n      }\n      if (_DAT_0067bc92 < 0x37) {\n        *(byte *)((int)DAT_0047a470 + 3) = *(byte *)((int)DAT_0047a470 + 3) & 0xfd;\n      }\n    }\n","    if (sVar9 == 0x15) {\n      E2R_FinishFanActorRecord((short *)(uintptr_t)DAT_0047a470,\n                              (short *)(uintptr_t)iVar4,(short)_DAT_0067bc92);\n    }\n"));
+
+patchRectangleFunction("FUN_00452140", body => replaceRectangleInput(body,"  in_EAX = E2R_NormalizeSceneRecordPointer(in_EAX);\n  if (in_EAX == 0) {\n    in_EAX = E2R_NormalizeSceneRecordPointer((int)(uintptr_t)param_1);\n  }\n  if (in_EAX == 0) {\n    in_EAX = E2R_NormalizeSceneRecordPointer(_DAT_0073cc3c);\n  }","  /* Original 0x45214f..0x452157 retains the supplied scene in EAX. */\n  in_EAX = E2R_NormalizeSceneRecordPointer((int)(uintptr_t)param_1);"));
+
+// Original spawn-event ownership, pose inputs and queued action.
+patchRectangleFunction("FUN_00420c10", () => "void FUN_00420c10(int actor_id)\n\n{\n  int extraout_EDX = actor_id;\n  int entry_context = E2R_actor_calc_context;\n\n  FUN_00420b8c(extraout_EDX);\n  if (*(int *)((undefined1 *)0x00630b60 + extraout_EDX * 4) != 0) {\n    E2R_actor_calc_context = *(int *)(0x630b60 + actor_id * 4);\n    FUN_00420dcc();\n    E2R_actor_calc_context = entry_context;\n    FUN_00426010(*(int *)(0x00630b60 + extraout_EDX * 4));\n  }\n  return;\n}");
+patchRectangleFunction("FUN_0045186c", () => "undefined4 __fastcall FUN_0045186c(undefined4 actor,undefined4 action,int immediate)\n{\n  /* Original 0x45186c retains EAX actor, EDX action, EBX flag. */\n  *(undefined4 *)(actor + 0x126) = action;\n  if (immediate != 0) *(byte *)(actor + 0x146) |= 0x10;\n  return actor;\n}");
+patchRectangleFunction("FUN_00424318", () => "undefined4 FUN_00424318(void)\n\n{\n  short *psVar1;\n  short sVar2;\n  short sVar3;\n  int in_EAX = E2R_actor_calc_context;\n  undefined4 uVar4;\n  int extraout_ECX;\n  int extraout_ECX_00;\n  int extraout_ECX_01;\n  int extraout_ECX_02;\n  int extraout_ECX_03;\n  int iVar5;\n  uint uVar6;\n  uint extraout_ECX_04;\n  uint extraout_ECX_05;\n  undefined4 extraout_ECX_06;\n  undefined4 extraout_ECX_07;\n  undefined4 extraout_ECX_08;\n  undefined4 extraout_ECX_09;\n  undefined4 extraout_ECX_10;\n  undefined4 extraout_ECX_11;\n  undefined4 extraout_ECX_12;\n  undefined4 extraout_ECX_13;\n  undefined4 extraout_ECX_14;\n  undefined4 extraout_ECX_15;\n  undefined4 extraout_ECX_16;\n  short sVar7;\n  short extraout_DX;\n  short extraout_DX_00;\n  int iVar8;\n  ushort *puVar9;\n  ushort *puVar10;\n  short local_54 [4];\n  short local_4c;\n  short sStack_4a;\n  short local_48;\n  short sStack_42;\n  short sStack_40;\n  ushort *local_3c;\n  short *local_38;\n  int local_34;\n  int local_30;\n  undefined2 local_2c;\n  undefined2 uStack_2a;\n  short local_28;\n  undefined2 uStack_26;\n  short local_24;\n  undefined2 local_20;\n  undefined4 local_1e;\n\n  if (*(short **)(in_EAX + 0xf2) == (short *)0x0) {\n    E2R_ApplyEulerMatrix((short *)(in_EAX + 6),(short *)(in_EAX + 0x90));\n    local_34 = in_EAX;\n  }\n  else {\n    FUN_00420ec4(in_EAX,*(short **)(in_EAX + 0xf2));\n    local_34 = extraout_ECX;\n  }\n  sVar2 = 0;\n  do {\n    iVar8 = (int)sVar2;\n    sVar2 = sVar2 + 1;\n    *(undefined2 *)(local_34 + 0x18 + iVar8 * 2) = *(undefined2 *)(local_34 + 0x84 + iVar8 * 2);\n  } while (sVar2 < 3);\n  iVar8 = *(int *)(local_34 + 0x48);\n  while (iVar8 != 0) {\n    iVar8 = *(int *)(local_34 + 0x48);\n    if (*(short *)(local_34 + 4) == 7) {\n      local_4c = *(short *)(iVar8 + 0x2c);\n      sStack_4a = *(short *)(iVar8 + 0x2e);\n      local_48 = *(short *)(iVar8 + 0x30);\n    }\n    else {\n      local_4c = *(short *)(local_34 + 0x6e) + *(short *)(iVar8 + 0x2c);\n      sStack_4a = *(short *)(local_34 + 0x70) + *(short *)(iVar8 + 0x2e);\n      local_48 = *(short *)(local_34 + 0x72) + *(short *)(iVar8 + 0x30);\n    }\n    local_3c = (ushort *)(local_34 + 6);\n    local_38 = (short *)(iVar8 + 0x50);\n    short relative[3] = {local_4c,sStack_4a,local_48};\n    E2R_TransformVector14(local_38,relative,(short *)local_3c);\n    psVar1 = (short *)(iVar8 + 0x18);\n    *psVar1 = *(short *)(local_34 + 0x18);\n    *(undefined2 *)(iVar8 + 0x1a) = *(undefined2 *)(local_34 + 0x1a);\n    *(undefined2 *)(iVar8 + 0x1c) = *(undefined2 *)(local_34 + 0x1c);\n    *psVar1 = *psVar1 + *local_38;\n    *(short *)(iVar8 + 0x1a) = *(short *)(iVar8 + 0x1a) + local_38[1];\n    *(short *)(iVar8 + 0x1c) = *(short *)(iVar8 + 0x1c) + local_38[2];\n    puVar9 = local_3c;\n    if ((*(byte *)(iVar8 + 2) & 0x10) != 0) {\n      puVar9 = (ushort *)(iVar8 + 0xec);\n    }\n    puVar10 = (ushort *)(iVar8 + 6);\n    for (iVar5 = 4; iVar5 != 0; iVar5 = iVar5 + -1) {\n      *(undefined4 *)puVar10 = *(undefined4 *)puVar9;\n      puVar9 = puVar9 + 2;\n      puVar10 = puVar10 + 2;\n    }\n    uVar6 = (uint)*puVar9;\n    *puVar10 = *puVar9;\n    if ((*(byte *)(iVar8 + 2) & 0x20) == 0) {\n      if (*(short *)(iVar8 + 0x28) != 0) {\n        FUN_00422460(iVar8 + 6,(int)*(short *)(iVar8 + 0x28));\n        uVar6 = extraout_ECX_04;\n      }\n      if (*(short *)(iVar8 + 0x26) != 0) {\n        FUN_00422368(iVar8 + 6,(int)*(short *)(iVar8 + 0x26));\n        uVar6 = extraout_ECX_05;\n      }\n      if (*(short *)(iVar8 + 0x2a) != 0) {\n        FUN_00422538(iVar8 + 6,(int)*(short *)(iVar8 + 0x2a));\n      }\n      local_38 = (short *)(iVar8 + 0x80);\n      E2R_TransformVector14(local_38,(short *)(iVar8 + 0x6e),(short *)(iVar8 + 6));\n      *local_38 = *local_38 + *(short *)(iVar8 + 0x18);\n      local_38[1] = local_38[1] + *(short *)(iVar8 + 0x1a);\n      local_38[2] = local_38[2] + *(short *)(iVar8 + 0x1c);\n    }\n    else {\n      iVar5 = *(int *)(iVar8 + 0x1e);\n      local_2c = (undefined2)iVar5;\n      uStack_2a = (undefined2)((uint)iVar5 >> 0x10);\n      if (iVar5 == 0) {\n        FUN_00426f84();\n      }\n      local_30 = *(int *)(CONCAT22(uStack_2a,local_2c) + 0x1e);\n      if (local_30 == 0) {\n        FUN_00426f84();\n      }\n      FUN_00423674();\n      sVar2 = 0;\n      do {\n        iVar5 = (int)sVar2;\n        sVar2 = sVar2 + 1;\n        local_54[iVar5] =\n             *(short *)(local_30 + 0x18 + iVar5 * 2) - *(short *)(iVar8 + 0x18 + iVar5 * 2);\n      } while (sVar2 < 3);\n      FUN_00422628(extraout_ECX_06,(undefined2 *)(iVar8 + 6));\n      FUN_0045de8b();\n      iVar5 = FUN_00432c64(extraout_ECX_07,sStack_40);\n      sVar2 = (short)iVar5;\n      uVar4 = extraout_ECX_08;\n      if (sVar2 != 0) {\n        FUN_004226bc();\n        uVar4 = extraout_ECX_09;\n      }\n      iVar5 = FUN_00432c64(uVar4,sStack_40);\n      sVar3 = (short)iVar5;\n      local_1e = CONCAT22(sVar3,(undefined2)local_1e);\n      if (sVar3 != 0) {\n        FUN_00422674(extraout_ECX_10,-sVar3);\n      }\n      sVar7 = *(short *)(iVar8 + 0x72) + *(short *)(CONCAT22(uStack_2a,local_2c) + 0x30);\n      sVar3 = *(short *)(CONCAT22(uStack_2a,local_2c) + 0x72) + *(short *)(local_30 + 0x30);\n      if (sStack_40 == 0) {\n        sVar3 = 0x4000;\n        local_28 = 0x4000;\n      }\n      else if ((sVar7 == 0) || (sVar3 == 0)) {\n        sVar3 = 0;\n        local_28 = 0;\n      }\n      else {\n        local_38 = (short *)(((int)sStack_40 >> 1) +\n                            (int)(short)(((int)sVar7 * (int)sVar7 - (int)sVar3 * (int)sVar3) /\n                                         (int)sStack_40 >> 1));\n        local_20 = SUB42(local_38,0);\n        uVar4 = FUN_00432de4();\n        local_28 = extraout_DX - (short)uVar4;\n        uVar4 = FUN_00432de4();\n        sVar3 = extraout_DX_00 - (short)uVar4;\n      }\n      iVar5 = CONCAT22(uStack_2a,local_2c);\n      uVar4 = CONCAT22(uStack_26,local_28);\n      *(undefined2 *)(iVar5 + 0x28) = 0;\n      *(undefined2 *)(iVar5 + 0x2a) = 0;\n      *(short *)(iVar5 + 0x26) = sVar3 + local_28;\n      *(short *)(iVar5 + 0x26) = -(sVar3 + local_28);\n      if (sVar2 != 0) {\n        FUN_00422460(uVar4,(int)sVar2);\n        uVar4 = extraout_ECX_11;\n      }\n      if (E2R_READ2(local_1e,2) != 0) {\n        FUN_00422368(uVar4,local_1e >> 0x10);\n        uVar4 = extraout_ECX_12;\n      }\n      local_24 = *(short *)(iVar8 + 0x2a);\n      if ((*(byte *)(iVar8 + 2) & 0x80) != 0) {\n        local_54[0] = *(short *)(local_30 + 10) - *(short *)(local_30 + 8);\n        local_54[1] = *(short *)(local_30 + 0x10) - *(short *)(local_30 + 0xe);\n        local_54[2] = *(short *)(local_30 + 0x16) - *(short *)(local_30 + 0x14);\n        FUN_00422628(CONCAT22((short)((uint)uVar4 >> 0x10),*(short *)(local_30 + 0xe)),\n                     (undefined2 *)(iVar8 + 6));\n        FUN_0045de8b();\n        sVar2 = local_24;\n        iVar5 = FUN_00432c64(extraout_ECX_13,-sStack_42);\n        local_24 = sVar2 + (short)iVar5;\n        uVar4 = extraout_ECX_14;\n      }\n      if (local_24 != 0) {\n        FUN_00422538(uVar4,(int)local_24);\n        uVar4 = extraout_ECX_15;\n      }\n      if (local_28 != 0) {\n        FUN_00422368(uVar4,(int)local_28);\n      }\n      local_38 = (short *)(iVar8 + 0x80);\n      FUN_0045de8b();\n      *local_38 = *local_38 + *(short *)(iVar8 + 0x18);\n      local_38[1] = local_38[1] + *(short *)(iVar8 + 0x1a);\n      local_38[2] = local_38[2] + *(short *)(iVar8 + 0x1c);\n      if (CONCAT22(uStack_2a,local_2c) == *(int *)(iVar8 + 0x48)) {\n        FUN_00424164(extraout_ECX_16,CONCAT22(uStack_2a,local_2c));\n        if (local_30 == *(int *)(CONCAT22(uStack_2a,local_2c) + 0x48)) {\n          local_34 = CONCAT22(uStack_2a,local_2c);\n        }\n      }\n    }\n    local_34 = *(int *)(local_34 + 0x48);\n    iVar8 = *(int *)(local_34 + 0x48);\n  }\n  return;\n}");
+patchRectangleFunction("FUN_0042f9c0", () => "undefined4 __fastcall FUN_0042f9c0(int node,int actor_id,int action_id,int independent,int node_orientation)\n{\n  /* Original 0x42f9c0: EAX node, EDX actor, EBX action, ECX owner flag,\n   * stack orientation flag. Retain them across the nested resource loaders. */\n  int entry_context = E2R_actor_calc_context;\n  int owner = *(int *)(node + 0x22);\n  int attached = *(int *)(owner + 0xf2);\n  if (attached != 0) {\n    for (int cursor = attached; *(int *)(cursor + 0x44) != 0; cursor = *(int *)(cursor + 0x44))\n      *(int *)(*(int *)(cursor + 0x44) + 0x48) = cursor;\n    *(int *)(attached + 0x48) = 0;\n    E2R_actor_calc_context = *(int *)(attached + 0x22);\n    FUN_00424318();\n  }\n  for (int cursor = node; *(int *)(cursor + 0x44) != 0; cursor = *(int *)(cursor + 0x44))\n    *(int *)(*(int *)(cursor + 0x44) + 0x48) = cursor;\n  *(int *)(node + 0x48) = 0;\n  E2R_actor_calc_context = owner;\n  FUN_00424318();\n  E2R_actor_calc_context = entry_context;\n  FUN_00420c10(actor_id);\n  E2R_actor_load_id_override = actor_id;\n  FUN_00451f5c();\n  FUN_00451880(0,action_id);\n  int actor = *(int *)(0x630b60 + actor_id * 4);\n  int action = *(int *)(0x62ba20 + action_id * 4);\n  if (actor != 0 && action != 0) {\n    if (independent == 0) {\n      int source = *(int *)(node + 0x22);\n      int link = *(int *)(source + 0xf2);\n      if (link != 0) source = *(int *)(link + 0x22);\n      *(short *)(actor + 0x18a) = *(short *)source;\n    }\n    *(byte *)(actor + 2) |= 8;\n    if (independent != 0) *(byte *)(actor + 0x146) |= 8;\n    FUN_00422aa0(actor + 0x84,(undefined2 *)(node + 0x80));\n    if (node_orientation != 0) FUN_0042d46c(actor + 0x90,(ushort *)(node + 6));\n    else FUN_00422aa0(actor + 0x90,(undefined2 *)(*(int *)(node + 0x22) + 0x90));\n    E2R_actor_calc_context = actor;\n    FUN_00426c3c();\n    E2R_actor_calc_context = entry_context;\n    *(int *)(actor + 0xa6) = 0;\n    return FUN_0045186c(actor,action,independent == 0);\n  }\n  return 0;\n}");
+patchRectangleFunction("FUN_0042d46c", () => "void __fastcall FUN_0042d46c(undefined4 destination,ushort *input)\n{\n  short matrix[9];\n  short *output = (short *)(uintptr_t)destination;\n  memcpy(matrix,input,sizeof matrix);\n  output[1] = E2R_PolygonAngle16(matrix[2],matrix[8]);\n  for (int axis = 1; axis >= 0; --axis) {\n    short angle = output[axis];\n    if (angle != 0) {\n      short rotation[9] = {16384,0,0,0,16384,0,0,0,16384};\n      if (axis == 1) FUN_00422460((uintptr_t)rotation,(ushort)-angle);\n      else FUN_00422368((uintptr_t)rotation,(ushort)-angle);\n      for (int column = 0; column < 3; ++column) {\n        short vector[3] = {matrix[column],matrix[3+column],matrix[6+column]},result[3];\n        E2R_TransformVector14(result,vector,rotation);\n        for (int row = 0; row < 3; ++row) matrix[row*3+column] = result[row];\n      }\n    }\n    if (axis == 1) output[0] = E2R_PolygonAngle16((short)-matrix[5],matrix[8]);\n  }\n  output[2] = E2R_PolygonAngle16(matrix[3],matrix[0]);\n  int flips = 0;\n  for (int axis = 0; axis < 3; ++axis) flips += (((int)output[axis] + 0x4000) & 0x8000) != 0;\n  if (flips >= 2) {\n    output[0] = (short)(0x8000 - output[0]);\n    output[1] = (short)(output[1] - 0x8000);\n    output[2] = (short)(output[2] - 0x8000);\n  }\n}");
+source = source.replace("/* 0042d46c */","static short E2R_PolygonAngle16(short x,short z);\n\n/* 0042d46c */");
+source = replaceRectangleInput(source,"FUN_0042f9c0(0,*(int *)(in_EAX + 2) >> 0x10,1)","FUN_0042f9c0((int)unaff_ESI,in_EAX[3],in_EAX[4],0,1)");
+source = replaceRectangleInput(source,"FUN_0042f9c0(1,*(int *)(in_EAX + 2) >> 0x10,1)","FUN_0042f9c0((int)unaff_ESI,in_EAX[3],in_EAX[4],1,1)");
+source = replaceRectangleInput(source,"FUN_0042f9c0(1,(int)(short)uVar7,0)","FUN_0042f9c0(unaff_EBX,(short)uVar7,(ushort)uVar19,1,0)");
+source = source.replace(/FUN_0045186c\((extraout_ECX_\d+|in_EAX),([^;\n]+)\);/g,'FUN_0045186c($1,$2,0);');
+prototypes[prototypes.indexOf("void FUN_00420c10(void);")] = "void FUN_00420c10(int actor_id);";
+prototypes[prototypes.indexOf("undefined4 __fastcall FUN_0045186c(undefined4 param_1,undefined4 param_2);")] = "undefined4 __fastcall FUN_0045186c(undefined4 actor,undefined4 action,int immediate);";
+prototypes[prototypes.indexOf("undefined4 __fastcall FUN_0042f9c0(int param_1,int param_2,int param_3);")] = "undefined4 __fastcall FUN_0042f9c0(int node,int actor_id,int action_id,int independent,int node_orientation);";
+
+patchRectangleFunction("FUN_00427584", body => replaceRectangleInput(body,"    uVar16 = (uint)CONCAT21((short)((uint)extraout_EDX_01 >> 0x10),","    /* Original 0x427ade retains the actor in EAX after root reset. */\n    extraout_EDX_01 = (int)(uintptr_t)local_6c;\n    uVar16 = (uint)CONCAT21((short)((uint)extraout_EDX_01 >> 0x10),"));
+
+
+// Scope global actor archive identities to actual scheduler/event load requests.
+source = replaceRectangleInput(source,"static int E2R_actor_resource_name_context = -1;","static int E2R_actor_resource_name_context = -1;\nstatic int E2R_actor_archive_load_context;");
+source = replaceRectangleInput(source,"  const char *value = getenv(\"E2R_POPULATION_PROBE\");\n  return value != NULL","  if (E2R_actor_archive_load_context != 0) return 1;\n  const char *value = getenv(\"E2R_POPULATION_PROBE\");\n  return value != NULL");
+source = replaceRectangleInput(source,"/* 0044db80 */","/* Scope corrected global archive identity to original population/spawn loads.\n * Initial Joe/intro loading retains its existing resource boundary. */\nstatic void E2R_LoadPopulationActor(int actor_id)\n{\n  int entry_archive = E2R_actor_archive_load_context;\n  int entry_id = E2R_actor_load_id_override;\n  int entry_actor = E2R_actor_calc_context;\n  E2R_actor_archive_load_context = 1;\n  E2R_actor_load_id_override = actor_id;\n  FUN_00451f5c();\n  E2R_actor_calc_context = entry_actor;\n  E2R_actor_load_id_override = entry_id;\n  E2R_actor_archive_load_context = entry_archive;\n}\n\n/* 0044db80 */");
+source = replaceRectangleInput(source,"undefined4 __fastcall FUN_0042f9c0(int node,","static void E2R_LoadPopulationActor(int actor_id);\n\nundefined4 __fastcall FUN_0042f9c0(int node,");
+source = replaceRectangleInput(source,"  E2R_actor_load_id_override = actor_id;\n  FUN_00451f5c();\n  FUN_00451880(0,action_id);","  E2R_LoadPopulationActor(actor_id);\n  FUN_00451880(0,action_id);");
+source = replaceRectangleInput(source,"      int prior_id = E2R_actor_load_id_override;\n      E2R_actor_load_id_override = id;\n      FUN_00451f5c();\n      E2R_actor_load_id_override = prior_id;","      E2R_LoadPopulationActor(id);");
+source = replaceRectangleInput(source,"      int prior_id = E2R_actor_load_id_override;\n      E2R_actor_load_id_override = 64;\n      FUN_00451f5c();\n      E2R_actor_load_id_override = prior_id;","      E2R_LoadPopulationActor(64);");
+source = replaceRectangleInput(source,"FUN_0045186c(extraout_ECX_17,extraout_EDX_04,0)","FUN_0045186c(extraout_ECX_17,extraout_EDX_04,1)");
+source = replaceRectangleInput(source,"FUN_0045186c(extraout_ECX_06,iVar1,0)","FUN_0045186c(extraout_ECX_06,iVar1,1)");
+source = replaceRectangleInput(source,"  if (in_EAX < 0 || 2500 <= in_EAX) return;","  if (in_EAX < 0 || 5000 <= in_EAX) return;");
+
+
+// Original NPC endpoint / reverse-chain IK pose contracts.
+patchRectangleFunction("FUN_00423674", () => `void FUN_00423674(int node)
+{
+  /* Original EAX node; +0x22 is its root owner, not an implicit register. */
+  if ((*(byte *)(node + 3) & 1) != 0) return;
+  short *matrix = (short *)(node + 6);
+  short *position = (short *)(node + 0x18);
+  byte flags = *(byte *)(node + 3);
+  if ((flags & 2) == 0 || (flags & 0x40) != 0) {
+    int owner = *(int *)(node + 0x22);
+    int basis = (flags & 2) == 0 ? owner + 6 : owner + 0xc6;
+    int origin = (flags & 2) == 0 ? owner + 0x84 : owner + 0x8a;
+    E2R_TransformVector14(position,(short *)(node + 0x110),(short *)basis);
+    for (int i = 0; i < 3; ++i) position[i] += ((short *)origin)[i];
+    memcpy(matrix,(void *)basis,18);
+  } else {
+    E2R_SetIdentityMatrix((undefined2 *)matrix);
+    memcpy(position,(void *)(node + 0x110),6);
+  }
+  if (*(short *)(node + 0x28)) FUN_00422460(node + 6,*(short *)(node + 0x28));
+  if (*(short *)(node + 0x26)) FUN_00422368(node + 6,*(short *)(node + 0x26));
+  if (*(short *)(node + 0x2a)) FUN_00422538(node + 6,*(short *)(node + 0x2a));
+  short *tip = (short *)(node + 0x80);
+  E2R_TransformVector14(tip,(short *)(node + 0x6e),matrix);
+  for (int i = 0; i < 3; ++i) tip[i] += position[i];
+}`);
+patchRectangleFunction("FUN_00424164", () => `void __fastcall FUN_00424164(undefined4 parent,int node)
+{
+  /* Original EAX parent, EDX child; retain both across rotations/transforms. */
+  short *matrix = (short *)(node + 6);
+  memcpy(matrix,(void *)((*(byte *)(node + 2) & 0x10) ? node + 0xec : parent + 6),18);
+  if (*(short *)(node + 0x28)) FUN_00422460(node + 6,*(short *)(node + 0x28));
+  if (*(short *)(node + 0x26)) FUN_00422368(node + 6,*(short *)(node + 0x26));
+  if (*(short *)(node + 0x2a)) FUN_00422538(node + 6,*(short *)(node + 0x2a));
+  short *relative = (short *)(node + 0x50);
+  short offset[3];
+  for (int i = 0; i < 3; ++i)
+    offset[i] = ((short *)(node + 0x2c))[i] +
+      (*(short *)(parent + 4) == 7 ? 0 : ((short *)(parent + 0x6e))[i]);
+  E2R_TransformVector14(relative,offset,(short *)(parent + 6));
+  for (int i = 0; i < 3; ++i)
+    ((short *)(node + 0x18))[i] = ((short *)(parent + 0x18))[i] + relative[i];
+  if (*(short *)(node + 4) == 4) {
+    short *tip = (short *)(node + 0x80);
+    E2R_TransformVector14(tip,(short *)(node + 0x6e),matrix);
+    for (int i = 0; i < 3; ++i) tip[i] += ((short *)(node + 0x18))[i];
+  }
+}`);
+patchRectangleFunction("FUN_00424318", () => `static short E2R_PolygonAngle16(short x,short z);
+static void E2R_RotatePolygonNormal(short normal[3],short angle,int axis);
+
+static short E2R_PoseAsin14(short ratio)
+{
+  /* Original 0x432de4: signed Q14 input, mapped inverse-sine table. */
+  if (ratio >= 0x4000) return 0x4000;
+  if (ratio <= -0x4000) return -0x4000;
+  return *(short *)(0x593590 + ratio * 2);
+}
+
+undefined4 FUN_00424318(void)
+
+{
+  short *psVar1;
+  short sVar2;
+  int in_EAX = E2R_actor_calc_context;
+  int iVar5;
+  int iVar8;
+  ushort *puVar9;
+  ushort *puVar10;
+  short local_4c;
+  short sStack_4a;
+  short local_48;
+  ushort *local_3c;
+  short *local_38;
+  int local_34;
+
+  if (*(short **)(in_EAX + 0xf2) == (short *)0x0) {
+    E2R_ApplyEulerMatrix((short *)(in_EAX + 6),(short *)(in_EAX + 0x90));
+    local_34 = in_EAX;
+  }
+  else {
+    FUN_00420ec4(in_EAX,*(short **)(in_EAX + 0xf2));
+    local_34 = in_EAX;
+  }
+  sVar2 = 0;
+  do {
+    iVar8 = (int)sVar2;
+    sVar2 = sVar2 + 1;
+    *(undefined2 *)(local_34 + 0x18 + iVar8 * 2) = *(undefined2 *)(local_34 + 0x84 + iVar8 * 2);
+  } while (sVar2 < 3);
+  iVar8 = *(int *)(local_34 + 0x48);
+  while (iVar8 != 0) {
+    iVar8 = *(int *)(local_34 + 0x48);
+    if (*(short *)(local_34 + 4) == 7) {
+      local_4c = *(short *)(iVar8 + 0x2c);
+      sStack_4a = *(short *)(iVar8 + 0x2e);
+      local_48 = *(short *)(iVar8 + 0x30);
+    }
+    else {
+      local_4c = *(short *)(local_34 + 0x6e) + *(short *)(iVar8 + 0x2c);
+      sStack_4a = *(short *)(local_34 + 0x70) + *(short *)(iVar8 + 0x2e);
+      local_48 = *(short *)(local_34 + 0x72) + *(short *)(iVar8 + 0x30);
+    }
+    local_3c = (ushort *)(local_34 + 6);
+    local_38 = (short *)(iVar8 + 0x50);
+    short relative[3] = {local_4c,sStack_4a,local_48};
+    E2R_TransformVector14(local_38,relative,(short *)local_3c);
+    psVar1 = (short *)(iVar8 + 0x18);
+    *psVar1 = *(short *)(local_34 + 0x18);
+    *(undefined2 *)(iVar8 + 0x1a) = *(undefined2 *)(local_34 + 0x1a);
+    *(undefined2 *)(iVar8 + 0x1c) = *(undefined2 *)(local_34 + 0x1c);
+    *psVar1 = *psVar1 + *local_38;
+    *(short *)(iVar8 + 0x1a) = *(short *)(iVar8 + 0x1a) + local_38[1];
+    *(short *)(iVar8 + 0x1c) = *(short *)(iVar8 + 0x1c) + local_38[2];
+    puVar9 = local_3c;
+    if ((*(byte *)(iVar8 + 2) & 0x10) != 0) {
+      puVar9 = (ushort *)(iVar8 + 0xec);
+    }
+    puVar10 = (ushort *)(iVar8 + 6);
+    for (iVar5 = 4; iVar5 != 0; iVar5 = iVar5 + -1) {
+      *(undefined4 *)puVar10 = *(undefined4 *)puVar9;
+      puVar9 = puVar9 + 2;
+      puVar10 = puVar10 + 2;
+    }
+    *puVar10 = *puVar9;
+    if ((*(byte *)(iVar8 + 2) & 0x20) == 0) {
+      if (*(short *)(iVar8 + 0x28) != 0) {
+        FUN_00422460(iVar8 + 6,(int)*(short *)(iVar8 + 0x28));
+      }
+      if (*(short *)(iVar8 + 0x26) != 0) {
+        FUN_00422368(iVar8 + 6,(int)*(short *)(iVar8 + 0x26));
+      }
+      if (*(short *)(iVar8 + 0x2a) != 0) {
+        FUN_00422538(iVar8 + 6,(int)*(short *)(iVar8 + 0x2a));
+      }
+      local_38 = (short *)(iVar8 + 0x80);
+      E2R_TransformVector14(local_38,(short *)(iVar8 + 0x6e),(short *)(iVar8 + 6));
+      *local_38 = *local_38 + *(short *)(iVar8 + 0x18);
+      local_38[1] = local_38[1] + *(short *)(iVar8 + 0x1a);
+      local_38[2] = local_38[2] + *(short *)(iVar8 + 0x1c);
+    }
+    else {
+      /* Original 0x42454e..0x424832, with explicit local vectors/matrices. */
+      int middle = *(int *)(iVar8 + 0x1e);
+      if (middle == 0) FUN_00426f84();
+      int endpoint = *(int *)(middle + 0x1e);
+      if (endpoint == 0) FUN_00426f84();
+      FUN_00423674(endpoint);
+      short difference[3], target[3], transpose[9];
+      for (int i = 0; i < 3; ++i)
+        difference[i] = ((short *)(endpoint + 0x18))[i] - ((short *)(iVar8 + 0x18))[i];
+      short *matrix = (short *)(iVar8 + 6);
+      for (int row = 0; row < 3; ++row)
+        for (int col = 0; col < 3; ++col) transpose[row * 3 + col] = matrix[col * 3 + row];
+      E2R_TransformVector14(target,difference,transpose);
+      short yaw = E2R_PolygonAngle16(target[0],target[2]);
+      if (yaw) E2R_RotatePolygonNormal(target,(short)-yaw,1);
+      short pitch = E2R_PolygonAngle16((short)-target[1],target[2]);
+      if (pitch) E2R_RotatePolygonNormal(target,(short)-pitch,0);
+      short length_a = *(short *)(iVar8 + 0x72) + *(short *)(middle + 0x30);
+      short length_b = *(short *)(middle + 0x72) + *(short *)(endpoint + 0x30);
+      short bend_a, bend_b;
+      if (target[2] == 0) bend_a = bend_b = 0x4000;
+      else if (length_a == 0 || length_b == 0) bend_a = bend_b = 0;
+      else {
+        int half_difference = (short)(((length_a * length_a - length_b * length_b) / target[2]) >> 1);
+        short projected_a = (target[2] >> 1) + half_difference;
+        short projected_b = (target[2] >> 1) - half_difference;
+        short ratio_a = (projected_a * 16384) / length_a;
+        short ratio_b = (projected_b * 16384) / length_b;
+        bend_a = 0x4000 - E2R_PoseAsin14(ratio_a);
+        bend_b = 0x4000 - E2R_PoseAsin14(ratio_b);
+      }
+      *(short *)(middle + 0x28) = 0;
+      *(short *)(middle + 0x2a) = 0;
+      *(short *)(middle + 0x26) = -(bend_a + bend_b);
+      if (yaw) FUN_00422460(iVar8 + 6,yaw);
+      if (pitch) FUN_00422368(iVar8 + 6,pitch);
+      short roll = *(short *)(iVar8 + 0x2a);
+      if ((*(byte *)(iVar8 + 2) & 0x80) != 0) {
+        for (int i = 0; i < 3; ++i) {
+          difference[i] = ((short *)(endpoint + 6))[i * 3 + 2] - ((short *)(endpoint + 6))[i * 3 + 1];
+          for (int j = 0; j < 3; ++j) transpose[i * 3 + j] = matrix[j * 3 + i];
+        }
+        E2R_TransformVector14(target,difference,transpose);
+        roll += E2R_PolygonAngle16(target[0],(short)-target[1]);
+      }
+      if (roll) FUN_00422538(iVar8 + 6,roll);
+      if (bend_a) FUN_00422368(iVar8 + 6,bend_a);
+      E2R_TransformVector14((short *)(iVar8 + 0x80),(short *)(iVar8 + 0x6e),matrix);
+      for (int i = 0; i < 3; ++i)
+        ((short *)(iVar8 + 0x80))[i] += ((short *)(iVar8 + 0x18))[i];
+      if (middle == *(int *)(iVar8 + 0x48)) {
+        FUN_00424164(iVar8,middle);
+        if (endpoint == *(int *)(middle + 0x48)) local_34 = middle;
+      }
+    }
+    local_34 = *(int *)(local_34 + 0x48);
+    iVar8 = *(int *)(local_34 + 0x48);
+  }
+  return;
+}`);
+patchRectangleFunction("FUN_00423858", body => replaceRectangleInput(body,"FUN_00423674();","FUN_00423674(local_50);"));
+source = replaceRectangleInput(source,"FUN_00424164(extraout_ECX_22,local_44);","FUN_00424164(iVar10,local_44);");
+patchRectangleFunction("FUN_0042d72c", body => replaceRectangleInput(body,"FUN_00423674();","FUN_00423674(in_EAX);"));
+patchRectangleFunction("FUN_0042d7c0", body => replaceRectangleInput(body,"FUN_00423674();","FUN_00423674(in_EAX);"));
+patchRectangleFunction("FUN_0042d860", body => replaceRectangleInput(body,"FUN_00423674();","FUN_00423674(in_EAX);"));
+patchRectangleFunction("FUN_00420ec4", () => `static void E2R_TransformVector14(short *out,const short *in,const short *matrix);
+
+void __fastcall FUN_00420ec4(undefined4 actor,short *attached)
+{
+  /* Original EAX actor, EDX attachment. Its world tip becomes the root origin. */
+  int node = (int)(uintptr_t)attached;
+  memcpy((void *)(actor + 0x84),(void *)(node + 0x80),6);
+  memcpy((void *)(actor + 6),(void *)(node + 6),18);
+  int angles = actor + (*attached == 7 ? 0x108 : 0xfc);
+  if (*(short *)(angles + 2)) FUN_00422460(actor + 6,*(short *)(angles + 2));
+  if (*(short *)angles) FUN_00422368(actor + 6,*(short *)angles);
+  if (*(short *)(angles + 4)) FUN_00422538(actor + 6,*(short *)(angles + 4));
+  short offset[3];
+  E2R_TransformVector14(offset,(short *)(actor + (*attached == 7 ? 0x102 : 0xf6)),(short *)(actor + 6));
+  for (int i = 0; i < 3; ++i) ((short *)(actor + 0x84))[i] += offset[i];
+  FUN_0042d46c(actor + 0x90,(ushort *)(actor + 6));
+  if ((*(byte *)(actor + 3) & 4) == 0) {
+    *(byte *)(*(int *)(node + 0x22) + 3) &= 0xfb;
+  } else {
+    for (; node != 0; node = *(int *)(*(int *)(node + 0x22) + 0xf2)) {
+      if ((*(byte *)(*(int *)(node + 0x22) + 3) & 4) == 0) {
+        *(byte *)(actor + 3) &= 0xfb;
+        return;
+      }
+    }
+  }
+}`);
+patchRectangleFunction("FUN_00414f40", body => replaceRectangleInput(body,
+  "  for (x = 0; x < 256; x = x + 1) {\n    double phase = ((double)x * pi) / 128.0;",
+  `  /* Original 0x4154ff..0x41554d, constants 0x4713a9/0x471391.
+   * The signed input is centered at 0x593590; conversion truncates. */
+  for (x = -16384; x < 16384; ++x)
+    *(short *)(0x00593590 + x * 2) = (short)(asin((double)x * 6.103515625e-05) * 10430.38716064159);
+
+  for (x = 0; x < 256; x = x + 1) {
+    double phase = ((double)x * pi) / 128.0;`));
+prototypes[prototypes.indexOf("void FUN_00423674(void);")] = "void FUN_00423674(int node);";
+
+// Original event-node reverse-chain/owner handoff (0x42faf8).
+patchRectangleFunction("FUN_0042faf8", () => `undefined4 FUN_0042faf8(int node)
+{
+  /* Original 0x42faf8 retains the event node in ESI. Rebuild reverse links
+   * to its endpoint, pose that owner's chain, then issue the node queries. */
+  int middle = 0, endpoint = 0;
+  if ((*(byte *)(node + 2) & 0x20) != 0) {
+    middle = *(int *)(node + 0x1e);
+    if (middle != 0) endpoint = *(int *)(middle + 0x1e);
+  }
+  int tail = endpoint != 0 ? endpoint : node;
+  for (int cursor = tail; *(int *)(cursor + 0x44) != 0; cursor = *(int *)(cursor + 0x44))
+    *(int *)(*(int *)(cursor + 0x44) + 0x48) = cursor;
+  *(int *)(tail + 0x48) = 0;
+  int entry_context = E2R_actor_calc_context;
+  E2R_actor_calc_context = *(int *)(tail + 0x22);
+  FUN_00424318();
+  E2R_actor_calc_context = entry_context;
+  if (endpoint != 0) {
+    FUN_0042efdc(node);
+    FUN_0042efdc(middle);
+  }
+  FUN_0042efdc(tail);
+  int attached = *(int *)(node + 0x13a);
+  if (attached != 0) {
+    FUN_00423858(attached,0);
+    for (int child = *(int *)(attached + 0x1e); child != 0; child = *(int *)(child + 0x4c))
+      FUN_0042efdc(child);
+  }
+  return 0;
+}`);
+source = replaceRectangleInput(source,"FUN_0042faf8()","FUN_0042faf8((int)unaff_ESI)");
+patchRectangleFunction("FUN_0042efdc", body => replaceRectangleInput(replaceRectangleInput(body,"FUN_0042efdc(void)","FUN_0042efdc(int node)"),"  int in_EAX;","  int in_EAX = node;"));
+prototypes[prototypes.indexOf("undefined4 FUN_0042faf8(void);")] = "undefined4 FUN_0042faf8(int node);";
+prototypes[prototypes.indexOf("void FUN_0042efdc(void);")] = "void FUN_0042efdc(int node);";
+
+// Original 0x42f075..0x42f09d and 0x42f15f..0x42f188: node/actor XZ inputs
+// and separate polar outputs survive the hit-query prefilter.
+patchRectangleFunction("FUN_0042efdc", body => {
+  body = replaceRectangleInput(body,"FUN_00427160((int)(short)(*(short *)(in_EAX + 0x1c) - puVar3[0x44]),\n                                  (short *)local_1c)","E2R_NpcPolar16(&hit_angle,&hit_distance,\n                                  (short)(*(short *)(in_EAX + 0x18) - puVar3[0x42]),\n                                  (short)(*(short *)(in_EAX + 0x1c) - puVar3[0x44]))");
+  body = replaceRectangleInput(body,"  undefined4 local_1c [2];","  short hit_angle, hit_distance;");
+  body = replaceRectangleInput(body,"(short)local_1c[0] <","hit_distance <");
+  body = replaceRectangleInput(body,"FUN_00432c64(CONCAT22(extraout_var,sVar1),puVar3[0x44] - sVar1)","E2R_PolygonAngle16(\n            (short)(puVar3[0x42] - *(short *)(*(int *)(in_EAX + 0x22) + 0x84)),\n            (short)(puVar3[0x44] - sVar1))");
+  return body;
+});
+
+// Scheduled/queued action ownership after the original root reset.
+source = replaceRectangleInput(source,"    uVar27 = FUN_00451880(iVar7,psVar15);\n    psVar15 = (short *)((ulonglong)uVar27 >> 0x20);","    /* Original 0x4279ef keeps the scheduled node across action loading. */\n    FUN_00451880(0,*psVar15);");
+source = replaceRectangleInput(source,"      FUN_004538b8();","      FUN_004538b8(*(int *)(extraout_EDX_01 + 0x17c));");
+source = replaceRectangleInput(source,"      *(undefined4 *)(local_6c + 0xbe) = *(undefined4 *)(*(int *)(extraout_EDX_01 + 0x17c) + 6);\n      FUN_004538b8(*(int *)(extraout_EDX_01 + 0x17c));","      int scheduled_node = *(int *)(extraout_EDX_01 + 0x17c);\n      *(undefined4 *)(local_6c + 0xbe) = *(undefined4 *)(scheduled_node + 6);\n      FUN_004538b8(scheduled_node);");
+source = replaceRectangleInput(source,"void FUN_004538b8(void)\n\n{\n  undefined2 *in_EAX;","void FUN_004538b8(int node)\n\n{\n  undefined2 *in_EAX = (undefined2 *)(uintptr_t)node;");
+prototypes[prototypes.indexOf("void FUN_004538b8(void);")] = "void FUN_004538b8(int node);";
+
+// Space must retain the original skip script's population-enable/cleanup tail.
+source = replaceRectangleInput(source,
+  "static short *E2R_FindActionCodeBySuffix(char *suffix);",
+  "static short *E2R_FindActionCodeBySuffix(char *suffix);\nstatic int E2R_ActionIndexProbeEnabled(void);");
+source = replaceRectangleInput(source,
+  "  FUN_0043a6e0((undefined4)(int)scene_id,(undefined4)(int)scene_id);",
+  "  /* The original dav:skipsc also cleans up the horse scene and enables\n   * population (opcode 0x6a). Starting Start_sc alone loses those effects. */\n  short *skip_code = E2R_ActionIndexProbeEnabled() ?\n      E2R_FindActionCodeBySuffix(\"skipsc\") : NULL;\n  if (skip_code != NULL) FUN_0044f2fc((undefined4)(uintptr_t)skip_code);\n  else FUN_0043a6e0((undefined4)(int)scene_id,(undefined4)(int)scene_id);");
+
+// Original preloaded-object visibility/activation: 0x44f8a7, 0x44d4b4 and 0x44d634.
+patchRectangleFunction("FUN_0044d4b4", () => `void __fastcall FUN_0044d4b4(undefined4 param_1)
+
+{
+  int actor;
+  int actor_id;
+  int cell;
+  int child;
+  int link;
+  int link_flags;
+  short visible;
+  undefined8 result;
+
+  actor_id = (int)(short)(uintptr_t)param_1;
+  if (actor_id < 0 || 5000 <= actor_id) {
+    return;
+  }
+  actor = *(int *)((undefined1 *)0x00630b60 + actor_id * 4);
+  if (actor == 0 ||
+      (*(ushort *)(actor_id * 2 + 0x666ff8) & 0xc000u) == 0xc000u ||
+      (uintptr_t)actor < 0x10000u ||
+      IsBadReadPtr((void *)(uintptr_t)actor,0x188)) {
+    result = FUN_004488a4((undefined4)(uintptr_t)(actor_id * 6 + 0x669708),
+                          (undefined4)actor_id);
+    visible = (int)result < 0 ? 0 :
+      ((*(ushort *)((undefined1 *)0x0068cd6a + (int)result * 0xc) >> 8 & 0x40) << 8);
+    if (visible != 0 && *(short *)(actor_id * 2 + 0x65feb0) < 0)
+      FUN_0044d634(actor_id);
+    return;
+  }
+  if (*(int *)(actor + 0xf2) != 0) {
+    return;
+  }
+  link = *(int *)(actor + 0xa6);
+  link_flags = 0;
+  if (link != 0 && 0x10000u <= (uintptr_t)link &&
+      (uintptr_t)link < 0x70000000u && !IsBadReadPtr((void *)(uintptr_t)link,0x10)) {
+    link_flags = *(byte *)(link + 0xc) & 2;
+  }
+  if (actor != DAT_0047a470 && link_flags == 0) {
+    result = FUN_004488a4((undefined4)(uintptr_t)(actor + 0x84),(undefined4)actor);
+    visible = (int)result < 0 ? 0 :
+      ((*(ushort *)((undefined1 *)0x0068cd6a + (int)result * 0xc) >> 8 & 0x40) << 8);
+    if (visible == 0) {
+      return;
+    }
+  }
+  *(byte *)(actor + 2) = *(byte *)(actor + 2) | 8;
+  E2R_actor_calc_context = actor;
+  FUN_00426c3c();
+  E2R_actor_calc_context = 0;
+  for (link = *(int *)(actor + 0x1e); link != 0; link = *(int *)(link + 0x4c)) {
+    if ((uintptr_t)link < 0x10000u || IsBadReadPtr((void *)(uintptr_t)link,0x140)) {
+      break;
+    }
+    child = *(int *)(link + 0x13a);
+    if (child != 0) {
+      FUN_0044d608(0,(undefined4)(uintptr_t)link);
+    }
+  }
+  return;
+}`);
+patchRectangleFunction("FUN_0044d634", () => `void FUN_0044d634(int actor_id)
+
+{
+  /* Original 0x44d63d retains the requested ID in EDI across nested loads. */
+  int owner_id = *(short *)(0x65feb0 + actor_id * 2);
+  for (int id = 0; id < 5000; ++id) {
+    if ((*(ushort *)(0x64a178 + id * 2) & 2) != 0 && owner_id == id)
+      FUN_0044d634(owner_id);
+  }
+  int saved_current = DAT_0047a470;
+  int saved_context = E2R_actor_calc_context;
+  E2R_LoadPopulationActor(actor_id);
+  short *actor = *(short **)(0x630b60 + actor_id * 4);
+  if (actor != NULL) {
+    E2R_actor_calc_context = (int)(uintptr_t)actor;
+    FUN_00420dcc();
+    FUN_00422aa0((undefined4)(uintptr_t)(actor + 0x42),
+                  (undefined2 *)(0x669708 + actor_id * 6));
+    ushort track = *(ushort *)(0x666ff8 + actor_id * 2);
+    if ((track & 0xc000) != 0xc000) {
+      FUN_00422aa0((undefined4)(uintptr_t)(actor + 0x48),
+                    (undefined2 *)(0x658980 + actor_id * 6));
+      actor[0x76] = *(short *)(0x647a68 + actor_id * 2);
+      actor[0xc2] = *(signed char *)(0x64c950 + actor_id);
+    }
+    if (*(short *)(0x671fc0 + actor_id * 2) != -2)
+      actor[0x91] = *(short *)(0x671fc0 + actor_id * 2);
+    owner_id = *(short *)(0x65feb0 + actor_id * 2);
+    if (owner_id >= 0) {
+      int owner = *(int *)(0x630b60 + owner_id * 4);
+      if (owner != 0) {
+        int node = *(int *)(*(int *)(owner + 0x54) +
+                            *(short *)(0x6648e8 + actor_id * 2) * 4);
+        if (node == 0) FUN_00414e68();
+        else {
+          *(int *)(actor + 0x79) = node;
+          *(short **)(node + 0x13a) = actor;
+        }
+      }
+    }
+    if ((*(byte *)(0x64a178 + actor_id * 2) & 4) != 0) actor[0x41] = 0xb;
+    *(byte *)(actor + 1) |= 8;
+    FUN_00426c3c();
+    actor[0x77] = actor[0x76] = 100;
+    if (actor[0x9d] >= 0 && *(int *)(0x6297c0 + actor[0x9d] * 4) != 0)
+      E2R_DispatchScriptRecord(*(ushort **)(0x6297c0 + actor[0x9d] * 4),
+                                (ushort *)actor,(ushort *)actor,NULL,NULL);
+    track = *(ushort *)(0x666ff8 + actor_id * 2);
+    if (track != 0) {
+      if ((track & 0x8000) != 0) {
+        int scene_id = (track & 0x3fff) - 1;
+        FUN_0045233c(scene_id,scene_id);
+        short *scene = *(short **)(0x62e450 + scene_id * 4);
+        if (scene == NULL) FUN_00414e68();
+        else {
+          E2R_actor_calc_context = (int)(uintptr_t)actor;
+          FUN_0042b0f4();
+          short *child = *(short **)(scene + 2);
+          while (child != NULL && *child != *actor) child = *(short **)(child + 0xc);
+          if (child == NULL) FUN_00414e68();
+          else {
+            short *first = *(short **)(child + 3);
+            if (first != NULL && *first == 0) {
+              short pose = actor[0x91];
+              FUN_00426010((int)(uintptr_t)actor);
+              actor[0x91] = pose;
+              *(int *)(actor + 0x5e) = *(int *)(actor + 0xf);
+            }
+            *(short **)(actor + 0x53) = child + 1;
+            E2R_actor_calc_context = (int)(uintptr_t)actor;
+            FUN_00426a80();
+            if ((track & 0x4000) == 0) DAT_0047a7e0 = 1;
+            FUN_0042b004((int *)(actor + 0x53),actor);
+            *(int *)(actor + 0x99) = 0;
+            *(int *)(actor + 0x53) = 0;
+            DAT_0047a7e0 = 0;
+            if ((*(byte *)(scene + 0x4b) & 1) == 0)
+              *(int *)(scene + 0x50) = _DAT_00636588 - 1;
+          }
+        }
+      }
+      else {
+        int action_id = track - 1;
+        FUN_00451880(0,action_id);
+        int action = *(int *)(0x62ba20 + action_id * 4);
+        if (action == 0) FUN_00414e68();
+        else {
+          *(int *)(actor + 0x53) = action;
+          E2R_actor_calc_context = (int)(uintptr_t)actor;
+          FUN_00426a80();
+          DAT_0047a7e0 = 1;
+          FUN_0042b004((int *)(actor + 0x53),actor);
+          DAT_0047a7e0 = 0;
+          *(int *)(actor + 0x53) = 0;
+          int other = _DAT_00637248;
+          while (other != 0 && *(int *)(other + 0xa6) != action)
+            other = *(int *)(other + 0x50);
+          if (other == 0) *(int *)(action + 0x12) = _DAT_00636588 - 1;
+        }
+      }
+    }
+  }
+  E2R_actor_calc_context = saved_context;
+  DAT_0047a470 = E2R_TraceCurrentActorWrite("4d634.exit",(uintptr_t)saved_current);
+}`);
+prototypes[prototypes.indexOf("void FUN_0044d634(void);")] = "void FUN_0044d634(int actor_id);";
+source = replaceRectangleInput(source,"                  if (puVar18[1] == 0x16) {\n                    FUN_00422aa0(puVar18 + 2,puVar18 + 2);\n                    puVar13 = extraout_ECX_20;\n                    if (*(int *)((undefined1 *)0x00630b60 + *psVar16 * 4) != 0) {\n                      FUN_00422aa0(extraout_ECX_20,extraout_ECX_20);\n                      puVar13 = extraout_ECX_21;\n                    }\n                  }\n","                  if (puVar18[1] == 0x16) {\n                    /* Original 0x44f8a7..0x44f8d1: cache the placement,\n                     * then copy the same event vector to an existing actor. */\n                    FUN_00422aa0((undefined4)(uintptr_t)(0x669708 + *psVar16 * 6),\n                                  (undefined2 *)(puVar18 + 2));\n                    if (*(int *)((undefined1 *)0x00630b60 + *psVar16 * 4) != 0) {\n                      FUN_00422aa0((undefined4)(uintptr_t)\n                          (*(int *)(0x630b60 + *psVar16 * 4) + 0x84),\n                          (undefined2 *)(puVar18 + 2));\n                    }\n                  }\n");
+
+// Restore the original loose-archive visibility index without changing other tables.
+source = replaceRectangleInput(source,"/* 00447d94 */","/* The loose Files/ECSTATIC starts at the first FAN resource; OFFSETS carries\n * the original 0x447d94 index separately. Keep the working actor/scene lookup\n * boundary and recover its missing final visibility table, with archive checks. */\nstatic int E2R_IndexFlatArchiveVisibility(const byte *base,const byte *end)\n{\n  enum { visibility_start = (2500 + 5000 + 2000 + 500 + 700 + 960 + 1200) * 4,\n         index_bytes = visibility_start + 1200 * 4 };\n  undefined4 *stream = (undefined4 *)(uintptr_t)E2R_OpenReadStream(\"OFFSETS\");\n  if (stream == NULL) return 0;\n  const byte *data = (const byte *)(uintptr_t)stream[5];\n  int valid = stream[1] == index_bytes;\n  int count = 0;\n  for (int id = 0; valid && id < 1200; ++id) {\n    const byte *entry = data + visibility_start + id * 4;\n    uint offset = ((uint)entry[0] << 24) | ((uint)entry[1] << 16) |\n                  ((uint)entry[2] << 8) | entry[3];\n    if (offset == 0xffffffffu) continue;\n    if (offset > (uint)(end - base) || (uint)(end - base) - offset < 6 ||\n        memcmp(base + offset,\"VisM\",4) != 0) valid = 0;\n    else {\n      uint records = base[offset + 4] | ((uint)base[offset + 5] << 8);\n      if (records * 4 > (uint)(end - base) - offset - 6) valid = 0;\n      else count++;\n    }\n  }\n  if (valid) {\n    for (int id = 0; id < 1200; ++id) {\n      const byte *entry = data + visibility_start + id * 4;\n      *(uint *)(0x6467a8 + id * 4) = ((uint)entry[0] << 24) |\n          ((uint)entry[1] << 16) | ((uint)entry[2] << 8) | entry[3];\n    }\n  }\n  LocalFree((HLOCAL)(uintptr_t)stream[5]);\n  LocalFree((HLOCAL)stream);\n  return valid ? count : 0;\n}\n\n/* 00447d94 */");
+source = replaceRectangleInput(source,"    stream[0] = (int)(uintptr_t)base;\n    stream[1] = (int)(uint)(end - base);","    if (E2R_ActionIndexProbeEnabled()) E2R_IndexFlatArchiveVisibility(base,end);\n    stream[0] = (int)(uintptr_t)base;\n    stream[1] = (int)(uint)(end - base);");
+
+// Static objects can have no idle action; preserve the original zero result.
+source = replaceRectangleInput(source,"        iVar17 = extraout_ECX_44;\n        if (-1 < iVar7) {","        /* Original 0x429bf8 keeps ECX zero when this idle slot is absent. */\n        if (-1 < iVar7) {");
+
+source = replaceRectangleInput(source,"      FUN_00451880(iVar5,iVar4);","      /* Original 0x44984b loads the landing action retained in EBX. */\n      FUN_00451880(0,iVar3);");
+
+// Original 0x456924 and script opcodes 0x66/0x68 retain actor and signed amount.
+patchRectangleFunction("FUN_00456924", () => `void __fastcall FUN_00456924(undefined4 param_1,int param_2)
+
+{
+  /* Original 0x456929 keeps EAX actor in EBX and EDX amount separately. */
+  int actor = (int)param_1;
+  int joe = _DAT_00630b60;
+  int redraw = actor == joe && *(short *)(actor + 0x184) == 0;
+  if (actor == joe || param_2 < 0) {
+    if (param_2 < 0) {
+      if (*(short *)(actor + 0x184) <= 100) {
+        short value = (short)(*(short *)(actor + 0x184) + param_2);
+        *(short *)(actor + 0x184) = value;
+        if (value <= 0) {
+          *(short *)(actor + 0x184) = 0;
+          int action_id = *(short *)(actor + 0x188);
+          if (action_id >= 0) {
+            FUN_00451880(0,action_id);
+            int action = *(int *)(0x62ba20 + action_id * 4);
+            if (action != 0) *(int *)(actor + 0x126) = action;
+          }
+        }
+      }
+    }
+    else if (param_2 <= 24) {
+      short value = (short)(*(short *)(actor + 0x184) + param_2 / 2);
+      *(short *)(actor + 0x184) = value > 24 ? 24 : value;
+    }
+    else *(short *)(actor + 0x184) = (short)param_2;
+  }
+  else *(short *)(actor + 0x184) = (short)param_2;
+  if (actor == _DAT_00630b60) FUN_00456f94();
+  else {
+    int attachment = *(int *)(actor + 0xf2);
+    if (attachment != 0 && *(int *)(attachment + 0x22) == _DAT_00630b60)
+      FUN_00457410();
+  }
+  if (*(short *)(actor + 0x184) == 0) redraw = 1;
+  if (redraw) FUN_004559bc();
+}`);
+source = replaceRectangleInput(source,"      case 0x66:\n        if ((*local_2c & 0x8000000) == 0) {\n          uVar19 = (uint)(short)(*(ushort *)((int)local_2c + 2) & 0xfff);\n        }\n        else {\n          uVar19 = *local_2c >> 0x10 | 0xf000;\n        }\n        if (param_2 != (ushort *)0x0) {\n          FUN_00456924(puVar13,uVar19);\n          puVar13 = extraout_ECX_57;\n          uVar19 = extraout_EDX_32;\n        }\n        local_2c = local_2c + 1;\n        uVar25 = CONCAT44(uVar19,_DAT_00ac4a54);\n        break;\n      case 0x67:\n        if ((*local_2c & 0x8000000) == 0) {\n          uVar7 = *(ushort *)((int)local_2c + 2) & 0xfff;\n        }\n        else {\n          uVar7 = (ushort)((uint)*local_2c >> 0x10) | 0xf000;\n        }\n        if (param_2 != (ushort *)0x0) {\n          param_2[0xc3] = uVar7;\n        }\n        local_2c = local_2c + 1;\n        uVar25 = CONCAT44(puVar18,_DAT_00ac4a54);\n        break;\n      case 0x68:\n        puVar13 = (ushort *)CONCAT31((int3)((uint)puVar13 >> 8),*(byte *)((int)local_2c + 5));\n        if ((*(byte *)((int)local_2c + 5) & 8) == 0) {\n          uVar19 = (uint)(short)(*(ushort *)(local_2c + 1) & 0xfff);\n        }\n        else {\n          uVar19 = *(int *)((int)local_2c + 2) >> 0x10 | 0xf000;\n        }\n        if (*(int *)((undefined1 *)0x00630b60 + (short)(*(ushort *)((int)local_2c + 2) & 0xfff) * 4) != 0) {\n          FUN_00456924(puVar13,uVar19);\n          puVar13 = extraout_ECX_58;\n          uVar19 = extraout_EDX_33;\n        }\n        local_2c = (int *)((int)local_2c + 6);\n        uVar25 = CONCAT44(uVar19,_DAT_00ac4a54);\n        break;\n","      case 0x66:\n        if ((*local_2c & 0x8000000) == 0) {\n          uVar19 = (uint)(short)(*(ushort *)((int)local_2c + 2) & 0xfff);\n        }\n        else {\n          uVar19 = (uint)(int)(short)(*local_2c >> 0x10 | 0xf000);\n        }\n        if (param_2 != (ushort *)0x0) {\n          FUN_00456924((uint)(uintptr_t)param_2,(int)uVar19);\n          puVar13 = extraout_ECX_57;\n          uVar19 = extraout_EDX_32;\n        }\n        local_2c = local_2c + 1;\n        uVar25 = CONCAT44(uVar19,_DAT_00ac4a54);\n        break;\n      case 0x67:\n        if ((*local_2c & 0x8000000) == 0) {\n          uVar7 = *(ushort *)((int)local_2c + 2) & 0xfff;\n        }\n        else {\n          uVar7 = (ushort)((uint)*local_2c >> 0x10) | 0xf000;\n        }\n        if (param_2 != (ushort *)0x0) {\n          param_2[0xc3] = uVar7;\n        }\n        local_2c = local_2c + 1;\n        uVar25 = CONCAT44(puVar18,_DAT_00ac4a54);\n        break;\n      case 0x68:\n        puVar13 = (ushort *)CONCAT31((int3)((uint)puVar13 >> 8),*(byte *)((int)local_2c + 5));\n        if ((*(byte *)((int)local_2c + 5) & 8) == 0) {\n          uVar19 = (uint)(short)(*(ushort *)(local_2c + 1) & 0xfff);\n        }\n        else {\n          uVar19 = (uint)(int)(short)(*(int *)((int)local_2c + 2) >> 0x10 | 0xf000);\n        }\n        if (*(int *)((undefined1 *)0x00630b60 + (short)(*(ushort *)((int)local_2c + 2) & 0xfff) * 4) != 0) {\n          FUN_00456924(*(uint *)(0x630b60 +\n              (short)(*(ushort *)((int)local_2c + 2) & 0xfff) * 4),(int)uVar19);\n          puVar13 = extraout_ECX_58;\n          uVar19 = extraout_EDX_33;\n        }\n        local_2c = (int *)((int)local_2c + 6);\n        uVar25 = CONCAT44(uVar19,_DAT_00ac4a54);\n        break;\n");
+
 fs.writeFileSync(outSrc, source);
 
 const sortedIds = [...ids].sort();
@@ -4734,6 +8357,8 @@ header += "#ifdef _WIN32\n#include <commdlg.h>\n#include <mmsystem.h>\n#else\n#i
 header += "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n";
 header += "typedef uint32_t uint3;\ntypedef int32_t int3;\ntypedef uint32_t undefined3;\ntypedef uint64_t undefined6;\ntypedef uint64_t uint6;\ntypedef double float10;\ntypedef unsigned __int64 unkbyte10;\ntypedef unsigned __int64 unkuint10;\ntypedef int code();\ntypedef unsigned char bool;\ntypedef signed char sbyte;\n";
 header += "#define tagMSG MSG\n#define tagPOINT POINT\n#define tagSIZE SIZE\n#define tagMIDIOUTCAPSA MIDIOUTCAPSA\n#define _MMCKINFO MMCKINFO\n#define _MMIOINFO MMIOINFO\n#define _WIN32_FIND_DATAA WIN32_FIND_DATAA\n#define _INPUT_RECORD INPUT_RECORD\n#define _SYSTEMTIME SYSTEMTIME\n#define _FILETIME FILETIME\n#define _GUID GUID\n#ifndef true\n#define true 1\n#define false 0\n#endif\n\n";
+header += "void E2R_TransformVector14(short *output,const short *input,const short *matrix);\n";
+header += "void E2R_Perspective14(short *point,int focal,int hires);\n";
 header += "void E2R_InitData(void);\n";
 header += "void E2R_WinMainThunk(void);\n";
 header += "LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);\n";
@@ -4782,7 +8407,12 @@ header += "extern uintptr_t E2R_action_opcode_count;\n";
 header += "extern uintptr_t E2R_action_last_opcode;\n";
 header += "extern uintptr_t E2R_action_last_cursor;\n";
 header += "extern uintptr_t E2R_action_hit_75_count;\n";
+header += "void E2R_RequesterProbeQueueMouseClick(uintptr_t requester_id, uintptr_t x, uintptr_t y);\n";
+header += "void E2R_RequesterProbeFeedPendingMouse(uintptr_t requester_id);\n";
+header += "void E2R_RequesterProbeLogItemLayout(uintptr_t requester_id, uintptr_t item);\n";
+header += "int E2R_RequesterHandleMouseClick(uintptr_t x, uintptr_t y);\n";
 header += "void E2R_RequesterProbeQueueKey(uintptr_t key);\n";
+header += "void E2R_RequesterProbeQueueTargetKey(uintptr_t requester_id, uintptr_t key);\n";
 header += "void E2R_RequesterProbeFeedPendingKey(void);\n";
 header += "extern char E2R_midi_device_labels[10][0x33];\n";
 header += "HWND E2R_CreateWindowExA(DWORD exStyle, ...);\n";

@@ -54,11 +54,12 @@ namespace Ecstatica::Recompiled::Log
         }
     }
 
-    void Bootstrap(std::string_view level,
+    bool Bootstrap(std::string_view level,
                    std::string_view modules,
                    bool disableSubmoduleFiltering,
                    void (*configureFormat)(FormatOptions&),
-                   std::string_view filePath)
+                   std::string_view filePath,
+                   bool consoleOutput)
     {
         const auto trimmedLevel = Ecstatica::Recompiled::LogSupport::String::TrimAsciiWhitespace(level);
         if (!trimmedLevel.empty() && !FromString(trimmedLevel))
@@ -75,24 +76,26 @@ namespace Ecstatica::Recompiled::Log
         // Default (empty) = nothing denied = all modules enabled.
         cfg.moduleDenyMask            = ParseModuleMask(modules);
 
-        auto& logger = Logger::Instance();
-        logger.Start(cfg);
-
         std::vector<SinkPtr> sinks;
 
-        auto stdoutSink = std::make_shared<StdoutSink>();
-        if (configureFormat != nullptr)
+        if (consoleOutput)
         {
-            FormatOptions format = stdoutSink->GetFormatOptions();
-            configureFormat(format);
-            stdoutSink->SetFormatOptions(format);
+            auto stdoutSink = std::make_shared<StdoutSink>();
+            if (configureFormat != nullptr)
+            {
+                FormatOptions format = stdoutSink->GetFormatOptions();
+                configureFormat(format);
+                stdoutSink->SetFormatOptions(format);
+            }
+            sinks.emplace_back(stdoutSink);
         }
-        sinks.emplace_back(stdoutSink);
 
         const auto trimmedFilePath = Ecstatica::Recompiled::LogSupport::String::TrimAsciiWhitespace(filePath);
         if (!trimmedFilePath.empty())
         {
             auto fileSink = std::make_shared<FileSink>(std::string(trimmedFilePath), true, 0, kLogFileRotateBytes);
+            if (!fileSink->IsOpen())
+                return false;
             auto format = fileSink->GetFormatOptions();
             format.includeTimestamp = true;
             if (configureFormat != nullptr)
@@ -110,7 +113,10 @@ namespace Ecstatica::Recompiled::Log
         }
 #endif
 
+        auto& logger = Logger::Instance();
+        logger.Start(cfg);
         logger.ReplaceSinks(sinks);
+        return true;
     }
 
     void BootstrapShutdown()

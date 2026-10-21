@@ -1,7 +1,9 @@
 #include "E2Recomp_recon.h"
+#include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "e2recomp_log.h"
 
 #undef CreateWindowExA
 #undef DialogBoxParamA
@@ -56,6 +58,38 @@ uintptr_t E2R_action_last_opcode;
 uintptr_t E2R_action_last_cursor;
 uintptr_t E2R_action_hit_75_count;
 static uintptr_t E2R_requester_probe_pending_keys[16];
+static uintptr_t E2R_requester_probe_pending_key_requester[16];
+static uintptr_t E2R_requester_probe_pending_mouse_requester[8];
+static uintptr_t E2R_requester_probe_pending_mouse_x[8];
+static uintptr_t E2R_requester_probe_pending_mouse_y[8];
+static uintptr_t E2R_requester_probe_pending_mouse_count;
+static uintptr_t E2R_requester_probe_pending_mouse_read;
+
+static int E2R_RequesterProbeLogEnabled(void) {
+    static int initialized;
+    static int enabled;
+    const char *value;
+
+    if (!initialized) {
+        value = getenv("E2R_REQUESTER_PROBE_LOG");
+        enabled = value != NULL && value[0] != '\0' && value[0] != '0';
+        initialized = 1;
+    }
+    return enabled;
+}
+
+static int E2R_MenuDiagEnabled(void) {
+    static int initialized;
+    static int enabled;
+    const char *value;
+
+    if (!initialized) {
+        value = getenv("E2R_MENU_DIAG");
+        enabled = value != NULL && value[0] != '\0' && value[0] != '0';
+        initialized = 1;
+    }
+    return enabled;
+}
 
 static int E2R_game_input_log_initialized;
 static int E2R_game_input_log_enabled;
@@ -81,6 +115,17 @@ static const char *E2R_KeyName(WPARAM key) {
     case VK_ESCAPE: return "Escape";
     case VK_SPACE: return "Space";
     case VK_RETURN: return "Return";
+    case VK_UP: return "Up";
+    case VK_DOWN: return "Down";
+    case VK_LEFT: return "Left";
+    case VK_RIGHT: return "Right";
+    case VK_SHIFT: return "Shift";
+    case VK_CONTROL: return "Control";
+    case VK_MENU: return "Alt";
+    case VK_RMENU: return "RightAlt";
+    case VK_I: return "I";
+    case VK_L: return "L";
+    case VK_S: return "S";
     default: return "Other";
     }
 }
@@ -121,13 +166,23 @@ static unsigned E2R_virtual_key_to_scan(WPARAM key) {
     case 0x08: return 0x0e;
     case VK_RETURN: return 0x1c;
     case VK_SPACE: return 0x39;
-    case 0x11: return 0x1d;
+    case VK_SHIFT: return 0x2a;
+    case VK_CONTROL: return 0x1d;
+    case VK_MENU: return 0x38;
+    case VK_RMENU: return 0x38;
+    case VK_LEFT: return 0x4b;
+    case VK_UP: return 0x48;
+    case VK_RIGHT: return 0x4d;
+    case VK_DOWN: return 0x50;
     case 0x41: return 0x1e;
     case 0x43: return 0x2e;
     case 0x44: return 0x20;
+    case VK_I: return 0x17;
+    case VK_L: return 0x26;
     case 0x4d: return 0x32;
     case 0x50: return 0x19;
     case VK_Q: return 0x10;
+    case VK_S: return 0x1f;
     case 0x57: return 0x11;
     case 0x58: return 0x2d;
     case 0x5a: return 0x2c;
@@ -178,6 +233,10 @@ static void E2R_feed_legacy_keydown(WPARAM key, LPARAM lParam) {
     if (scan == 0) {
         scan = E2R_virtual_key_to_scan(key);
     }
+    if (key == VK_RMENU || key == VK_LEFT || key == VK_UP ||
+        key == VK_RIGHT || key == VK_DOWN) {
+        is_extended = 1;
+    }
     if (scan != 0) {
         if (is_extended) {
             E2R_legacy_queue(0x00507490)[scan] = 1;
@@ -202,19 +261,33 @@ static void E2R_feed_legacy_keydown(WPARAM key, LPARAM lParam) {
 }
 
 void E2R_RequesterProbeQueueKey(uintptr_t key) {
+    E2R_RequesterProbeQueueTargetKey(0, key);
+}
+
+void E2R_RequesterProbeQueueTargetKey(uintptr_t requester_id, uintptr_t key) {
     if (E2R_requester_probe_pending_key_count - E2R_requester_probe_pending_key_read >= 16) {
         return;
     }
+    E2R_requester_probe_pending_key_requester
+        [E2R_requester_probe_pending_key_count & 15u] = requester_id;
     E2R_requester_probe_pending_keys[E2R_requester_probe_pending_key_count & 15u] = key;
     E2R_requester_probe_pending_key_count++;
 }
 
 void E2R_RequesterProbeFeedPendingKey(void) {
+    uintptr_t requester_id;
+    uintptr_t target_id;
     uintptr_t key;
     uintptr_t char_key;
     uintptr_t scan;
 
     if (E2R_requester_probe_pending_key_read == E2R_requester_probe_pending_key_count) {
+        return;
+    }
+    target_id = E2R_requester_probe_pending_key_requester
+        [E2R_requester_probe_pending_key_read & 15u];
+    requester_id = E2R_WORD_AT(DAT_0047a45e, 2);
+    if (target_id != 0 && target_id != requester_id) {
         return;
     }
     key = E2R_requester_probe_pending_keys[E2R_requester_probe_pending_key_read & 15u];
@@ -228,12 +301,114 @@ void E2R_RequesterProbeFeedPendingKey(void) {
     E2R_feed_legacy_keydown((WPARAM)key, 0);
 }
 
+void E2R_RequesterProbeQueueMouseClick(uintptr_t requester_id, uintptr_t x, uintptr_t y) {
+    if (E2R_requester_probe_pending_mouse_count - E2R_requester_probe_pending_mouse_read >= 8) {
+        return;
+    }
+    E2R_requester_probe_pending_mouse_requester
+        [E2R_requester_probe_pending_mouse_count & 7u] = requester_id;
+    E2R_requester_probe_pending_mouse_x[E2R_requester_probe_pending_mouse_count & 7u] = x;
+    E2R_requester_probe_pending_mouse_y[E2R_requester_probe_pending_mouse_count & 7u] = y;
+    E2R_requester_probe_pending_mouse_count++;
+    if (E2R_RequesterProbeLogEnabled()) {
+        fprintf(stderr, "queued requester mouse click target=0x%lx at %lu,%lu pending=%lu/%lu\n",
+                (unsigned long)requester_id, (unsigned long)x, (unsigned long)y,
+                (unsigned long)E2R_requester_probe_pending_mouse_read,
+                (unsigned long)E2R_requester_probe_pending_mouse_count);
+    }
+}
+
+void E2R_RequesterProbeFeedPendingMouse(uintptr_t requester_id) {
+    uintptr_t index;
+    uintptr_t x;
+    uintptr_t y;
+    LPARAM point;
+
+    if (E2R_requester_probe_pending_mouse_read ==
+        E2R_requester_probe_pending_mouse_count) {
+        return;
+    }
+    index = E2R_requester_probe_pending_mouse_read & 7u;
+    if (E2R_requester_probe_pending_mouse_requester[index] != requester_id) {
+        if (E2R_RequesterProbeLogEnabled()) {
+            fprintf(stderr, "pending requester mouse click waiting target=0x%lx current=0x%lx\n",
+                    (unsigned long)E2R_requester_probe_pending_mouse_requester[index],
+                    (unsigned long)requester_id);
+        }
+        return;
+    }
+    x = E2R_requester_probe_pending_mouse_x[index];
+    y = E2R_requester_probe_pending_mouse_y[index];
+    point = (LPARAM)((x & 0xffffu) | ((y & 0xffffu) << 16));
+    E2R_requester_probe_pending_mouse_read++;
+    SetCursorPos((int)x, (int)y);
+    if (E2R_RequesterHandleMouseClick(x, y)) {
+        return;
+    }
+    if (E2R_RequesterProbeLogEnabled()) {
+        fprintf(stderr, "feeding requester mouse click target=0x%lx at %lu,%lu pending=%lu/%lu\n",
+                (unsigned long)requester_id, (unsigned long)x, (unsigned long)y,
+                (unsigned long)E2R_requester_probe_pending_mouse_read,
+                (unsigned long)E2R_requester_probe_pending_mouse_count);
+    }
+    PostMessageA((HWND)_DAT_00ac4dac, WM_MOUSEMOVE, 0, point);
+    PostMessageA((HWND)_DAT_00ac4dac, WM_LBUTTONDOWN, 0, point);
+    PostMessageA((HWND)_DAT_00ac4dac, WM_LBUTTONUP, 0, point);
+}
+
+void E2R_RequesterProbeLogItemLayout(uintptr_t requester_id, uintptr_t item_address) {
+    short *item = (short *)item_address;
+    short *record = NULL;
+    static uintptr_t logged_items;
+
+    if (requester_id == 0x14) {
+        record = (short *)0x0047a518;
+    } else if (requester_id == 0x28) {
+        record = (short *)0x0047a588;
+    } else if (requester_id == 0x29 || requester_id == 0x2a) {
+        record = (short *)0x0047a5a4;
+    } else if (requester_id == 0x31) {
+        record = (short *)0x0047a668;
+    }
+    if (record == NULL || logged_items >= 48 ||
+        item == NULL || (uintptr_t)item >= 0x70000000u || IsBadReadPtr(item, 0x20)) {
+        return;
+    }
+    if ((uintptr_t)record >= 0x70000000u || IsBadReadPtr(record, 0x20)) {
+        return;
+    }
+    if (!E2R_RequesterProbeLogEnabled()) {
+        return;
+    }
+    logged_items++;
+    fprintf(stderr,
+            "requester item layout id=0x%lx record=0x%lx "
+            "record_bounds=[%d,%d..%d,%d] item=0x%lx local=[%d,%d %dx%d] "
+            "bounds=[%d,%d..%d,%d] flags=0x%x action=0x%lx next=0x%lx text=0x%lx\n",
+            (unsigned long)requester_id,
+            (unsigned long)(uintptr_t)record,
+            (int)record[8], (int)record[10], (int)record[9], (int)record[11],
+            (unsigned long)item_address,
+            (int)item[0], (int)item[1], (int)item[2], (int)item[3],
+            (int)item[0xb], (int)item[0xd], (int)item[0xc], (int)item[0xe],
+            (unsigned)(unsigned short)item[8],
+            (unsigned long)*(uintptr_t *)(item + 6),
+            (unsigned long)*(uintptr_t *)(item + 9),
+            (unsigned long)*(uintptr_t *)(item + 4));
+}
+
 static void E2R_feed_legacy_keyup(WPARAM key, LPARAM lParam) {
     unsigned scan = ((unsigned)lParam >> 16) & 0x7fu;
     unsigned is_extended = (((unsigned)lParam >> 24) & 1u) != 0;
 
     if (scan == 0) {
         scan = E2R_virtual_key_to_scan(key);
+    }
+    /* Host backends send virtual keys without Win32 scan metadata. Select
+     * the same held table as keydown, including extended arrows/right Alt. */
+    if (key == VK_RMENU || key == VK_LEFT || key == VK_UP ||
+        key == VK_RIGHT || key == VK_DOWN) {
+        is_extended = 1;
     }
     if (scan == 0) {
         return;
@@ -244,6 +419,42 @@ static void E2R_feed_legacy_keyup(WPARAM key, LPARAM lParam) {
     else {
         E2R_legacy_queue(0x004c3b90)[scan] = 0;
     }
+    if (key >= 0x61 && key <= 0x69) {
+        E2R_legacy_queue(0x004c3a90)[scan] = 0;
+    }
+    /* Original 0x458378..0x4583e5 releases logical modifier flags as well
+     * as the held table. Retain the hosted Shift/Ctrl/Alt aliases supplied
+     * by keydown; otherwise a released desktop modifier changes gameplay. */
+    switch (key) {
+    case VK_SHIFT: DAT_00636846 = 0; break;
+    case VK_CONTROL: DAT_00636852 = 0; break;
+    case VK_MENU:
+    case VK_RMENU: DAT_0063684a = 0; break;
+    case 0x58:
+        if (DAT_00479dfc != 0) DAT_0063684a = 0;
+        break;
+    case 0x5a:
+        if (DAT_00479dfc != 0) DAT_00636852 = 0;
+        DAT_00636846 = 0;
+        break;
+    }
+}
+
+static void E2R_feed_mouse_position(LPARAM lParam) {
+    int x = (int)(int16_t)(lParam & 0xffffu);
+    int y = (int)(int16_t)((lParam >> 16) & 0xffffu);
+    uintptr_t packed = DAT_00479e8a & 0xffffu;
+
+    if (x < 0) {
+        x = 0;
+    }
+    if (y < 0) {
+        y = 0;
+    }
+    DAT_00479e8a = packed | (((uintptr_t)(uint16_t)x) << 16);
+    _DAT_0063683e = (uintptr_t)(uint16_t)y;
+    *(uint32_t *)(uintptr_t)0x00479e8a = (uint32_t)DAT_00479e8a;
+    SetCursorPos(x, y);
 }
 
 void *memcpy(void *dst, const void *src, size_t n) {
@@ -318,16 +529,95 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         E2R_LogGameInputEvent("wndproc.keydown.enter", msg, wParam, lParam);
         E2R_input_probe_keydown_count++;
         E2R_input_probe_last_key = wParam;
+        if (wParam == VK_ESCAPE &&
+            E2R_WORD_AT(DAT_0047a45e, 2) == 0 && _DAT_00643650 == 0) {
+            DAT_00636844 = 1;
+            E2R_LogGameInputFlag("wndproc.set_escape", wParam);
+            return 0;
+        }
+        if (wParam == VK_ESCAPE && _DAT_00643650 == 5 &&
+            E2R_WORD_AT(DAT_0047a45e, 2) == 0x28) {
+            uintptr_t old_state = _DAT_00643650;
+
+            _DAT_00643650 = 5;
+            E2R_WORD_AT(DAT_0047a45e, 2) = 0;
+            _DAT_006443d0 = 1;
+            DAT_0047a788 = 1;
+            DAT_00636844 = 0;
+            if (E2R_MenuDiagEnabled()) {
+                fprintf(stderr,
+                        "menu state: site=wndproc.escape_main_menu old=%lu new=5 "
+                        "requester=0x%x mode=%lu dialog=%lu menu_request=%lu scene=0x%lx\n",
+                        (unsigned long)old_state,
+                        (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                        (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
+                        (unsigned long)DAT_00479db4, (unsigned long)_DAT_0073cc3c);
+            }
+            E2R_LogGameInputFlag("wndproc.close_main_menu", wParam);
+            return 0;
+        }
+        if (wParam == VK_ESCAPE && E2R_WORD_AT(DAT_0047a45e, 2) == 0x14) {
+            uintptr_t old_state = _DAT_00643650;
+
+            _DAT_006443d2 = _DAT_006443d2 & 0xffff;
+            _DAT_00643650 = 5;
+            E2R_WORD_AT(DAT_0047a45e, 2) = 0;
+            _DAT_006443d0 = 1;
+            DAT_0047a788 = 1;
+            DAT_00636844 = 0;
+            if (E2R_MenuDiagEnabled()) {
+                fprintf(stderr,
+                        "menu state: site=wndproc.escape_prompt old=%lu new=5 "
+                        "requester=0x%x mode=%lu dialog=%lu menu_request=%lu scene=0x%lx\n",
+                        (unsigned long)old_state,
+                        (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                        (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
+                        (unsigned long)DAT_00479db4, (unsigned long)_DAT_0073cc3c);
+            }
+            E2R_LogGameInputFlag("wndproc.close_prompt", wParam);
+            return 0;
+        }
+        if (wParam == VK_ESCAPE &&
+            ((E2R_WORD_AT(DAT_0047a45e, 2) == 0x31 && _DAT_00643650 == 2) ||
+             (E2R_WORD_AT(DAT_0047a45e, 2) == 0x29 && _DAT_00643650 == 4) ||
+             (E2R_WORD_AT(DAT_0047a45e, 2) == 0x2a && _DAT_00643650 == 3))) {
+            uintptr_t old_state = _DAT_00643650;
+
+            if (E2R_WORD_AT(DAT_0047a45e, 2) == 0x29 ||
+                E2R_WORD_AT(DAT_0047a45e, 2) == 0x2a) {
+                _DAT_0064353c = 0;
+            }
+            _DAT_00643650 = 0;
+            E2R_WORD_AT(DAT_0047a45e, 2) = 0;
+            _DAT_006443d0 = 1;
+            DAT_0047a788 = 1;
+            DAT_00636844 = 0;
+            if (E2R_MenuDiagEnabled()) {
+                fprintf(stderr,
+                        "menu state: site=wndproc.escape_submenu old=%lu new=0 "
+                        "requester=0x%x mode=%lu dialog=%lu menu_request=%lu scene=0x%lx\n",
+                        (unsigned long)old_state,
+                        (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                        (unsigned long)DAT_00479de8, (unsigned long)DAT_0047a76c,
+                        (unsigned long)DAT_00479db4, (unsigned long)_DAT_0073cc3c);
+            }
+            E2R_LogGameInputFlag("wndproc.close_submenu", wParam);
+            return 0;
+        }
         E2R_feed_legacy_keydown(wParam, lParam);
         E2R_LogGameInputEvent("wndproc.keydown.after_legacy", msg, wParam, lParam);
         switch (wParam) {
-        case 0x11:
-            if (DAT_00479dfc == 0) {
-                DAT_00636852 = 1;
-            }
+        case VK_CONTROL:
+            DAT_00636852 = 1;
+            return 0;
+        case VK_SHIFT:
+            DAT_00636846 = 1;
+            return 0;
+        case VK_MENU:
+            DAT_0063684a = 1;
             return 0;
         case VK_ESCAPE:
-            DAT_00636844 = 1;
+            DAT_00636844 = 0;
             E2R_LogGameInputFlag("wndproc.set_escape", wParam);
             return 0;
         case VK_SPACE:
@@ -366,28 +656,17 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             }
             DAT_00636846 = 1;
             return 0;
-        case 0x61:
-            DAT_0063685c = 1;
-            return 0;
-        case 0x62:
-            DAT_0063685a = 1;
-            return 0;
-        case 0x63:
-            DAT_00636855 = 1;
-            return 0;
-        case 0x64:
+        case VK_LEFT:
             DAT_00636854 = 1;
             return 0;
-        case 0x65:
-        case 0x66:
-            DAT_00636856 = 1;
-            return 0;
-        case 0x67:
-        case 0x68:
+        case VK_UP:
             DAT_00636859 = 1;
             return 0;
-        case 0x69:
-            DAT_0063685b = 1;
+        case VK_RIGHT:
+            DAT_00636856 = 1;
+            return 0;
+        case VK_DOWN:
+            DAT_0063685a = 1;
             return 0;
         case 0x70:
         case 0x71:
@@ -421,6 +700,52 @@ LRESULT CALLBACK E2R_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     }
     if (msg == WM_KEYUP) {
         E2R_feed_legacy_keyup(wParam, lParam);
+        return 0;
+    }
+    if (msg == WM_MOUSEMOVE) {
+        E2R_feed_mouse_position(lParam);
+        return 0;
+    }
+    if (msg == WM_LBUTTONDOWN) {
+        int x = (int)(int16_t)(lParam & 0xffffu);
+        int y = (int)(int16_t)((lParam >> 16) & 0xffffu);
+        int handled;
+        E2R_feed_mouse_position(lParam);
+        _DAT_0063683c = 2;
+        if (E2R_MenuDiagEnabled()) {
+            fprintf(stderr,
+                    "menu click: phase=wndproc msg=WM_LBUTTONDOWN x=%d y=%d "
+                    "state=%lu requester=0x%x dialog=%lu mouse_state=%lu\n",
+                    x, y, (unsigned long)_DAT_00643650,
+                    (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                    (unsigned long)DAT_0047a76c, (unsigned long)_DAT_0063683c);
+        }
+        handled = E2R_RequesterHandleMouseClick((uintptr_t)(uint16_t)x, (uintptr_t)(uint16_t)y);
+        if (E2R_MenuDiagEnabled()) {
+            fprintf(stderr,
+                    "menu click: phase=wndproc-result msg=WM_LBUTTONDOWN x=%d y=%d "
+                    "handled=%d state=%lu requester=0x%x dialog=%lu mouse_state=%lu\n",
+                    x, y, handled, (unsigned long)_DAT_00643650,
+                    (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                    (unsigned long)DAT_0047a76c, (unsigned long)_DAT_0063683c);
+        }
+        if (handled) {
+            _DAT_0063683c = 0;
+        }
+        return 0;
+    }
+    if (msg == WM_LBUTTONUP) {
+        int x = (int)(int16_t)(lParam & 0xffffu);
+        int y = (int)(int16_t)((lParam >> 16) & 0xffffu);
+        E2R_feed_mouse_position(lParam);
+        if (E2R_MenuDiagEnabled()) {
+            fprintf(stderr,
+                    "menu click: phase=wndproc msg=WM_LBUTTONUP x=%d y=%d "
+                    "state=%lu requester=0x%x dialog=%lu mouse_state=%lu\n",
+                    x, y, (unsigned long)_DAT_00643650,
+                    (unsigned)E2R_WORD_AT(DAT_0047a45e, 2),
+                    (unsigned long)DAT_0047a76c, (unsigned long)_DAT_0063683c);
+        }
         return 0;
     }
     if (msg == WM_DESTROY) {

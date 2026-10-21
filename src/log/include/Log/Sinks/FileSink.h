@@ -16,6 +16,7 @@ namespace Ecstatica::Recompiled::Log
                           int keep = 0,
                           size_t rotate_bytes = kLogFileRotateBytes);
         ~FileSink() override;
+        bool IsOpen() const { return _fp != nullptr; }
 
         void Write(const Record& rec) override;
         void Flush() override;

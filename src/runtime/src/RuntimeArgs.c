@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -31,9 +32,11 @@ static int e2r_set_error(E2R_RuntimeOptions *options, const char *message)
     return 0;
 }
 
-static int e2r_need_value(int argc, int index, const char *option, E2R_RuntimeOptions *out)
+static int e2r_need_value(int argc, char **argv, int index, const char *option, E2R_RuntimeOptions *out)
 {
-    if (index + 1 < argc) {
+    if (index + 1 < argc &&
+        (argv[index + 1][0] != '\0' || strcmp(option, "--log-disable-modules") == 0) &&
+        strncmp(argv[index + 1], "--", 2) != 0) {
         return 1;
     }
 
@@ -92,14 +95,16 @@ static int e2r_create_directory_recursive(const char *path)
             continue;
         }
         *p = '\0';
-        if (!e2r_is_directory(buffer) && mkdir(buffer, 0755) != 0 && errno != EEXIST) {
+        if (!e2r_is_directory(buffer) && mkdir(buffer, 0755) != 0 &&
+            !(errno == EEXIST && e2r_is_directory(buffer))) {
             *p = '/';
             return 0;
         }
         *p = '/';
     }
 
-    return e2r_is_directory(buffer) || mkdir(buffer, 0755) == 0 || errno == EEXIST;
+    return e2r_is_directory(buffer) || mkdir(buffer, 0755) == 0 ||
+           (errno == EEXIST && e2r_is_directory(buffer));
 }
 
 int E2R_RuntimeResolveOptions(int argc,
@@ -109,9 +114,10 @@ int E2R_RuntimeResolveOptions(int argc,
                               E2R_RuntimeOptions *options)
 {
     const char *game_data_dir = fallback_game_data_dir != NULL ? fallback_game_data_dir : "";
-    const char *data_dir = fallback_data_dir != NULL ? fallback_data_dir : "./data";
-    const char *log_level = "";
-    const char *log_disabled_modules = "";
+    const char *data_dir = getenv("E2R_DATA_DIR");
+    const char *log_level = getenv("E2R_LOG_LEVEL");
+    const char *log_disabled_modules = getenv("E2R_LOG_DISABLE_MODULES");
+    char default_data_dir[E2R_RUNTIME_PATH_MAX];
     int index = 1;
 
     if (options == NULL) {
@@ -119,10 +125,13 @@ int E2R_RuntimeResolveOptions(int argc,
     }
     memset(options, 0, sizeof(*options));
     options->command_index = 1;
+    if (data_dir == NULL || data_dir[0] == '\0') {
+        data_dir = fallback_data_dir;
+    }
 
     while (index < argc) {
         if (e2r_is_option(argv[index], "--game-data-dir")) {
-            if (!e2r_need_value(argc, index, "--game-data-dir", options)) {
+            if (!e2r_need_value(argc, argv, index, "--game-data-dir", options)) {
                 return 0;
             }
             game_data_dir = argv[index + 1];
@@ -131,7 +140,7 @@ int E2R_RuntimeResolveOptions(int argc,
             continue;
         }
         if (e2r_is_option(argv[index], "--data-dir")) {
-            if (!e2r_need_value(argc, index, "--data-dir", options)) {
+            if (!e2r_need_value(argc, argv, index, "--data-dir", options)) {
                 return 0;
             }
             data_dir = argv[index + 1];
@@ -140,7 +149,7 @@ int E2R_RuntimeResolveOptions(int argc,
             continue;
         }
         if (e2r_is_option(argv[index], "--log-level")) {
-            if (!e2r_need_value(argc, index, "--log-level", options)) {
+            if (!e2r_need_value(argc, argv, index, "--log-level", options)) {
                 return 0;
             }
             log_level = argv[index + 1];
@@ -149,7 +158,7 @@ int E2R_RuntimeResolveOptions(int argc,
             continue;
         }
         if (e2r_is_option(argv[index], "--log-disable-modules")) {
-            if (!e2r_need_value(argc, index, "--log-disable-modules", options)) {
+            if (!e2r_need_value(argc, argv, index, "--log-disable-modules", options)) {
                 return 0;
             }
             log_disabled_modules = argv[index + 1];
@@ -162,6 +171,18 @@ int E2R_RuntimeResolveOptions(int argc,
     }
 
     options->command_index = index;
+
+    if (data_dir == NULL || data_dir[0] == '\0') {
+        const char *user_home = getenv("HOME");
+        if (user_home == NULL || user_home[0] == '\0') {
+            return e2r_set_error(options, "HOME is unavailable; set E2R_DATA_DIR or pass --data-dir");
+        }
+        int written = snprintf(default_data_dir, sizeof(default_data_dir), "%s/.ecstatica2", user_home);
+        if (written < 0 || (size_t)written >= sizeof(default_data_dir)) {
+            return e2r_set_error(options, "default runtime data directory path is too long");
+        }
+        data_dir = default_data_dir;
+    }
 
     if (game_data_dir[0] == '\0') {
         return e2r_set_error(options, "game data directory is empty");
@@ -182,8 +203,7 @@ int E2R_RuntimeResolveOptions(int argc,
     if (!e2r_is_directory(options->game_data_dir)) {
         return e2r_set_error(options, "game data directory does not exist or is not a directory");
     }
-    if ((options->data_dir_explicit || options->log_requested) &&
-        !e2r_create_directory_recursive(options->data_dir)) {
+    if (!e2r_create_directory_recursive(options->data_dir)) {
         return e2r_set_error(options, "runtime data directory could not be created");
     }
 
@@ -194,7 +214,8 @@ void E2R_RuntimePrintOptionHelp(void)
 {
     puts("Runtime options, before command:");
     puts("  --game-data-dir <path>         Read-only original Ecstatica II data directory.");
-    puts("  --data-dir <path>              Writable runtime output directory; defaults to ./data.");
+    puts("  --data-dir <path>              Writable runtime output directory; defaults to ~/.ecstatica2.");
     puts("  --log-level <level>            Trace, Debug, Info, Warning, Error, Fatal, or Off.");
     puts("  --log-disable-modules <list>   Comma-separated module names to suppress.");
+    puts("Environment defaults: E2R_DATA_DIR, E2R_LOG_LEVEL, E2R_LOG_DISABLE_MODULES.");
 }

@@ -2,7 +2,7 @@
 
 Status: planned
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-07-28
+Last Updated: 2026-09-14
 
 ## Goal
 
@@ -61,3 +61,7 @@ This step should make the workflow boring, not hide unstable runtime behavior.
 ### 2026-07-28
 
 1. Created step.
+
+### 2026-09-14 — Build Foundation
+
+The approved build/editor pass supplies shared presets, X11/SDL ASan configurations, one CMake-aware F5 launch, compact workspace status settings, and [bootstrap instructions](../../../../building.md). Existing regression scripts now configure their standard presets. This is groundwork for the planned tasks; a unified validation command and full fresh-checkout/editor acceptance remain open.

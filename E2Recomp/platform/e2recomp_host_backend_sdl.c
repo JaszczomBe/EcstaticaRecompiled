@@ -5,12 +5,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "e2recomp_log.h"
 
 struct E2R_HostWindow {
     SDL_Window *window;
     SDL_Surface *present_surface;
     unsigned present_width;
     unsigned present_height;
+    SDL_Rect presentation_rect;
+    int has_presentation_rect;
 };
 
 static E2R_HostWindow e2r_sdl_backend;
@@ -46,6 +49,81 @@ static int e2r_sdl_input_diag_enabled(void)
         initialized = 1;
     }
     return enabled;
+}
+
+static int e2r_sdl_menu_diag_enabled(void)
+{
+    static int initialized;
+    static int enabled;
+
+    if (!initialized) {
+        const char *diag = getenv("E2R_MENU_DIAG");
+        enabled = diag != NULL && diag[0] != '\0' && diag[0] != '0';
+        initialized = 1;
+    }
+    return enabled;
+}
+
+static unsigned e2r_sdl_rgb_hash_update(unsigned hash, Uint8 r, Uint8 g, Uint8 b)
+{
+    hash ^= r;
+    hash *= 16777619u;
+    hash ^= g;
+    hash *= 16777619u;
+    hash ^= b;
+    hash *= 16777619u;
+    return hash;
+}
+
+static int e2r_sdl_write_surface_ppm(const char *path, SDL_Surface *surface,
+                                     unsigned *hash_out, int *nonblack_out)
+{
+    FILE *out;
+    unsigned hash = 2166136261u;
+    int nonblack = 0;
+    int x;
+    int y;
+
+    if (path == NULL || surface == NULL || surface->w <= 0 || surface->h <= 0) {
+        return 0;
+    }
+    out = fopen(path, "wb");
+    if (out == NULL) {
+        fprintf(stderr, "warning: SDL presentation dump fopen failed: %s\n", path);
+        return 0;
+    }
+    fprintf(out, "P6\n%d %d\n255\n", surface->w, surface->h);
+    for (y = 0; y < surface->h; y++) {
+        for (x = 0; x < surface->w; x++) {
+            Uint8 rgba[4] = {0, 0, 0, 255};
+
+            if (!SDL_ReadSurfacePixel(surface, x, y, &rgba[0], &rgba[1],
+                                      &rgba[2], &rgba[3])) {
+                fclose(out);
+                fprintf(stderr,
+                        "warning: SDL presentation dump pixel read failed: %s at %d,%d\n",
+                        path, x, y);
+                return 0;
+            }
+            if (fwrite(rgba, 1, 3, out) != 3) {
+                fclose(out);
+                fprintf(stderr, "warning: SDL presentation dump fwrite failed: %s\n", path);
+                return 0;
+            }
+            if (rgba[0] != 0 || rgba[1] != 0 || rgba[2] != 0) {
+                nonblack = 1;
+            }
+            hash = e2r_sdl_rgb_hash_update(hash, rgba[0], rgba[1], rgba[2]);
+        }
+    }
+    fclose(out);
+    if (hash_out != NULL) {
+        *hash_out = hash;
+    }
+    if (nonblack_out != NULL) {
+        *nonblack_out = nonblack;
+    }
+    return 1;
 }
 
 static SDL_Rect e2r_sdl_aspect_fit_rect(int dst_width, int dst_height,
@@ -89,6 +167,41 @@ static LPARAM e2r_pack_point(float x, float y)
     int yi = (int)y;
     return (LPARAM)(((unsigned int)xi & 0xffffu) |
                     (((unsigned int)yi & 0xffffu) << 16));
+}
+
+static LPARAM e2r_pack_mapped_window_point(E2R_HostWindow *window, float x, float y)
+{
+    SDL_Rect rect;
+    int mapped_x;
+    int mapped_y;
+
+    if (window == NULL || !window->has_presentation_rect ||
+        window->present_width == 0 || window->present_height == 0) {
+        return e2r_pack_point(x, y);
+    }
+
+    rect = window->presentation_rect;
+    if (rect.w <= 0 || rect.h <= 0) {
+        return e2r_pack_point(x, y);
+    }
+
+    mapped_x = (int)(((x - (float)rect.x) * (float)window->present_width) /
+                     (float)rect.w);
+    mapped_y = (int)(((y - (float)rect.y) * (float)window->present_height) /
+                     (float)rect.h);
+    if (mapped_x < 0) {
+        mapped_x = 0;
+    }
+    if (mapped_y < 0) {
+        mapped_y = 0;
+    }
+    if (mapped_x >= (int)window->present_width) {
+        mapped_x = (int)window->present_width - 1;
+    }
+    if (mapped_y >= (int)window->present_height) {
+        mapped_y = (int)window->present_height - 1;
+    }
+    return e2r_pack_point((float)mapped_x, (float)mapped_y);
 }
 
 static const char *e2r_sdl_event_name(Uint32 type)
@@ -166,6 +279,12 @@ static const char *e2r_sdl_scancode_name(SDL_Scancode scancode)
     case SDL_SCANCODE_ESCAPE: return "Escape";
     case SDL_SCANCODE_RETURN: return "Return";
     case SDL_SCANCODE_SPACE: return "Space";
+    case SDL_SCANCODE_LCTRL: return "LeftCtrl";
+    case SDL_SCANCODE_RCTRL: return "RightCtrl";
+    case SDL_SCANCODE_LALT: return "LeftAlt";
+    case SDL_SCANCODE_RALT: return "RightAlt";
+    case SDL_SCANCODE_LSHIFT: return "LeftShift";
+    case SDL_SCANCODE_RSHIFT: return "RightShift";
     case SDL_SCANCODE_LEFT: return "Left";
     case SDL_SCANCODE_RIGHT: return "Right";
     case SDL_SCANCODE_UP: return "Up";
@@ -201,8 +320,10 @@ static void e2r_sdl_log_keyboard_snapshot(E2R_HostWindow *window)
     static const SDL_Scancode watched[] = {
         SDL_SCANCODE_ESCAPE, SDL_SCANCODE_RETURN, SDL_SCANCODE_SPACE,
         SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT, SDL_SCANCODE_UP, SDL_SCANCODE_DOWN,
+        SDL_SCANCODE_LCTRL, SDL_SCANCODE_RCTRL, SDL_SCANCODE_LALT, SDL_SCANCODE_RALT,
+        SDL_SCANCODE_LSHIFT, SDL_SCANCODE_RSHIFT,
         SDL_SCANCODE_A, SDL_SCANCODE_C, SDL_SCANCODE_D, SDL_SCANCODE_M,
-        SDL_SCANCODE_P, SDL_SCANCODE_Q, SDL_SCANCODE_W, SDL_SCANCODE_X,
+        SDL_SCANCODE_P, SDL_SCANCODE_Q, SDL_SCANCODE_S, SDL_SCANCODE_W, SDL_SCANCODE_X,
         SDL_SCANCODE_Z, SDL_SCANCODE_F1, SDL_SCANCODE_F2, SDL_SCANCODE_F3,
         SDL_SCANCODE_F4, SDL_SCANCODE_F5, SDL_SCANCODE_F6, SDL_SCANCODE_F7,
         SDL_SCANCODE_F8, SDL_SCANCODE_F9, SDL_SCANCODE_F10, SDL_SCANCODE_F11,
@@ -265,11 +386,15 @@ static UINT e2r_virtual_key_from_sdl(SDL_Keycode key)
     case SDLK_KP_ENTER: return VK_RETURN;
     case SDLK_SPACE: return VK_SPACE;
     case SDLK_LCTRL:
-    case SDLK_RCTRL: return 0x11;
-    case SDLK_LEFT: return 0x64;
-    case SDLK_UP: return 0x68;
-    case SDLK_RIGHT: return 0x66;
-    case SDLK_DOWN: return 0x62;
+    case SDLK_RCTRL: return VK_CONTROL;
+    case SDLK_LALT: return VK_MENU;
+    case SDLK_RALT: return VK_RMENU;
+    case SDLK_LSHIFT:
+    case SDLK_RSHIFT: return VK_SHIFT;
+    case SDLK_LEFT: return VK_LEFT;
+    case SDLK_UP: return VK_UP;
+    case SDLK_RIGHT: return VK_RIGHT;
+    case SDLK_DOWN: return VK_DOWN;
     default: return 0;
     }
 }
@@ -292,11 +417,14 @@ static SDL_Keycode e2r_sdl_key_from_virtual_key(UINT vk)
     case VK_ESCAPE: return SDLK_ESCAPE;
     case VK_RETURN: return SDLK_RETURN;
     case VK_SPACE: return SDLK_SPACE;
-    case 0x11: return SDLK_LCTRL;
-    case 0x64: return SDLK_LEFT;
-    case 0x68: return SDLK_UP;
-    case 0x66: return SDLK_RIGHT;
-    case 0x62: return SDLK_DOWN;
+    case VK_CONTROL: return SDLK_LCTRL;
+    case VK_MENU: return SDLK_LALT;
+    case VK_RMENU: return SDLK_RALT;
+    case VK_SHIFT: return SDLK_LSHIFT;
+    case VK_LEFT: return SDLK_LEFT;
+    case VK_UP: return SDLK_UP;
+    case VK_RIGHT: return SDLK_RIGHT;
+    case VK_DOWN: return SDLK_DOWN;
     default: return SDLK_UNKNOWN;
     }
 }
@@ -390,6 +518,9 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
         fprintf(stderr, "host input poll: SDL reports non-main thread\n");
         input_thread_diag_count++;
     }
+    if (!is_main_thread) {
+        return;
+    }
     while (SDL_PollEvent(&event)) {
         if (e2r_sdl_input_diag_enabled() && e2r_sdl_should_log_event(event.type) &&
             input_diag_count < 256u) {
@@ -442,7 +573,8 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
             UINT vk = e2r_virtual_key_from_sdl(event.key.key);
             if (e2r_sdl_input_diag_enabled() && key_diag_count < 512u) {
                 fprintf(stderr, "host input keyup: sdl=0x%x vk=0x%x window=%u\n",
-                        (unsigned)event.key.key, (unsigned)vk);
+                        (unsigned)event.key.key, (unsigned)vk,
+                        (unsigned)event.key.windowID);
                 key_diag_count++;
             }
             if (vk != 0) {
@@ -460,7 +592,9 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
         else if (event.type == SDL_EVENT_MOUSE_MOTION && message_callback != NULL &&
                  event.motion.windowID == window_id) {
             message_callback(WM_MOUSEMOVE, (WPARAM)event.motion.state,
-                             e2r_pack_point(event.motion.x, event.motion.y), user);
+                             e2r_pack_mapped_window_point(window, event.motion.x,
+                                                          event.motion.y),
+                             user);
         }
         else if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
                   event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
@@ -479,6 +613,8 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
                     WM_RBUTTONDOWN : WM_RBUTTONUP;
             }
             if (msg != 0) {
+                LPARAM mapped_point =
+                    e2r_pack_mapped_window_point(window, event.button.x, event.button.y);
                 if (e2r_sdl_input_diag_enabled() && mouse_diag_count < 128u) {
                     fprintf(stderr,
                             "host input mousebutton: msg=0x%x button=%u down=%u x=%.1f y=%.1f\n",
@@ -486,8 +622,19 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
                             (unsigned)event.button.down, event.button.x, event.button.y);
                     mouse_diag_count++;
                 }
-                message_callback(msg, 0, e2r_pack_point(event.button.x, event.button.y),
-                                 user);
+                if (e2r_sdl_menu_diag_enabled()) {
+                    int mapped_x = (int)(int16_t)(mapped_point & 0xffffu);
+                    int mapped_y = (int)(int16_t)((mapped_point >> 16) & 0xffffu);
+                    fprintf(stderr,
+                            "menu click: phase=sdl msg=0x%x button=%u down=%u "
+                            "raw=%.1f,%.1f mapped=%d,%d present_rect=%d,%d %dx%d\n",
+                            (unsigned)msg, (unsigned)event.button.button,
+                            (unsigned)event.button.down, event.button.x, event.button.y,
+                            mapped_x, mapped_y, window->presentation_rect.x,
+                            window->presentation_rect.y, window->presentation_rect.w,
+                            window->presentation_rect.h);
+                }
+                message_callback(msg, 0, mapped_point, user);
             }
         }
         else if (event.type >= SDL_EVENT_WINDOW_FIRST &&
@@ -569,6 +716,188 @@ static int e2r_sdl_ensure_present_surface(E2R_HostWindow *window,
     return 1;
 }
 
+/* Optional diagnostic primitives drawn on the RGB presentation surface. */
+static void e2r_cue_rect(SDL_Surface *s, int x, int y, int w, int h, Uint32 color)
+{
+    SDL_Rect rect = {x, y, w, h};
+    SDL_FillSurfaceRect(s, &rect, color);
+}
+
+static void e2r_cue_text(SDL_Surface *s, int x, int y, const char *text, Uint32 color)
+{
+    static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-+/:.,";
+    static const unsigned char glyphs[][5] = {
+        {126,17,17,17,126},{127,73,73,73,54},{62,65,65,65,34},
+        {127,65,65,34,28},{127,73,73,73,65},{127,9,9,9,1},
+        {62,65,73,73,122},{127,8,8,8,127},{0,65,127,65,0},
+        {32,64,65,63,1},{127,8,20,34,65},{127,64,64,64,64},
+        {127,2,12,2,127},{127,4,8,16,127},{62,65,65,65,62},
+        {127,9,9,9,6},{62,65,81,33,94},{127,9,25,41,70},
+        {70,73,73,73,49},{1,1,127,1,1},{63,64,64,64,63},
+        {31,32,64,32,31},{63,64,56,64,63},{99,20,8,20,99},
+        {7,8,112,8,7},{97,81,73,69,67},
+        {62,81,73,69,62},{0,66,127,64,0},{66,97,81,73,70},
+        {33,65,69,75,49},{24,20,18,127,16},{39,69,69,69,57},
+        {60,74,73,73,48},{1,113,9,5,3},{54,73,73,73,54},
+        {6,73,73,41,30},{8,8,8,8,8},{8,8,62,8,8},
+        {32,16,8,4,2},{0,54,54,0,0},{0,96,96,0,0},{0,64,48,0,0}
+    };
+    for (; *text; ++text, x += 6) {
+        const char *p = strchr(alphabet, *text);
+        if (!p) continue;
+        for (int col = 0; col < 5; ++col)
+            for (int row = 0; row < 7; ++row)
+                if (glyphs[p - alphabet][col] & (1u << row))
+                    e2r_cue_rect(s, x + col, y + row, 1, 1, color);
+    }
+}
+
+/* Bresenham lines are bounded by signed 16-bit projection, and SDL clips
+ * individual pixels at the surface edge. Never clamp a world point into view. */
+static void e2r_cue_line(SDL_Surface *surface, const int a[3], const int b[3], Uint32 color)
+{
+    if (a[2] == 0 || b[2] == 0) return;
+    int x = a[0], y = a[1], dx = abs(b[0] - x), dy = -abs(b[1] - y);
+    int sx = x < b[0] ? 1 : -1, sy = y < b[1] ? 1 : -1, error = dx + dy;
+    for (;;) {
+        e2r_cue_rect(surface, x, y, 2, 2, color);
+        if (x == b[0] && y == b[1]) break;
+        int twice = 2 * error;
+        if (twice >= dy) { error += dy; x += sx; }
+        if (twice <= dx) { error += dx; y += sy; }
+    }
+}
+
+/* Clip a projected segment before rasterizing. This bounds drawing cost for
+ * offscreen actors while retaining cylinders whose centre lies outside view.
+ * Near-plane/overflow-rejected endpoints are omitted, never moved into view. */
+static int e2r_cylinder_line(SDL_Surface *surface, const int a[3], const int b[3], Uint32 color)
+{
+    if (a[2] <= 0 || b[2] <= 0) return 0;
+    double dx = (double)b[0] - a[0], dy = (double)b[1] - a[1];
+    double p[4] = {-dx, dx, -dy, dy};
+    double q[4] = {a[0], (double)surface->w - 1 - a[0],
+                   a[1], (double)surface->h - 1 - a[1]};
+    double first = 0, last = 1;
+    for (int edge = 0; edge < 4; ++edge) {
+        if (p[edge] == 0) {
+            if (q[edge] < 0) return 0;
+        } else {
+            double t = q[edge] / p[edge];
+            if (p[edge] < 0) { if (t > first) first = t; }
+            else { if (t < last) last = t; }
+            if (first > last) return 0;
+        }
+    }
+    int start[3] = {(int)(a[0] + first * dx), (int)(a[1] + first * dy), 1};
+    int end[3] = {(int)(a[0] + last * dx), (int)(a[1] + last * dy), 1};
+    e2r_cue_line(surface,start,end,color);
+    return 1;
+}
+
+static int e2r_cue_cylinder(SDL_Surface *surface, const E2R_ActorCue *actor, Uint32 color)
+{
+    int drawn = 0;
+    for (int i = 0; i < E2R_CYLINDER_RING_POINTS; ++i) {
+        int next = (i + 1) % E2R_CYLINDER_RING_POINTS;
+        drawn |= e2r_cylinder_line(surface,actor->cylinder[i],actor->cylinder[next],color);
+        drawn |= e2r_cylinder_line(surface,actor->cylinder[i + E2R_CYLINDER_RING_POINTS],
+                                  actor->cylinder[next + E2R_CYLINDER_RING_POINTS],color);
+        if ((i & 1) == 0)
+            drawn |= e2r_cylinder_line(surface,actor->cylinder[i],
+                                      actor->cylinder[i + E2R_CYLINDER_RING_POINTS],color);
+    }
+    if (drawn) e2r_cylinder_line(surface,actor->screen[0],actor->local_z_tip,color);
+    return drawn;
+}
+
+static void e2r_sdl_actor_cues(SDL_Surface *surface)
+{
+    const char *enabled = getenv("E2R_ACTOR_CUES");
+    const char *cylinder_env = getenv("E2R_ACTOR_CYLINDERS");
+    int cylinders = cylinder_env && *cylinder_env && *cylinder_env != '0';
+    E2R_ActorCueSnapshot state;
+    char label[112];
+    unsigned drawn = 0, behind = 0, outside = 0, hidden = 0, objects = 0, generated = 0;
+    if (!cylinders && (!enabled || !*enabled || *enabled == '0')) return;
+    E2R_GetActorCues(&state);
+    if (!cylinders && (state.scene_slot < 0 || state.count == 0)) return;
+    Uint32 cyan = SDL_MapSurfaceRGB(surface, 56, 224, 244);
+    Uint32 amber = SDL_MapSurfaceRGB(surface, 255, 180, 65);
+    Uint32 object_color = SDL_MapSurfaceRGB(surface, 140, 180, 160);
+    Uint32 bg = SDL_MapSurfaceRGB(surface, 12, 20, 30);
+    if (state.camera_ready && state.view_width == surface->w && state.view_height == surface->h) {
+        for (unsigned i = 0; i < state.count; ++i) {
+            const E2R_ActorCue *actor = &state.actors[i];
+            objects += actor->is_object;
+            generated += actor->generated;
+            if (!actor->visible_in_view) { ++hidden; continue; }
+            const int *foot = actor->screen[0], *tip = actor->screen[1];
+            Uint32 color = actor->is_joe ? cyan : actor->is_object ? object_color : amber;
+            const char *kind = actor->is_joe ? "JOE" : actor->is_object ? "OBJECT" :
+                               actor->generated ? "SPAWN" : "ACTOR";
+            if (cylinders) {
+                if (e2r_cue_cylinder(surface,actor,color)) {
+                    ++drawn;
+                    if (foot[2] > 0 && foot[0] >= 0 && foot[0] < surface->w &&
+                        foot[1] >= 0 && foot[1] < surface->h) {
+                        snprintf(label,sizeof(label),"%s %d / LOCAL +Z",kind,actor->id);
+                        e2r_cue_text(surface,foot[0]+7,foot[1]-5,label,color);
+                    }
+                } else if (actor->camera_z < 128) ++behind;
+                else ++outside;
+                continue;
+            }
+            if (foot[2] == 0) {
+                if (actor->camera_z < 128) ++behind; else ++outside;
+                continue;
+            }
+            if (foot[0] < 0 || foot[0] >= surface->w || foot[1] < 0 || foot[1] >= surface->h) {
+                ++outside;
+                continue;
+            }
+            e2r_cue_line(surface,foot,tip,color);
+            e2r_cue_line(surface,actor->screen[2],actor->screen[3],color);
+            e2r_cue_line(surface,actor->screen[4],actor->screen[5],color);
+            e2r_cue_rect(surface,foot[0]-2,foot[1]-2,5,5,color);
+            if (actor->is_joe) snprintf(label,sizeof(label),"JOE");
+            else snprintf(label,sizeof(label),"%s %d",kind,actor->id);
+            e2r_cue_text(surface,foot[0]+7,foot[1]-5,label,color);
+            ++drawn;
+        }
+    }
+    snprintf(label,sizeof(label),"%s: %u VISIBLE / %u HIDDEN / %u BEHIND / %u OFFSCREEN",
+             cylinders ? "CYLINDERS" : "ACTOR CUES",drawn,hidden,behind,outside);
+    e2r_cue_rect(surface,6,6, cylinders ? surface->w - 12 : (int)strlen(label)*6+8,
+                 cylinders ? 62 : 22,bg);
+    e2r_cue_text(surface,10,9,label,cyan);
+    snprintf(label,sizeof(label),"%s %d / %u ACTIVE / %u GENERATED / %u OBJECTS%s",
+             cylinders ? "CAMERA" : "SCENE",state.scene_slot,state.count,generated,objects,
+             state.camera_ready ? " / NO OCCLUSION" : " / NO CAMERA");
+    e2r_cue_text(surface,10,19,label,amber);
+    if (cylinders) {
+        const char *bypass = getenv("E2R_PROXY_MESH_BYPASS");
+        snprintf(label,sizeof(label),"SCRIPT WAIT %u / MODAL %u / STATE %u / CONTROL UNVERIFIED",
+                 state.script_wait,state.requester_id,state.requester_state);
+        e2r_cue_text(surface,10,29,label,cyan);
+        for (unsigned i = 0; i < state.count; ++i) {
+            const E2R_ActorCue *joe = &state.actors[i];
+            if (!joe->is_joe) continue;
+            snprintf(label,sizeof(label),"JOE %d,%d,%d / YROT %d / DEPTH %d",
+                     joe->x,joe->y,joe->z,joe->rotation_y,joe->camera_z);
+            e2r_cue_text(surface,10,39,label,cyan);
+            snprintf(label,sizeof(label),"ACTION %08X / %u/%u / APPROX RADIUS 256 HEIGHT 1024",
+                     joe->action,joe->action_progress,joe->action_duration);
+            e2r_cue_text(surface,10,49,label,amber);
+            break;
+        }
+        e2r_cue_text(surface,10,59,bypass && *bypass && *bypass != '0' ?
+                     (state.background_spawns_deferred ? "PROXY / MESH, HUD AND BACKGROUND SPAWNS OMITTED" :
+                      "PROXY DRAW / MESH AND HUD GRAPHICS OMITTED") :
+                     "PRESENTATION ONLY / ORIGINAL RENDER WORK ACTIVE",amber);
+    }
+}
+
 int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
                             unsigned width, unsigned height, unsigned pitch,
                             const uint32_t *palette_rgb)
@@ -624,6 +953,7 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
         }
     }
     SDL_UnlockSurface(window->present_surface);
+    e2r_sdl_actor_cues(window->present_surface);
 
     window_surface = SDL_GetWindowSurface(window->window);
     if (window_surface == NULL) {
@@ -632,6 +962,8 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
     }
     dst_rect = e2r_sdl_aspect_fit_rect(window_surface->w, window_surface->h,
                                        width, height);
+    window->presentation_rect = dst_rect;
+    window->has_presentation_rect = 1;
     if (!SDL_FillSurfaceRect(window_surface, NULL,
                              SDL_MapSurfaceRGBA(window_surface, 0, 0, 0, 255))) {
         fprintf(stderr, "warning: SDL presentation clear failed: %s\n", SDL_GetError());
@@ -654,6 +986,54 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
         return 0;
     }
     return 1;
+}
+
+int E2R_HostDumpPresentation(E2R_HostWindow *window, const char *prefix)
+{
+    SDL_Surface *window_surface;
+    char path[512];
+    unsigned hash = 0;
+    int nonblack = 0;
+    int wrote = 0;
+
+    if (window != &e2r_sdl_backend || window->window == NULL ||
+        prefix == NULL || prefix[0] == '\0') {
+        return 0;
+    }
+    if (!SDL_IsMainThread()) {
+        fprintf(stderr, "SDL presentation dump skipped: not on main thread\n");
+        return 0;
+    }
+    if (window->present_surface != NULL) {
+        snprintf(path, sizeof(path), "%s-sdl-present.ppm", prefix);
+        if (e2r_sdl_write_surface_ppm(path, window->present_surface, &hash, &nonblack)) {
+            fprintf(stderr,
+                    "wrote SDL present dump: %s (%dx%d nonblack=%d hash=%08x)\n",
+                    path, window->present_surface->w, window->present_surface->h,
+                    nonblack, hash);
+            wrote++;
+        }
+    }
+    else {
+        fprintf(stderr, "SDL presentation dump skipped: no present surface\n");
+    }
+    window_surface = SDL_GetWindowSurface(window->window);
+    if (window_surface != NULL) {
+        snprintf(path, sizeof(path), "%s-sdl-window.ppm", prefix);
+        if (e2r_sdl_write_surface_ppm(path, window_surface, &hash, &nonblack)) {
+            fprintf(stderr,
+                    "wrote SDL window dump: %s (%dx%d nonblack=%d hash=%08x rect=%d,%d %dx%d)\n",
+                    path, window_surface->w, window_surface->h, nonblack, hash,
+                    window->presentation_rect.x, window->presentation_rect.y,
+                    window->presentation_rect.w, window->presentation_rect.h);
+            wrote++;
+        }
+    }
+    else {
+        fprintf(stderr, "SDL presentation dump skipped: no window surface: %s\n",
+                SDL_GetError());
+    }
+    return wrote;
 }
 #else
 struct E2R_HostWindow {
@@ -686,6 +1066,11 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
 {
     (void)window; (void)pixels; (void)width; (void)height; (void)pitch;
     (void)palette_rgb;
+    return 0;
+}
+int E2R_HostDumpPresentation(E2R_HostWindow *window, const char *prefix)
+{
+    (void)window; (void)prefix;
     return 0;
 }
 #endif

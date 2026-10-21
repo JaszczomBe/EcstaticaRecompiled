@@ -13,6 +13,28 @@ Record transformations in `E2Recomp/tools/GenerateRecon.js` that preserve manual
 
 ## Recent Entries
 
+### 2026-09-14 - Keyframe Pool Flags Use Mapped Addresses Under The Probe
+
+`FUN_00453754` now reads the original 15-byte pool's flag bytes at `0x7c872a` and `0x7c8739 + iVar2` when `E2R_ACTION_INDEX_PROBE=1`. A function-scoped generator replacement checks two first-flag references and one indexed reference before rewriting them. Original `0x453762/0x45378b` and a four-allocation GDB comparison establish the address mismatch: legacy repeatedly returns `0x7c8758`, corrected returns successive slots from `0x7c871c`. No new sanitizer suppression or generated header/global/name change. Four-artifact scratch parity passed at `/tmp/e2-generator-audit-ptaec8gy`.
+
+The gate-off allocator deliberately retains legacy behavior while corrected keys expose a separate scene-pose actor-input crash in `FUN_00426124`. [Task 05](../../implementations/playable-sdl-runtime/steps/step-08/tasks/task-05-recover-post-intro-scene-selection.md) remains active; [Task 06](../../implementations/playable-sdl-runtime/steps/step-08/tasks/task-06-recover-scene-activation-pose-inputs.md) is next. Host actor cues and atomic visibility-state publication live outside generated code.
+
+### 2026-09-14 - Missing-Scene Message List And Text
+
+One unique-anchor replacement mirrors the original two-string wrapper's local `[message, scene name, NULL]` list at `FUN_0045233c`. The message uses the executable's original literal because mapped address `0x47563c` is empty in the reconstruction. Shared wrapper callers and signatures are unchanged. All four outputs match scratch generation (`/tmp/e2-generator-audit-hl23_86h`); three builds and default checks pass. Gated ASan's stale-list read is gone, but the scene wait still exits 5; see [Task 04](../../implementations/playable-sdl-runtime/steps/step-08/tasks/task-04-recover-missing-scene-message-inputs.md) and the runtime journal.
+
+### 2026-09-14 - Action Loader And Callback Actor Ownership
+
+Mirrored the loader's entry-actor save/restore and the loaded-action slot/owner recovery through function-scoped checked replacements. The child-commit helper has an explicit actor parameter in generated C and the prototype list; child interpolation consumes its existing first parameter. Removed the unused phantom ECX read from the calling loop. All four scratch artifacts match (`/tmp/e2-generator-audit-_707at8m`), and all three builds/default runtime checks pass. Gated validation remains incomplete in [Step 08 Task 01](../../implementations/playable-sdl-runtime/steps/step-08/tasks/task-01-recover-action-context.md); see the runtime journal for the separate missing-scene ASan failure.
+
+### 2026-09-14 - Diagnostic Generator Parity Restored
+
+Mirrored the previously committed actor model/exit, action lookup, and rep-parser stop diagnostics through 23 ordered replacements with unique-anchor checks. Removed the intermediate C write/read so a failed diagnostic anchor cannot replace reconstructed output. Scratch and in-place generation now match all four generator artifacts byte-for-byte; reconstructed C behavior is unchanged. `node --check`, default debug, ASan, SDL debug builds, and `git diff --check` pass. [Step 07 Task 01](../../implementations/playable-sdl-runtime/steps/step-07/tasks/task-01-preserve-generator-diagnostics.md) is complete; the wrapper/runtime verification is separate.
+
+### 2026-09-14 - Diagnostic Generator Drift Found (Historical Audit)
+
+Scratch generation at `43ddc8a` matches the header, globals, and rename map but changes reconstructed C by 155 removed/12 added lines, principally actor/action/rep diagnostics. The action-index gate survives generation. See the [audit comparison recipe](runtime-audit-2026-09-14.md) and [Step 07 Task 01](../../implementations/playable-sdl-runtime/steps/step-07/tasks/task-01-preserve-generator-diagnostics.md). No generator repair was made during the documentation pass.
+
 ### 2026-07-30 - Front-Buffer Proof Stabilizers
 
 1. Recovered `FUN_00417b20` software-surface copy source and destination indices from the explicit local page values instead of stale hidden registers.

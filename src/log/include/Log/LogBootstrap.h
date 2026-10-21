@@ -7,7 +7,7 @@ namespace Ecstatica::Recompiled::Log
 {
     struct FormatOptions;
 
-    // Start the logger with a stdout sink, applying resolved app-level logging
+    // Start the logger with optional stdout and file sinks, applying app-level logging
     // inputs such as level and module filters.
     //
     // level:   "Trace"|"Debug"|"Info"|"Warning"|"Error"|"Fatal"|"Off"
@@ -22,11 +22,14 @@ namespace Ecstatica::Recompiled::Log
     //
     // Intended to be called once per process, after the app has resolved its
     // logging config from CLI, settings files, platform input, or other sources.
-    void Bootstrap(std::string_view level,
+    // Returns false if a requested file sink cannot be opened. C runtime integration
+    // disables the stdout sink because its existing stderr output is mirrored.
+    bool Bootstrap(std::string_view level,
                    std::string_view modules,
                    bool disableSubmoduleFiltering = false,
                    void (*configureFormat)(FormatOptions&) = nullptr,
-                   std::string_view filePath = {});
+                   std::string_view filePath = {},
+                   bool consoleOutput = true);
 
     // Stop the logger and flush all pending records. Call before process exit.
     void BootstrapShutdown();

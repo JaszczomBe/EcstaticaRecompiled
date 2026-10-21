@@ -2,41 +2,20 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "CMake: Configure",
-      "type": "shell",
-      "command": "cmake",
-      "args": ["--preset", "linux-clang32-debug"],
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "CMake: Build",
-      "type": "shell",
-      "command": "cmake",
-      "args": ["--build", "build/linux-clang32-debug"],
+      "label": "CMake: Build selected preset",
+      "type": "cmake",
+      "command": "build",
+      "preset": "${command:cmake.activeBuildPresetName}",
+      "targets": [
+        "e2recomp"
+      ],
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "dependsOn": "CMake: Configure",
-      "problemMatcher": ["$gcc"]
-    },
-    {
-      "label": "CMake: Configure SDL 32-bit",
-      "type": "shell",
-      "command": "cmake",
-      "args": ["--preset", "linux-clang32-sdl-debug"],
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "CMake: Build SDL 32-bit",
-      "type": "shell",
-      "command": "cmake",
-      "args": ["--build", "build/linux-clang32-sdl-debug"],
-      "group": "build",
-      "dependsOn": "CMake: Configure SDL 32-bit",
-      "problemMatcher": ["$gcc"]
+      "problemMatcher": [
+        "$gcc"
+      ]
     }
   ]
 }

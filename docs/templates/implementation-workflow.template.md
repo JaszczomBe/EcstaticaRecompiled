@@ -66,11 +66,11 @@ Before creating a new implementation tree:
 
 ## Update Rules
 
-1. Update `docs/HANDOFF.md` when the active implementation, next recommended step, or latest known crash changes.
+1. Update the active implementation and its step/task documents when execution state or the crash frontier changes. Update `docs/HANDOFF.md` only when its durable navigation, objective, or workflow becomes incorrect, following its Anchor Policy.
 2. Update the project journal whenever a runtime fix advances the crash frontier.
 3. Update the parent implementation when a step is completed, retired, or materially re-scoped.
 4. Keep templates generic; put project-specific state in plans, implementations, or journals.
-5. A fresh context should outline the intended next step or offer task choices before starting substantial work.
+5. A fresh context should state the next bounded action and verification, then continue when the user has already authorized the work. Separate current findings from dated historical evidence; a passed input-state probe alone is not a playability claim.
 
 ## Documentation Edit Policy
 

@@ -1,10 +1,10 @@
 # E2Recomp.exe Reconstruction
 
-This directory contains a first-pass Ghidra decompilation of `C:\ecstatica2\E2Recomp.exe`.
+This directory contains Ghidra export artifacts, generated reconstruction, Linux native probes, and compatibility/host backends for Ecstatica II. The current export route targets original `E2WIN95.EXE`; older Windows commands below refer to the historical `E2Recomp.exe` input. See the [active implementation](../docs/implementations/playable-sdl-runtime/playable-sdl-runtime.md) for current status and [build instructions](reconstructed/README.md) for Linux launch.
 
 ## What Was Recovered
 
-- `src/E2Recomp_decompiled.c`: Ghidra C-like output for 839 discovered functions.
+- `src/E2Recomp_decompiled.c`: Ghidra C-like output; `metadata/functions.tsv` records the exported function inventory.
 - `src/e2recomp_types.h`: type shim for Ghidra primitive types.
 - `reconstructed/E2Recomp_recon.c`: compileable normalized reconstruction.
 - `reconstructed/E2Recomp_rebuilt.exe`: linked 32-bit rebuilt executable.
@@ -45,7 +45,7 @@ cmake --preset linux-clang32-debug
 cmake --build --preset linux-clang32-debug --target ghidra-export
 ```
 
-By default this imports `/home/rgrabowski/Games/Ecstatica2/E2WIN95.EXE` and writes
+By default this imports `E2WIN95.EXE` from the configured `ECSTATICA2_DATA_DIR` and writes
 the exported C and TSV metadata back into this `E2Recomp` directory. Ghidra is
 found via `GHIDRA_ANALYZE_HEADLESS`, `GHIDRA_HOME`, `analyzeHeadless` on `PATH`,
 or a local `dep/ghidra` checkout/unpacked release.
@@ -60,7 +60,7 @@ That target intentionally rewrites `reconstructed/E2Recomp_recon.c`,
 `reconstructed/E2Recomp_recon.h`, and related generated artifacts, so use it when
 you want a fresh Ghidra-derived reconstruction pass.
 
-From `C:\ecstatica2`:
+Historical Windows export route (not reverified by the 2026-09-14 audit), from `C:\ecstatica2`:
 
 ```powershell
 .\reverse\E2Recomp\tools\ReExport.ps1
@@ -77,21 +77,16 @@ Equivalent direct Ghidra command:
   -postScript ExportDecomp.java 'C:\ecstatica2\reverse\E2Recomp'
 ```
 
-## Rebuild Status
+## Rebuild Status And Next Recovery
 
-The reconstruction now compiles and links with MSVC x86 via `reconstructed/Build-Reconstructed.ps1`.
+The current priority is [Step 09 diagnostic gameplay](../docs/implementations/playable-sdl-runtime/steps/step-09/step-09-enable-diagnostic-gameplay.md). F5 now selects projected cylinders, action indexing/expanded script names and diagnostic mesh/HUD omission. Source-backed node removal and script/event inputs advance Debug past the action-384 modal to the real wait-ending instruction. The [floor-decoder continuation](../docs/journal/entries/courtyard-floor-decoder-2026-10-14.md) restores valid hosted byte reads, removing the forest fallback. Continuous Debug keeps Joe visible in the courtyard after release. F5 explicitly defers automatic background NPC spawning with `E2R_DEFER_BACKGROUND_SPAWNS=1`; existing actors/scripts still update. Up latches without displacement. Experimental ASan reaches a corrupted terminal event link. Movement and traversal remain unresolved.
 
-This is still not a clean original-source rebuild. Native PE decompilation recovers control flow and expressions, but not original headers, structs, source file layout, local names, comments, or exact runtime imports.
+Linux/i386 default debug, ASan, and SDL debug builds passed the 2026-09-14 audit. The 64-bit executable refuses reconstructed runtime execution. The MSVC x86 script is retained as a historical build route; it was not reverified in the audit.
 
-The current linked executable uses isolated stubs for unresolved x87, I/O-port, SIMD, and decompiler-helper symbols. Replace those stubs with real implementations/import bindings to move from "buildable" toward behavior-equivalent.
+Recovering behavior still requires original calling conventions, typed data ownership, and accurate helper semantics. The current code includes compatibility implementations alongside unresolved hardware, x87, SIMD, audio, and decompiler-helper stubs. It is not a behavior-complete port.
 
-To make this rebuildable as maintainable C, the next reconstruction pass should:
+Generator parity and the full canonical-control debug/ASan wrapper pass again in the 2026-10-14 verification after the actor/action/motion, requester, polygon and rectangle-copy repairs. All 8 arrow rows pass. The current wrapper separates early ASan movement-latch coverage from the later missing-action modal; historical static SDL hashes do not establish current playability. [Task 02](../docs/implementations/playable-sdl-runtime/steps/step-07/tasks/task-02-repair-canonical-control-regressions.md) is complete after the manual screenshot/log confirmed the static scene-175 baseline. Use the [scratch comparison recipe](../docs/journal/entries/runtime-audit-2026-09-14.md) to verify generation changes.
 
-1. Rename high-confidence functions using strings, imports, and call sites.
-2. Recover global structs around dense regions such as `DAT_00479*`, `DAT_0047a*`, and `DAT_0063*`.
-3. Replace absolute `DAT_` and `s_` labels with typed globals or resource blobs.
-4. Add real prototypes before the first function body.
-5. Split runtime/library-looking functions away from game code.
-6. Compile frequently with a 32-bit Windows C compiler and fix type mismatches function by function.
+Action ownership, scene-pose inputs, fixed-point camera arithmetic and mapped event metadata are recovered. The corrected action/keyframe/event path remains opt-in (`E2R_ACTION_INDEX_PROBE=1`): polygon/flat-lighting and rectangle-copy inputs are repaired. [Task 11](../docs/implementations/playable-sdl-runtime/steps/step-08/tasks/task-11-recover-dirty-rectangle-copy-inputs.md) passes original-x86 copy/caller comparisons, but real DirectDraw Lock returns destination base/pitch 0/0 and gated SDL still faults at the copy. [Task 12](../docs/implementations/playable-sdl-runtime/steps/step-08/tasks/task-12-recover-directdraw-surface-lock.md) is the next compatibility task within Task 02, before geometry/placement/action validation and child activation. Action indexing remains off for bare terminal launches; F5 now explicitly enables it. The default route now exposes the formerly invisible post-intro action error for `dav:heropick` (384); OK resumes updates at camera 87, whose selection remains unresolved. The new SDL Debug/ASan interaction regression verifies dialog capture, OK dismissal and Escape main-menu entry; see the [requester follow-up](../docs/journal/entries/post-intro-requester-2026-09-15.md). Mirror source-backed repairs in `tools/GenerateRecon.js`; see the [2026-09-15 evidence](../docs/journal/entries/actor-cues-and-projection-2026-09-15.md) for the projection baseline and the [2026-10-14 rectangle evidence](../docs/journal/entries/rectangle-copy-2026-10-14.md) for current verification and remaining limits. Original-x86 lighting comparisons pass normally and with ASan, but the first runtime normal is degenerate and no rendered hero is established.
 
-The saved Ghidra project is the best place to do that cleanup because renames and types can then be exported repeatedly.
+The single **Ecstatica Recompiled** launch in VS Code supplies `E2R_ACTOR_CYLINDERS=1`, `E2R_ACTION_INDEX_PROBE=1`, `E2R_PROXY_MESH_BYPASS=1` and `E2R_DEFER_BACKGROUND_SPAWNS=1`. Select the SDL i386 Debug preset and restart F5; see [build and editor setup](../docs/building.md). The earlier cue-only F5 configuration caused the user's reported mismatch. The diagnostic state panel reports actual coordinates, action and camera with **CONTROL UNVERIFIED**. It does not force Joe into view. The current next task is post-intro placement/control and motion-query ownership; original DirectDraw Lock and rendering remain separate work.

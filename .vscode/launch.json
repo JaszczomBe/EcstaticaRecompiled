@@ -5,39 +5,40 @@
       "name": "Ecstatica Recompiled",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/linux-clang32-debug/e2recomp",
+      "program": "${command:cmake.launchTargetPath}",
       "args": [
-        "--game-data-dir",
-        "/home/rgrabowski/Games/Ecstatica2",
-        "--data-dir",
-        "${workspaceFolder}/data",
         "--run-recon"
       ],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
-      "environment": [],
-      "externalConsole": false,
-      "MIMode": "gdb",
-      "preLaunchTask": "CMake: Build"
-    },
-    {
-      "name": "Ecstatica Recompiled (SDL)",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/linux-clang32-sdl-debug/e2recomp",
-      "args": [
-        "--game-data-dir",
-        "/home/rgrabowski/Games/Ecstatica2",
-        "--data-dir",
-        "${workspaceFolder}/data",
-        "--run-recon"
+      "cwd": "${command:cmake.getLaunchTargetDirectory}",
+      "environment": [
+        {
+          "name": "ASAN_OPTIONS",
+          "value": "${env:ASAN_OPTIONS}:detect_leaks=0"
+        },
+        {
+          "name": "E2R_STARTUP_LOGO_DELAY_MS",
+          "value": "0"
+        },
+        {
+          "name": "E2R_ACTOR_CYLINDERS",
+          "value": "1"
+        },
+        {
+          "name": "E2R_ACTION_INDEX_PROBE",
+          "value": "1"
+        },
+        {
+          "name": "E2R_PROXY_MESH_BYPASS",
+          "value": "1"
+        },
+        {
+          "name": "E2R_DEFER_BACKGROUND_SPAWNS",
+          "value": "0"
+        }
       ],
-      "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
-      "environment": [],
       "externalConsole": false,
-      "MIMode": "gdb",
-      "preLaunchTask": "CMake: Build SDL 32-bit"
+      "MIMode": "gdb"
     }
   ]
 }
