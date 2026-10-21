@@ -1,6 +1,6 @@
 # Recover Scene Population And Interaction
 
-Status: in progress; stables hit-query inputs repaired; manual stable re-entry and object interactions remain open
+Status: in progress; workshop initialization crash reproduced/repaired and object/actor visibility audited; manual location re-entry and sword pickup remain open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 Last Updated: 2026-10-20
 
@@ -18,6 +18,10 @@ The [NPC pose continuation](../../../../../journal/entries/npc-pose-chain-recove
 
 The [stables crash continuation](../../../../../journal/entries/stables-node-hit-query-2026-10-20.md) follows the user's camera-177 report at `0x427160 ← 0x42efdc ← 0x42faf8`. The hit-query caller now retains X/Z and separate polar outputs; the adjacent owner-to-target facing vector also has both coordinates. Normal/ASan original-code comparisons cover 16,384 filter/contact cases. Exact manual stable re-entry, horse presence and broader scripted/weapon contacts remain separate acceptance.
 
+The [blacksmith sword activation](../../../../../journal/entries/blacksmith-sword-activation-2026-10-20.md) restores placement caching, the original loose-archive visibility index and retained actor/action inputs. Scene 1909's sword actor 3717 activates at its original workbench position and projects as an orange cylinder in Debug/ASan. The integration probe selects camera 347 through the normal visibility sweep, then restores the prior view without moving Joe; it does not establish walking into the workshop or pickup. Populated courtyard round trips pass afterward. F12 now includes preloaded script scenes for the current camera, including resource IDs above 1199.
+
+The [workshop initialization/visibility continuation](../../../../../journal/entries/workshop-initialization-and-actor-visibility-2026-10-20.md) follows the user's failed approach at camera 350. An isolated prior-source build reproduces `0x456924` during object initialization; the helper and opcodes `0x66`/`0x68` now retain their actor/value/action inputs. The actor visibility updater also retains the original world-position argument. Neutral object markers, separate generated counts and visibility filtering address the misleading enemy density; the scheduler still matches the original four-generated-actor cap and 50-tick cadence. Debug/ASan view sweeps 356→350→347 activate the sword and pass populated courtyard returns, with the real durability call observed under ASan. Exact F5 walking re-entry and pickup remain open.
+
 ## Evidence And Dependencies
 
 The [early-Space continuation](../../../../../journal/entries/early-intro-skip-population-2026-10-20.md) reproduces the user's remaining F5 population difference: an early skip leaves the original script population gate set even with the correct launch flags. Space now dispatches the original `dav:skipsc` script, including its population-enable opcode. Additional actors appear at release and the bounded ASan census passes. Debug then reached `0x42f9c0 → 0x424318 → 0x423674` in an unrecovered IK branch. The NPC pose continuation above supersedes that failed exploration result and recovers this node/root/IK family plus the preceding node-chain event pose handoff. Broader interactions remain the next bounded work.
@@ -28,9 +32,11 @@ Automatic NPC population and scripted objects are separate paths. An empty cylin
 
 ## Next Bounded Action
 
-1. Choose one original scripted object at a known castle location. Capture its archive identity, live instance, scene-child/script ownership, flags and cylinder/presentation eligibility before classifying it as missing.
-2. Trace the first required activation or player-interaction contract through the original instructions. Repair that contract and demonstrate one expected interaction, retaining generic NPC updates and Joe's movement.
-3. Mirror the repair in `GenerateRecon.js`, add a focused original-code comparison and rerun populated Debug/ASan crossing/return plus the existing baseline regressions. Keep combat, full models and broad category coverage separate.
+The [blacksmith sword capture](../../../../../journal/entries/blacksmith-sword-location-2026-10-20.md) selects a concrete target: original scene **1909** / actor **3717**, both `nschwrt1`, in **camera 347**, positioned at **(-972, 3884, -10208)** beside the workbench. The user's F12 packet has no sword on the active actor list, but does not establish whether it is loaded elsewhere. Switches are quest gated; doors require sword attacks. Restore this sword's presence and then pickup before using either as a first interaction target.
+
+1. Confirm ordinary F5 re-entry through cameras 356/350 to the user's camera-347 location, with actor 3717 visible beside the workbench; retain an F12 packet. The reported initialization crash is reproduced/repaired and automated view activation/return passes, but this manual walking route remains open. Object markers now use neutral `OBJECT` labels; their cylinders do not indicate enemies.
+2. Trace the sword's original proximity/input script and pickup action. Establish the expected original input and acquired/equipped state before implementing that first pickup; retain generic NPC updates and Joe's movement. The sword mesh and its attack/door-destruction animations remain separate work.
+3. Mirror any repair in `GenerateRecon.js`, compare the recovered pickup contract with original instructions and rerun populated Debug/ASan crossing/return plus baseline regressions. Keep combat, full models and broad category coverage separate.
 
 ## Acceptance And Limits
 

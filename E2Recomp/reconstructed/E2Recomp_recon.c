@@ -22009,7 +22009,7 @@ LAB_00429b2f:
         local_6c[0xb4] = (short)iVar7;
         E2R_TraceActorUpdateExit("27584.check-default-category",local_6c,(uint)iVar7);
         iVar7 = *(int *)(*(int *)(local_6c + 0x8f) + 0x24 + iVar7 * 2) >> 0x10;
-        iVar17 = extraout_ECX_44;
+        /* Original 0x429bf8 keeps ECX zero when this idle slot is absent. */
         if (-1 < iVar7) {
           E2R_TraceActorUpdateExit("27584.check-before-default-51880",local_6c,(uint)iVar7);
           uVar27 = FUN_00451880(extraout_ECX_44,iVar7);
@@ -42031,6 +42031,43 @@ LAB_0044796b:
 
 
 
+/* The loose Files/ECSTATIC starts at the first FAN resource; OFFSETS carries
+ * the original 0x447d94 index separately. Keep the working actor/scene lookup
+ * boundary and recover its missing final visibility table, with archive checks. */
+static int E2R_IndexFlatArchiveVisibility(const byte *base,const byte *end)
+{
+  enum { visibility_start = (2500 + 5000 + 2000 + 500 + 700 + 960 + 1200) * 4,
+         index_bytes = visibility_start + 1200 * 4 };
+  undefined4 *stream = (undefined4 *)(uintptr_t)E2R_OpenReadStream("OFFSETS");
+  if (stream == NULL) return 0;
+  const byte *data = (const byte *)(uintptr_t)stream[5];
+  int valid = stream[1] == index_bytes;
+  int count = 0;
+  for (int id = 0; valid && id < 1200; ++id) {
+    const byte *entry = data + visibility_start + id * 4;
+    uint offset = ((uint)entry[0] << 24) | ((uint)entry[1] << 16) |
+                  ((uint)entry[2] << 8) | entry[3];
+    if (offset == 0xffffffffu) continue;
+    if (offset > (uint)(end - base) || (uint)(end - base) - offset < 6 ||
+        memcmp(base + offset,"VisM",4) != 0) valid = 0;
+    else {
+      uint records = base[offset + 4] | ((uint)base[offset + 5] << 8);
+      if (records * 4 > (uint)(end - base) - offset - 6) valid = 0;
+      else count++;
+    }
+  }
+  if (valid) {
+    for (int id = 0; id < 1200; ++id) {
+      const byte *entry = data + visibility_start + id * 4;
+      *(uint *)(0x6467a8 + id * 4) = ((uint)entry[0] << 24) |
+          ((uint)entry[1] << 16) | ((uint)entry[2] << 8) | entry[3];
+    }
+  }
+  LocalFree((HLOCAL)(uintptr_t)stream[5]);
+  LocalFree((HLOCAL)stream);
+  return valid ? count : 0;
+}
+
 /* 00447d94 */
 
 undefined8 __fastcall FUN_00447d94(undefined4 param_1,undefined4 param_2)
@@ -42152,6 +42189,7 @@ undefined8 __fastcall FUN_00447d94(undefined4 param_1,undefined4 param_2)
         }
       }
     }
+    if (E2R_ActionIndexProbeEnabled()) E2R_IndexFlatArchiveVisibility(base,end);
     stream[0] = (int)(uintptr_t)base;
     stream[1] = (int)(uint)(end - base);
     if (E2R_archive_read_diag_count < 8) {
@@ -42872,7 +42910,8 @@ LAB_0044976c:
       }
     }
     if (-1 < iVar3) {
-      FUN_00451880(iVar5,iVar4);
+      /* Original 0x44984b loads the landing action retained in EBX. */
+      FUN_00451880(0,iVar3);
       iVar5 = in_EAX;
       if (*(int *)((undefined1 *)0x0062ba20 + iVar3 * 4) != 0) {
         FUN_0045186c(in_EAX,*(int *)((undefined1 *)0x0062ba20 + iVar3 * 4),0);
@@ -45069,7 +45108,7 @@ undefined4 __fastcall FUN_0044d2b4(undefined4 param_1)
      ((*(int *)(in_EAX + 0xa6) == 0 || ((*(byte *)(*(int *)(in_EAX + 0xa6) + 0xc) & 2) == 0)))) {
     if ((*(byte *)(in_EAX + 2) & 8) == 0) {
       if (in_EAX != DAT_0047a470) {
-        lVar3 = FUN_0044d28c(param_1,in_EAX);
+        lVar3 = FUN_0044d28c(in_EAX + 0x84,in_EAX);
         in_EAX = (uint)((ulonglong)lVar3 >> 0x20);
         if ((int)lVar3 == 0) {
           return;
@@ -45080,7 +45119,7 @@ undefined4 __fastcall FUN_0044d2b4(undefined4 param_1)
       }
     }
     else if (in_EAX != DAT_0047a470) {
-      lVar3 = FUN_0044d28c(param_1,in_EAX);
+      lVar3 = FUN_0044d28c(in_EAX + 0x84,in_EAX);
       iVar2 = (int)((ulonglong)lVar3 >> 0x20);
       if (((int)lVar3 == 0) && (*(short *)(iVar2 + 0x5a) == 0)) {
         pbVar1 = (byte *)(iVar2 + 2);
@@ -45225,17 +45264,16 @@ void __fastcall FUN_0044d4b4(undefined4 param_1)
     return;
   }
   actor = *(int *)((undefined1 *)0x00630b60 + actor_id * 4);
-  if (actor == 0 || (uintptr_t)actor < 0x10000u ||
+  if (actor == 0 ||
+      (*(ushort *)(actor_id * 2 + 0x666ff8) & 0xc000u) == 0xc000u ||
+      (uintptr_t)actor < 0x10000u ||
       IsBadReadPtr((void *)(uintptr_t)actor,0x188)) {
-    if ((*(int *)(actor_id * 2 + 0x666ff6) >> 0x10 & 0xc000U) == 0xc000) {
-      result = FUN_004488a4((undefined4)(uintptr_t)(actor_id * 6 + 0x669708),
-                            (undefined4)actor_id);
-      visible = (int)result < 0 ? 0 :
-        ((*(ushort *)((undefined1 *)0x0068cd6a + (int)result * 0xc) >> 8 & 0x40) << 8);
-      if (visible != 0 && *(short *)(actor_id * 2 + 0x65feb0) < 0) {
-        FUN_0044d634();
-      }
-    }
+    result = FUN_004488a4((undefined4)(uintptr_t)(actor_id * 6 + 0x669708),
+                          (undefined4)actor_id);
+    visible = (int)result < 0 ? 0 :
+      ((*(ushort *)((undefined1 *)0x0068cd6a + (int)result * 0xc) >> 8 & 0x40) << 8);
+    if (visible != 0 && *(short *)(actor_id * 2 + 0x65feb0) < 0)
+      FUN_0044d634(actor_id);
     return;
   }
   if (*(int *)(actor + 0xf2) != 0) {
@@ -45314,162 +45352,110 @@ void __fastcall FUN_0044d608(undefined4 param_1,undefined4 param_2)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void FUN_0044d634(void)
+void FUN_0044d634(int actor_id)
 
 {
-  short *psVar1;
-  undefined4 uVar2;
-  int in_EAX;
-  uint uVar3;
-  int iVar4;
-  int extraout_ECX;
-  int extraout_ECX_00;
-  int extraout_ECX_01;
-  int extraout_ECX_02;
-  undefined4 extraout_ECX_03;
-  undefined4 extraout_ECX_04;
-  undefined4 uVar5;
-  undefined4 extraout_ECX_05;
-  undefined4 extraout_ECX_06;
-  short *extraout_ECX_07;
-  short *extraout_ECX_08;
-  short *psVar6;
-  int extraout_ECX_09;
-  int iVar7;
-  int extraout_ECX_10;
-  int iVar8;
-  int extraout_EDX;
-  int extraout_EDX_00;
-  undefined4 extraout_EDX_01;
-  short extraout_var;
-  undefined8 uVar9;
-
-  iVar7 = in_EAX * 2;
-  iVar8 = 0;
-  iVar4 = 0;
-  do {
-    if (((*(ushort *)((undefined1 *)0x0064a178 + iVar4) & 2) != 0) &&
-       (*(int *)(iVar7 + 0x65feae) >> 0x10 == iVar8)) {
-      FUN_0044d634();
-      iVar4 = extraout_ECX;
-      iVar8 = extraout_EDX;
-    }
-    uVar2 = DAT_0047a470;
-    iVar8 = iVar8 + 1;
-    iVar4 = iVar4 + 2;
-  } while (iVar8 < 5000);
-  FUN_00451f5c();
-  psVar1 = *(short **)((undefined1 *)0x00630b60 + in_EAX * 4);
-  if (psVar1 != (short *)0x0) {
+  /* Original 0x44d63d retains the requested ID in EDI across nested loads. */
+  int owner_id = *(short *)(0x65feb0 + actor_id * 2);
+  for (int id = 0; id < 5000; ++id) {
+    if ((*(ushort *)(0x64a178 + id * 2) & 2) != 0 && owner_id == id)
+      FUN_0044d634(owner_id);
+  }
+  int saved_current = DAT_0047a470;
+  int saved_context = E2R_actor_calc_context;
+  E2R_LoadPopulationActor(actor_id);
+  short *actor = *(short **)(0x630b60 + actor_id * 4);
+  if (actor != NULL) {
+    E2R_actor_calc_context = (int)(uintptr_t)actor;
     FUN_00420dcc();
-    FUN_00422aa0(extraout_ECX_00 * 2,(undefined2 *)(extraout_EDX_00 + extraout_ECX_00 * 2));
-    if ((*(int *)(iVar7 + 0x666ff6) >> 0x10 & 0xc000U) == 0xc000) {
-      iVar4 = *(int *)(iVar7 + 0x671fbe);
-      iVar8 = extraout_ECX_01;
+    FUN_00422aa0((undefined4)(uintptr_t)(actor + 0x42),
+                  (undefined2 *)(0x669708 + actor_id * 6));
+    ushort track = *(ushort *)(0x666ff8 + actor_id * 2);
+    if ((track & 0xc000) != 0xc000) {
+      FUN_00422aa0((undefined4)(uintptr_t)(actor + 0x48),
+                    (undefined2 *)(0x658980 + actor_id * 6));
+      actor[0x76] = *(short *)(0x647a68 + actor_id * 2);
+      actor[0xc2] = *(signed char *)(0x64c950 + actor_id);
     }
-    else {
-      FUN_00422aa0(extraout_ECX_01,(undefined2 *)(extraout_ECX_01 + 0x658980));
-      psVar1[0x76] = *(short *)(iVar7 + 0x647a68);
-      psVar1[0xc2] = (short)*(char *)(in_EAX + 0x64c950);
-      iVar4 = *(int *)(iVar7 + 0x671fbe);
-      iVar8 = extraout_ECX_02;
-    }
-    if (iVar4 >> 0x10 != -2) {
-      psVar1[0x91] = *(short *)(iVar7 + 0x671fc0);
-    }
-    iVar7 = in_EAX * 2;
-    if ((-1 < *(short *)(iVar7 + 0x65feb0)) &&
-       (*(int *)((undefined1 *)0x00630b60 + (*(int *)(iVar7 + 0x65feae) >> 0x10) * 4) != 0)) {
-      iVar7 = *(int *)(*(int *)(*(int *)((undefined1 *)0x00630b60 + (*(int *)(iVar7 + 0x65feae) >> 0x10) * 4) +
-                               0x54) + (*(int *)(iVar7 + 0x6648e6) >> 0x10) * 4);
-      if (iVar7 == 0) {
-        FUN_0043cbb4(iVar8);
-      }
-      else {
-        *(int *)(psVar1 + 0x79) = iVar7;
-        *(short **)(iVar7 + 0x13a) = psVar1;
+    if (*(short *)(0x671fc0 + actor_id * 2) != -2)
+      actor[0x91] = *(short *)(0x671fc0 + actor_id * 2);
+    owner_id = *(short *)(0x65feb0 + actor_id * 2);
+    if (owner_id >= 0) {
+      int owner = *(int *)(0x630b60 + owner_id * 4);
+      if (owner != 0) {
+        int node = *(int *)(*(int *)(owner + 0x54) +
+                            *(short *)(0x6648e8 + actor_id * 2) * 4);
+        if (node == 0) FUN_00414e68();
+        else {
+          *(int *)(actor + 0x79) = node;
+          *(short **)(node + 0x13a) = actor;
+        }
       }
     }
-    if ((((undefined1 *)0x0064a178)[in_EAX * 2] & 4) != 0) {
-      psVar1[0x41] = 0xb;
-    }
-    *(byte *)(psVar1 + 1) = *(byte *)(psVar1 + 1) | 8;
+    if ((*(byte *)(0x64a178 + actor_id * 2) & 4) != 0) actor[0x41] = 0xb;
+    *(byte *)(actor + 1) |= 8;
     FUN_00426c3c();
-    psVar1[0x77] = 100;
-    psVar1[0x76] = psVar1[0x77];
-    uVar5 = extraout_ECX_03;
-    if ((-1 < psVar1[0x9d]) && (*(int *)((*(int *)(psVar1 + 0x9c) >> 0x10) * 4 + 0x6297c0) != 0)) {
-      FUN_0044f310();
-      uVar5 = extraout_ECX_04;
-    }
-    uVar3 = *(int *)(in_EAX * 2 + 0x666ff6) >> 0x10;
-    if (uVar3 != 0) {
-      if ((uVar3 & 0x8000) == 0) {
-        uVar9 = FUN_00451880(uVar5,uVar3 - 1);
-        iVar7 = *(int *)((undefined1 *)0x0062ba20 + (int)((ulonglong)uVar9 >> 0x20) * 4);
-        if (iVar7 == 0) {
-          FUN_00414e68();
-          iVar7 = extraout_ECX_09;
-        }
-        *(int *)(psVar1 + 0x53) = iVar7;
-        FUN_00426a80();
-        DAT_0047a7e0 = 1;
-        FUN_0042b004((int *)(psVar1 + 0x53),psVar1);
-        DAT_0047a7e0 = 0;
-        psVar1[0x53] = 0;
-        psVar1[0x54] = 0;
-        for (iVar7 = _DAT_00637248; (iVar7 != 0 && (extraout_ECX_10 != *(int *)(iVar7 + 0xa6)));
-            iVar7 = *(int *)(iVar7 + 0x50)) {
-        }
-        if (iVar7 == 0) {
-          *(int *)(extraout_ECX_10 + 0x12) = _DAT_00636588 + -1;
+    actor[0x77] = actor[0x76] = 100;
+    if (actor[0x9d] >= 0 && *(int *)(0x6297c0 + actor[0x9d] * 4) != 0)
+      E2R_DispatchScriptRecord(*(ushort **)(0x6297c0 + actor[0x9d] * 4),
+                                (ushort *)actor,(ushort *)actor,NULL,NULL);
+    track = *(ushort *)(0x666ff8 + actor_id * 2);
+    if (track != 0) {
+      if ((track & 0x8000) != 0) {
+        int scene_id = (track & 0x3fff) - 1;
+        FUN_0045233c(scene_id,scene_id);
+        short *scene = *(short **)(0x62e450 + scene_id * 4);
+        if (scene == NULL) FUN_00414e68();
+        else {
+          E2R_actor_calc_context = (int)(uintptr_t)actor;
+          FUN_0042b0f4();
+          short *child = *(short **)(scene + 2);
+          while (child != NULL && *child != *actor) child = *(short **)(child + 0xc);
+          if (child == NULL) FUN_00414e68();
+          else {
+            short *first = *(short **)(child + 3);
+            if (first != NULL && *first == 0) {
+              short pose = actor[0x91];
+              FUN_00426010((int)(uintptr_t)actor);
+              actor[0x91] = pose;
+              *(int *)(actor + 0x5e) = *(int *)(actor + 0xf);
+            }
+            *(short **)(actor + 0x53) = child + 1;
+            E2R_actor_calc_context = (int)(uintptr_t)actor;
+            FUN_00426a80();
+            if ((track & 0x4000) == 0) DAT_0047a7e0 = 1;
+            FUN_0042b004((int *)(actor + 0x53),actor);
+            *(int *)(actor + 0x99) = 0;
+            *(int *)(actor + 0x53) = 0;
+            DAT_0047a7e0 = 0;
+            if ((*(byte *)(scene + 0x4b) & 1) == 0)
+              *(int *)(scene + 0x50) = _DAT_00636588 - 1;
+          }
         }
       }
       else {
-        uVar9 = FUN_0045233c(uVar5,(uVar3 & 0x3fff) - 1);
-        iVar7 = *(int *)((int)((ulonglong)uVar9 >> 0x20) * 4 + 0x62e450);
-        if (iVar7 == 0) {
-          FUN_00414e68();
-        }
-        FUN_0042b0f4();
-        for (psVar6 = *(short **)(iVar7 + 4); (psVar6 != (short *)0x0 && (*psVar6 != *psVar1));
-            psVar6 = *(short **)(psVar6 + 0xc)) {
-        }
-        if (psVar6 == (short *)0x0) {
-          uVar9 = FUN_00441e38(0,extraout_EDX_01);
-          FUN_00441890(extraout_ECX_05,(int)((ulonglong)uVar9 >> 0x20));
-          FUN_0043cbd0(extraout_ECX_06);
-          FUN_00414e68();
-          psVar6 = extraout_ECX_07;
-        }
-        if ((*(short **)(psVar6 + 3) != (short *)0x0) && (**(short **)(psVar6 + 3) == 0)) {
-          short saved_pose = psVar1[0x91];
-          FUN_00426010((int)(uintptr_t)psVar1);
-          psVar1[0x91] = saved_pose;
-          *(undefined4 *)(psVar1 + 0x5e) = *(undefined4 *)(psVar1 + 0xf);
-          psVar6 = extraout_ECX_08;
-        }
-        *(short **)(psVar1 + 0x53) = psVar6 + 1;
-        FUN_00426a80();
-        if ((uVar3 & 0x4000) == 0) {
+        int action_id = track - 1;
+        FUN_00451880(0,action_id);
+        int action = *(int *)(0x62ba20 + action_id * 4);
+        if (action == 0) FUN_00414e68();
+        else {
+          *(int *)(actor + 0x53) = action;
+          E2R_actor_calc_context = (int)(uintptr_t)actor;
+          FUN_00426a80();
           DAT_0047a7e0 = 1;
-        }
-        FUN_0042b004((int *)(psVar1 + 0x53),psVar1);
-        psVar1[0x99] = 0;
-        psVar1[0x9a] = 0;
-        psVar1[0x53] = 0;
-        psVar1[0x54] = 0;
-        DAT_0047a7e0 = 0;
-        if ((*(byte *)(iVar7 + 0x96) & 1) == 0) {
-          *(int *)(iVar7 + 0xa0) = _DAT_00636588 + -1;
-          DAT_0047a470 = E2R_TraceCurrentActorWrite("4d34c.return",(uintptr_t)uVar2);
-          return;
+          FUN_0042b004((int *)(actor + 0x53),actor);
+          DAT_0047a7e0 = 0;
+          *(int *)(actor + 0x53) = 0;
+          int other = _DAT_00637248;
+          while (other != 0 && *(int *)(other + 0xa6) != action)
+            other = *(int *)(other + 0x50);
+          if (other == 0) *(int *)(action + 0x12) = _DAT_00636588 - 1;
         }
       }
     }
   }
-  DAT_0047a470 = E2R_TraceCurrentActorWrite("4d34c.exit",(uintptr_t)uVar2);
-  return;
+  E2R_actor_calc_context = saved_context;
+  DAT_0047a470 = E2R_TraceCurrentActorWrite("4d634.exit",(uintptr_t)saved_current);
 }
 
 
@@ -47443,11 +47429,14 @@ LAB_0044f7a9:
                  puVar13 != (ushort *)0x0)) {
                 do {
                   if (puVar18[1] == 0x16) {
-                    FUN_00422aa0(puVar18 + 2,puVar18 + 2);
-                    puVar13 = extraout_ECX_20;
+                    /* Original 0x44f8a7..0x44f8d1: cache the placement,
+                     * then copy the same event vector to an existing actor. */
+                    FUN_00422aa0((undefined4)(uintptr_t)(0x669708 + *psVar16 * 6),
+                                  (undefined2 *)(puVar18 + 2));
                     if (*(int *)((undefined1 *)0x00630b60 + *psVar16 * 4) != 0) {
-                      FUN_00422aa0(extraout_ECX_20,extraout_ECX_20);
-                      puVar13 = extraout_ECX_21;
+                      FUN_00422aa0((undefined4)(uintptr_t)
+                          (*(int *)(0x630b60 + *psVar16 * 4) + 0x84),
+                          (undefined2 *)(puVar18 + 2));
                     }
                   }
                   else if ((puVar18[1] == 0x2e) && (puVar18[2] == 3)) {
@@ -47737,10 +47726,10 @@ switchD_0044f573_caseD_40:
           uVar19 = (uint)(short)(*(ushort *)((int)local_2c + 2) & 0xfff);
         }
         else {
-          uVar19 = *local_2c >> 0x10 | 0xf000;
+          uVar19 = (uint)(int)(short)(*local_2c >> 0x10 | 0xf000);
         }
         if (param_2 != (ushort *)0x0) {
-          FUN_00456924(puVar13,uVar19);
+          FUN_00456924((uint)(uintptr_t)param_2,(int)uVar19);
           puVar13 = extraout_ECX_57;
           uVar19 = extraout_EDX_32;
         }
@@ -47766,10 +47755,11 @@ switchD_0044f573_caseD_40:
           uVar19 = (uint)(short)(*(ushort *)(local_2c + 1) & 0xfff);
         }
         else {
-          uVar19 = *(int *)((int)local_2c + 2) >> 0x10 | 0xf000;
+          uVar19 = (uint)(int)(short)(*(int *)((int)local_2c + 2) >> 0x10 | 0xf000);
         }
         if (*(int *)((undefined1 *)0x00630b60 + (short)(*(ushort *)((int)local_2c + 2) & 0xfff) * 4) != 0) {
-          FUN_00456924(puVar13,uVar19);
+          FUN_00456924(*(uint *)(0x630b60 +
+              (short)(*(ushort *)((int)local_2c + 2) & 0xfff) * 4),(int)uVar19);
           puVar13 = extraout_ECX_58;
           uVar19 = extraout_EDX_33;
         }
@@ -52612,61 +52602,41 @@ switchD_004568b6_default:
 void __fastcall FUN_00456924(undefined4 param_1,int param_2)
 
 {
-  int in_EAX;
-  int iVar1;
-  int extraout_ECX;
-  int extraout_ECX_00;
-  int extraout_ECX_01;
-  short sVar2;
-
-  iVar1 = 0;
-  if ((in_EAX == _DAT_00630b60) && (*(short *)(_DAT_00630b60 + 0x184) == 0)) {
-    iVar1 = 1;
-  }
-  sVar2 = (short)param_2;
-  if ((in_EAX == _DAT_00630b60) || (param_2 < 0)) {
+  /* Original 0x456929 keeps EAX actor in EBX and EDX amount separately. */
+  int actor = (int)param_1;
+  int joe = _DAT_00630b60;
+  int redraw = actor == joe && *(short *)(actor + 0x184) == 0;
+  if (actor == joe || param_2 < 0) {
     if (param_2 < 0) {
-      if (((*(short *)(in_EAX + 0x184) < 0x65) &&
-          (sVar2 = *(short *)(in_EAX + 0x184) + sVar2, *(short *)(in_EAX + 0x184) = sVar2, sVar2 < 1
-          )) && (*(undefined2 *)(in_EAX + 0x184) = 0, -1 < *(short *)(in_EAX + 0x188))) {
-        FUN_00451880(iVar1,param_2);
-        iVar1 = extraout_ECX;
-        if (*(int *)((undefined1 *)0x0062ba20 + (*(int *)(in_EAX + 0x186) >> 0x10) * 4) != 0) {
-          *(int *)(in_EAX + 0x126) =
-               *(int *)((undefined1 *)0x0062ba20 + (*(int *)(in_EAX + 0x186) >> 0x10) * 4);
+      if (*(short *)(actor + 0x184) <= 100) {
+        short value = (short)(*(short *)(actor + 0x184) + param_2);
+        *(short *)(actor + 0x184) = value;
+        if (value <= 0) {
+          *(short *)(actor + 0x184) = 0;
+          int action_id = *(short *)(actor + 0x188);
+          if (action_id >= 0) {
+            FUN_00451880(0,action_id);
+            int action = *(int *)(0x62ba20 + action_id * 4);
+            if (action != 0) *(int *)(actor + 0x126) = action;
+          }
         }
       }
     }
-    else if (param_2 < 0x19) {
-      sVar2 = (short)((uint)*(undefined4 *)(in_EAX + 0x182) >> 0x10) + (short)(param_2 / 2);
-      *(short *)(in_EAX + 0x184) = sVar2;
-      if (0x18 < sVar2) {
-        *(undefined2 *)(in_EAX + 0x184) = 0x18;
-      }
+    else if (param_2 <= 24) {
+      short value = (short)(*(short *)(actor + 0x184) + param_2 / 2);
+      *(short *)(actor + 0x184) = value > 24 ? 24 : value;
     }
-    else {
-      *(short *)(in_EAX + 0x184) = sVar2;
-    }
+    else *(short *)(actor + 0x184) = (short)param_2;
   }
+  else *(short *)(actor + 0x184) = (short)param_2;
+  if (actor == _DAT_00630b60) FUN_00456f94();
   else {
-    *(short *)(in_EAX + 0x184) = sVar2;
+    int attachment = *(int *)(actor + 0xf2);
+    if (attachment != 0 && *(int *)(attachment + 0x22) == _DAT_00630b60)
+      FUN_00457410();
   }
-  if (in_EAX == _DAT_00630b60) {
-    FUN_00456f94();
-    iVar1 = extraout_ECX_00;
-  }
-  else if ((*(int *)(in_EAX + 0xf2) != 0) &&
-          (_DAT_00630b60 == *(int *)(*(int *)(in_EAX + 0xf2) + 0x22))) {
-    FUN_00457410();
-    iVar1 = extraout_ECX_01;
-  }
-  if (*(short *)(in_EAX + 0x184) == 0) {
-    iVar1 = 1;
-  }
-  if (iVar1 != 0) {
-    FUN_004559bc();
-  }
-  return;
+  if (*(short *)(actor + 0x184) == 0) redraw = 1;
+  if (redraw) FUN_004559bc();
 }
 
 

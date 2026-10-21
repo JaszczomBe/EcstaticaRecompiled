@@ -143,6 +143,22 @@ int main(int argc,char **argv) {
     *(uint32_t*)(joe+0x4c)=(uintptr_t)joe;
     E2R_GetActorCues(&state); assert(state.count==1); // bounded self-link
     *(uint32_t*)(joe+0x4c)=0;
+    byte *object=(byte*)0x691000;
+    *(short*)object=980;*(uint32_t*)(0x630b60+980*4)=(uintptr_t)object;
+    *(uint32_t*)(joe+0x4c)=(uintptr_t)object;
+    short object_pos[3]={1024,0,4096};memcpy(object+0x84,object_pos,6);
+    E2R_GetActorCues(&state);
+    assert(state.count==2 && state.actors[1].is_object && !state.actors[1].visible_in_view);
+    object[2]=8;E2R_GetActorCues(&state);
+    assert(state.actors[1].is_object && state.actors[1].visible_in_view);
+    *(uint32_t*)(object+0x132)=0x692000;E2R_GetActorCues(&state);
+    assert(!state.actors[1].is_object); // scripted character before representation installation
+    *(uint32_t*)(object+0x132)=0;
+    *(short*)(0x64a178+980*2)=8;E2R_GetActorCues(&state);
+    assert(state.actors[1].generated && !state.actors[1].is_object);
+    *(short*)(0x64a178+980*2)=0;*(uint32_t*)(object+0x11e)=0x692000;
+    E2R_GetActorCues(&state);assert(!state.actors[1].is_object && !state.actors[1].generated);
+    *(uint32_t*)(object+0x11e)=0;object[2]=0;
     position(0,0,4096); memcpy(joe+6,identity,sizeof identity);
     *(short*)(joe+0x92)=0;
     byte *indexed=malloc(640*480); assert(indexed); memset(indexed,17,640*480);
@@ -157,13 +173,19 @@ int main(int argc,char **argv) {
     assert(!memcmp(before,(void*)0x470000,0x240000));
     for(int i=0;i<640*480;i++) assert(indexed[i]==17);
     assert(((Uint32*)((byte*)window->present_surface->pixels+120*window->present_surface->pitch))[352]!=plain);
+    assert(((Uint32*)((byte*)window->present_surface->pixels+120*window->present_surface->pitch))[480]==plain);
+    object[2]=8;memcpy(before,(void*)0x470000,0x240000);
+    assert(E2R_HostPresentIndexed8(window,indexed,640,480,640,NULL));
+    assert(!memcmp(before,(void*)0x470000,0x240000));
+    Uint32 object_color=SDL_MapSurfaceRGB(window->present_surface,140,180,160);
+    assert(((Uint32*)((byte*)window->present_surface->pixels+120*window->present_surface->pitch))[480]==object_color);
     assert(E2R_HostDumpPresentation(window,argv[1])==2);
     // RGB conversion on the next frame erases the previous cylinder.
     position(768,0,4096);
     assert(E2R_HostPresentIndexed8(window,indexed,640,480,640,NULL));
     assert(((Uint32*)((byte*)window->present_surface->pixels+120*window->present_surface->pitch))[352]==plain);
     E2R_HostDestroyWindow(window); SDL_DestroySurface(s); free(indexed); free(before);
-    puts("PASS: cylinder projection, depth scaling, position/rotation, clipping, read-only state and trail-free SDL presentation (synthetic actors)");
+    puts("PASS: cylinder projection, clipping, object/generated categories, visibility filtering, read-only state and trail-free SDL presentation (synthetic actors)");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='e2-cylinder-check-') as tmp:

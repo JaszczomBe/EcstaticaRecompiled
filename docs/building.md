@@ -6,7 +6,7 @@ The everyday configuration is **Debug · Clang 21 · i386 · SDL**, selected thr
 
 - Linux, CMake 3.25 or newer, Ninja, Clang, and GDB. The current validated compiler is Clang 21.1.8; shared presets resolve `clang-21` from PATH and reject a compiler whose major version is not 21. Changing compiler versions needs a separate build directory and regression verification.
 - 32-bit C development libraries and the matching Clang AddressSanitizer runtime for ASan presets. On the current Debian installation the multilib prerequisites include `libc6-dev-i386` and `gcc-multilib`; ASan availability is checked by a compile/link probe at configure time.
-- The SDL submodule and the full original Ecstatica II data directory.
+- The SDL submodule and the full original Ecstatica II data directory, including root `OFFSETS` alongside `Files/ECSTATIC`; the recovered-action route uses its original visibility directory for placed objects.
 - VS Code extensions CMake Tools and C/C++; workspace recommendations include both.
 
 ## Initial Configuration
@@ -19,13 +19,15 @@ export ECSTATICA2_DATA_DIR=/path/to/Ecstatica2
 cmake --preset linux-clang32-sdl-debug
 cmake --build --preset linux-clang32-sdl-debug
 E2R_ACTOR_CYLINDERS=1 E2R_ACTION_INDEX_PROBE=1 E2R_PROXY_MESH_BYPASS=1 \
-  E2R_DEFER_BACKGROUND_SPAWNS=1 \
+  E2R_DEFER_BACKGROUND_SPAWNS=0 \
   ./build/Debug/clang21-i386-sdl/e2recomp --run-recon
 ```
 
 There is no committed personal data path. CMake reads `ECSTATICA2_DATA_DIR` from the environment on first configuration and stores it in that build's cache. An explicit `-DECSTATICA2_DATA_DIR=...` overrides the cache. Existing valid caches continue to work without exporting the variable; each fresh build directory needs a data path. CMake creates the build-local `Ecstatica2` symlink.
 
-F5 supplies projected cylinders, recovered action indexing/expanded script names, diagnostic mesh/HUD omission and explicit background-spawn deferral. Add `E2R_DEFER_BACKGROUND_SPAWNS=1` to a matching terminal run. The floor decoder now keeps Joe in the courtyard after release with the palette restored; movement remains unverified. The panel states that background spawning is omitted. Existing actors, scripts and player floor/view queries remain active. See [current captures and exact limits](journal/entries/courtyard-floor-decoder-2026-10-14.md). Flags default off outside this launch; `E2R_ACTOR_CUES=1` retains the earlier crosses for baseline investigation.
+F5 supplies projected cylinders, recovered action indexing/expanded script names, diagnostic mesh/HUD omission and enabled background population (`E2R_DEFER_BACKGROUND_SPAWNS=0`). Original preloaded objects also activate through their placement and visibility records; the sword beside the blacksmith workbench has [bounded Debug/ASan evidence](journal/entries/blacksmith-sword-activation-2026-10-20.md). Movement and courtyard round trips are verified, while pickup, combat, original models and full experimental ASan acceptance remain open. `E2R_ACTOR_CUES=1` retains the earlier crosses for baseline investigation.
+
+Cylinder labels describe runtime state: cyan `JOE`, amber `SPAWN` for terrain-generated actors, amber `ACTOR` for other represented/scripted actors, and neutral green-grey `OBJECT` for actors without an installed representation or owning script scene. They do not classify hostility. The overlay respects the original actor visibility flag; `ACTIVE` includes objects and hidden actors, while `GENERATED` separately counts terrain-generated actors. Wall occlusion and real mesh bounds remain absent. The [workshop crash/visibility continuation](journal/entries/workshop-initialization-and-actor-visibility-2026-10-20.md) records the matching initialization crash repair and original four-generated-actor cap audit.
 
 For persistent personal overrides, use the ignored `CMakeUserPresets.json`, for example:
 

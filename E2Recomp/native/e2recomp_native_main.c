@@ -51,6 +51,21 @@ void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
                 memcpy(position, (void *)(actor + 0x84), sizeof(position));
                 cue->id = id;
                 cue->is_joe = id == 0;
+                uint16_t table_flags;
+                uint32_t representation, scene_owner;
+                unsigned char flags;
+                memcpy(&table_flags, (void *)(0x64a178u + (unsigned)id * 2u), 2);
+                memcpy(&representation, (void *)(actor + 0x11e), 4);
+                memcpy(&scene_owner, (void *)(actor + 0x132), 4);
+                memcpy(&flags, (void *)(actor + 2), 1);
+                cue->generated = (table_flags & 8u) != 0;
+                /* Scripted characters can have no installed representation yet.
+                 * This describes current runtime state, not hostility or an
+                 * asset taxonomy. Unclassified scripted actors retain ACTOR. */
+                cue->is_object = !cue->is_joe && !cue->generated &&
+                    representation == 0 && scene_owner == 0;
+                /* Keep Joe's diagnostic cue while his original mesh is hidden. */
+                cue->visible_in_view = cue->is_joe || (flags & 8u) != 0;
                 cue->x = position[0]; cue->y = position[1]; cue->z = position[2];
                 int16_t rotation_y;
                 uint16_t duration, progress;
@@ -867,7 +882,7 @@ static uintptr_t e2r_scene_record_table_entry(int scene_slot)
     uintptr_t table_entry;
     uintptr_t scene_record = 0;
 
-    if (scene_slot < 0 || scene_slot >= 0x4b0) {
+    if (scene_slot < 0 || scene_slot >= 0x9c4) {
         return 0;
     }
     table_entry = 0x0062e450u + (uintptr_t)scene_slot * 4u;
@@ -1277,6 +1292,16 @@ static void e2r_write_scene_child_state(FILE *out, uintptr_t scene)
                 (unsigned long)e2r_scene_asset_offset(word2_id),
                 (unsigned long)e2r_rep_asset_offset(word2_id));
         e2r_write_actor_summary(out, "scene_child_actor", guard, actor);
+        if (child_id >= 0 && child_id < 5000) {
+            short cached[3] = {0}, track = 0, owner = -1;
+            uintptr_t index = (uintptr_t)child_id;
+            for (unsigned axis = 0; axis < 3; ++axis)
+                e2r_read_short_field(0x669708u + index * 6u + axis * 2u, &cached[axis]);
+            e2r_read_short_field(0x666ff8u + index * 2u, &track);
+            e2r_read_short_field(0x65feb0u + index * 2u, &owner);
+            fprintf(out, "scene_child_placement id=%d cached=%d,%d,%d track=0x%04x attachment_owner=%d\n",
+                    child_id, cached[0], cached[1], cached[2], (unsigned)(uint16_t)track, owner);
+        }
         if (next == child) {
             fprintf(out, "scene_child_cycle child=0x%lx\n", (unsigned long)child);
             return;
@@ -1286,6 +1311,24 @@ static void e2r_write_scene_child_state(FILE *out, uintptr_t scene)
     if (child != 0) {
         fprintf(out, "scene_children_truncated next=0x%lx limit=128\n",
                 (unsigned long)child);
+    }
+}
+
+static void e2r_write_view_script_scenes(FILE *out, int camera_slot, uintptr_t dumped_owner)
+{
+    for (int id = 0; id < 2500; ++id) {
+        uintptr_t scene = e2r_scene_record_table_entry(id);
+        short resource = -1, view = -1, table_flags = 0;
+        unsigned flags = 0;
+        if (!scene || scene == dumped_owner || IsBadReadPtr((const void *)scene, 0xa4)) continue;
+        e2r_read_short_field(scene, &resource);
+        e2r_read_short_field(scene + 2, &view);
+        if (resource != id || view != camera_slot) continue;
+        e2r_read_short_field(0x670c38u + (uintptr_t)id * 2u, &table_flags);
+        e2r_read_u8_field(scene + 0x96, &flags);
+        fprintf(out, "view_script_scene id=%d camera=%d record=0x%lx flags=0x%02x table_flags=0x%04x\n",
+                id, camera_slot, (unsigned long)scene, flags, (unsigned)(uint16_t)table_flags);
+        e2r_write_scene_child_state(out, scene);
     }
 }
 
@@ -1384,6 +1427,7 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
     fprintf(out, "actor_scene_resource id=%d record=0x%lx table_match=%d\n",
             owner_id, (unsigned long)owner_scene, owner_valid);
     if (owner_valid) e2r_write_scene_child_state(out, owner_scene);
+    e2r_write_view_script_scenes(out, scene_slot, owner_valid ? owner_scene : 0);
     const char *cues_enabled = getenv("E2R_ACTOR_CUES");
     const char *cylinders_enabled = getenv("E2R_ACTOR_CYLINDERS");
     if ((cues_enabled && *cues_enabled && *cues_enabled != '0') ||
@@ -1397,8 +1441,9 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
                     cues.script_wait,cues.requester_id,cues.requester_state,cues.background_spawns_deferred);
         for (unsigned i = 0; i < cues.count; ++i) {
             const E2R_ActorCue *cue = &cues.actors[i];
-            fprintf(out, "actor_cue[%u] id=%d joe=%d live=%d,%d,%d\n",
-                    i, cue->id, cue->is_joe, cue->x, cue->y, cue->z);
+            fprintf(out, "actor_cue[%u] id=%d joe=%d live=%d,%d,%d object=%d generated=%d visible_in_view=%d\n",
+                    i, cue->id, cue->is_joe, cue->x, cue->y, cue->z,
+                    cue->is_object, cue->generated, cue->visible_in_view);
             fprintf(out, "actor_cue[%u] camera_ready=%d screen=%d,%d depth=%d tip=%d,%d tip_depth=%d camera_z=%d\n",
                     i, cues.camera_ready, cue->screen[0][0], cue->screen[0][1], cue->screen[0][2],
                     cue->screen[1][0], cue->screen[1][1], cue->screen[1][2], cue->camera_z);

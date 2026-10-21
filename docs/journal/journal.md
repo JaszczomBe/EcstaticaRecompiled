@@ -4,6 +4,12 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Workshop initialization and actor visibility — 2026-10-20](entries/workshop-initialization-and-actor-visibility-2026-10-20.md): reproduces and repairs the camera-350 object durability crash, restores visibility-query coordinates, distinguishes object cylinders and audits the unchanged original population cap; Debug/ASan view activation and populated courtyard returns pass.
+
+- [Blacksmith sword activation — 2026-10-20](entries/blacksmith-sword-activation-2026-10-20.md): restores original placement caching, loose-archive visibility indexing and actor/action handoffs; sword 3717 activates and projects in Debug/ASan, with pickup and manual workshop re-entry still open.
+
+- [Blacksmith sword location — 2026-10-20](entries/blacksmith-sword-location-2026-10-20.md): matches the user's camera-347 screenshots/F12 packet to original scene 1909 and actor 3717; selects a precise activation/presentation target while keeping loaded state and pickup unproven.
+
 - [Startup skip feasibility — 2026-10-20](entries/startup-skip-feasibility-2026-10-20.md): enables the existing zero-logo-wait option in F5 after Debug/ASan readiness checks; distinguishes automatic horseback skipping from the required pedestal event sequence and records measured startup savings.
 
 - [Stables node hit-query inputs — 2026-10-20](entries/stables-node-hit-query-2026-10-20.md): repairs the reported stable crash at the legacy polar helper and the adjacent lost facing coordinate; original-code filter/contact comparisons pass normally/ASan, with exact stable re-entry kept separate from bounded runtime regressions.

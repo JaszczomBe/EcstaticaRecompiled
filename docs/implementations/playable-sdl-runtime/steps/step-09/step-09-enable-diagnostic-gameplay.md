@@ -4,6 +4,8 @@ Status: active; stables hit-query inputs repaired; manual stable re-entry and ob
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-10-20
 
+The [blacksmith sword continuation](../../../../journal/entries/blacksmith-sword-activation-2026-10-20.md) restores original scene-1909/actor-3717 visibility activation and cylinder presentation in camera 347. Debug/ASan integration and populated courtyard return pass. The workshop camera is selected diagnostically without moving Joe; manual F5 workshop re-entry, pickup, sword animation and door destruction remain open in Task 09.
+
 ## Goal
 
 Control Joe as a simple projected cylinder against the original scene backgrounds, using recovered actor position, locomotion, height queries and camera/scene selection. Walk across a view boundary and back without requiring original meshes, limb animation, lighting or full intro visuals.
@@ -167,3 +169,5 @@ The user confirms the fixed pedestal pair wanders, but reports Joe moving away f
 The [modifier-release continuation](../../../../journal/entries/direction-modifier-release-2026-10-20.md) reproduces a matching Up+Left/YROT freeze after released desktop modifiers remain logically held. The compatibility bridge now clears those flags on key-up. Deterministic Debug/ASan and bounded native Wayland routes turn and release, and the user reports no freezes anymore. A longer native Debug route later crashes in an NPC pose event (`0x42faf8 → 0x424318`); its original actor/node handoff is the next bounded population frontier. Full directional fidelity, object interactions and full experimental ASan remain unaccepted.
 
 The [early-intro-skip continuation](../../../../journal/entries/early-intro-skip-population-2026-10-20.md) explains the user's remaining F5-only pedestal pair: the Space shortcut omitted the original skip script's population-enable operation. The recovered route now dispatches `dav:skipsc`; both guards and terrain actors appear after an early skip. Bounded ASan population passes, but Debug reaches the unrecovered IK node helper `0x423674` through `0x42f9c0 → 0x424318`. Stable populated early-skip exploration and full experimental ASan remain unaccepted.
+
+The [workshop initialization/visibility continuation](../../../../journal/entries/workshop-initialization-and-actor-visibility-2026-10-20.md) reproduces and repairs the reported camera-350 object initialization crash. The overlay distinguishes objects from generated actors and respects original visibility, whose coordinate argument is now recovered. Original-code fixtures confirm the unchanged four-generated-actor cap. Debug/ASan workshop view sweeps and populated courtyard returns pass; exact F5 walking re-entry and sword pickup remain open under Task 09.

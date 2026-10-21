@@ -818,24 +818,30 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
     int cylinders = cylinder_env && *cylinder_env && *cylinder_env != '0';
     E2R_ActorCueSnapshot state;
     char label[112];
-    unsigned drawn = 0, behind = 0, outside = 0;
+    unsigned drawn = 0, behind = 0, outside = 0, hidden = 0, objects = 0, generated = 0;
     if (!cylinders && (!enabled || !*enabled || *enabled == '0')) return;
     E2R_GetActorCues(&state);
     if (!cylinders && (state.scene_slot < 0 || state.count == 0)) return;
     Uint32 cyan = SDL_MapSurfaceRGB(surface, 56, 224, 244);
     Uint32 amber = SDL_MapSurfaceRGB(surface, 255, 180, 65);
+    Uint32 object_color = SDL_MapSurfaceRGB(surface, 140, 180, 160);
     Uint32 bg = SDL_MapSurfaceRGB(surface, 12, 20, 30);
     if (state.camera_ready && state.view_width == surface->w && state.view_height == surface->h) {
         for (unsigned i = 0; i < state.count; ++i) {
             const E2R_ActorCue *actor = &state.actors[i];
+            objects += actor->is_object;
+            generated += actor->generated;
+            if (!actor->visible_in_view) { ++hidden; continue; }
             const int *foot = actor->screen[0], *tip = actor->screen[1];
-            Uint32 color = actor->is_joe ? cyan : amber;
+            Uint32 color = actor->is_joe ? cyan : actor->is_object ? object_color : amber;
+            const char *kind = actor->is_joe ? "JOE" : actor->is_object ? "OBJECT" :
+                               actor->generated ? "SPAWN" : "ACTOR";
             if (cylinders) {
                 if (e2r_cue_cylinder(surface,actor,color)) {
                     ++drawn;
                     if (foot[2] > 0 && foot[0] >= 0 && foot[0] < surface->w &&
                         foot[1] >= 0 && foot[1] < surface->h) {
-                        snprintf(label,sizeof(label),"%s %d / LOCAL +Z",actor->is_joe ? "JOE" : "ACTOR",actor->id);
+                        snprintf(label,sizeof(label),"%s %d / LOCAL +Z",kind,actor->id);
                         e2r_cue_text(surface,foot[0]+7,foot[1]-5,label,color);
                     }
                 } else if (actor->camera_z < 128) ++behind;
@@ -855,18 +861,19 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
             e2r_cue_line(surface,actor->screen[4],actor->screen[5],color);
             e2r_cue_rect(surface,foot[0]-2,foot[1]-2,5,5,color);
             if (actor->is_joe) snprintf(label,sizeof(label),"JOE");
-            else snprintf(label,sizeof(label),"ACTOR %d",actor->id);
+            else snprintf(label,sizeof(label),"%s %d",kind,actor->id);
             e2r_cue_text(surface,foot[0]+7,foot[1]-5,label,color);
             ++drawn;
         }
     }
-    snprintf(label,sizeof(label),"%s: %u VISIBLE / %u BEHIND / %u OFFSCREEN",
-             cylinders ? "CYLINDERS" : "ACTOR CUES",drawn,behind,outside);
+    snprintf(label,sizeof(label),"%s: %u VISIBLE / %u HIDDEN / %u BEHIND / %u OFFSCREEN",
+             cylinders ? "CYLINDERS" : "ACTOR CUES",drawn,hidden,behind,outside);
     e2r_cue_rect(surface,6,6, cylinders ? surface->w - 12 : (int)strlen(label)*6+8,
                  cylinders ? 62 : 22,bg);
     e2r_cue_text(surface,10,9,label,cyan);
-    snprintf(label,sizeof(label),"%s %d / %u LIVE ACTORS%s",cylinders ? "CAMERA" : "SCENE",state.scene_slot,state.count,
-             state.camera_ready ? " / NO OCCLUSION" : " / CAMERA UNAVAILABLE");
+    snprintf(label,sizeof(label),"%s %d / %u ACTIVE / %u GENERATED / %u OBJECTS%s",
+             cylinders ? "CAMERA" : "SCENE",state.scene_slot,state.count,generated,objects,
+             state.camera_ready ? " / NO OCCLUSION" : " / NO CAMERA");
     e2r_cue_text(surface,10,19,label,amber);
     if (cylinders) {
         const char *bypass = getenv("E2R_PROXY_MESH_BYPASS");

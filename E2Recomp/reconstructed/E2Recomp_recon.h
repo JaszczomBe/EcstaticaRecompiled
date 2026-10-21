@@ -465,7 +465,7 @@ void __fastcall FUN_0044d34c(undefined4 param_1);
 void __fastcall FUN_0044d3e8(undefined4 param_1);
 void __fastcall FUN_0044d4b4(undefined4 param_1);
 void __fastcall FUN_0044d608(undefined4 param_1,undefined4 param_2);
-void FUN_0044d634(void);
+void FUN_0044d634(int actor_id);
 undefined4 __fastcall FUN_0044db80(undefined4 param_1,undefined4 param_2);
 void __fastcall FUN_0044dca4(undefined4 param_1,undefined4 param_2);
 void FUN_0044e238(undefined4 actor);

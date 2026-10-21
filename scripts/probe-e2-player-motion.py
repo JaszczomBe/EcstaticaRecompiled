@@ -4,6 +4,8 @@
 Uses the four experimental flags, configurable logo delays and SDL/WndProc
 press/release input. Actor state is only read. Exit zero means the probe
 completed, not that movement, collisions or gameplay acceptance passed.
+Optional object inspection selects an original camera and runs its visibility
+sweep, which can load/activate objects; it never assigns actor coordinates.
 """
 import argparse
 import json
@@ -59,6 +61,10 @@ parser.add_argument('--background-spawns', action='store_true',
                     help='Run the original population scheduler from startup without the population-probe flag')
 parser.add_argument('--require-background-population', action='store_true',
                     help='Require the script population gate open and a live terrain-generated actor in the census')
+parser.add_argument('--inspect-object-scene', type=int, default=-1,
+                    help='After release, select the preloaded script scene\'s camera for an activation/presentation check, then restore the original view; this is not traversal')
+parser.add_argument('--inspect-approach-cameras', type=int, nargs='+', default=[],
+                    help='Select these original views before --inspect-object-scene to exercise neighbouring object initialization; no actor coordinates are assigned')
 args = parser.parse_args()
 if args.intro_skip_action < 0 or (args.intro_skip_action and args.natural_intro):
     parser.error('intro skip action must be nonnegative and separate from --natural-intro')
@@ -78,6 +84,11 @@ if args.hold_through_release and (not args.pedestal_guards or not args.simultane
     parser.error('--hold-through-release requires --pedestal-guards and --simultaneous-turn')
 if args.trace_queries < 0 or args.observe_seconds < 0 or args.population_frames < 0:
     parser.error('query count and observation seconds must be nonnegative')
+if args.inspect_object_scene < -1 or args.inspect_object_scene >= 2500:
+    parser.error('object scene must be an original script resource ID below 2500')
+if args.inspect_approach_cameras and (args.inspect_object_scene < 0 or
+        any(v < 0 or v >= 1200 for v in args.inspect_approach_cameras)):
+    parser.error('approach cameras require --inspect-object-scene and camera IDs below 1200')
 prefix = str(args.output.resolve())
 Path(prefix).parent.mkdir(parents=True, exist_ok=True)
 env = os.environ.copy()
@@ -201,7 +212,8 @@ def guard_checkpoint(label):
             index=match.group(1)
             points=[tuple(map(int,p)) for p in re.findall(r'actor_cylinder\['+index+r'\]\.point\[\d+\]=(-?\d+),(-?\d+),(-?\d+)',visibility)]
             front=[p for p in points if p[2]>0]
-            visible=bool(front) and min(p[0] for p in front)<640 and max(p[0] for p in front)>=0 and min(p[1] for p in front)<480 and max(p[1] for p in front)>=0
+            eligible=re.search(r'actor_cue\['+index+r'\] id=.*visible_in_view=1',visibility)
+            visible=bool(eligible and front) and min(p[0] for p in front)<640 and max(p[0] for p in front)>=0 and min(p[1] for p in front)<480 and max(p[1] for p in front)>=0
             require(visible,'Guard cylinder is outside the pedestal view')
             guard['projected_on_screen']=visible
     guard_checkpoints.append(dict(phase=label,wait=value('DAT_0047a76c'),guards=guards))
@@ -249,6 +261,8 @@ def population_census(label):
                 camera=(value('_DAT_0073cc3c')-0x67c728)//28)
     sample['generated_active']=[a['id'] for a in actors
                                 if a['pointer'] in active and a['table_flags']&8]
+    sample['generated_counted']=[a['id'] for a in actors
+                                if a['pointer'] in active and a['table_flags']&8 and a['state']!=11]
     population_samples.append(sample)
     with open(prefix+'-population.json','w') as out:json.dump(population_samples,out,indent=2)
     return sample
@@ -328,6 +342,62 @@ def checkpoint(label):
                        gameplay_acceptance=False),out,indent=2)
 advance(RELEASE_DELAY)
 checkpoint('before')
+object_view_sample=None
+if OBJECT_SCENE >= 0:
+    import struct
+    inf=gdb.selected_inferior()
+    scene=value(f'*(unsigned int*)(0x62e450+{OBJECT_SCENE}*4)')
+    require(scene!=0,'Requested object scene was not preloaded by the original startup script')
+    camera=value(f'*(short*)({scene}+2)')
+    original_camera=observe_camera()
+    original_position=[field(0x84+i*2) for i in range(3)]
+    for approach in APPROACH_CAMERAS:
+        gdb.execute(f'call FUN_0044be20({approach})',to_string=True)
+        require(value('DAT_0047a470')==actor,'Approach view changed Joe ownership')
+        require([field(0x84+i*2) for i in range(3)]==original_position,'Approach view moved Joe')
+        require(value('e2r_present_current_frame((HWND)_DAT_00ac4dac,1)')==1,'Approach view SDL presentation failed')
+        snapshot('approach-view-'+str(approach))
+    gdb.execute(f'call FUN_0044be20({camera})',to_string=True)
+    require(value('DAT_0047a470')==actor,'Object view changed Joe ownership')
+    require([field(0x84+i*2) for i in range(3)]==original_position,'Object view moved Joe')
+    active=[];node=value('_DAT_0063726c')
+    while node and len(active)<256:
+        require(node not in active,'Cycle after object activation')
+        active.append(node);node=value(f'*(unsigned int*)({node}+0x4c)')
+    children=[];child=value(f'*(unsigned int*)({scene}+4)')
+    while child and len(children)<128:
+        identifier=value(f'*(short*){child}')
+        flags=value(f'*(unsigned char*)({child}+14)')
+        if identifier>=0 and not flags&0x20:
+            pointer=value(f'*(unsigned int*)(0x630b60+{identifier}*4)')
+            cached=[value(f'*(short*)(0x669708+{identifier}*6+{axis}*2)') for axis in range(3)]
+            position=[value(f'*(short*)({pointer}+0x84+{axis}*2)') for axis in range(3)] if pointer else None
+            children.append(dict(id=identifier,actor=pointer,active=pointer in active,
+                                 cached=cached,position=position))
+        child=value(f'*(unsigned int*)({child}+24)')
+    require(any(c['active'] for c in children),'No child activated through the original visibility sweep')
+    require(value('e2r_present_current_frame((HWND)_DAT_00ac4dac,1)')==1,'Object view SDL presentation failed')
+    view_state=snapshot('object-view')
+    with open(prefix+'-object-view-state.txt') as stream:visibility=stream.read()
+    for child_state in children:
+        match=re.search(r'actor_cue\[(\d+)\] id='+str(child_state['id'])+r' ',visibility)
+        points=[]
+        if match:
+            points=[tuple(map(int,p)) for p in re.findall(
+                r'actor_cylinder\['+match.group(1)+r'\]\.point\[\d+\]=(-?\d+),(-?\d+),(-?\d+)',visibility)]
+        front=[p for p in points if p[2]>0]
+        eligible=match and re.search(r'actor_cue\['+match.group(1)+r'\] id=.*visible_in_view=1',visibility)
+        child_state['projected_on_screen']=bool(eligible and front) and min(p[0] for p in front)<640 and max(p[0] for p in front)>=0 and min(p[1] for p in front)<480 and max(p[1] for p in front)>=0
+    require(any(c['active'] and c['projected_on_screen'] for c in children),
+            'No active scene child has an on-screen diagnostic cylinder')
+    object_view_sample=dict(scene_id=OBJECT_SCENE,camera=camera,record=scene,
+                            approach_cameras=APPROACH_CAMERAS,
+                            diagnostic_view_selection=True,children=children,
+                            joe_position=original_position,state=view_state)
+    with open(prefix+'-object-view.json','w') as out:json.dump(object_view_sample,out,indent=2)
+    gdb.execute(f'call FUN_0044be20({original_camera})',to_string=True)
+    require(observe_camera()==original_camera,'Object view did not restore the original camera')
+    require([field(0x84+i*2) for i in range(3)]==original_position,'Object view return moved Joe')
 for modifier in TAP_MODIFIERS:
     modifier_vk={'shift':0x10,'ctrl':0x11,'alt':0x12}[modifier]
     key(modifier_vk,True);key(modifier_vk,False)
@@ -499,6 +569,7 @@ if observe_seconds:
         npc_observation=dict(samples=len(npc_samples),active_windows=active_windows,
                              moved_ids=sorted(moved),changed_ids=sorted(changed))
 report=dict(probe_complete=True,frames_per_phase=frames,states=states,
+            object_view_sample=object_view_sample,
             combined_turn=TURN_FORWARD,move_key=MOVE_KEY,turn_calls=turn_calls,
             simultaneous_turn=SIMULTANEOUS_TURN,burst_frames=BURST_FRAMES,
             background_spawns=BACKGROUND_SPAWNS,
@@ -518,7 +589,7 @@ print('PROBE COMPLETE: position_changed='+str(report['position_changed'])+
       ' facing_changed='+str(report['facing_changed'])+'; gameplay acceptance remains open')
 end
 quit
-'''.replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
+'''.replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
     'PROCESS_SECONDS', str(args.timeout + 10)).replace('LOGO_DELAY',str(args.startup_logo_delay_ms)).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
     'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip or bool(args.tap_modifiers))).replace('TAP_MODIFIERS',repr(args.tap_modifiers)).replace(
     'RELEASE_TURN',repr(args.release_turn_first)).replace('SIMULTANEOUS_TURN',repr(args.simultaneous_turn)).replace('HOLD_THROUGH_RELEASE',repr(args.hold_through_release)).replace('VIDEO_DRIVER',repr(args.video_driver)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(
