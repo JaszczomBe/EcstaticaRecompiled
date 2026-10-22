@@ -47,12 +47,15 @@ enum E2R_LogTag
     E2R_LOG_TAG_TIMING = 1ull << 7,
     E2R_LOG_TAG_AUDIO = 1ull << 8,
     E2R_LOG_TAG_PROBE = 1ull << 9,
-    E2R_LOG_TAG_DIAGNOSTIC = 1ull << 10
+    E2R_LOG_TAG_DIAGNOSTIC = 1ull << 10,
+    E2R_LOG_TAG_MISSING_SOUND = 1ull << 11
 };
 
 int E2R_LogBootstrap(const char *level, const char *disabled_modules, const char *data_dir);
 void E2R_LogShutdown(void);
-/* Mirror existing stderr diagnostics to the file sink without repeating them on the console. */
+/* True even when filters suppress all output; callers must not bypass filtering. */
+int E2R_LogIsActive(void);
+/* Submit a complete legacy diagnostic line to the console and session sinks. */
 void E2R_LogDiagnostic(const char *message);
 
 void E2R_LogWrite(int level,

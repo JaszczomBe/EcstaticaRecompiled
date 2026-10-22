@@ -10,10 +10,10 @@
     #include <cstdlib>
 #endif
 #include "Log/Sinks/FileSink.h"
-#include "Log/Sinks/StdoutSink.h"
+#include "Log/Sinks/StderrSink.h"
 #include "LogSupport/String/Trim.h"
 
-#include <iostream>
+#include <cstdlib>
 #include <memory>
 #include <vector>
 
@@ -62,11 +62,7 @@ namespace Ecstatica::Recompiled::Log
                    bool consoleOutput)
     {
         const auto trimmedLevel = Ecstatica::Recompiled::LogSupport::String::TrimAsciiWhitespace(level);
-        if (!trimmedLevel.empty() && !FromString(trimmedLevel))
-        {
-            std::cerr << "WARN: unrecognized logLevel '" << trimmedLevel
-                      << "', defaulting to build-configured logger level" << std::endl;
-        }
+        const bool invalidLevel = !trimmedLevel.empty() && !FromString(trimmedLevel);
 
         Config cfg;
         if (!trimmedLevel.empty())
@@ -80,14 +76,16 @@ namespace Ecstatica::Recompiled::Log
 
         if (consoleOutput)
         {
-            auto stdoutSink = std::make_shared<StdoutSink>();
+            auto consoleSink = std::make_shared<StderrSink>();
+            FormatOptions format = consoleSink->GetFormatOptions();
             if (configureFormat != nullptr)
-            {
-                FormatOptions format = stdoutSink->GetFormatOptions();
                 configureFormat(format);
-                stdoutSink->SetFormatOptions(format);
-            }
-            sinks.emplace_back(stdoutSink);
+            format.includeTimestamp = true;
+            // Keep colors in the VS Code Debug Console as well as terminals.
+            const char* noColor = std::getenv("NO_COLOR");
+            format.useColor = noColor == nullptr || noColor[0] == '\0';
+            consoleSink->SetFormatOptions(format);
+            sinks.emplace_back(consoleSink);
         }
 
         const auto trimmedFilePath = Ecstatica::Recompiled::LogSupport::String::TrimAsciiWhitespace(filePath);
@@ -100,6 +98,7 @@ namespace Ecstatica::Recompiled::Log
             format.includeTimestamp = true;
             if (configureFormat != nullptr)
                 configureFormat(format);
+            format.useColor = false;
             fileSink->SetFormatOptions(format);
             sinks.emplace_back(fileSink);
         }
@@ -116,6 +115,10 @@ namespace Ecstatica::Recompiled::Log
         auto& logger = Logger::Instance();
         logger.Start(cfg);
         logger.ReplaceSinks(sinks);
+        if (invalidLevel)
+            logger.Log(Level::Warning, ModuleID::Runtime, {},
+                       "unrecognized logLevel '" + std::string(trimmedLevel) +
+                       "', defaulting to build-configured logger level");
         return true;
     }
 

@@ -1862,6 +1862,18 @@ static int e2r_visibility_state_exists(const char *prefix)
     return access(path, F_OK) == 0;
 }
 
+/* Bounded probes bypass atexit to stop the game thread. Drain asynchronous
+ * diagnostics first so their final state records reach both logger sinks. */
+static void e2r_probe_exit(int status)
+{
+#if E2R_ENABLE_RUNTIME_OPTIONS
+    E2R_LogFlush();
+    E2R_LogShutdown();
+#endif
+    fflush(stderr);
+    _exit(status);
+}
+
 static void *e2r_scene175_visibility_thread(void *arg)
 {
     E2R_Scene175VisibilityRequest *request = (E2R_Scene175VisibilityRequest *)arg;
@@ -1871,7 +1883,7 @@ static void *e2r_scene175_visibility_thread(void *arg)
 
     if (e2r_wait_for_scene_slot(1073u, request->timeout_seconds, 0) >=
         request->timeout_seconds * 1000u) {
-        _exit(4);
+        e2r_probe_exit(4);
     }
 
     memset(&key_request, 0, sizeof(key_request));
@@ -1883,7 +1895,7 @@ static void *e2r_scene175_visibility_thread(void *arg)
 
     if (e2r_wait_for_scene_slot(175u, request->timeout_seconds, 1) >=
         request->timeout_seconds * 1000u) {
-        _exit(5);
+        e2r_probe_exit(5);
     }
 
     if (request->packet_wait_ms != 0) {
@@ -1901,7 +1913,7 @@ static void *e2r_scene175_visibility_thread(void *arg)
         if (e2r_visibility_state_exists(request->prefix)) {
             fprintf(stderr, "scene-175 visibility packet observed: %s-state.txt\n",
                     request->prefix);
-            _exit(0);
+            e2r_probe_exit(0);
         }
         usleep(10000);
         waited_ms += 10;
@@ -1909,7 +1921,7 @@ static void *e2r_scene175_visibility_thread(void *arg)
     fprintf(stderr,
             "scene-175 visibility packet wait timed out after %u ms: %s-state.txt\n",
             waited_ms, request->prefix);
-    _exit(6);
+    e2r_probe_exit(6);
     return NULL;
 }
 
@@ -2175,11 +2187,11 @@ static void *e2r_frame_dump_thread(void *arg)
                     (unsigned long)DAT_00636857, (unsigned long)DAT_0063685c,
                     (unsigned long)DAT_0063685a, (unsigned long)DAT_00636855);
             fflush(stderr);
-            _exit(0);
+            e2r_probe_exit(0);
         }
         fprintf(stderr, "failed to write surface dumps with prefix: %s\n", request->path);
         fflush(stderr);
-        _exit(3);
+        e2r_probe_exit(3);
     }
 
     if (e2r_write_frame_pgm(request->path, &surface)) {
@@ -2203,11 +2215,11 @@ static void *e2r_frame_dump_thread(void *arg)
                 (unsigned long)DAT_00636857, (unsigned long)DAT_0063685c,
                 (unsigned long)DAT_0063685a, (unsigned long)DAT_00636855);
         fflush(stderr);
-        _exit(0);
+        e2r_probe_exit(0);
     }
     fprintf(stderr, "failed to write frame dump: %s\n", request->path);
     fflush(stderr);
-    _exit(3);
+    e2r_probe_exit(3);
     return NULL;
 }
 
@@ -2635,8 +2647,6 @@ int main(int argc, char **argv)
 
     if (!SetCurrentDirectoryA(runtime_options.game_data_dir)) {
         fprintf(stderr, "failed to enter Ecstatica II data directory\n");
-        E2R_LOG_ERROR(E2R_LOG_MODULE_RUNTIME, E2R_LOG_TAG_STARTUP,
-                      "failed to enter Ecstatica II data directory");
         return 1;
     }
 #else

@@ -10,6 +10,11 @@ int E2R_LogBootstrap(const char *level, const char *disabled_modules, const char
     return 1;
 }
 
+int E2R_LogIsActive(void)
+{
+    return 0;
+}
+
 void E2R_LogDiagnostic(const char *message)
 {
     (void)message;

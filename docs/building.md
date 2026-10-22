@@ -119,9 +119,17 @@ Cylinders are host diagnostics tied to validated actor coordinates. Movement, po
 
 ## Runtime Logging
 
-F5 and terminal launches write rotating `e2recomp_*.log` files under `~/.ecstatica2/logs`. The output directory resolves before entering the original game-data directory, so changing the selected build or launch working directory does not relocate logs. Each file rotates at 5 MiB. This is file logging, not a route recorder or a guarantee that asynchronous records survive a crash.
+F5 and terminal launches use the C++ logger for both stderr and session files. Each launch creates `~/.ecstatica2/logs/session_YYYYMMDD_HHMMSS_mmm/`, containing JSON `session.meta` and rotating `e2recomp_*.log` files. The output directory resolves before entering the original game-data directory, so changing the selected build or launch working directory does not relocate logs. Each file rotates at 5 MiB. This is file logging, not a route recorder or a guarantee that asynchronous records survive a crash.
 
-The file includes the startup record and existing diagnostics emitted through the runtime's stderr wrapper, under `Runtime.Diagnostic`. Console diagnostics still appear once, with their existing text. This does not capture arbitrary library stderr, ASan's own reports, or every gameplay event; keep the debugger/probe output for sanitizer failures.
+Console and file records include timestamps, modules and severity (`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`). Console records use severity colors, including in the VS Code Debug Console; set a nonempty `NO_COLOR` to disable ANSI colors. Session files always contain plain text. Existing runtime stderr diagnostics become `Runtime.Diagnostic` records once, using conventional severity prefixes (`warning:`, `error:`, `fatal:`, `debug:`, `trace:` and uppercase forms, plus `WARN:`). Unprefixed diagnostics default to `INFO`; `failed to ...` is `ERROR`, and recoverable `E2R open failed:` reports are `WARN`. Typed logger calls retain their explicit level. Fragmented `fprintf`/`vfprintf` calls are assembled into records. Controlled probe exits drain the logger before `_exit`. This does not capture arbitrary library stderr, ASan's own reports, or every gameplay event; keep the debugger/probe output for sanitizer failures.
+
+Input uses `Runtime.Input` at `DEBUG`; missing sound archives use `Runtime.MissingSound` at `TRACE`. `--log-level Info` hides both; `--log-level Debug` retains input while hiding missing sound. The build's default threshold is unchanged (`Trace` for Debug builds, `Info` for Release builds).
+
+Normal input logging describes virtual keys delivered through the Win32 compatibility boundary: `input: key=Up state=pressed`, then one `state=held` record on the first repeated keydown, then `state=released`. Records include the elapsed `held_ms`; keys without autorepeat still report their duration on release. Subsequent repeats and duplicate releases add no records, and overlapping keys have independent state. Logging never suppresses input delivery or changes the game's key queues. There is no session-wide event cap on these summaries.
+
+Detailed SDL events, keyboard snapshots, message dispatch and legacy input-flag traces are hidden by default. Set `E2R_INPUT_DIAG_VERBOSE=1` to retain them as additional `Runtime.Input` Debug records. Existing `E2R_INPUT_DIAG=0` disables host key summaries; Release builds require `E2R_INPUT_DIAG=1` to enable them. Explicit probe state snapshots remain available at Debug. This is state-change logging, not a periodic held-key snapshot or a route recorder.
+
+The existing session retention policy runs at startup: preserve at least the newest 10 previous sessions, deleting older session directories only when their total size exceeds 128 MiB. Legacy flat log files are left alone. Simultaneous launches use distinct session directories. Session metadata records creation time, PID, build type, rotation and retention settings.
 
 Override output and filtering with `E2R_DATA_DIR`, `E2R_LOG_LEVEL` and `E2R_LOG_DISABLE_MODULES`, or pass the corresponding CLI options **before** the runtime command. CLI options take precedence over environment defaults. For example:
 
@@ -130,7 +138,7 @@ Override output and filtering with `E2R_DATA_DIR`, `E2R_LOG_LEVEL` and `E2R_LOG_
   --data-dir /tmp/e2-session --log-level Info --run-recon
 ```
 
-`--log-level Off` suppresses logger records while retaining the existing console diagnostics. `--log-disable-modules Runtime` suppresses startup and the mirrored diagnostics. The game-data directory still comes from the selected CMake configuration; `--game-data-dir` is an optional launch override. Missing option values and invalid output/log directories fail at startup with an explicit error.
+`--log-level Off` suppresses logger records in both console and file output. `--log-disable-modules Runtime` suppresses startup and the adapted diagnostics in both sinks. Errors before logger bootstrap still use ordinary stderr. The game-data directory still comes from the selected CMake configuration; `--game-data-dir` is an optional launch override. Missing option values and invalid output/log directories fail at startup with an explicit error.
 
 `E2R_ENABLE_LOGGER=OFF` selects a C-only logging stub while retaining runtime options. Turning off both logger and runtime options remains available for isolated compatibility experiments; the shared presets enable both.
 
@@ -151,7 +159,7 @@ SDL_VIDEODRIVER=dummy E2R_ACTOR_CUES=1 timeout 140 build/Debug/clang21-i386-sdl/
 
 The existing regression scripts now configure/build both standard X11 presets, including ASan; `E2R_SKIP_BUILD=1` skips that preparation when builds are current. They retain their input, surface, and sanitizer assertions. There are no CTest/package/workflow presets yet. Runtime probe execution requires an environment that supports the reconstruction's i386 fixed-address mappings.
 
-The developer-launch checks read the single VS Code launch configuration and exercise the built executable from its build directory using dummy SDL. They check automatic logging, diagnostic mirroring (including variadic game-state messages), clean debugger exit, path overrides, filters and failure reporting. They use temporary output roots and do not drive the VS Code UI.
+The developer-launch checks read the single VS Code launch configuration and exercise the built executable from its build directory using dummy SDL. They check session creation/metadata, console severity/colors, plain-text file output, fragmented game-state messages, clean debugger exit, path overrides, filters and failure reporting. They use temporary output roots and do not drive the VS Code UI.
 
 Also exercise the actual game entry on the desktop through the installed `cppdbg` adapter:
 

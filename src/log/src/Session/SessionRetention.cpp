@@ -318,7 +318,8 @@ namespace Ecstatica::Recompiled::Log::Session
             return startupSession;
 
         const auto normalizedLogsRoot = Ecstatica::Recompiled::LogSupport::String::Path::EnsureTrailingSlash(std::string(logsRoot));
-        Ecstatica::Recompiled::LogSupport::IO::FileSystemIO::CreateDirectory(normalizedLogsRoot);
+        if (!Ecstatica::Recompiled::LogSupport::IO::FileSystemIO::CreateDirectory(normalizedLogsRoot))
+            return startupSession;
 
         auto sessions = CollectSessions(normalizedLogsRoot);
         startupSession.cleanup.scannedSessions = sessions.size();

@@ -3,18 +3,22 @@
 #include "Log/Core/Format.h"
 #include "Log/Core/Logger.h"
 #include "Log/LogBootstrap.h"
+#include "Log/Constants.h"
+#include "Log/Session/SessionRetention.h"
 
 #include <cstdarg>
 #include <atomic>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 namespace
 {
-    std::atomic<bool> diagnosticMirrorEnabled{false};
+    std::atomic<bool> loggingActive{false};
     using namespace Ecstatica::Recompiled::Log;
 
     Level ToLevel(int level)
@@ -45,6 +49,7 @@ namespace
             {E2R_LOG_TAG_AUDIO, "Audio"},
             {E2R_LOG_TAG_PROBE, "Probe"},
             {E2R_LOG_TAG_DIAGNOSTIC, "Diagnostic"},
+            {E2R_LOG_TAG_MISSING_SOUND, "MissingSound"},
         };
 
         for (auto module : {ModuleID::Runtime,
@@ -66,15 +71,41 @@ namespace
         }
     }
 
-    std::string BuildLogPath(const char* dataDir)
+    int DiagnosticLevel(std::string_view message)
     {
-        std::filesystem::path root = dataDir;
-        std::filesystem::path logs = root / "logs";
-        std::error_code ec;
-        std::filesystem::create_directories(logs, ec);
-        if (ec)
-            return {};
-        return (logs / "e2recomp.log").string();
+        if (message.starts_with("fatal:") || message.starts_with("FATAL:"))
+            return E2R_LOG_LEVEL_FATAL;
+        if (message.starts_with("error:") || message.starts_with("ERROR:") || message.starts_with("failed to "))
+            return E2R_LOG_LEVEL_ERROR;
+        if (message.starts_with("warning:") || message.starts_with("WARN:") || message.starts_with("WARNING:") ||
+            message.starts_with("E2R open failed:"))
+            return E2R_LOG_LEVEL_WARNING;
+        if (message.starts_with("debug:") || message.starts_with("DEBUG:"))
+            return E2R_LOG_LEVEL_DEBUG;
+        if (message.starts_with("trace:") || message.starts_with("TRACE:"))
+            return E2R_LOG_LEVEL_TRACE;
+        return E2R_LOG_LEVEL_INFO;
+    }
+
+    bool IsVerboseInputDiagnostic(std::string_view message)
+    {
+        if (message.starts_with("game state: ") && message.find(" input esc=") != std::string_view::npos)
+            return true;
+        for (const auto prefix : {"host input ", "host keyboard state:", "host message dispatch:",
+                                  "host pump:", "host class register:", "host window proc bind:",
+                                  "game input:", "game state: 15d40.clear input "})
+            if (message.starts_with(prefix))
+                return true;
+        return false;
+    }
+
+    bool VerboseInputEnabled()
+    {
+        static const bool enabled = [] {
+            const char* value = std::getenv("E2R_INPUT_DIAG_VERBOSE");
+            return value != nullptr && value[0] != '\0' && value[0] != '0';
+        }();
+        return enabled;
     }
 }
 
@@ -84,15 +115,32 @@ extern "C" int E2R_LogBootstrap(const char* level, const char* disabled_modules,
     {
         if (data_dir == nullptr || data_dir[0] == '\0')
             return 0;
-        const std::string logPath = BuildLogPath(data_dir);
-        if (logPath.empty() || !Ecstatica::Recompiled::Log::Bootstrap(
+        using namespace Ecstatica::Recompiled::Log;
+        const Session::RetentionPolicy policy;
+        Session::Metadata metadata;
+        metadata.appId = "EcstaticaRecompiled";
+        metadata.rootLogFileBaseName = "e2recomp.log";
+        metadata.rotateBytes = kLogFileRotateBytes;
+        metadata.retentionMinSessions = policy.minSessions;
+        metadata.retentionMaxTotalSizeMb = policy.maxTotalSizeBytes / (1024 * 1024);
+        const auto session = Session::PrepareStartupSession(
+            (std::filesystem::path(data_dir) / "logs").string(), "e2recomp.log", policy, metadata);
+        if (session.logFilePath.empty() ||
+            !std::filesystem::is_regular_file(std::filesystem::path(session.sessionDirectory) / "session.meta") ||
+            !Bootstrap(
             level != nullptr ? level : "",
             disabled_modules != nullptr ? disabled_modules : "",
             false,
             RegisterCommonTags,
-            logPath, false))
+            session.logFilePath, true))
             return 0;
-        diagnosticMirrorEnabled.store(true, std::memory_order_release);
+        loggingActive.store(true, std::memory_order_release);
+        E2R_LogWrite(E2R_LOG_LEVEL_INFO, E2R_LOG_MODULE_RUNTIME, E2R_LOG_TAG_STARTUP,
+                     nullptr, nullptr, 0, ("Log session: " + session.sessionDirectory).c_str());
+        if (session.cleanup.removedSessions || session.cleanup.failedRemovals)
+            E2R_LogWrite(session.cleanup.failedRemovals ? E2R_LOG_LEVEL_WARNING : E2R_LOG_LEVEL_INFO,
+                         E2R_LOG_MODULE_RUNTIME, E2R_LOG_TAG_STARTUP, nullptr, nullptr, 0,
+                         Session::FormatCleanupSummary(session.cleanup).c_str());
         return 1;
     }
     catch (const std::exception& error)
@@ -104,15 +152,41 @@ extern "C" int E2R_LogBootstrap(const char* level, const char* disabled_modules,
 
 extern "C" void E2R_LogShutdown(void)
 {
-    diagnosticMirrorEnabled.store(false, std::memory_order_release);
+    loggingActive.store(false, std::memory_order_release);
     Ecstatica::Recompiled::Log::BootstrapShutdown();
+}
+
+extern "C" int E2R_LogIsActive(void)
+{
+    return loggingActive.load(std::memory_order_acquire);
 }
 
 extern "C" void E2R_LogDiagnostic(const char* message)
 {
-    if (diagnosticMirrorEnabled.load(std::memory_order_acquire))
-        E2R_LogWrite(E2R_LOG_LEVEL_INFO, E2R_LOG_MODULE_RUNTIME,
-                     E2R_LOG_TAG_DIAGNOSTIC, nullptr, nullptr, 0, message);
+    if (!E2R_LogIsActive() || message == nullptr)
+        return;
+    const std::string_view text = message;
+    int level = DiagnosticLevel(text);
+    uint64_t tag = E2R_LOG_TAG_DIAGNOSTIC;
+    if (text.starts_with("game state: sound archive missing ignored "))
+    {
+        level = E2R_LOG_LEVEL_TRACE;
+        tag = E2R_LOG_TAG_MISSING_SOUND;
+    }
+    else if (IsVerboseInputDiagnostic(text))
+    {
+        if (!VerboseInputEnabled())
+            return;
+        level = E2R_LOG_LEVEL_DEBUG;
+        tag = E2R_LOG_TAG_INPUT;
+    }
+    else if (text.starts_with("input:") || text.starts_with("input state") ||
+             text.starts_with("posted key ") || text.starts_with("dispatched "))
+    {
+        level = E2R_LOG_LEVEL_DEBUG;
+        tag = E2R_LOG_TAG_INPUT;
+    }
+    E2R_LogWrite(level, E2R_LOG_MODULE_RUNTIME, tag, nullptr, nullptr, 0, message);
 }
 
 extern "C" void E2R_LogWrite(int level,

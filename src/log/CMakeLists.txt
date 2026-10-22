@@ -15,6 +15,7 @@ add_library(e2r_log STATIC
     src/LogSupport/Time/Timer.cpp
     src/Modules/ModuleId.cpp
     src/Paths/Paths.cpp
+    src/Session/SessionRetention.cpp
     src/Sinks/FileSink.cpp
     src/Sinks/StderrSink.cpp
     src/Sinks/StdoutSink.cpp

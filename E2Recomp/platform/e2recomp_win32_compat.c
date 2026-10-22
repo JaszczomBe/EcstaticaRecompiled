@@ -202,6 +202,75 @@ static int e2r_input_diag_enabled(void)
     return enabled;
 }
 
+static const char *e2r_input_key_name(unsigned key, char *buffer, size_t size)
+{
+    switch (key) {
+    case VK_ESCAPE: return "Escape";
+    case VK_SPACE: return "Space";
+    case VK_RETURN: return "Enter";
+    case VK_UP: return "Up";
+    case VK_DOWN: return "Down";
+    case VK_LEFT: return "Left";
+    case VK_RIGHT: return "Right";
+    case VK_SHIFT: return "Shift";
+    case VK_CONTROL: return "Control";
+    case VK_MENU: return "Alt";
+    case VK_LMENU: return "LeftAlt";
+    case VK_RMENU: return "RightAlt";
+    default:
+        if ((key >= 'A' && key <= 'Z') || (key >= '0' && key <= '9'))
+            snprintf(buffer, size, "%c", (int)key);
+        else if (key >= 0x70 && key <= 0x87)
+            snprintf(buffer, size, "F%u", key - 0x70 + 1);
+        else if (key >= 0x60 && key <= 0x69)
+            snprintf(buffer, size, "Keypad%u", key - 0x60);
+        else
+            snprintf(buffer, size, "VK_0x%02X", key);
+        return buffer;
+    }
+}
+
+/* Diagnostic state only. Never suppress delivery or alter legacy key queues.
+ * A first repeat changes pressed -> held; later repeats need no new record. */
+static void e2r_log_input_key(UINT msg, WPARAM key)
+{
+    static unsigned char states[256];
+    static DWORD pressed_at[256];
+    const char *state;
+    char name[24];
+    DWORD now;
+
+    if ((msg != WM_KEYDOWN && msg != WM_KEYUP) || key >= 256 || !e2r_input_diag_enabled())
+        return;
+    e2r_message_lock();
+    now = e2r_monotonic_milliseconds();
+    if (msg == WM_KEYUP) {
+        if (states[key] == 0) {
+            e2r_message_unlock();
+            return;
+        }
+        states[key] = 0;
+        state = "released";
+    }
+    else if (states[key] == 0) {
+        states[key] = 1;
+        pressed_at[key] = now;
+        state = "pressed";
+    }
+    else if (states[key] == 1) {
+        states[key] = 2;
+        state = "held";
+    }
+    else {
+        e2r_message_unlock();
+        return;
+    }
+    fprintf(stderr, "input: key=%s state=%s held_ms=%lu\n",
+            e2r_input_key_name((unsigned)key, name, sizeof(name)), state,
+            (unsigned long)(DWORD)(now - pressed_at[key]));
+    e2r_message_unlock();
+}
+
 static int e2r_should_log_host_message(UINT msg)
 {
     switch (msg) {
@@ -249,10 +318,12 @@ static void e2r_queue_host_message(UINT msg, WPARAM wparam, LPARAM lparam, void 
         message_diag_count++;
     }
     if (msg == WM_KEYDOWN && wparam == VK_F12) {
+        e2r_log_input_key(msg, wparam);
         E2R_RequestVisibilityDump();
         return;
     }
     if (e2r_window_proc != NULL && msg != WM_QUIT) {
+        e2r_log_input_key(msg, wparam);
         e2r_window_proc(&e2r_window, msg, wparam, lparam);
         return;
     }
@@ -860,6 +931,7 @@ LRESULT DispatchMessageA(const MSG *msg)
     if (msg == NULL) {
         return 0;
     }
+    e2r_log_input_key(msg->message, msg->wParam);
     if (e2r_window_proc != NULL && msg->message != WM_QUIT) {
         return e2r_window_proc(msg->hwnd, msg->message, msg->wParam, msg->lParam);
     }

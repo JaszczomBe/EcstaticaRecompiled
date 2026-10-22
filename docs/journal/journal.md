@@ -4,6 +4,10 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Input log transitions and missing-sound severity — 2026-10-21](entries/input-log-transitions-and-missing-sound-severity-2026-10-21.md): gives input and missing sound separate Debug/Trace tags, logs key press/held/release changes and keeps protocol dumps opt-in; dispatcher checks prove repeated keys still reach the legacy handler.
+
+- [Logger console severity and sessions — 2026-10-21](entries/logger-console-severity-and-sessions-2026-10-21.md): replaces legacy console formatting with the C++ logger, enables severity colors and per-run session directories, and drains controlled probe exits; Debug/ASan logging checks, native adapter launches and baselines pass.
+
 - [Native F5 file-open heap corruption — 2026-10-21](entries/native-f5-file-open-heap-corruption-2026-10-21.md): reproduces the real desktop heap abort, catches its writer with a hardware watchpoint, restores the original CRT helper's second output destination and verifies native launch through the installed VS Code debug adapter.
 
 - [Logger developer workflow — 2026-10-21](entries/logger-developer-workflow-2026-10-21.md): integrates automatic file logging with the selected-target F5 workflow, shared Debug/ASan runtime options, discovered C++ multilib support and complete variadic diagnostics; records launch checks, passing baselines and the remaining ASan traversal limit.

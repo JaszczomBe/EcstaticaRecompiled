@@ -6,6 +6,7 @@
 #include <ctime>
 #include <cstdio>
 #include <sstream>
+#include <filesystem>
 
 namespace Ecstatica::Recompiled::Log::Paths
 {
@@ -28,27 +29,37 @@ namespace Ecstatica::Recompiled::Log::Paths
             return {};
 
         const auto normalizedRoot = Ecstatica::Recompiled::LogSupport::String::Path::EnsureTrailingSlash(std::string(logsRoot));
-        Ecstatica::Recompiled::LogSupport::IO::FileSystemIO::CreateDirectory(normalizedRoot);
+        if (!Ecstatica::Recompiled::LogSupport::IO::FileSystemIO::CreateDirectory(normalizedRoot))
+            return {};
 
         using namespace std::chrono;
         const auto now = system_clock::now();
-        const auto tt = system_clock::to_time_t(now);
-        const auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
+        // Create exclusively: simultaneous launches must never share a session.
+        for (unsigned attempt = 0; attempt < 1000; ++attempt)
+        {
+            const auto candidate = now + milliseconds(attempt);
+            const auto tt = system_clock::to_time_t(candidate);
+            const auto ms = duration_cast<milliseconds>(candidate.time_since_epoch()) % 1000;
 
-        std::tm tm{};
+            std::tm tm{};
     #if defined(_WIN32)
-        localtime_s(&tm, &tt);
+            localtime_s(&tm, &tt);
     #else
-        localtime_r(&tt, &tm);
+            localtime_r(&tt, &tm);
     #endif
 
-        std::ostringstream sessionName;
-        sessionName << "session_" << std::put_time(&tm, "%Y%m%d_%H%M%S")
-                    << '_' << std::setw(3) << std::setfill('0') << ms.count();
+            std::ostringstream sessionName;
+            sessionName << "session_" << std::put_time(&tm, "%Y%m%d_%H%M%S")
+                        << '_' << std::setw(3) << std::setfill('0') << ms.count();
 
-        const auto sessionDir = Join(normalizedRoot, sessionName.str());
-        Ecstatica::Recompiled::LogSupport::IO::FileSystemIO::CreateDirectory(sessionDir);
-        return sessionDir;
+            const auto sessionDir = Join(normalizedRoot, sessionName.str());
+            std::error_code ec;
+            if (std::filesystem::create_directory(sessionDir, ec))
+                return sessionDir;
+            if (ec && ec != std::errc::file_exists)
+                return {};
+        }
+        return {};
     }
 
     std::string BuildSessionFilePath(std::string_view logsRoot, std::string_view fileName)
