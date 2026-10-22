@@ -19,6 +19,8 @@ import time
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('exe', type=Path, help='Executable selected by the CMake preset')
 parser.add_argument('--adapter', type=Path, help='OpenDebugAD7 path; otherwise discover in ~/.vscode/extensions')
+parser.add_argument('--record', choices=['off', 'auto'], default='off',
+                    help='Agent runs default off; auto explicitly verifies human F5 recording')
 parser.add_argument('--seconds', type=float, default=30)
 parser.add_argument('--output', type=Path, default=Path('/tmp/e2-vscode-launch'))
 args = parser.parse_args()
@@ -29,6 +31,7 @@ launch = json.loads((root / '.vscode/launch.json').read_text())['configurations'
 assert launch['type'] == 'cppdbg' and launch['request'] == 'launch'
 assert launch['program'] == '${command:cmake.launchTargetPath}'
 assert launch['cwd'] == '${command:cmake.getLaunchTargetDirectory}'
+launch.setdefault('environment', []).append({'name':'E2R_RECORD','value':args.record})
 launch['program'] = str(args.exe.resolve(strict=True))
 launch['cwd'] = str(args.exe.resolve().parent)
 for item in launch.get('environment', []):

@@ -2,13 +2,15 @@
 
 Status: in progress; workshop initialization crash reproduced/repaired and object/actor visibility audited; manual location re-entry and sword pickup remain open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
-Last Updated: 2026-10-20
+Last Updated: 2026-10-22
 
 ## Goal
 
 Restore original scene objects and NPCs needed for exploration and basic interaction while retaining cylinder presentation and Joe's working movement/camera transitions. Begin with one verified original resource and behavior; original models and full combat remain later work.
 
 ## Current Continuation — NPC Poses And Object Interaction
+
+The [natural-intro detach repair](../../../../../journal/entries/natural-intro-attachment-detach-2026-10-22.md) recovers the reported `FUN_0042db74` event node and attached-actor inputs. Starting normally without input or recording now completes both intros in Debug, followed by a verified 15-second idle observation. Original detach/caller comparisons pass normally and under ASan. A separate actor-deactivation script callback still faults during the full ASan natural route; workshop re-entry, sword pickup and broader interaction acceptance remain open.
 
 The user confirms the two pedestal guards wander after intro 2. [General population and direction audit](../../../../../journal/entries/general-population-and-direction-audit-2026-10-19.md) now recovers the first `0x42f9c0` spawn event and queued-action failure, including root/FK pose and angle conversion inputs. Correct archive identity is scoped to original scheduler/event loads. F5 sets `E2R_DEFER_BACKGROUND_SPAWNS=0`, with no population-probe flag or per-enemy whitelist. Populated Debug/ASan 175→166→175 routes and released-input observations pass. Earlier deferral, opt-in-only and failed-return statements below describe the prior slice.
 

@@ -25,6 +25,7 @@ assert launch['cwd'] == '${command:cmake.getLaunchTargetDirectory}'
 assert launch['args'] == ['--run-recon']
 assert 'preLaunchTask' not in launch
 env = os.environ.copy()
+env["E2R_RECORD"] = "off"
 env.update({item['name']: re.sub(r'\$\{env:([^}]+)\}',
                                lambda match: os.environ.get(match[1], ''), item['value'])
             for item in launch['environment']})

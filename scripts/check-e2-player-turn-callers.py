@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare the two player forward/turn caller contracts with original i386.
+"""Compare player and NPC turn caller contracts with original i386.
 
 The turn leaf is intercepted to compare actor and signed angle arguments. Actual
 turn matrices are covered by check-e2-motion-query.py. This is not gameplay proof.
@@ -32,6 +32,8 @@ def original(start, end):
 source = (Path(__file__).resolve().parent.parent / 'E2Recomp/reconstructed/E2Recomp_recon.c').read_text()
 calls = re.findall(r'FUN_0042b074\([^;]*local_6c \+ 0xb7[^;]*\);', source)
 assert len(calls) == 2, 'Expected exactly two forward/turn calls'
+npc_calls = re.findall(r'FUN_0042b074\([^;]*local_64[^;]*\);', source)
+assert len(npc_calls) == 5, 'Expected five target-facing turn call sites'
 harness = r'''
 #include <stdint.h>
 #include <stdio.h>
@@ -54,7 +56,9 @@ __attribute__((naked)) static void run_original(int address,void *frame) {
 '''
 for direction, call in enumerate(calls):
     harness += f'static void native_{direction}(short *local_6c,uint uVar25) {{\n{call}\n}}\n'
-for start,end in ((0x42967b,0x429692),(0x429645,0x42965e)):
+for index, call in enumerate(npc_calls):
+    harness += f'static void npc_{index}(short *local_6c,int local_64,uint uVar25) {{\n{call}\n}}\n'
+for start,end in ((0x42967b,0x429692),(0x429645,0x42965e),(0x428c0d,0x428c1b),(0x428bf8,0x428c08)):
     harness += f'static const unsigned char code_{start:x}[]={{'+','.join(map(str,original(start,end)))+'};\n'
 harness += r'''
 static void map(int address,int n) {
@@ -64,6 +68,8 @@ int main(void) {
     map(0x420000,0x10000);map(0x900000,0x10000);
     memcpy((void*)0x42967b,code_42967b,sizeof code_42967b);*(char*)0x429692=0xc3;
     memcpy((void*)0x429645,code_429645,sizeof code_429645);*(char*)0x42965e=0xc3;
+    memcpy((void*)0x428c0d,code_428c0d,sizeof code_428c0d);*(char*)0x428c1b=0xc3;
+    memcpy((void*)0x428bf8,code_428bf8,sizeof code_428bf8);*(char*)0x428c08=0xc3;
     *(char*)0x42b074=0xe9;*(int*)0x42b075=(int)turn_hook-0x42b079;
     short rates[]={-32768,-32767,-2049,-1,0,1,16,2048,32767};
     uint poisons[]={0,1,0x80,0xff,0xffff,0xdeadbeef};
@@ -88,6 +94,29 @@ int main(void) {
     printf("PASS: %u original-i386 forward/turn actor and signed angle caller cases\n",cases);
 }
 '''
+# The original shares two tail blocks among five reconstructed NPC branches.
+# Compare every duplicated call, including poison values in the lost temporary.
+npc_test = r'''
+    cases=0;
+    for(int owner=0;owner<3;owner++)for(int r=0;r<9;r++)for(int p=0;p<6;p++) {
+        int actor=0x900000+owner*0x200;
+        *(int*)0x90402a=actor;*(int*)0x904032=rates[r];
+'''
+for index,call in enumerate(npc_calls):
+    address=0x428bf8 if '-0x200' in call else 0x428c0d
+    npc_test += f'''
+        run_original({address},(void*)0x904000);
+        {{ uint expected_actor=captured_actor;short expected_angle=captured_angle;
+          npc_{index}((short*)actor,rates[r],poisons[p]);
+          assert(expected_actor==(uint)actor);
+          assert(captured_actor==expected_actor&&captured_angle==expected_angle);++cases; }}
+'''
+npc_test += r'''
+    }
+    printf("PASS: %u original-i386 NPC target-facing actor and signed angle caller cases\n",cases);
+'''
+harness=harness.replace('    printf("PASS: %u original-i386 forward/turn actor and signed angle caller cases\\n",cases);',
+                        '    printf("PASS: %u original-i386 forward/turn actor and signed angle caller cases\\n",cases);\n'+npc_test)
 with tempfile.TemporaryDirectory(prefix='e2-player-turn-callers-') as tmp:
     c=Path(tmp)/'check.c';exe=Path(tmp)/'check';c.write_text(harness)
     if args.keep_harness:args.keep_harness.write_text(harness)

@@ -1,0 +1,8 @@
+execute_process(COMMAND git describe --always --dirty WORKING_DIRECTORY "${SOURCE}" OUTPUT_VARIABLE revision OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(content "#define E2R_REPLAY_REVISION \"${revision}\"\n")
+if(EXISTS "${OUTPUT}")
+  file(READ "${OUTPUT}" previous)
+endif()
+if(NOT content STREQUAL previous)
+  file(WRITE "${OUTPUT}" "${content}")
+endif()

@@ -174,3 +174,7 @@ This opens the normal game window using `launch.json` arguments/environment and 
 Use fresh capture prefixes and inspect the actual scene/actor state. ASan and gated action-index paths have known runtime limitations documented in the [active implementation](implementations/playable-sdl-runtime/playable-sdl-runtime.md). Manual F5 is still the final check of the actual editor integration; shell probes cannot establish VS Code's selected state.
 
 Focused C++ logger checks, including real-time pooling/deferred formatting, masks and native source stacks, are documented in [the logger guide](../src/log/include/Log/README.md). Enable `E2R_LOG_BUILD_TESTS` in a separate build directory; the standard developer presets keep test hooks disabled.
+
+## Gameplay recordings
+
+SDL human launches record automatically; agent helpers explicitly disable capture. See [CSV recording and replay](replay.md) for controls, recovery, retention and the current gameplay fidelity limits.

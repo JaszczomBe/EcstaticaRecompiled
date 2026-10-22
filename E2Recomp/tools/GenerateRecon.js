@@ -8346,6 +8346,92 @@ patchRectangleFunction("FUN_00456924", () => `void __fastcall FUN_00456924(undef
 }`);
 source = replaceRectangleInput(source,"      case 0x66:\n        if ((*local_2c & 0x8000000) == 0) {\n          uVar19 = (uint)(short)(*(ushort *)((int)local_2c + 2) & 0xfff);\n        }\n        else {\n          uVar19 = *local_2c >> 0x10 | 0xf000;\n        }\n        if (param_2 != (ushort *)0x0) {\n          FUN_00456924(puVar13,uVar19);\n          puVar13 = extraout_ECX_57;\n          uVar19 = extraout_EDX_32;\n        }\n        local_2c = local_2c + 1;\n        uVar25 = CONCAT44(uVar19,_DAT_00ac4a54);\n        break;\n      case 0x67:\n        if ((*local_2c & 0x8000000) == 0) {\n          uVar7 = *(ushort *)((int)local_2c + 2) & 0xfff;\n        }\n        else {\n          uVar7 = (ushort)((uint)*local_2c >> 0x10) | 0xf000;\n        }\n        if (param_2 != (ushort *)0x0) {\n          param_2[0xc3] = uVar7;\n        }\n        local_2c = local_2c + 1;\n        uVar25 = CONCAT44(puVar18,_DAT_00ac4a54);\n        break;\n      case 0x68:\n        puVar13 = (ushort *)CONCAT31((int3)((uint)puVar13 >> 8),*(byte *)((int)local_2c + 5));\n        if ((*(byte *)((int)local_2c + 5) & 8) == 0) {\n          uVar19 = (uint)(short)(*(ushort *)(local_2c + 1) & 0xfff);\n        }\n        else {\n          uVar19 = *(int *)((int)local_2c + 2) >> 0x10 | 0xf000;\n        }\n        if (*(int *)((undefined1 *)0x00630b60 + (short)(*(ushort *)((int)local_2c + 2) & 0xfff) * 4) != 0) {\n          FUN_00456924(puVar13,uVar19);\n          puVar13 = extraout_ECX_58;\n          uVar19 = extraout_EDX_33;\n        }\n        local_2c = (int *)((int)local_2c + 6);\n        uVar25 = CONCAT44(uVar19,_DAT_00ac4a54);\n        break;\n","      case 0x66:\n        if ((*local_2c & 0x8000000) == 0) {\n          uVar19 = (uint)(short)(*(ushort *)((int)local_2c + 2) & 0xfff);\n        }\n        else {\n          uVar19 = (uint)(int)(short)(*local_2c >> 0x10 | 0xf000);\n        }\n        if (param_2 != (ushort *)0x0) {\n          FUN_00456924((uint)(uintptr_t)param_2,(int)uVar19);\n          puVar13 = extraout_ECX_57;\n          uVar19 = extraout_EDX_32;\n        }\n        local_2c = local_2c + 1;\n        uVar25 = CONCAT44(uVar19,_DAT_00ac4a54);\n        break;\n      case 0x67:\n        if ((*local_2c & 0x8000000) == 0) {\n          uVar7 = *(ushort *)((int)local_2c + 2) & 0xfff;\n        }\n        else {\n          uVar7 = (ushort)((uint)*local_2c >> 0x10) | 0xf000;\n        }\n        if (param_2 != (ushort *)0x0) {\n          param_2[0xc3] = uVar7;\n        }\n        local_2c = local_2c + 1;\n        uVar25 = CONCAT44(puVar18,_DAT_00ac4a54);\n        break;\n      case 0x68:\n        puVar13 = (ushort *)CONCAT31((int3)((uint)puVar13 >> 8),*(byte *)((int)local_2c + 5));\n        if ((*(byte *)((int)local_2c + 5) & 8) == 0) {\n          uVar19 = (uint)(short)(*(ushort *)(local_2c + 1) & 0xfff);\n        }\n        else {\n          uVar19 = (uint)(int)(short)(*(int *)((int)local_2c + 2) >> 0x10 | 0xf000);\n        }\n        if (*(int *)((undefined1 *)0x00630b60 + (short)(*(ushort *)((int)local_2c + 2) & 0xfff) * 4) != 0) {\n          FUN_00456924(*(uint *)(0x630b60 +\n              (short)(*(ushort *)((int)local_2c + 2) & 0xfff) * 4),(int)uVar19);\n          puVar13 = extraout_ECX_58;\n          uVar19 = extraout_EDX_33;\n        }\n        local_2c = (int *)((int)local_2c + 6);\n        uVar25 = CONCAT44(uVar19,_DAT_00ac4a54);\n        break;\n");
 
+// Original 0x427dd0/0x42812c retain target X; 0x427f6d supplies motion X.
+// CX carries target facing across 0x428414 RNG and state callbacks. Preserve
+// these game values explicitly instead of reading decompiler extraout locals.
+patchRectangleFunction("FUN_00427584", body => {
+  body = replaceRectangleInput(body, "  short local_1c [2];\n  short sStack_18;\n\n  in_EAX = (short *)(uintptr_t)param_1;\n", "  short local_1c [2];\n  short sStack_18;\n  short target_facing;\n\n  in_EAX = (short *)(uintptr_t)param_1;\n");
+  body = replaceRectangleInput(body, "             CONCAT22((short)((uint)local_60 >> 0x10),*(undefined2 *)(local_60 + 0x82));\n    local_30 = FUN_00432c64((int)sStack_18,sVar18);\n    iVar7 = extraout_ECX_08;\n    if (sStack_18 < 1) {\n      iVar7 = -extraout_ECX_08;\n    }\n    if (sVar18 < 1) {\n", "             CONCAT22((short)((uint)local_60 >> 0x10),*(undefined2 *)(local_60 + 0x82));\n    local_30 = FUN_00432c64((int)sStack_18,sVar18);\n    /* Original 0x427dd0 retains the X delta in ECX across the angle leaf. */\n    iVar7 = (int)sStack_18;\n    if (sStack_18 < 1) {\n      iVar7 = -(int)sStack_18;\n    }\n    if (sVar18 < 1) {\n");
+  body = replaceRectangleInput(body, "    sStack_28 = sStack_28 + (short)(iVar7 / 2);\n    iVar7 = CONCAT22((short)((uint)local_6c >> 0x10),local_6c[0x49]) - local_30;\n    sVar23 = (short)iVar17;\n    if (sVar23 < 1) {\n", "    sStack_28 = sStack_28 + (short)(iVar7 / 2);\n    iVar7 = CONCAT22((short)((uint)local_6c >> 0x10),local_6c[0x49]) - local_30;\n    target_facing = (short)iVar7;\n    sVar23 = (short)iVar17;\n    if (sVar23 < 1) {\n");
+  body = replaceRectangleInput(body, "      sStack_28 = 0x7fff;\n      iVar7 = 0;\n    }\n    local_34 = *(int *)(local_60 + 0x14) >> 0x10;\n    iVar7 = FUN_00432c64(iVar7,(short)((uint)*(int *)(local_60 + 0x14) >> 0x10));\n    sVar5 = (short)iVar7 - (short)local_30;\n    psVar15 = local_6c;\n", "      sStack_28 = 0x7fff;\n      iVar7 = 0;\n      target_facing = 0;\n    }\n    local_34 = *(int *)(local_60 + 0x14) >> 0x10;\n    /* Original 0x427f6d supplies motion X, not the prior distance temporary. */\n    iVar7 = FUN_00432c64(*(int *)(local_60 + 8) >> 0x10,(short)local_34);\n    sVar5 = (short)iVar7 - (short)local_30;\n    psVar15 = local_6c;\n");
+  body = replaceRectangleInput(body, "      local_6c[0xac] = 5000;\n      FUN_00422aa0((uint)(uintptr_t)(local_6c + 0xa9),local_70 + 0x42);\n      uVar25 = extraout_ECX_13;\n      psVar15 = extraout_EDX_05;\n      if (local_6c[0x91] == 1) {\n", "      local_6c[0xac] = 5000;\n      FUN_00422aa0((uint)(uintptr_t)(local_6c + 0xa9),local_70 + 0x42);\n      uVar25 = (uint)(int)target_facing;\n      psVar15 = extraout_EDX_05;\n      if (local_6c[0x91] == 1) {\n");
+  body = replaceRectangleInput(body, "        local_30 = FUN_00432c64(iVar7,sVar18);\n        iVar7 = local_48;\n        if (extraout_CX < 1) {\n          iVar7 = -local_48;\n        }\n", "        local_30 = FUN_00432c64(iVar7,sVar18);\n        iVar7 = local_48;\n        if ((short)local_48 < 1) {\n          iVar7 = -local_48;\n        }\n");
+  body = replaceRectangleInput(body, "        }\n        if (iVar7 < local_44) {\n          if (extraout_CX < 1) {\n            local_40 = -(int)extraout_CX;\n          }\n          else {\n            local_40 = (int)extraout_CX;\n          }\n        }\n", "        }\n        if (iVar7 < local_44) {\n          if ((short)local_48 < 1) {\n            local_40 = -local_48;\n          }\n          else {\n            local_40 = local_48;\n          }\n        }\n");
+  body = replaceRectangleInput(body, "        }\n        local_40 = local_40 / 2;\n        if (extraout_CX < 1) {\n          iVar7 = -(int)extraout_CX;\n        }\n        else {\n          iVar7 = (int)extraout_CX;\n        }\n        if (sVar18 < 1) {\n", "        }\n        local_40 = local_40 / 2;\n        if ((short)local_48 < 1) {\n          iVar7 = -local_48;\n        }\n        else {\n          iVar7 = local_48;\n        }\n        if (sVar18 < 1) {\n");
+  body = replaceRectangleInput(body, "        }\n        if ((int)local_3c < iVar7) {\n          sVar18 = extraout_CX;\n          if (extraout_CX < 1) {\n            sVar18 = -extraout_CX;\n          }\n        }\n", "        }\n        if ((int)local_3c < iVar7) {\n          sVar18 = (short)local_48;\n          if ((short)local_48 < 1) {\n            sVar18 = (short)-local_48;\n          }\n        }\n");
+  body = replaceRectangleInput(body, "    }\n  }\n  sVar18 = (short)local_64;\n  if (0 < local_6c[0xa0]) {\n", "    }\n  }\n  /* Original CX survives timer/RNG/state callbacks until action selection. */\n  target_facing = (short)uVar25;\n  sVar18 = (short)local_64;\n  if (0 < local_6c[0xa0]) {\n");
+  body = replaceRectangleInput(body, "    }\n    psVar8 = local_6c;\n    sVar18 = (short)uVar25;\n    E2R_TraceActorUpdateExit(\"27584.check-after-state-switch\",local_6c,uVar19);\n    switch((int)(uintptr_t)(local_6c[0x41])) {\n", "    }\n    psVar8 = local_6c;\n    sVar18 = target_facing;\n    uVar25 = (uint)(int)target_facing;\n    E2R_TraceActorUpdateExit(\"27584.check-after-state-switch\",local_6c,uVar19);\n    switch((int)(uintptr_t)(local_6c[0x41])) {\n");
+  return body;
+});
+
+// The legacy 0x432c64 wrapper still reads an uninitialized in_AX and mapped
+// placeholder tables. Use its already original-verified pure short-input leaf
+// for these three recovered NPC calls; leave unrelated callers scoped separately.
+patchRectangleFunction("FUN_00427584", body => {
+  body = replaceRectangleInput(body,"local_30 = FUN_00432c64((int)sStack_18,sVar18);",
+    "local_30 = (uint)(int)E2R_PolygonAngle16(sStack_18,sVar18);");
+  body = replaceRectangleInput(body,"iVar7 = FUN_00432c64(*(int *)(local_60 + 8) >> 0x10,(short)local_34);",
+    "iVar7 = E2R_PolygonAngle16((short)(*(int *)(local_60 + 8) >> 0x10),(short)local_34);");
+  body = replaceRectangleInput(body,"local_30 = FUN_00432c64(iVar7,sVar18);",
+    "local_30 = (uint)(int)E2R_PolygonAngle16((short)iVar7,sVar18);");
+  return body;
+});
+
+// Original 0x428bfd/0x428c10 reloads actor EAX before target-facing turns.
+patchRectangleFunction("FUN_00427584", body => {
+  if (body.split("FUN_0042b074(uVar25,").length !== 6)
+    throw new Error("NPC target turn caller anchor mismatch");
+  return body.replaceAll("FUN_0042b074(uVar25,",
+                         "FUN_0042b074((undefined4)(uintptr_t)local_6c,");
+});
+
+// Original 0x42c438 supplies the event node in ESI; 0x42db74..0x42dc9b
+// retains node/owner/attached actor through pose, floor placement and unlinking.
+patchRectangleFunction("FUN_0042db74", () => `undefined4 __fastcall FUN_0042db74(undefined4 param_1,int param_2)
+
+{
+  /* Original 0x42db74 retains EAX node in EBX and EDX placement mode in ESI.
+   * Pose its owner, update the attached root, then sever both attachment links. */
+  int node = (int)param_1;
+  if (*(int *)(node + 0x13a) == 0) return 0;
+  int owner = *(int *)(node + 0x22);
+  for (int cursor = node; *(int *)(cursor + 0x44) != 0;
+       cursor = *(int *)(cursor + 0x44))
+    *(int *)(*(int *)(cursor + 0x44) + 0x48) = cursor;
+  *(int *)(node + 0x48) = 0;
+  int entry_context = E2R_actor_calc_context;
+  E2R_actor_calc_context = owner;
+  FUN_00424318();
+  E2R_actor_calc_context = entry_context;
+  int attached = *(int *)(node + 0x13a);
+  FUN_00420ec4(attached,(short *)(uintptr_t)node);
+  if (param_2 == 0) {
+    int height = (int)FUN_00448a3c(attached + 0x84,0) - 30;
+    int difference = height - *(short *)(attached + 0x86);
+    if (difference < 0) difference = -difference;
+    if (difference < 64) *(short *)(attached + 0x86) = (short)height;
+    else {
+      FUN_00422aa0(attached + 0x84,(undefined2 *)(uintptr_t)(owner + 0x84));
+      *(short *)(attached + 0x86) -= 30;
+    }
+    *(short *)(attached + 0x94) = 0;
+    *(short *)(attached + 0x90) = 0;
+  }
+  *(int *)(*(int *)(node + 0x13a) + 0xf2) = 0;
+  *(int *)(node + 0x13a) = 0;
+  if (DAT_0047a34a == 0 && DAT_0047a470 == owner) {
+    short kind = *(short *)(owner + 0xf0);
+    if (kind >= 3 && kind <= 5) *(short *)(owner + 0xf0) = kind - 3;
+    FUN_004559bc();
+  }
+  return 0;
+}`);
+patchRectangleFunction("FUN_0042b880", body => replaceRectangleInput(body,
+  "FUN_0042db74(param_1,(uint)(*(ushort *)(param_1 + 0xc) & 2))",
+  "FUN_0042db74((undefined4)(uintptr_t)unaff_ESI,(uint)(*(ushort *)(param_1 + 0xc) & 2))"));
+
+// Export storage for read-only native checkpoints; keep the LCG and seed unchanged.
+source = source.replace("static uint E2R_rand_seed_fallback =", "uint E2R_rand_seed_fallback =");
 fs.writeFileSync(outSrc, source);
 
 const sortedIds = [...ids].sort();

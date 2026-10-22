@@ -10,7 +10,7 @@ project(EcstaticaRecompiled LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
-if(E2R_ENABLE_LOGGER)
+if(E2R_ENABLE_LOGGER OR E2R_ENABLE_RUNTIME_OPTIONS)
     if(NOT CMAKE_CXX_COMPILER)
         string(REGEX MATCH "^[0-9]+" e2r_clang_major "${CMAKE_C_COMPILER_VERSION}")
         find_program(CMAKE_CXX_COMPILER NAMES "clang++-${e2r_clang_major}" clang++ REQUIRED)
@@ -149,11 +149,13 @@ endif()
 
 if(E2R_ENABLE_RUNTIME_OPTIONS)
     add_subdirectory(src/runtime)
+    add_subdirectory(src/artifacts)
     if(E2R_ENABLE_LOGGER)
         add_subdirectory(src/log)
     else()
         add_library(e2r_log_stub STATIC src/log/src/LogStub.c)
         target_include_directories(e2r_log_stub PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/log/include")
+        target_link_libraries(e2r_log_stub PUBLIC e2r_artifacts)
     endif()
 endif()
 
@@ -193,6 +195,7 @@ add_executable(e2recomp
     E2Recomp/reconstructed/E2Recomp_globals.c
     E2Recomp/reconstructed/E2Recomp_data_init.c
     E2Recomp/reconstructed/E2Recomp_stubs.c
+    E2Recomp/native/e2recomp_replay_adapter.c
     ${E2R_HOST_BACKEND_SOURCE}
     E2Recomp/platform/e2recomp_log.c
     E2Recomp/platform/e2recomp_win32_compat.c
@@ -210,7 +213,10 @@ target_include_directories(e2recomp PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/E2Recomp/platform"
 )
 
-if(E2R_ENABLE_LOGGER)
+add_subdirectory(src/replay)
+target_link_libraries(e2recomp PRIVATE e2r_replay)
+
+if(E2R_ENABLE_LOGGER OR E2R_ENABLE_RUNTIME_OPTIONS)
     set_target_properties(e2recomp PROPERTIES LINKER_LANGUAGE CXX)
 endif()
 
@@ -234,7 +240,7 @@ if(E2R_ENABLE_RUNTIME_OPTIONS)
     endif()
     target_link_libraries(e2recomp PRIVATE e2r_runtime)
     if(E2R_ENABLE_ASAN)
-        foreach(e2r_support_target e2r_runtime e2r_log e2r_log_stub)
+        foreach(e2r_support_target e2r_runtime e2r_log e2r_log_stub e2r_artifacts e2r_replay)
             if(TARGET ${e2r_support_target})
                 target_compile_options(${e2r_support_target} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
             endif()

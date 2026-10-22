@@ -118,6 +118,8 @@ int E2R_RuntimeResolveOptions(int argc,
     const char *log_level = getenv("E2R_LOG_LEVEL");
     const char *log_disabled_modules = getenv("E2R_LOG_DISABLE_MODULES");
     char default_data_dir[E2R_RUNTIME_PATH_MAX];
+    const char *record = getenv("E2R_RECORD");
+    const char *replay = getenv("E2R_REPLAY");
     int index = 1;
 
     if (options == NULL) {
@@ -130,6 +132,26 @@ int E2R_RuntimeResolveOptions(int argc,
     }
 
     while (index < argc) {
+        if (e2r_is_option(argv[index], "--record") || e2r_is_option(argv[index], "--replay")) {
+            if (!e2r_need_value(argc, argv, index, argv[index], options)) return 0;
+            if (e2r_is_option(argv[index], "--record")) record = argv[index+1];
+            else replay = argv[index+1];
+            index += 2; continue;
+        }
+        if (e2r_is_option(argv[index], "--replay-compatible")) {
+            options->replay_compatible = 1; ++index; continue;
+        }
+        if (e2r_is_option(argv[index], "--replay-stop-before") ||
+            e2r_is_option(argv[index], "--replay-stop-checkpoint")) {
+            if (!e2r_need_value(argc,argv,index,argv[index],options)) return 0;
+            char *end; errno=0;
+            unsigned long long value=strtoull(argv[index+1],&end,10);
+            if (errno || *end || !value || argv[index+1][0]=='-' || value>INT64_MAX)
+                return e2r_set_error(options,"invalid replay stop boundary");
+            if (e2r_is_option(argv[index], "--replay-stop-before")) options->replay_stop_sequence=value;
+            else options->replay_stop_checkpoint=value;
+            index+=2; continue;
+        }
         if (e2r_is_option(argv[index], "--game-data-dir")) {
             if (!e2r_need_value(argc, argv, index, "--game-data-dir", options)) {
                 return 0;
@@ -170,6 +192,12 @@ int E2R_RuntimeResolveOptions(int argc,
         break;
     }
 
+    if (!record || !*record) record="auto";
+    if (strcmp(record,"auto") && strcmp(record,"off")) return e2r_set_error(options,"--record must be auto or off");
+    if (!e2r_copy_string(options->record,sizeof(options->record),record)) return 0;
+    if (replay && *replay && !e2r_resolve_path(replay,options->replay,sizeof(options->replay))) return e2r_set_error(options,"replay path too long");
+    if (!options->replay[0] && (options->replay_compatible || options->replay_stop_sequence || options->replay_stop_checkpoint)) return e2r_set_error(options,"replay controls require --replay");
+    if (options->replay[0] && (index>=argc || strcmp(argv[index],"--run-recon"))) return e2r_set_error(options,"--replay requires --run-recon");
     options->command_index = index;
 
     if (data_dir == NULL || data_dir[0] == '\0') {
@@ -217,5 +245,11 @@ void E2R_RuntimePrintOptionHelp(void)
     puts("  --data-dir <path>              Writable runtime output directory; defaults to ~/.ecstatica2.");
     puts("  --log-level <level>            Trace, Debug, Info, Warning, Error, Fatal, or Off.");
     puts("  --log-disable-modules <list>   Comma-separated module names to suppress.");
+    puts("  --record auto|off             Record normal --run-recon gameplay (default auto).");
+    puts("  --replay <directory>          Replay frozen CSV input; never record a nested session.");
+    puts("  --replay-compatible           Permit a different executable; verify checkpoints strictly.");
+    puts("  --replay-stop-before <seq>     Stop before an expanded event sequence.");
+    puts("  --replay-stop-checkpoint <id>  Stop before a checkpoint (E2R_REPLAY_PAUSE=1 raises SIGSTOP).");
+    puts("Replay environment: E2R_RECORD, E2R_REPLAY. F11 aborts replay.");
     puts("Environment defaults: E2R_DATA_DIR, E2R_LOG_LEVEL, E2R_LOG_DISABLE_MODULES.");
 }

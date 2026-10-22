@@ -1,5 +1,9 @@
 #include "e2recomp_win32_compat.h"
 #include "e2recomp_host_backend.h"
+#include "EcstaticaReplay.h"
+#if E2R_ENABLE_RUNTIME_OPTIONS
+#include "EcstaticaLogBridge.h"
+#endif
 
 #include <stdarg.h>
 #include <ctype.h>
@@ -296,6 +300,12 @@ static void e2r_queue_host_message(UINT msg, WPARAM wparam, LPARAM lparam, void 
     static unsigned message_diag_count;
 
     (void)user;
+    if ((msg==WM_KEYDOWN || msg==WM_KEYUP) && wparam==VK_F12) {
+        if(msg==WM_KEYDOWN) E2R_RequestVisibilityDump();
+        return;
+    }
+    E2R_ReplayInput(msg,wparam,lparam,
+        (int)(int16_t)(lparam&0xffff),(int)(int16_t)((lparam>>16)&0xffff));
     switch (msg) {
     case WM_MOUSEMOVE:
     case WM_LBUTTONDOWN:
@@ -317,11 +327,6 @@ static void e2r_queue_host_message(UINT msg, WPARAM wparam, LPARAM lparam, void 
                 e2r_window_proc != NULL, (void *)e2r_window_proc);
         message_diag_count++;
     }
-    if (msg == WM_KEYDOWN && wparam == VK_F12) {
-        e2r_log_input_key(msg, wparam);
-        E2R_RequestVisibilityDump();
-        return;
-    }
     if (e2r_window_proc != NULL && msg != WM_QUIT) {
         e2r_log_input_key(msg, wparam);
         e2r_window_proc(&e2r_window, msg, wparam, lparam);
@@ -334,6 +339,26 @@ static void e2r_queue_host_message(UINT msg, WPARAM wparam, LPARAM lparam, void 
     e2r_push_message(&e2r_window, msg, wparam, lparam);
 }
 
+static void e2r_replay_deliver(unsigned msg,uintptr_t key,intptr_t lparam)
+{ e2r_queue_host_message(msg,(WPARAM)key,(LPARAM)lparam,NULL); }
+static void e2r_replay_physical(UINT msg,WPARAM key,LPARAM lp,void *user)
+{
+    (void)lp; (void)user;
+    if(msg==WM_CLOSE || (msg==WM_KEYDOWN && key==0x7a)) E2R_ReplayAbort();
+    if(msg==WM_KEYDOWN && key==VK_F12) E2R_RequestVisibilityDump();
+}
+
+static void e2r_replay_control(void)
+{
+    if(e2r_window.ptr) E2R_HostPollEvents((E2R_HostWindow*)e2r_window.ptr,e2r_replay_physical,NULL);
+}
+static void e2r_replay_flush(void)
+{
+#if E2R_ENABLE_RUNTIME_OPTIONS
+    E2R_LogFlush();
+    E2R_LogShutdown();
+#endif
+}
 static void e2r_poll_host_events(const char *site)
 {
     static unsigned poll_diag_count;
@@ -346,8 +371,12 @@ static void e2r_poll_host_events(const char *site)
                 site, e2r_window.ptr, (void *)e2r_window_proc);
         poll_diag_count++;
     }
+    E2R_ReplaySetHostControl(e2r_replay_control,e2r_replay_flush);
+    E2R_ReplayPumpBegin();
     E2R_HostPollEvents((E2R_HostWindow *)e2r_window.ptr,
-                       e2r_queue_host_message, NULL);
+                       E2R_ReplayPlaying() ? e2r_replay_physical : e2r_queue_host_message, NULL);
+    E2R_ReplayPumpInputs(e2r_replay_deliver);
+    E2R_ReplayPumpEnd();
 }
 
 void E2R_MapLegacyAddressSpace(void)
@@ -652,7 +681,7 @@ DWORD GetLastError(void) { return e2r_last_error; }
 DWORD GetFileType(HANDLE file) { (void)file; return 1; }
 DWORD GetCurrentProcessId(void) { return (DWORD)getpid(); }
 DWORD GetCurrentThreadId(void) { return 1; }
-DWORD GetTickCount(void) { return e2r_monotonic_milliseconds(); }
+DWORD GetTickCount(void) { return E2R_ReplayClock(E2R_ReplayPlaying() ? 0 : e2r_monotonic_milliseconds()); }
 DWORD timeGetTime(void) { return GetTickCount(); }
 
 LPVOID VirtualAlloc(LPVOID address, size_t size, DWORD allocation_type, DWORD protect)
@@ -890,6 +919,7 @@ HWND SetFocus(HWND hwnd) { return hwnd; }
 int ShowCursor(BOOL show) { (void)show; return 0; }
 BOOL GetCursorPos(POINT *point)
 {
+    E2R_ReplayService("cursor_get",e2r_cursor_pos.x,e2r_cursor_pos.y);
     if (point != NULL) {
         *point = e2r_cursor_pos;
     }
@@ -897,6 +927,7 @@ BOOL GetCursorPos(POINT *point)
 }
 BOOL SetCursorPos(int x, int y)
 {
+    E2R_ReplayService("cursor_set",x,y);
     e2r_cursor_pos.x = x;
     e2r_cursor_pos.y = y;
     return TRUE;
@@ -931,6 +962,7 @@ LRESULT DispatchMessageA(const MSG *msg)
     if (msg == NULL) {
         return 0;
     }
+    E2R_ReplayQueued(msg->message,msg->wParam,msg->lParam);
     e2r_log_input_key(msg->message, msg->wParam);
     if (e2r_window_proc != NULL && msg->message != WM_QUIT) {
         return e2r_window_proc(msg->hwnd, msg->message, msg->wParam, msg->lParam);
@@ -940,13 +972,14 @@ LRESULT DispatchMessageA(const MSG *msg)
 void WaitMessage(void) {}
 void Sleep(DWORD milliseconds)
 {
+    E2R_ReplayService("sleep",milliseconds,0);
 #ifndef _WIN32
     DWORD remaining = milliseconds;
 
     do {
         DWORD slice = remaining > 16u ? 16u : remaining;
         E2R_PumpHost();
-        usleep((slice == 0u ? 1u : slice) * 1000u);
+        if (!E2R_ReplayPlaying()) usleep((slice == 0u ? 1u : slice) * 1000u);
         if (remaining <= slice) {
             break;
         }
@@ -1230,6 +1263,7 @@ void GetLocalTime(SYSTEMTIME *time_out)
     time_out->wMinute = (WORD)tm_now.tm_min;
     time_out->wSecond = (WORD)tm_now.tm_sec;
     time_out->wMilliseconds = 0;
+    E2R_ReplayLocalTime((uint16_t *)time_out);
 }
 DWORD GetTimeZoneInformation(LPTIME_ZONE_INFORMATION info)
 {

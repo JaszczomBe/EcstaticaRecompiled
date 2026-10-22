@@ -92,6 +92,7 @@ if args.inspect_approach_cameras and (args.inspect_object_scene < 0 or
 prefix = str(args.output.resolve())
 Path(prefix).parent.mkdir(parents=True, exist_ok=True)
 env = os.environ.copy()
+env["E2R_RECORD"] = "off"
 if args.video_driver == 'dummy':env.pop('DISPLAY', None)
 env.update(SDL_VIDEODRIVER=args.video_driver, E2R_STARTUP_LOGO_DELAY_MS=str(args.startup_logo_delay_ms),
            E2R_ACTION_INDEX_PROBE='1', E2R_ACTOR_CYLINDERS='1',

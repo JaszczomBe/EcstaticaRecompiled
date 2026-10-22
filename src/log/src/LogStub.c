@@ -1,4 +1,5 @@
 #include "EcstaticaLogBridge.h"
+#include "RunArtifacts.h"
 
 #include <stdarg.h>
 
@@ -7,7 +8,7 @@ int E2R_LogBootstrap(const char *level, const char *disabled_modules, const char
     (void)level;
     (void)disabled_modules;
     (void)data_dir;
-    return 1;
+    return E2R_ArtifactsStart(data_dir);
 }
 
 int E2R_LogIsActive(void)
@@ -22,6 +23,7 @@ void E2R_LogDiagnostic(const char *message)
 
 void E2R_LogShutdown(void)
 {
+    E2R_ArtifactsShutdown();
 }
 
 void E2R_LogWrite(int level,

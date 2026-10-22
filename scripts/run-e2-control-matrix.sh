@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export E2R_RECORD=off
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp_root="${E2R_CONTROL_MATRIX_TMP:-/tmp/e2-step03-control-matrix}"

@@ -4,6 +4,14 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Natural intro attachment detach — 2026-10-22](entries/natural-intro-attachment-detach-2026-10-22.md): reproduces the reported no-input `FUN_0042db74` crash, recovers its event node/attached-actor contract from original instructions and verifies natural Debug intro completion plus idle survival; a separate script-deactivation fault retains full ASan's unaccepted status.
+
+- [Replay NPC inputs and crash boundary recovery — 2026-10-22](entries/replay-npc-input-and-crash-boundary-recovery-2026-10-22.md): recovers original NPC target/angle/turn inputs and publishes changed clocks before game control resumes; a new Debug crash capture reaches the same helper across fresh replays and a debugger pause, while Debug/ASan clean menu routes pass and the old human capture remains explicitly divergent.
+
+- [Human pedestal crash replay test — 2026-10-22](entries/pedestal-crash-replay-test-2026-10-22.md): preserves the actual crashed recording and exact executable; three fresh replays match checkpoints 1–16 but diverge in clock/cursor service ordering before the reported crash, so gameplay crash reproduction remains unaccepted.
+
+- [Gameplay CSV recorder and replay prototype — 2026-10-22](entries/gameplay-csv-replay-prototype-2026-10-22.md): adds isolated capture/replay, shared artifact ownership, clock compression and strict checkpoints; Debug intro/menu replays and recovery pass, while movement and ASan replay fidelity remain explicitly unaccepted.
+
 - [Logger cleanup and bounded session maintenance — 2026-10-21](entries/logger-cleanup-and-session-maintenance-2026-10-21.md): removes unused foreign integrations while preserving RT pooling, macros/masks, native stacks and filesystem wrappers; adds periodic retention with active-session leases and verifies critical-event priority and severity bypass.
 
 - [Input log transitions and missing-sound severity — 2026-10-21](entries/input-log-transitions-and-missing-sound-severity-2026-10-21.md): gives input and missing sound separate Debug/Trace tags, logs key press/held/release changes and keeps protocol dumps opt-in; dispatcher checks prove repeated keys still reach the legacy handler.

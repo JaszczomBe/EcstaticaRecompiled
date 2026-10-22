@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,6 +14,11 @@ typedef struct E2R_RuntimeOptions
     char data_dir[E2R_RUNTIME_PATH_MAX];
     char log_level[32];
     char log_disabled_modules[256];
+    char record[8];
+    char replay[E2R_RUNTIME_PATH_MAX];
+    int replay_compatible;
+    uint64_t replay_stop_sequence;
+    uint64_t replay_stop_checkpoint;
     int command_index;
     int game_data_dir_explicit;
     int data_dir_explicit;

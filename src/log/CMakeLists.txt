@@ -7,15 +7,12 @@ add_library(e2r_log STATIC
     src/Core/LoggerInternal.cpp
     src/Core/LogWrite.cpp
     src/Debug/StackTrace_posix.cpp
-    src/LogSupport/IO/FileSystemIO.cpp
     src/LogSupport/Thread/BackgroundRunner.cpp
     src/LogSupport/Thread/Id.cpp
     src/LogSupport/Thread/Name.cpp
     src/LogSupport/Thread/Waiter.cpp
     src/LogSupport/Time/Timer.cpp
     src/Modules/ModuleId.cpp
-    src/Paths/Paths.cpp
-    src/Session/SessionRetention.cpp
     src/Sinks/FileSink.cpp
     src/Sinks/StderrSink.cpp
 )
@@ -31,7 +28,7 @@ target_include_directories(e2r_log PRIVATE
 target_compile_features(e2r_log PUBLIC cxx_std_20)
 target_compile_definitions(e2r_log PUBLIC UT_LOG_USE_STD_FORMAT=1)
 find_package(Threads REQUIRED)
-target_link_libraries(e2r_log PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
+target_link_libraries(e2r_log PUBLIC Threads::Threads ${CMAKE_DL_LIBS} e2r_artifacts)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(e2r_log PRIVATE -Wall -Wextra)

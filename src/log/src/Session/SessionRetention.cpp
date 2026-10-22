@@ -3,7 +3,7 @@
 #include "LogSupport/IO/FileSystemIO.h"
 #include "Log/Paths/Paths.h"
 #include "LogSupport/String/Path.h"
-#include "Log/Core/Logger.h"
+#include "RunArtifacts.h"
 #include <cerrno>
 
 #include <chrono>
@@ -359,13 +359,11 @@ namespace Ecstatica::Recompiled::Log::Session
                 {
                     const auto summary = CleanupSessions(logsRoot, policy);
                     if (summary.removedSessions || summary.failedRemovals || summary.overBudget)
-                        Logger::Instance().Log(summary.failedRemovals || summary.overBudget ? Level::Warning : Level::Info,
-                                               ModuleID::Runtime, {}, FormatCleanupSummary(summary));
+                        E2R_ArtifactsReport(FormatCleanupSummary(summary).c_str());
                 }
                 catch (const std::exception& error)
                 {
-                    Logger::Instance().Log(Level::Warning, ModuleID::Runtime, {},
-                                           std::string("Log cleanup failed: ") + error.what());
+                    E2R_ArtifactsReport((std::string("Log cleanup failed: ") + error.what()).c_str());
                 }
                 lock.lock();
             }

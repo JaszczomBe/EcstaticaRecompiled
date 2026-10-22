@@ -4,6 +4,11 @@
 #include "EcstaticaRuntimeBridge.h"
 #endif
 #include "e2recomp_host_backend.h"
+#include "EcstaticaReplay.h"
+#if E2R_ENABLE_RUNTIME_OPTIONS
+#include "RunArtifacts.h"
+#endif
+void E2R_SampleReplayCheckpoint(void);
 
 #include <errno.h>
 #include <stdint.h>
@@ -1867,6 +1872,7 @@ static int e2r_visibility_state_exists(const char *prefix)
 static void e2r_probe_exit(int status)
 {
 #if E2R_ENABLE_RUNTIME_OPTIONS
+    E2R_ReplayFinish();
     E2R_LogFlush();
     E2R_LogShutdown();
 #endif
@@ -2614,6 +2620,7 @@ static int e2r_run_host_backend_present_probe(void)
 #if E2R_ENABLE_RUNTIME_OPTIONS
 static void e2r_shutdown_logging(void)
 {
+    E2R_ReplayFinish();
     E2R_LogFlush();
     E2R_LogShutdown();
 }
@@ -2628,6 +2635,8 @@ int main(int argc, char **argv)
         E2R_RuntimePrintOptionHelp();
         return 1;
     }
+
+    if (!E2R_ReplayPrepare(runtime_options.replay)) return 73;
 
     if (runtime_options.command_index > 1) {
         argc = argc - runtime_options.command_index + 1;
@@ -2658,6 +2667,12 @@ int main(int argc, char **argv)
 #endif
     E2R_MapLegacyAddressSpace();
     E2R_InitData();
+#if E2R_ENABLE_RUNTIME_OPTIONS
+    if (!E2R_ReplayStart(runtime_options.record,argc>1 && strcmp(argv[1],"--run-recon")==0,
+          E2R_ArtifactsDirectory(),runtime_options.game_data_dir,argc-1,argv+1,
+          runtime_options.replay_compatible,runtime_options.replay_stop_sequence,
+          runtime_options.replay_stop_checkpoint,E2R_SampleReplayCheckpoint)) return 73;
+#endif
 
     if (argc > 1 && strcmp(argv[1], "--run-recon") == 0) {
 #if UINTPTR_MAX > UINT32_MAX

@@ -1,4 +1,5 @@
 #include "e2recomp_host_backend.h"
+#include "EcstaticaReplay.h"
 
 #ifndef _WIN32
 #include <SDL3/SDL.h>
@@ -497,6 +498,7 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
     if (window != &e2r_sdl_backend || window->window == NULL) {
         return;
     }
+    if (E2R_ReplayCaptureIncomplete()) SDL_SetWindowTitle(window->window,"Ecstatica II - RECORDING INCOMPLETE");
     is_main_thread = SDL_IsMainThread();
     window_id = SDL_GetWindowID(window->window);
     if (e2r_sdl_input_diag_enabled() && input_poll_diag_count < 1u) {
@@ -826,6 +828,10 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
     Uint32 amber = SDL_MapSurfaceRGB(surface, 255, 180, 65);
     Uint32 object_color = SDL_MapSurfaceRGB(surface, 140, 180, 160);
     Uint32 bg = SDL_MapSurfaceRGB(surface, 12, 20, 30);
+    if (E2R_ReplayCaptureIncomplete()) {
+        SDL_SetWindowTitle(e2r_sdl_backend.window,"Ecstatica II - RECORDING INCOMPLETE");
+        e2r_cue_text(surface,10,surface->h-12,"RECORDING INCOMPLETE",amber);
+    }
     if (state.camera_ready && state.view_width == surface->w && state.view_height == surface->h) {
         for (unsigned i = 0; i < state.count; ++i) {
             const E2R_ActorCue *actor = &state.actors[i];

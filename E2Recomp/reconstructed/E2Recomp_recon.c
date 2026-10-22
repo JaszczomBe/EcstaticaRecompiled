@@ -60,7 +60,7 @@ static uint E2R_scene_select_diag_count;
 static uint E2R_scene_child_activate_diag_count;
 static int E2R_start_sc_handoff_pending;
 static int E2R_start_sc_handoff_activate_current;
-static uint E2R_rand_seed_fallback = 0x2a13f00d;
+uint E2R_rand_seed_fallback = 0x2a13f00d;
 static int E2R_startup_diag_enabled;
 static int E2R_scene_load_request_id = -1;
 static short *E2R_scene_remove_context;
@@ -20135,6 +20135,7 @@ undefined4 __fastcall FUN_00427584(undefined4 param_1,int param_2)
   uint local_24;
   short local_1c [2];
   short sStack_18;
+  short target_facing;
 
   in_EAX = (short *)(uintptr_t)param_1;
   if (in_EAX == (short *)0x0 || (uintptr_t)in_EAX < 0x10000u ||
@@ -20501,10 +20502,11 @@ LAB_00427d14:
     sVar18 = *(short *)(local_54 + 0x84) - *(short *)(local_60 + 0x84);
     iVar17 = CONCAT22((short)((uint)local_54 >> 0x10),*(undefined2 *)(local_54 + 0x82)) -
              CONCAT22((short)((uint)local_60 >> 0x10),*(undefined2 *)(local_60 + 0x82));
-    local_30 = FUN_00432c64((int)sStack_18,sVar18);
-    iVar7 = extraout_ECX_08;
+    local_30 = (uint)(int)E2R_PolygonAngle16(sStack_18,sVar18);
+    /* Original 0x427dd0 retains the X delta in ECX across the angle leaf. */
+    iVar7 = (int)sStack_18;
     if (sStack_18 < 1) {
-      iVar7 = -extraout_ECX_08;
+      iVar7 = -(int)sStack_18;
     }
     if (sVar18 < 1) {
       iVar9 = -(int)sVar18;
@@ -20552,6 +20554,7 @@ LAB_00427d14:
     }
     sStack_28 = sStack_28 + (short)(iVar7 / 2);
     iVar7 = CONCAT22((short)((uint)local_6c >> 0x10),local_6c[0x49]) - local_30;
+    target_facing = (short)iVar7;
     sVar23 = (short)iVar17;
     if (sVar23 < 1) {
       iVar9 = -(int)sVar23;
@@ -20612,9 +20615,11 @@ LAB_00427ed2:
       if (iVar9 <= sStack_28) goto LAB_00427ed2;
       sStack_28 = 0x7fff;
       iVar7 = 0;
+      target_facing = 0;
     }
     local_34 = *(int *)(local_60 + 0x14) >> 0x10;
-    iVar7 = FUN_00432c64(iVar7,(short)((uint)*(int *)(local_60 + 0x14) >> 0x10));
+    /* Original 0x427f6d supplies motion X, not the prior distance temporary. */
+    iVar7 = E2R_PolygonAngle16((short)(*(int *)(local_60 + 8) >> 0x10),(short)local_34);
     sVar5 = (short)iVar7 - (short)local_30;
     psVar15 = local_6c;
     if ((*(byte *)(local_6c + 0xb6) & 2) != 0) {
@@ -20690,7 +20695,7 @@ LAB_00427fe6:
     if (local_58 == 0) {
       local_6c[0xac] = 5000;
       FUN_00422aa0((uint)(uintptr_t)(local_6c + 0xa9),local_70 + 0x42);
-      uVar25 = extraout_ECX_13;
+      uVar25 = (uint)(int)target_facing;
       psVar15 = extraout_EDX_05;
       if (local_6c[0x91] == 1) {
         local_6c[0x91] = 2;
@@ -20722,9 +20727,9 @@ LAB_00427fe6:
         sVar23 = local_6c[0xaa] - local_6c[0x43];
         sVar18 = local_6c[0xab] - local_6c[0x44];
         local_48 = (int)(short)iVar7;
-        local_30 = FUN_00432c64(iVar7,sVar18);
+        local_30 = (uint)(int)E2R_PolygonAngle16((short)iVar7,sVar18);
         iVar7 = local_48;
-        if (extraout_CX < 1) {
+        if ((short)local_48 < 1) {
           iVar7 = -local_48;
         }
         if (sVar18 < 1) {
@@ -20734,11 +20739,11 @@ LAB_00427fe6:
           local_44 = (int)sVar18;
         }
         if (iVar7 < local_44) {
-          if (extraout_CX < 1) {
-            local_40 = -(int)extraout_CX;
+          if ((short)local_48 < 1) {
+            local_40 = -local_48;
           }
           else {
-            local_40 = (int)extraout_CX;
+            local_40 = local_48;
           }
         }
         else if (sVar18 < 1) {
@@ -20748,11 +20753,11 @@ LAB_00427fe6:
           local_40 = (int)sVar18;
         }
         local_40 = local_40 / 2;
-        if (extraout_CX < 1) {
-          iVar7 = -(int)extraout_CX;
+        if ((short)local_48 < 1) {
+          iVar7 = -local_48;
         }
         else {
-          iVar7 = (int)extraout_CX;
+          iVar7 = local_48;
         }
         if (sVar18 < 1) {
           local_3c = (short *)-(int)sVar18;
@@ -20761,9 +20766,9 @@ LAB_00427fe6:
           local_3c = (short *)(int)sVar18;
         }
         if ((int)local_3c < iVar7) {
-          sVar18 = extraout_CX;
-          if (extraout_CX < 1) {
-            sVar18 = -extraout_CX;
+          sVar18 = (short)local_48;
+          if ((short)local_48 < 1) {
+            sVar18 = (short)-local_48;
           }
         }
         else if (sVar18 < 1) {
@@ -20801,6 +20806,8 @@ LAB_00428217:
       }
     }
   }
+  /* Original CX survives timer/RNG/state callbacks until action selection. */
+  target_facing = (short)uVar25;
   sVar18 = (short)local_64;
   if (0 < local_6c[0xa0]) {
     local_6c[0xa0] = local_6c[0xa0] - sVar18;
@@ -21015,7 +21022,8 @@ LAB_004287a9:
       break;
     }
     psVar8 = local_6c;
-    sVar18 = (short)uVar25;
+    sVar18 = target_facing;
+    uVar25 = (uint)(int)target_facing;
     E2R_TraceActorUpdateExit("27584.check-after-state-switch",local_6c,uVar19);
     switch((int)(uintptr_t)(local_6c[0x41])) {
     case 0:
@@ -21610,11 +21618,11 @@ LAB_00428ec5:
             if (sVar18 < 1) {
 LAB_00428c0d:
               uVar19 = 1;
-              FUN_0042b074(uVar25,(short)(local_64 << 9));
+              FUN_0042b074((undefined4)(uintptr_t)local_6c,(short)(local_64 << 9));
               uVar25 = extraout_ECX_29;
             }
             else {
-              FUN_0042b074(uVar25,(short)local_64 * -0x200);
+              FUN_0042b074((undefined4)(uintptr_t)local_6c,(short)local_64 * -0x200);
               uVar25 = extraout_ECX_35;
             }
           }
@@ -21809,7 +21817,7 @@ LAB_00428c35:
               }
               if (0x1000 < iVar7) {
                 if (-1 < sVar18) goto LAB_00428c0d;
-                FUN_0042b074(uVar25,(short)local_64 * -0x200);
+                FUN_0042b074((undefined4)(uintptr_t)local_6c,(short)local_64 * -0x200);
                 uVar25 = extraout_ECX_28;
               }
             }
@@ -21878,11 +21886,11 @@ switchD_00428878_caseD_0:
               }
               if (0x1000 < iVar7) {
                 if (sVar18 < 0) {
-                  FUN_0042b074(uVar25,(short)local_64 * -0x200);
+                  FUN_0042b074((undefined4)(uintptr_t)local_6c,(short)local_64 * -0x200);
                   uVar25 = extraout_ECX_26;
                 }
                 else {
-                  FUN_0042b074(uVar25,(short)(local_64 << 9));
+                  FUN_0042b074((undefined4)(uintptr_t)local_6c,(short)(local_64 << 9));
                   uVar25 = extraout_ECX_27;
                 }
               }
@@ -23799,7 +23807,7 @@ LAB_0042c113:
       psVar7 = (short *)FUN_0042deb8();
       return psVar7;
     case 0x2:
-      psVar7 = (short *)FUN_0042db74(param_1,(uint)(*(ushort *)(param_1 + 0xc) & 2));
+      psVar7 = (short *)FUN_0042db74((undefined4)(uintptr_t)unaff_ESI,(uint)(*(ushort *)(param_1 + 0xc) & 2));
       return psVar7;
     case 0x3:
       psVar7 = (short *)(*(int *)(in_EAX + 2) >> 0x10);
@@ -25276,64 +25284,41 @@ void FUN_0042d948(void)
 undefined4 __fastcall FUN_0042db74(undefined4 param_1,int param_2)
 
 {
-  short sVar1;
-  int in_EAX;
-  int iVar2;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  int extraout_ECX_01;
-  int extraout_ECX_02;
-  short *extraout_EDX;
-  int iVar3;
-
-  if (*(int *)(in_EAX + 0x13a) != 0) {
-    iVar2 = *(int *)(in_EAX + 0x44);
-    iVar3 = in_EAX;
-    while (iVar2 != 0) {
-      *(int *)(*(int *)(iVar3 + 0x44) + 0x48) = iVar3;
-      iVar3 = *(int *)(iVar3 + 0x44);
-      iVar2 = *(int *)(iVar3 + 0x44);
+  /* Original 0x42db74 retains EAX node in EBX and EDX placement mode in ESI.
+   * Pose its owner, update the attached root, then sever both attachment links. */
+  int node = (int)param_1;
+  if (*(int *)(node + 0x13a) == 0) return 0;
+  int owner = *(int *)(node + 0x22);
+  for (int cursor = node; *(int *)(cursor + 0x44) != 0;
+       cursor = *(int *)(cursor + 0x44))
+    *(int *)(*(int *)(cursor + 0x44) + 0x48) = cursor;
+  *(int *)(node + 0x48) = 0;
+  int entry_context = E2R_actor_calc_context;
+  E2R_actor_calc_context = owner;
+  FUN_00424318();
+  E2R_actor_calc_context = entry_context;
+  int attached = *(int *)(node + 0x13a);
+  FUN_00420ec4(attached,(short *)(uintptr_t)node);
+  if (param_2 == 0) {
+    int height = (int)FUN_00448a3c(attached + 0x84,0) - 30;
+    int difference = height - *(short *)(attached + 0x86);
+    if (difference < 0) difference = -difference;
+    if (difference < 64) *(short *)(attached + 0x86) = (short)height;
+    else {
+      FUN_00422aa0(attached + 0x84,(undefined2 *)(uintptr_t)(owner + 0x84));
+      *(short *)(attached + 0x86) -= 30;
     }
-    *(undefined4 *)(in_EAX + 0x48) = 0;
-    FUN_00424318();
-    FUN_00420ec4(extraout_ECX,extraout_EDX);
-    if (param_2 == 0) {
-      iVar2 = FUN_00448a3c(extraout_ECX_00,0);
-      iVar3 = (iVar2 + -0x1e) - (*(int *)(extraout_ECX_01 + 0x84) >> 0x10);
-      if (iVar3 < 1) {
-        iVar3 = -iVar3;
-      }
-      if (iVar3 < 0x40) {
-        *(short *)(extraout_ECX_01 + 0x86) = (short)(iVar2 + -0x1e);
-        iVar2 = extraout_ECX_01;
-      }
-      else {
-        FUN_00422aa0(extraout_ECX_01,(undefined2 *)(*(int *)(in_EAX + 0x22) + 0x84));
-        *(short *)(extraout_ECX_02 + 0x86) = *(short *)(extraout_ECX_02 + 0x86) + -0x1e;
-        iVar2 = extraout_ECX_02;
-      }
-      *(undefined2 *)(iVar2 + 0x94) = 0;
-      *(undefined2 *)(iVar2 + 0x90) = *(undefined2 *)(iVar2 + 0x94);
-    }
-    *(undefined4 *)(*(int *)(in_EAX + 0x13a) + 0xf2) = 0;
-    sVar1 = DAT_0047a34a;
-    *(undefined4 *)(in_EAX + 0x13a) = 0;
-    if ((sVar1 == 0) && (DAT_0047a470 == *(int *)(in_EAX + 0x22))) {
-      iVar2 = *(int *)(in_EAX + 0x22);
-      sVar1 = *(short *)(iVar2 + 0xf0);
-      if (sVar1 == 3) {
-        *(undefined2 *)(iVar2 + 0xf0) = 0;
-      }
-      else if (sVar1 == 4) {
-        *(undefined2 *)(iVar2 + 0xf0) = 1;
-      }
-      else if (sVar1 == 5) {
-        *(undefined2 *)(iVar2 + 0xf0) = 2;
-      }
-      FUN_004559bc();
-    }
+    *(short *)(attached + 0x94) = 0;
+    *(short *)(attached + 0x90) = 0;
   }
-  return;
+  *(int *)(*(int *)(node + 0x13a) + 0xf2) = 0;
+  *(int *)(node + 0x13a) = 0;
+  if (DAT_0047a34a == 0 && DAT_0047a470 == owner) {
+    short kind = *(short *)(owner + 0xf0);
+    if (kind >= 3 && kind <= 5) *(short *)(owner + 0xf0) = kind - 3;
+    FUN_004559bc();
+  }
+  return 0;
 }
 
 

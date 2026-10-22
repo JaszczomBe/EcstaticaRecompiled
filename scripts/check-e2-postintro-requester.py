@@ -19,6 +19,7 @@ parser.add_argument('--timeout', type=int, default=90)
 args = parser.parse_args()
 prefix = str(args.output.resolve())
 env = os.environ.copy()
+env["E2R_RECORD"] = "off"
 env.update(SDL_VIDEODRIVER='dummy', E2R_STARTUP_LOGO_DELAY_MS='0',
            E2R_ACTOR_CUES='1', E2R_ACTION_INDEX_PROBE='0')
 # LeakSanitizer cannot run under ptrace. AddressSanitizer remains enabled.
