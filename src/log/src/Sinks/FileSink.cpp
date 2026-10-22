@@ -8,7 +8,6 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
-#include <unistd.h>
 
 namespace Ecstatica::Recompiled::Log
 {
@@ -40,21 +39,6 @@ namespace Ecstatica::Recompiled::Log
             stem = fname.substr(0, dot);
             ext = fname.substr(dot); // includes dot
         }
-    }
-
-    static std::string numbered_name(const std::string& path, int index)
-    {
-        std::string dir, fname; split_path(path, dir, fname);
-        std::string stem, ext; split_stem_ext(fname, stem, ext);
-        char num[8];
-        std::snprintf(num, sizeof(num), "%03d", index);
-        std::string out;
-        if (!dir.empty()) { out.reserve(dir.size() + stem.size() + 1 + 3 + ext.size() + 1); }
-        if (!dir.empty()) { out.append(dir).push_back('/'); }
-        out.append(stem).push_back('_');
-        out.append(num);
-        out.append(ext);
-        return out;
     }
 
     static std::string timestamped_name(const std::string& path, unsigned long long sequence)
@@ -96,28 +80,15 @@ namespace Ecstatica::Recompiled::Log
         return static_cast<size_t>(end);
     }
 
-    FileSink::FileSink(std::string path, bool flush_on_error, int keep, size_t rotate_bytes)
+    FileSink::FileSink(std::string path, bool flush_on_error, size_t rotate_bytes)
         : _path(std::move(path)),
           _rotate_bytes(rotate_bytes),
-          _keep(keep),
           _flush_on_error(flush_on_error),
           _fp(nullptr),
           _current_size(0)
     {
         EnsureParentDirs();
-        if (_keep > 0)
-        {
-            ::unlink(_path.c_str());
-            for (int i = 1; i <= _keep; ++i)
-                ::unlink(numbered_name(_path, i).c_str());
-            _active_index = 1;
-            _filled_slots = 1;
-            OpenFile(true);
-        }
-        else
-        {
-            OpenFile(true);
-        }
+        OpenFile(true);
     }
 
     FileSink::~FileSink()
@@ -138,30 +109,18 @@ namespace Ecstatica::Recompiled::Log
         {
             apath = _activePath;
         }
-        else if (_keep > 0)
+        else if (_rotate_bytes == 0)
         {
-            if (_active_index <= 0 || _active_index > _keep)
-                _active_index = 1;
-            apath = numbered_name(_path, _active_index);
+            apath = _path;
         }
         else
         {
-            if (_rotate_bytes == 0)
+            do
             {
-                apath = _path;
-            }
-            else
-            {
-                do
-                {
-                    ++_timestampSequence;
-                    apath = BuildTimestampedPath();
-                } while (::access(apath.c_str(), F_OK) == 0);
-            }
+                ++_timestampSequence;
+                apath = BuildTimestampedPath();
+            } while (Ecstatica::Recompiled::LogSupport::IO::FileSystemIO::Exists(apath));
         }
-
-        if (truncate)
-            ::unlink(apath.c_str());
 
         const char* mode = truncate ? "wb" : "ab";
         _fp = std::fopen(apath.c_str(), mode);
@@ -178,55 +137,12 @@ namespace Ecstatica::Recompiled::Log
         }
     }
 
-    void FileSink::RotateNow()
-    {
-        if (_fp)
-        {
-            std::fclose(_fp);
-            _fp = nullptr;
-        }
-
-        if (_keep <= 0)
-        {
-            OpenFile(true);
-            return;
-        }
-        else
-        {
-            if (_keep > 0)
-            {
-                if (_filled_slots < _keep)
-                {
-                    // Grow until the ring is full.
-                    _active_index = ++_filled_slots;
-                    OpenFile(true);
-                    return;
-                }
-
-                // Ring full: drop oldest (_001), shift remaining down, write to _keep.
-                ::unlink(numbered_name(_path, 1).c_str());
-                for (int i = 1; i < _keep; ++i)
-                {
-                    std::string from = numbered_name(_path, i + 1);
-                    std::string to   = numbered_name(_path, i);
-                    ::unlink(to.c_str());
-                    ::rename(from.c_str(), to.c_str());
-                }
-                _filled_slots = _keep;
-                _active_index = _keep;
-                OpenFile(true);
-                return;
-            }
-        }
-        OpenFile();
-    }
-
     void FileSink::RotateIfNeeded()
     {
         if (_rotate_bytes == 0)
             return;
         if (_current_size >= _rotate_bytes)
-            RotateNow();
+            OpenFile(true);
     }
 
     std::string FileSink::BuildTimestampedPath() const
@@ -305,10 +221,8 @@ namespace Ecstatica::Recompiled::Log
 
     void FileSink::Flush()
     {
-        if (!_fp) return;
-        std::fflush(_fp);
-        int fd = fileno(_fp);
-        if (fd >= 0) ::fsync(fd);
+        if (_fp)
+            Ecstatica::Recompiled::LogSupport::IO::FileSystemIO::SyncFile(_fp);
     }
 
     void FileSink::EnsureParentDirs()

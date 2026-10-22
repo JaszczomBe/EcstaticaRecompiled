@@ -3,7 +3,7 @@
 #include "Core/LoggerInternal.h"
 #include "Core/RTTestHooksInternal.h"
 #include "Log/Debug/StackTrace.h"
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
     #include "Log/Test/RTTestHooks.h"
 #endif
 #include "LogSupport/Thread/Id.h"
@@ -18,7 +18,7 @@
 
 namespace Ecstatica::Recompiled::Log
 {
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
     namespace Test
     {
         RTTestHooksState& AccessRTTestHooksState()
@@ -103,53 +103,6 @@ namespace Ecstatica::Recompiled::Log
             for(auto& sink : logImpl->sinks)
                 sink->Flush();
         }
-    }
-
-    void Logger::AddSink(const SinkPtr& sink)
-    {
-        if(!logImpl || !sink)
-            return;
-
-        {
-            std::lock_guard<std::mutex> lock(logImpl->controlMutex);
-            logImpl->controlOps.emplace_back(
-                [sink](LoggerInternal& state)
-                {
-                    auto format = sink->GetFormatOptions();
-                    for(const auto& [module, registrar] : state.moduleFormatRegistrars)
-                    {
-                        (void)module;
-                        if(registrar)
-                            registrar(format);
-                    }
-                    sink->SetFormatOptions(format);
-
-                    std::lock_guard<std::mutex> stateLock(state.sinksMutex);
-                    state.sinks.push_back(sink);
-                });
-            logImpl->controlPending.store(true, std::memory_order_release);
-        }
-
-        logImpl->waiter.StopWait();
-    }
-
-    void Logger::ClearSinks()
-    {
-        if(!logImpl)
-            return;
-
-        {
-            std::lock_guard<std::mutex> lock(logImpl->controlMutex);
-            logImpl->controlOps.emplace_back(
-                [](LoggerInternal& state)
-                {
-                    std::lock_guard<std::mutex> stateLock(state.sinksMutex);
-                    state.sinks.clear();
-                });
-            logImpl->controlPending.store(true, std::memory_order_release);
-        }
-
-        logImpl->waiter.StopWait();
     }
 
     bool Logger::SubmitPrepared(Record&& record, std::string&& ownedMessage)
@@ -292,7 +245,7 @@ namespace Ecstatica::Recompiled::Log
                              ModuleMask       moduleMaskOverride,
                              SubmoduleMask    submoduleMask)
     {
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
         auto& testHooks = Test::AccessRTTestHooksState();
         testHooks.realtimeAttempts.fetch_add(1, std::memory_order_relaxed);
 #endif
@@ -315,7 +268,7 @@ namespace Ecstatica::Recompiled::Log
         record.timePointSteady = std::chrono::steady_clock::now();
         record.timePointWall   = std::chrono::system_clock::now();
 
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
         const bool oversizeMessage = msg.size() > LoggerInternal::RealtimeMessageCapacity;
 #endif
         LoggerInternal::Node* node = logImpl->MakeRealtimeNode(std::move(record));
@@ -324,7 +277,7 @@ namespace Ecstatica::Recompiled::Log
             // RT pool exhausted or message too large for the 256-byte buffer —
             // tracked separately from normal-path drops via droppedRealtime.
             logImpl->RecordDropped(lvl, /*isRealtime=*/true);
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
             testHooks.realtimeDropped.fetch_add(1, std::memory_order_relaxed);
             if(oversizeMessage)
                 testHooks.realtimeOversizeDrops.fetch_add(1, std::memory_order_relaxed);
@@ -340,13 +293,13 @@ namespace Ecstatica::Recompiled::Log
         {
             logImpl->ReleaseNode(node);
             logImpl->RecordDropped(lvl, /*isRealtime=*/true);
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
             testHooks.realtimeDropped.fetch_add(1, std::memory_order_relaxed);
 #endif
             return false;
         }
         logImpl->RecordEnqueued(highPriority);
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
         testHooks.realtimeEnqueued.fetch_add(1, std::memory_order_relaxed);
 #endif
 
@@ -362,7 +315,7 @@ namespace Ecstatica::Recompiled::Log
                                       ModuleMask                         moduleMaskOverride,
                                       SubmoduleMask                      submoduleMask)
     {
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
         auto& testHooks = Test::AccessRTTestHooksState();
         testHooks.realtimeAttempts.fetch_add(1, std::memory_order_relaxed);
 #endif
@@ -391,7 +344,7 @@ namespace Ecstatica::Recompiled::Log
         if(node == nullptr)
         {
             logImpl->RecordDropped(lvl, /*isRealtime=*/true);
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
             testHooks.realtimeDropped.fetch_add(1, std::memory_order_relaxed);
 #endif
             return false;
@@ -405,14 +358,14 @@ namespace Ecstatica::Recompiled::Log
         {
             logImpl->ReleaseNode(node);
             logImpl->RecordDropped(lvl, /*isRealtime=*/true);
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
             testHooks.realtimeDropped.fetch_add(1, std::memory_order_relaxed);
 #endif
             return false;
         }
 
         logImpl->RecordEnqueued(highPriority);
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
         testHooks.realtimeEnqueued.fetch_add(1, std::memory_order_relaxed);
 #endif
 
@@ -435,7 +388,7 @@ namespace Ecstatica::Recompiled::Log
         return logImpl->config.globalLevel;
     }
 
-    bool Logger::IsEnabled_KTParity(Level lvl, ModuleID module, ModuleMask moduleMaskOverride, SubmoduleMask submoduleMask)
+    bool Logger::IsEnabled(Level lvl, ModuleID module, ModuleMask moduleMaskOverride, SubmoduleMask submoduleMask)
     {
         if(!logImpl)
             return false;
@@ -461,7 +414,6 @@ namespace Ecstatica::Recompiled::Log
             return false;
 
         Level    minimumLevel    = logImpl->config.globalLevel;
-        bool     levelOverridden = false;
         ModuleID resolvedModule  = record.module;
         if(resolvedModule == ModuleID::None)
         {
@@ -475,20 +427,15 @@ namespace Ecstatica::Recompiled::Log
             if(moduleLevelIt != logImpl->moduleLevels.end())
             {
                 minimumLevel    = moduleLevelIt->second;
-                levelOverridden = true;
             }
 
-            if(!levelOverridden && logImpl->config.moduleMinLevelMask)
-            {
-                if(auto custom = logImpl->config.moduleMinLevelMask(resolvedModule, record.submoduleMask))
-                    minimumLevel = *custom;
-            }
+
         }
 
         return static_cast<int>(record.level) >= static_cast<int>(minimumLevel);
     }
 
-    bool Logger::ShouldCaptureCallstack_KTParity(Level lvl)
+    bool Logger::ShouldCaptureCallstack(Level lvl)
     {
         if(!logImpl)
             return false;
@@ -535,15 +482,6 @@ namespace Ecstatica::Recompiled::Log
         logImpl->waiter.StopWait();
     }
 
-    void Logger::SetModuleMinLevelResolver(
-        std::function<std::optional<Level>(ModuleID module, SubmoduleMask submodules)> resolver)
-    {
-        if(!logImpl)
-            return;
-
-        UpdateConfig([resolver = std::move(resolver)](Config& config) { config.moduleMinLevelMask = resolver; });
-    }
-
     void Logger::SetRateLimiter(std::function<bool(const Record&)> limiter)
     {
         if(!logImpl)
@@ -585,53 +523,6 @@ namespace Ecstatica::Recompiled::Log
 
                     std::lock_guard<std::mutex> stateLock(state.sinksMutex);
                     state.sinks = std::move(configuredSinks);
-                });
-            logImpl->controlPending.store(true, std::memory_order_release);
-        }
-
-        logImpl->waiter.StopWait();
-    }
-
-    bool Logger::RemoveSink(const SinkPtr& sink)
-    {
-        if(!logImpl || !sink)
-            return false;
-
-        {
-            std::lock_guard<std::mutex> lock(logImpl->controlMutex);
-            logImpl->controlOps.emplace_back(
-                [sink](LoggerInternal& state)
-                {
-                    std::lock_guard<std::mutex> stateLock(state.sinksMutex);
-                    state.sinks.erase(std::remove(state.sinks.begin(), state.sinks.end(), sink), state.sinks.end());
-                });
-            logImpl->controlPending.store(true, std::memory_order_release);
-        }
-
-        logImpl->waiter.StopWait();
-        return true;
-    }
-
-    void Logger::UpdateSinkFormatOptions(const std::function<void(FormatOptions&)>& updater)
-    {
-        if(!logImpl || !updater)
-            return;
-
-        {
-            std::lock_guard<std::mutex> lock(logImpl->controlMutex);
-            logImpl->controlOps.emplace_back(
-                [updater](LoggerInternal& state)
-                {
-                    std::lock_guard<std::mutex> stateLock(state.sinksMutex);
-                    for(auto& sink : state.sinks)
-                    {
-                        if(!sink)
-                            continue;
-
-                        auto format = sink->GetFormatOptions();
-                        updater(format);
-                        sink->SetFormatOptions(format);
-                    }
                 });
             logImpl->controlPending.store(true, std::memory_order_release);
         }

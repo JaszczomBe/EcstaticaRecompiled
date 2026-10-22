@@ -10,10 +10,9 @@ namespace Ecstatica::Recompiled::Log
     class FileSink : public Sink
     {
     public:
-        // keep > 0 => numbered circular rotation, keep <= 0 => append-only timestamped files.
+        // Append-only timestamped rotation; completed files are never overwritten.
         explicit FileSink(std::string path,
                           bool flush_on_error = true,
-                          int keep = 0,
                           size_t rotate_bytes = kLogFileRotateBytes);
         ~FileSink() override;
         bool IsOpen() const { return _fp != nullptr; }
@@ -26,7 +25,6 @@ namespace Ecstatica::Recompiled::Log
     private:
         void OpenFile(bool truncate = false);
         void RotateIfNeeded();
-        void RotateNow();
         bool WriteLine(std::string_view line);
         bool RecoverAfterWriteFailure();
         void FlushBufferedLine();
@@ -37,12 +35,9 @@ namespace Ecstatica::Recompiled::Log
         std::string     _path;
         std::string     _activePath;
         size_t          _rotate_bytes;
-        int             _keep;
         bool            _flush_on_error;
         std::FILE*      _fp;
         size_t          _current_size;
-        int             _active_index = 0;  // for circular mode
-        int             _filled_slots = 0;  // number of allocated slots in circular mode
         unsigned long long _timestampSequence = 0;
         FormatOptions   _fmt
         {

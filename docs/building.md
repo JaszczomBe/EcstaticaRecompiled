@@ -129,7 +129,7 @@ Normal input logging describes virtual keys delivered through the Win32 compatib
 
 Detailed SDL events, keyboard snapshots, message dispatch and legacy input-flag traces are hidden by default. Set `E2R_INPUT_DIAG_VERBOSE=1` to retain them as additional `Runtime.Input` Debug records. Existing `E2R_INPUT_DIAG=0` disables host key summaries; Release builds require `E2R_INPUT_DIAG=1` to enable them. Explicit probe state snapshots remain available at Debug. This is state-change logging, not a periodic held-key snapshot or a route recorder.
 
-The existing session retention policy runs at startup: preserve at least the newest 10 previous sessions, deleting older session directories only when their total size exceeds 128 MiB. Legacy flat log files are left alone. Simultaneous launches use distinct session directories. Session metadata records creation time, PID, build type, rotation and retention settings.
+Session retention checks at startup and every 60 seconds, deleting the oldest completed sessions until both the 100-session and 128 MiB caps are met. Configure positive integer limits with `E2R_LOG_MAX_SESSIONS`, `E2R_LOG_MAX_TOTAL_MB` and `E2R_LOG_CLEANUP_INTERVAL_SECONDS`. Active sessions are protected by process-held leases, including concurrent launches; a crash or debugger kill releases the lease automatically. Older sessions without leases are protected while their recorded PID is alive. Active data can exceed the budget; cleanup reports that condition and never deletes an active session. Legacy flat files and symlinked session directories are left alone. Metadata schema 2 records creation time, PID, build type, rotation and retention limits.
 
 Override output and filtering with `E2R_DATA_DIR`, `E2R_LOG_LEVEL` and `E2R_LOG_DISABLE_MODULES`, or pass the corresponding CLI options **before** the runtime command. CLI options take precedence over environment defaults. For example:
 
@@ -138,7 +138,7 @@ Override output and filtering with `E2R_DATA_DIR`, `E2R_LOG_LEVEL` and `E2R_LOG_
   --data-dir /tmp/e2-session --log-level Info --run-recon
 ```
 
-`--log-level Off` suppresses logger records in both console and file output. `--log-disable-modules Runtime` suppresses startup and the adapted diagnostics in both sinks. Errors before logger bootstrap still use ordinary stderr. The game-data directory still comes from the selected CMake configuration; `--game-data-dir` is an optional launch override. Missing option values and invalid output/log directories fail at startup with an explicit error.
+`--log-level Off` suppresses ordinary records in both sinks. Error and Fatal bypass all severity thresholds and rate limits. Error still respects module/submodule masks; Fatal bypasses masks too. `--log-disable-modules Runtime` suppresses Runtime records other than Fatal. Critical events take priority over normal messages; producer timestamps and sequence numbers are retained for reconstruction of chronology. Native Error/Fatal callstacks are captured at the logging site and symbolized on the consumer thread. Errors before logger bootstrap still use ordinary stderr. The game-data directory still comes from the selected CMake configuration; `--game-data-dir` is an optional launch override. Missing option values and invalid output/log directories fail at startup with an explicit error.
 
 `E2R_ENABLE_LOGGER=OFF` selects a C-only logging stub while retaining runtime options. Turning off both logger and runtime options remains available for isolated compatibility experiments; the shared presets enable both.
 
@@ -154,6 +154,8 @@ cmake --preset linux-clang32-sdl-debug-asan
 cmake --build --preset linux-clang32-sdl-debug-asan
 python3 scripts/check-e2-developer-launch.py build/Debug/clang21-i386-sdl/e2recomp
 python3 scripts/check-e2-developer-launch.py build/Debug/clang21-i386-sdl-asan/e2recomp
+python3 scripts/check-e2-log-retention.py build/Debug/clang21-i386-sdl/e2recomp
+python3 scripts/check-e2-log-retention.py build/Debug/clang21-i386-sdl-asan/e2recomp
 SDL_VIDEODRIVER=dummy E2R_ACTOR_CUES=1 timeout 140 build/Debug/clang21-i386-sdl/e2recomp --auto-scene175-visibility /tmp/e2-build-cues 120 7000
 ```
 
@@ -170,3 +172,5 @@ python3 scripts/probe-e2-vscode-launch.py build/Debug/clang21-i386-sdl/e2recomp 
 This opens the normal game window using `launch.json` arguments/environment and the supplied CMake executable's working directory. It uses the current desktop backend and physical input, without substituting a smoke-test command, dummy video or gameplay breakpoints. It records adapter events and any stopped-thread stack. A pass establishes survival of that interval; it does not verify the editor's current preset selection or complete gameplay. Repeat with the ASan executable when checking that preset.
 
 Use fresh capture prefixes and inspect the actual scene/actor state. ASan and gated action-index paths have known runtime limitations documented in the [active implementation](implementations/playable-sdl-runtime/playable-sdl-runtime.md). Manual F5 is still the final check of the actual editor integration; shell probes cannot establish VS Code's selected state.
+
+Focused C++ logger checks, including real-time pooling/deferred formatting, masks and native source stacks, are documented in [the logger guide](../src/log/include/Log/README.md). Enable `E2R_LOG_BUILD_TESTS` in a separate build directory; the standard developer presets keep test hooks disabled.

@@ -10,19 +10,6 @@
 
 namespace Ecstatica::Recompiled::Log::Paths
 {
-    static std::string g_root;
-    static std::string g_session;
-
-    const std::string& LogsRoot()
-    {
-        if (g_root.empty())
-        {
-            g_root = "data/logs";
-            Ecstatica::Recompiled::LogSupport::IO::FileSystemIO::CreateDirectory(g_root);
-        }
-        return g_root;
-    }
-
     std::string BuildSessionDir(std::string_view logsRoot)
     {
         if (logsRoot.empty())
@@ -60,23 +47,6 @@ namespace Ecstatica::Recompiled::Log::Paths
                 return {};
         }
         return {};
-    }
-
-    std::string BuildSessionFilePath(std::string_view logsRoot, std::string_view fileName)
-    {
-        const auto sessionDir = BuildSessionDir(logsRoot);
-        if (sessionDir.empty())
-            return {};
-        return Join(sessionDir, std::string(fileName));
-    }
-
-    const std::string& SessionDir()
-    {
-        if (g_session.empty())
-        {
-            g_session = BuildSessionDir(LogsRoot());
-        }
-        return g_session;
     }
 
     std::string Join(const std::string& a, const std::string& b)

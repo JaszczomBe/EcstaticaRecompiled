@@ -40,6 +40,5 @@ namespace Ecstatica::Recompiled::Log
         ModuleMask                                  moduleDenyMask      = 0;
         std::unordered_map<ModuleID, SubmoduleMask> submoduleAllowMasks;
         std::unordered_map<ModuleID, SubmoduleMask> submoduleDenyMasks;
-        std::function<std::optional<Level>(ModuleID module, SubmoduleMask submodules)> moduleMinLevelMask;
     };
 }

@@ -1,6 +1,5 @@
 #include "Log/Core/Format.h"
 
-#include "Log/Core/Kotlin/ThrowableFields.h"
 #include "Log/Core/Level.h"
 #include "Log/Modules/ModuleId.h"
 #include "LogSupport/String/Trim.h"
@@ -24,7 +23,7 @@
     #include <dlfcn.h>
 #endif
 
-#if (defined(__linux__) && !defined(ANDROID)) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__)
     #define UT_LOG_CAN_SYMBOLIZE_SOURCE 1
 #else
     #define UT_LOG_CAN_SYMBOLIZE_SOURCE 0
@@ -34,10 +33,6 @@ namespace Ecstatica::Recompiled::Log
 {
     namespace
     {
-        inline constexpr bool kAndroidCompactThrowable = true;
-        inline constexpr bool kAndroidCompactStack = true;
-        inline constexpr bool kAndroidHideRuntimeFrames = true;
-        inline constexpr bool kAndroidHideUnresolvedFrames = true;
         inline constexpr bool kHideLoggerInternalFrames = true;
     }
 
@@ -162,70 +157,6 @@ namespace Ecstatica::Recompiled::Log
         if(use_color)
             out.append(kColorReset);
         out.push_back('\n');
-    }
-
-    static void AppendMultilineSection(std::string& out,
-                                       std::string_view color,
-                                       bool useColor,
-                                       std::string_view label,
-                                       std::string_view text)
-    {
-        if(text.empty())
-            return;
-
-        std::string line;
-        line.reserve(label.size() + text.size() + 4);
-        line.append("  ");
-        line.append(label.data(), label.size());
-        line.append(": ");
-
-        size_t start = 0;
-        bool firstLine = true;
-        while(start <= text.size())
-        {
-            const size_t end = text.find('\n', start);
-            const bool hasNewline = end != std::string_view::npos;
-            const size_t lineEnd = hasNewline ? end : text.size();
-            if(!firstLine)
-            {
-                line.assign("    ");
-            }
-            line.append(text.data() + start, lineEnd - start);
-            AppendColoredLine(out, color, useColor, line);
-            line.clear();
-
-            if(!hasNewline)
-                break;
-
-            start = lineEnd + 1;
-            firstLine = false;
-        }
-    }
-
-    static void AppendCompactSection(std::string& out, std::string_view label, std::string_view text, std::string_view indent)
-    {
-        if(text.empty())
-            return;
-
-        out.append("\n");
-        out.append(indent.data(), indent.size());
-        out.append(label.data(), label.size());
-        out.append(": ");
-
-        for(size_t i = 0; i < text.size(); ++i)
-        {
-            const char ch = text[i];
-            if(ch == '\r')
-                continue;
-            if(ch == '\n')
-            {
-                out.append("\n");
-                out.append(indent.data(), indent.size());
-                out.append("  ");
-                continue;
-            }
-            out.push_back(ch);
-        }
     }
 
     std::string RenderModuleName(ModuleID id)
@@ -615,25 +546,10 @@ namespace Ecstatica::Recompiled::Log
         return true;
     }
 
-    static bool ShouldIncludeFrame(
-        std::string_view function,
-        std::string_view address,
-        bool             hideRuntimeFrames,
-        bool             hideUnresolvedFrames)
+    static bool ShouldIncludeFrame(std::string_view function)
     {
         if(function.empty())
             return false;
-        if(hideUnresolvedFrames && (function == address || function.rfind("0x", 0) == 0))
-            return false;
-        if(hideRuntimeFrames)
-        {
-            if(function.rfind("art::", 0) == 0)
-                return false;
-            if(function.find("art::interpreter::DoCall") != std::string_view::npos)
-                return false;
-            if(function.find("art::ArtMethod::Invoke") != std::string_view::npos)
-                return false;
-        }
         if(kHideLoggerInternalFrames)
         {
             if(function == "Ecstatica::Recompiled::Log::CaptureCallstack(bool, int)")
@@ -652,103 +568,6 @@ namespace Ecstatica::Recompiled::Log
                 return false;
         }
         return true;
-    }
-
-    static std::string BuildStacktraceSummary(
-        const std::string& raw,
-        const FormatOptions& opt,
-        bool hideRuntimeFrames,
-        bool hideUnresolvedFrames)
-    {
-        // Parse all addresses up-front so we can batch the external resolver call.
-        std::vector<uintptr_t> addrs;
-        {
-            size_t pos = 0;
-            while(pos < raw.size())
-            {
-                size_t           end = raw.find('\n', pos);
-                std::string_view entry(raw.data() + pos, (end == std::string::npos ? raw.size() : end) - pos);
-                pos = (end == std::string::npos) ? raw.size() : end + 1;
-                if(!entry.empty() && entry.back() == '\r')
-                    entry.remove_suffix(1);
-                entry = Ecstatica::Recompiled::LogSupport::String::TrimAsciiWhitespace(entry);
-                if(entry.empty())
-                    continue;
-                uintptr_t addr = 0;
-                if(ParseAddressLine(entry, addr))
-                    addrs.push_back(addr);
-            }
-        }
-
-        Ecstatica::Recompiled::LogSupport::Time::Timer timer;
-        timer.Start();
-
-        std::vector<FrameSymbol> symbols;
-        symbols.reserve(addrs.size());
-        for(uintptr_t addr : addrs)
-            symbols.push_back(SymbolizeFrame(addr));
-
-        std::vector<uintptr_t> filteredAddrs;
-        std::vector<FrameSymbol> filteredSymbols;
-        filteredAddrs.reserve(addrs.size());
-        filteredSymbols.reserve(symbols.size());
-        for(size_t i = 0; i < addrs.size(); ++i)
-        {
-            if(!ShouldIncludeFrame(symbols[i].function, symbols[i].address, hideRuntimeFrames, hideUnresolvedFrames))
-                continue;
-            filteredAddrs.push_back(addrs[i]);
-            filteredSymbols.push_back(std::move(symbols[i]));
-        }
-
-#if UT_LOG_CAN_SYMBOLIZE_SOURCE
-        if(opt.stackShowSource && !filteredAddrs.empty())
-            BatchResolveSource(filteredAddrs, filteredSymbols);
-#endif
-
-        timer.Stop();
-
-        std::string joined;
-        for(size_t i = 0; i < filteredSymbols.size(); ++i)
-        {
-            const auto& sym = filteredSymbols[i];
-
-            std::string frame = sym.function;
-            if(opt.stackShowSource && !sym.file.empty())
-            {
-                std::string path = opt.stackRelativePaths ? RelativizePath(sym.file) : sym.file;
-                frame.append(" (");
-                frame.append(path);
-                if(sym.line >= 0)
-                {
-                    frame.push_back(':');
-                    frame.append(std::to_string(sym.line));
-                }
-                frame.push_back(')');
-            }
-            else if(!hideUnresolvedFrames)
-            {
-                frame.append(" [");
-                frame.append(sym.address);
-                frame.push_back(']');
-            }
-
-            if(!joined.empty())
-                joined.push_back('\n');
-            joined.append("   ");
-            joined.append(frame);
-        }
-
-        if(joined.empty())
-            return {};
-
-        std::string summary;
-        summary.reserve(joined.size() + 48);
-        summary.append("\n");
-        summary.append(joined);
-        summary.append("\n");
-        summary.append("  resolved in ");
-        summary.append(timer.ToString());
-        return summary;
     }
 
     static void AppendStacktraceLines(const std::string&   raw,
@@ -793,7 +612,7 @@ namespace Ecstatica::Recompiled::Log
         filteredSymbols.reserve(symbols.size());
         for(size_t i = 0; i < addrs.size(); ++i)
         {
-            if(!ShouldIncludeFrame(symbols[i].function, symbols[i].address, false, false))
+            if(!ShouldIncludeFrame(symbols[i].function))
                 continue;
             filteredAddrs.push_back(addrs[i]);
             filteredSymbols.push_back(std::move(symbols[i]));
@@ -904,9 +723,6 @@ namespace Ecstatica::Recompiled::Log
         for(size_t i = 0; i < rec.fieldCount; ++i)
         {
             const auto& kv = rec.fields[i];
-            if(IsKotlinThrowableField(kv))
-                continue;
-
             line.push_back(' ');
             line.append(kv.key.data(), kv.key.size());
             line.push_back('=');
@@ -932,102 +748,10 @@ namespace Ecstatica::Recompiled::Log
     {
         auto        color = LevelColor(rec.level);
         std::string line  = BuildRecordSummary(rec, opt);
-        const auto  kotlinThrowable = ExtractKotlinThrowableFields(rec);
-
-        if(kotlinThrowable.present)
-        {
-            std::string summary;
-            if(!kotlinThrowable.type.empty())
-                summary.append(kotlinThrowable.type.data(), kotlinThrowable.type.size());
-            if(!kotlinThrowable.message.empty())
-            {
-                if(!summary.empty())
-                    summary.append(": ");
-                summary.append(kotlinThrowable.message.data(), kotlinThrowable.message.size());
-            }
-            if(summary.empty())
-                summary = "present";
-
-            std::string summaryLine = "  Kotlin throwable: ";
-            summaryLine.append(summary);
-            AppendColoredLine(out, color, opt.useColor, summaryLine);
-
-            AppendMultilineSection(out, color, opt.useColor, "Kotlin stack", kotlinThrowable.stack);
-
-            std::string causeSummary;
-            if(!kotlinThrowable.causeType.empty())
-                causeSummary.append(kotlinThrowable.causeType.data(), kotlinThrowable.causeType.size());
-            if(!kotlinThrowable.causeMessage.empty())
-            {
-                if(!causeSummary.empty())
-                    causeSummary.append(": ");
-                causeSummary.append(kotlinThrowable.causeMessage.data(), kotlinThrowable.causeMessage.size());
-            }
-            if(!causeSummary.empty())
-            {
-                std::string causeSummaryLine = "  Kotlin cause: ";
-                causeSummaryLine.append(causeSummary);
-                AppendColoredLine(out, color, opt.useColor, causeSummaryLine);
-            }
-
-            AppendMultilineSection(out, color, opt.useColor, "Kotlin cause stack", kotlinThrowable.causeStack);
-        }
-
         if(opt.includeStack && rec.callstack && !rec.callstack->empty())
             AppendStacktraceLines(*rec.callstack, opt, out, color);
 
         AppendColoredLine(out, color, opt.useColor, line);
     }
 
-    void FormatAndroidLine(const Record& rec, std::string& out, const FormatOptions& opt)
-    {
-        auto        color = LevelColor(rec.level);
-        std::string line  = BuildRecordSummary(rec, opt);
-        const auto  kotlinThrowable = ExtractKotlinThrowableFields(rec);
-
-        if(kotlinThrowable.present)
-        {
-            std::string summary;
-            if(!kotlinThrowable.type.empty())
-                summary.append(kotlinThrowable.type.data(), kotlinThrowable.type.size());
-            if(!kotlinThrowable.message.empty())
-            {
-                if(!summary.empty())
-                    summary.append(": ");
-                summary.append(kotlinThrowable.message.data(), kotlinThrowable.message.size());
-            }
-            if(summary.empty())
-                summary = "present";
-
-            if(kAndroidCompactThrowable)
-            {
-                AppendCompactSection(line, "Kotlin throwable", summary, "");
-                AppendCompactSection(line, "Kotlin stack", kotlinThrowable.stack, "");
-            }
-
-            std::string causeSummary;
-            if(!kotlinThrowable.causeType.empty())
-                causeSummary.append(kotlinThrowable.causeType.data(), kotlinThrowable.causeType.size());
-            if(!kotlinThrowable.causeMessage.empty())
-            {
-                if(!causeSummary.empty())
-                    causeSummary.append(": ");
-                causeSummary.append(kotlinThrowable.causeMessage.data(), kotlinThrowable.causeMessage.size());
-            }
-            if(!causeSummary.empty())
-                AppendCompactSection(line, "Kotlin cause", causeSummary, "");
-
-            AppendCompactSection(line, "Kotlin cause stack", kotlinThrowable.causeStack, "");
-        }
-
-        if(opt.includeStack && rec.callstack && !rec.callstack->empty() && kAndroidCompactStack)
-        {
-            const std::string stackSummary =
-                BuildStacktraceSummary(*rec.callstack, opt, kAndroidHideRuntimeFrames, kAndroidHideUnresolvedFrames);
-            if(!stackSummary.empty())
-                line.append(stackSummary);
-        }
-
-        AppendColoredLine(out, color, opt.useColor, line);
-    }
-} // namespace Ecstatica::Recompiled::Log
+}

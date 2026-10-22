@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
 
 #include <atomic>
 #include <cstdint>

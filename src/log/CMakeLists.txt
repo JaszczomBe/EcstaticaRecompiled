@@ -18,7 +18,6 @@ add_library(e2r_log STATIC
     src/Session/SessionRetention.cpp
     src/Sinks/FileSink.cpp
     src/Sinks/StderrSink.cpp
-    src/Sinks/StdoutSink.cpp
 )
 
 target_include_directories(e2r_log PUBLIC
@@ -31,7 +30,23 @@ target_include_directories(e2r_log PRIVATE
 
 target_compile_features(e2r_log PUBLIC cxx_std_20)
 target_compile_definitions(e2r_log PUBLIC UT_LOG_USE_STD_FORMAT=1)
+find_package(Threads REQUIRED)
+target_link_libraries(e2r_log PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(e2r_log PRIVATE -Wall -Wextra)
+endif()
+
+option(E2R_LOG_BUILD_TESTS "Build focused logger contract checks" OFF)
+if(E2R_LOG_BUILD_TESTS)
+    target_compile_definitions(e2r_log PUBLIC E2R_LOG_ENABLE_RT_TEST_HOOKS=1)
+    add_executable(e2r-log-contract tests/contract.cpp)
+    target_link_libraries(e2r-log-contract PRIVATE e2r_log)
+    if(UNIX AND NOT APPLE)
+        target_link_options(e2r-log-contract PRIVATE -rdynamic)
+    endif()
+    if(E2R_ENABLE_ASAN)
+        target_compile_options(e2r-log-contract PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+        target_link_options(e2r-log-contract PRIVATE -fsanitize=address)
+    endif()
 endif()

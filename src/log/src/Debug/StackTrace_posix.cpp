@@ -3,7 +3,7 @@
 #include <string>
 #include <cstdio>
 
-#if defined(__APPLE__) || defined(__linux__) || defined(ANDROID)
+#if defined(__APPLE__) || defined(__linux__)
     #define UT_HAS_EXECINFO 1
     #include <execinfo.h>
 #else

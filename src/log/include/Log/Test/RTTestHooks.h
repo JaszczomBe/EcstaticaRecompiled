@@ -1,7 +1,7 @@
 #pragma once
 
-#if !defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
-#error "Log/Test/RTTestHooks.h is available only when UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS is enabled."
+#if !defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
+#error "Log/Test/RTTestHooks.h is available only when E2R_LOG_ENABLE_RT_TEST_HOOKS is enabled."
 #endif
 
 #include <cstdint>
@@ -10,7 +10,7 @@ namespace Ecstatica::Recompiled::Log::Test
 {
     // Snapshot of test-only counters used to verify RT-path behavior without
     // exposing production internals. This header is compiled only when
-    // UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS is enabled in the tests build.
+    // E2R_LOG_ENABLE_RT_TEST_HOOKS is enabled in the tests build.
     struct RTTestHooksSnapshot
     {
         // Counts any call to Waiter::StopWait(). RT logging must not increment

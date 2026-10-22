@@ -15,10 +15,14 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include <limits>
+#include <stdexcept>
+#include <charconv>
 
 namespace
 {
     std::atomic<bool> loggingActive{false};
+    std::unique_ptr<Ecstatica::Recompiled::Log::Session::Maintenance> sessionMaintenance;
     using namespace Ecstatica::Recompiled::Log;
 
     Level ToLevel(int level)
@@ -107,6 +111,19 @@ namespace
         }();
         return enabled;
     }
+
+    uint64_t PositiveSetting(const char* name, uint64_t fallback, uint64_t maximum)
+    {
+        const char* value = std::getenv(name);
+        if (!value || !*value)
+            return fallback;
+        const std::string_view text(value);
+        uint64_t parsed = 0;
+        const auto result = std::from_chars(text.data(), text.data() + text.size(), parsed);
+        if (result.ec != std::errc{} || result.ptr != text.data() + text.size() || parsed == 0 || parsed > maximum)
+            throw std::invalid_argument(std::string(name) + " must be a positive integer within range");
+        return parsed;
+    }
 }
 
 extern "C" int E2R_LogBootstrap(const char* level, const char* disabled_modules, const char* data_dir)
@@ -116,15 +133,18 @@ extern "C" int E2R_LogBootstrap(const char* level, const char* disabled_modules,
         if (data_dir == nullptr || data_dir[0] == '\0')
             return 0;
         using namespace Ecstatica::Recompiled::Log;
-        const Session::RetentionPolicy policy;
+        Session::RetentionPolicy policy;
+        policy.maxSessions = PositiveSetting("E2R_LOG_MAX_SESSIONS", policy.maxSessions, std::numeric_limits<unsigned>::max());
+        policy.maxTotalSizeBytes = PositiveSetting("E2R_LOG_MAX_TOTAL_MB", policy.maxTotalSizeBytes / (1024 * 1024),
+                std::numeric_limits<uint64_t>::max() / (1024 * 1024)) * (1024 * 1024);
+        policy.cleanupInterval = std::chrono::seconds(PositiveSetting("E2R_LOG_CLEANUP_INTERVAL_SECONDS", policy.cleanupInterval.count(),
+                std::numeric_limits<int>::max()));
         Session::Metadata metadata;
         metadata.appId = "EcstaticaRecompiled";
         metadata.rootLogFileBaseName = "e2recomp.log";
         metadata.rotateBytes = kLogFileRotateBytes;
-        metadata.retentionMinSessions = policy.minSessions;
-        metadata.retentionMaxTotalSizeMb = policy.maxTotalSizeBytes / (1024 * 1024);
-        const auto session = Session::PrepareStartupSession(
-            (std::filesystem::path(data_dir) / "logs").string(), "e2recomp.log", policy, metadata);
+        const auto logsRoot = (std::filesystem::path(data_dir) / "logs").string();
+        auto session = Session::PrepareStartupSession(logsRoot, "e2recomp.log", policy, metadata);
         if (session.logFilePath.empty() ||
             !std::filesystem::is_regular_file(std::filesystem::path(session.sessionDirectory) / "session.meta") ||
             !Bootstrap(
@@ -137,14 +157,17 @@ extern "C" int E2R_LogBootstrap(const char* level, const char* disabled_modules,
         loggingActive.store(true, std::memory_order_release);
         E2R_LogWrite(E2R_LOG_LEVEL_INFO, E2R_LOG_MODULE_RUNTIME, E2R_LOG_TAG_STARTUP,
                      nullptr, nullptr, 0, ("Log session: " + session.sessionDirectory).c_str());
-        if (session.cleanup.removedSessions || session.cleanup.failedRemovals)
-            E2R_LogWrite(session.cleanup.failedRemovals ? E2R_LOG_LEVEL_WARNING : E2R_LOG_LEVEL_INFO,
+        if (session.cleanup.removedSessions || session.cleanup.failedRemovals || session.cleanup.overBudget)
+            E2R_LogWrite(session.cleanup.failedRemovals || session.cleanup.overBudget ? E2R_LOG_LEVEL_WARNING : E2R_LOG_LEVEL_INFO,
                          E2R_LOG_MODULE_RUNTIME, E2R_LOG_TAG_STARTUP, nullptr, nullptr, 0,
                          Session::FormatCleanupSummary(session.cleanup).c_str());
+        sessionMaintenance = std::make_unique<Session::Maintenance>(logsRoot, policy, std::move(session));
         return 1;
     }
     catch (const std::exception& error)
     {
+        if (loggingActive.load(std::memory_order_acquire))
+            E2R_LogShutdown();
         std::fprintf(stderr, "logger bootstrap failed: %s\n", error.what());
         return 0;
     }
@@ -152,8 +175,11 @@ extern "C" int E2R_LogBootstrap(const char* level, const char* disabled_modules,
 
 extern "C" void E2R_LogShutdown(void)
 {
+    if (sessionMaintenance)
+        sessionMaintenance->Stop();
     loggingActive.store(false, std::memory_order_release);
     Ecstatica::Recompiled::Log::BootstrapShutdown();
+    sessionMaintenance.reset();
 }
 
 extern "C" int E2R_LogIsActive(void)

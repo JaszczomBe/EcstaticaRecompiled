@@ -68,7 +68,6 @@ namespace Ecstatica::Recompiled::Log
             fieldText.emplace_back(record.fields[index].value.data(), record.fields[index].value.size());
 
             Record::Field field;
-            field.id    = record.fields[index].id;
             field.key   = fieldText[fieldText.size() - 2];
             field.value = fieldText.back();
             fieldViews.emplace_back(field);
@@ -360,6 +359,9 @@ namespace Ecstatica::Recompiled::Log
     {
         for(;;)
         {
+            // Critical records may arrive while a normal batch is draining.
+            if(!highPriority && highPriorityQueue.Count() != 0)
+                DrainQueue(highPriorityQueue, true);
             Node* node = queue.TryDequeueRaw();
             if(!node)
                 break;
@@ -383,7 +385,6 @@ namespace Ecstatica::Recompiled::Log
                 }
 
                 Level    minimumLevel    = config.globalLevel;
-                bool     levelOverridden = false;
 
                 ModuleID resolvedModule  = record.module;
                 if(resolvedModule == ModuleID::None)
@@ -398,17 +399,8 @@ namespace Ecstatica::Recompiled::Log
                     if(moduleLevelIt != moduleLevels.end())
                     {
                         minimumLevel    = moduleLevelIt->second;
-                        levelOverridden = true;
                     }
 
-                    if(!levelOverridden && config.moduleMinLevelMask)
-                    {
-                        if(auto custom = config.moduleMinLevelMask(resolvedModule, record.submoduleMask))
-                        {
-                            minimumLevel    = *custom;
-                            levelOverridden = true;
-                        }
-                    }
                 }
 
                 if(static_cast<int>(record.level) < static_cast<int>(minimumLevel))

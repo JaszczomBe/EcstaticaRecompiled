@@ -1,36 +1,24 @@
 #pragma once
-#include <thread>
 #include <atomic>
-#include <memory>
 #include <functional>
-#include "ITask.h"
+#include <string>
+#include <thread>
 
 namespace Ecstatica::Recompiled::LogSupport::Thread
 {
-	// Task callback will be continously executed by BackgroundRunner until it returns false or runCount reaches 0
-	using TaskFunction = std::function<bool()>;
+    using TaskFunction = std::function<bool()>;
 
+    // Named consumer worker; the task returns false when its work is finished.
     class BackgroundRunner
-	{
-		public:
-			BackgroundRunner(const std::string& name = "BackgroundRunner");
-            virtual ~BackgroundRunner();
-
-			void Start(std::unique_ptr<ITask> task, int count = -1);
-			void Start(TaskFunction task, int count = -1);
-            void Stop();
-			bool IsRunning() const;
-
-        private:
-            void Run();
-
-        private:
-            std::atomic<bool> 		stopFlag;
-			int						runCount;			
-            std::thread				workerThread;
-
-			TaskFunction			taskFunction;
-			std::unique_ptr<ITask>	taskObject;
-            const std::string       name;
+    {
+    public:
+        explicit BackgroundRunner(std::string name = "BackgroundRunner");
+        ~BackgroundRunner();
+        void Start(TaskFunction task);
+        void Stop();
+    private:
+        std::atomic<bool> stopFlag{true};
+        std::thread workerThread;
+        const std::string name;
     };
 }

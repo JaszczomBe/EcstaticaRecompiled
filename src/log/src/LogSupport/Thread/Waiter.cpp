@@ -29,7 +29,7 @@ namespace Ecstatica::Recompiled::LogSupport::Thread
 
     void Waiter::StopWait()
     {
-#if defined(UNDERTONE_LOG_ENABLE_RT_TEST_HOOKS)
+#if defined(E2R_LOG_ENABLE_RT_TEST_HOOKS)
         Ecstatica::Recompiled::Log::Test::AccessRTTestHooksState().waiterStopWaitCalls.fetch_add(
             1, std::memory_order_relaxed);
 #endif

@@ -169,9 +169,13 @@ continue
     error_log = records(output / 'dump-error')
     assert '[ERROR]' in error and 'failed to write frame dump:' in error
     assert '[ERROR]' in error_log and 'failed to write frame dump:' in error_log
+    error = run('off-still-errors', ['--log-level', 'Off'], success=False,
+                command=('--dump-frame', str(output / 'absent-parent' / 'off.pgm'), '1'))
+    assert '[ERROR]' in error and '[INFO]' not in error
+    assert '[ERROR]' in records(output / 'off-still-errors')
 
     # Activate the logger's existing retention policy against disposable sparse
-    # files: keep ten previous sessions and leave old flat logs untouched.
+    # files: meet the byte budget and leave old flat logs untouched.
     retained_logs = output / 'retention' / 'logs'
     retained_logs.mkdir(parents=True)
     for index in range(11):
@@ -188,6 +192,10 @@ continue
     assert not oldest.exists()
     assert len(list(retained_logs.glob('session_*'))) == 11
     assert legacy.read_text() == 'retain legacy logs'
+    for setting, value in [('E2R_LOG_MAX_SESSIONS', '0'), ('E2R_LOG_MAX_TOTAL_MB', '-1'),
+                           ('E2R_LOG_CLEANUP_INTERVAL_SECONDS', 'invalid')]:
+        error = run('invalid-' + setting.lower(), overrides={setting: value}, success=False)
+        assert setting in error and 'positive integer' in error
 
     # The same output root works from outside the build tree, even after chdir
     # into the original game data. Relative CLI overrides resolve before chdir.

@@ -7,14 +7,14 @@ namespace Ecstatica::Recompiled::Log
 {
     struct FormatOptions;
 
-    // Start the logger with optional stdout and file sinks, applying app-level logging
+    // Start the logger with optional stderr and file sinks, applying app-level logging
     // inputs such as level and module filters.
     //
     // level:   "Trace"|"Debug"|"Info"|"Warning"|"Error"|"Fatal"|"Off"
     //          empty string keeps the build default: Trace in debug, Info in release
     // modules: comma-separated module names to DISABLE (deny-list).
     //          empty string = all modules enabled (default)
-    //          e.g. "Core_Audio,Core_Scripts" suppresses those two modules
+    //          e.g. "Audio,Script" suppresses those two modules
     // disableSubmoduleFiltering:
     //          when true, submodule allow/deny masks are ignored entirely
     // configureFormat:
@@ -22,8 +22,8 @@ namespace Ecstatica::Recompiled::Log
     //
     // Intended to be called once per process, after the app has resolved its
     // logging config from CLI, settings files, platform input, or other sources.
-    // Returns false if a requested file sink cannot be opened. C runtime integration
-    // disables the stdout sink because its existing stderr output is mirrored.
+    // Returns false if a requested file sink cannot be opened. Error/Fatal bypass
+    // severity thresholds; Error respects module masks and Fatal bypasses them.
     bool Bootstrap(std::string_view level,
                    std::string_view modules,
                    bool disableSubmoduleFiltering = false,

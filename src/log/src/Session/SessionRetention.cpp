@@ -3,6 +3,8 @@
 #include "LogSupport/IO/FileSystemIO.h"
 #include "Log/Paths/Paths.h"
 #include "LogSupport/String/Path.h"
+#include "Log/Core/Logger.h"
+#include <cerrno>
 
 #include <chrono>
 #include <cstdio>
@@ -16,8 +18,10 @@
 
 #if defined(_WIN32)
 #include <process.h>
+#include <windows.h>
 #else
 #include <unistd.h>
+#include <signal.h>
 #endif
 
 namespace Ecstatica::Recompiled::Log::Session
@@ -122,7 +126,7 @@ namespace Ecstatica::Recompiled::Log::Session
                     continue;
 
                 std::error_code statusEc;
-                if (it->is_regular_file(statusEc))
+                if (!it->is_symlink(statusEc) && it->is_regular_file(statusEc))
                 {
                     const auto fileSize = it->file_size(statusEc);
                     if (!statusEc)
@@ -149,7 +153,7 @@ namespace Ecstatica::Recompiled::Log::Session
                     continue;
 
                 std::error_code statusEc;
-                if (!it->is_directory(statusEc))
+                if (it->is_symlink(statusEc) || !it->is_directory(statusEc))
                     continue;
 
                 const auto sessionId = it->path().filename().string();
@@ -189,49 +193,10 @@ namespace Ecstatica::Recompiled::Log::Session
             return stream.str();
         }
 
-        std::string ReadJsonStringField(const fs::path& path, std::string_view fieldName)
-        {
-            std::ifstream input(path, std::ios::in);
-            if (!input.good())
-                return {};
-
-            std::ostringstream buffer;
-            buffer << input.rdbuf();
-            const auto content = buffer.str();
-            const std::string pattern = "\"" + std::string(fieldName) + "\": \"";
-            const auto start = content.find(pattern);
-            if (start == std::string::npos)
-                return {};
-
-            const auto valueStart = start + pattern.size();
-            std::string value;
-            bool escaped = false;
-            for (std::size_t index = valueStart; index < content.size(); ++index)
-            {
-                const char ch = content[index];
-                if (escaped)
-                {
-                    value += ch;
-                    escaped = false;
-                    continue;
-                }
-                if (ch == '\\')
-                {
-                    escaped = true;
-                    continue;
-                }
-                if (ch == '"')
-                    return value;
-                value += ch;
-            }
-
-            return {};
-        }
-
-        void WriteSessionMetadata(const fs::path& sessionDirectory,
+        bool WriteSessionMetadata(const fs::path& sessionDirectory,
                                   const std::string& sessionId,
                                   const Metadata& metadata,
-                                  bool preserveCreationTimestamp)
+                                  const RetentionPolicy& policy)
         {
             const auto now = std::chrono::system_clock::now();
             const auto metaPath = sessionDirectory / kSessionMetaFileName;
@@ -239,17 +204,6 @@ namespace Ecstatica::Recompiled::Log::Session
 
             const auto nowLocal = FormatTimestamp(now, false);
             const auto nowUtc = FormatTimestamp(now, true);
-            std::string createdAtLocal = preserveCreationTimestamp
-                ? ReadJsonStringField(metaPath, "createdAtLocal")
-                : std::string{};
-            std::string createdAtUtc = preserveCreationTimestamp
-                ? ReadJsonStringField(metaPath, "createdAtUtc")
-                : std::string{};
-            if (createdAtLocal.empty())
-                createdAtLocal = nowLocal;
-            if (createdAtUtc.empty())
-                createdAtUtc = nowUtc;
-
         #if defined(_WIN32)
             const auto pid = static_cast<unsigned long long>(_getpid());
         #else
@@ -264,27 +218,20 @@ namespace Ecstatica::Recompiled::Log::Session
 
             std::ofstream output(tempPath, std::ios::out | std::ios::trunc);
             if (!output.good())
-                return;
+                return false;
 
             output << "{\n"
-                   << "  \"schemaVersion\": 1,\n"
+                   << "  \"schemaVersion\": 2,\n"
                    << "  \"appId\": \"" << JsonEscape(metadata.appId) << "\",\n"
                    << "  \"sessionId\": \"" << JsonEscape(sessionId) << "\",\n"
-                   << "  \"createdAtLocal\": \"" << JsonEscape(createdAtLocal) << "\",\n"
-                   << "  \"createdAtUtc\": \"" << JsonEscape(createdAtUtc) << "\",\n"
-                   << (preserveCreationTimestamp
-                        ? "  \"metadataUpdatedAtLocal\": \"" + JsonEscape(nowLocal) + "\",\n"
-                        : "")
-                   << (preserveCreationTimestamp
-                        ? "  \"metadataUpdatedAtUtc\": \"" + JsonEscape(nowUtc) + "\",\n"
-                        : "")
+                   << "  \"createdAtLocal\": \"" << JsonEscape(nowLocal) << "\",\n"
+                   << "  \"createdAtUtc\": \"" << JsonEscape(nowUtc) << "\",\n"
                    << "  \"pid\": " << pid << ",\n"
-                   << "  \"deviceName\": \"" << JsonEscape(metadata.deviceName) << "\",\n"
                    << "  \"buildType\": \"" << buildType << "\",\n"
                    << "  \"rootLogFileBaseName\": \"" << JsonEscape(metadata.rootLogFileBaseName) << "\",\n"
                    << "  \"rotateBytes\": " << metadata.rotateBytes << ",\n"
-                   << "  \"retentionMinSessions\": " << metadata.retentionMinSessions << ",\n"
-                   << "  \"retentionMaxTotalSizeMb\": " << metadata.retentionMaxTotalSizeMb << "\n"
+                   << "  \"retentionMaxSessions\": " << policy.maxSessions << ",\n"
+                   << "  \"retentionMaxTotalSizeMb\": " << (policy.maxTotalSizeBytes / (1024 * 1024)) << "\n"
                    << "}\n";
             output.close();
 
@@ -292,82 +239,148 @@ namespace Ecstatica::Recompiled::Log::Session
             {
                 std::error_code removeEc;
                 fs::remove(tempPath, removeEc);
-                return;
+                return false;
             }
 
             std::error_code ec;
             fs::rename(tempPath, metaPath, ec);
-            if (!ec)
-                return;
-
-            std::error_code removeEc;
-            fs::remove(metaPath, removeEc);
-            fs::rename(tempPath, metaPath, ec);
             if (ec)
-                fs::remove(tempPath, removeEc);
+                fs::remove(tempPath);
+            return !ec;
+        }
+
+        bool LegacySessionIsActive(const fs::path& metadata)
+        {
+            std::ifstream input(metadata);
+            std::string line;
+            while (std::getline(input, line))
+            {
+                const auto field = line.find("\"pid\":");
+                if (field == std::string::npos)
+                    continue;
+                std::istringstream value(line.substr(field + 6));
+                unsigned long pid = 0;
+                if (!(value >> pid) || pid == 0)
+                    return false;
+#if defined(_WIN32)
+                HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+                if (!process)
+                    return GetLastError() == ERROR_ACCESS_DENIED;
+                DWORD code = 0;
+                const bool active = GetExitCodeProcess(process, &code) && code == STILL_ACTIVE;
+                CloseHandle(process);
+                return active;
+#else
+                return kill(static_cast<pid_t>(pid), 0) == 0 || errno == EPERM;
+#endif
+            }
+            return false;
+        }
+
+        CleanupSummary CleanupUnlocked(const fs::path& logsRoot, const RetentionPolicy& policy)
+        {
+            CleanupSummary summary;
+            const auto sessions = CollectSessions(logsRoot);
+            summary.scannedSessions = summary.keptSessions = sessions.size();
+            for (const auto& session : sessions)
+                summary.retainedBytes += session.sizeBytes;
+            for (auto it = sessions.rbegin(); it != sessions.rend(); ++it)
+            {
+                if (summary.keptSessions <= policy.maxSessions && summary.retainedBytes <= policy.maxTotalSizeBytes)
+                    break;
+                const auto leasePath = it->path / "session.active.lock";
+                // Pre-lease sessions can belong to an older, still-running build.
+                if (!fs::exists(leasePath) && LegacySessionIsActive(it->path / kSessionMetaFileName))
+                {
+                    ++summary.protectedSessions;
+                    continue;
+                }
+                auto lease = LogSupport::IO::FileLock::TryAcquire(leasePath.string());
+                if (!lease)
+                {
+                    ++summary.protectedSessions;
+                    continue;
+                }
+                // All session creation/cleanup holds the root lease, and sessions
+                // are never reactivated. Close this handle before removal so
+                // Windows can remove the directory containing the lease file.
+                lease.reset();
+                if (RemoveSessionDirectory(it->path))
+                {
+                    ++summary.removedSessions;
+                    --summary.keptSessions;
+                    summary.freedBytes += it->sizeBytes;
+                    summary.retainedBytes -= it->sizeBytes;
+                }
+                else
+                    ++summary.failedRemovals;
+            }
+            summary.overBudget = summary.keptSessions > policy.maxSessions || summary.retainedBytes > policy.maxTotalSizeBytes;
+            return summary;
         }
     }
 
     StartupSession PrepareStartupSession(std::string_view logsRoot,
                                          std::string_view baseFileName,
                                          const RetentionPolicy& policy,
-                                         Metadata metadata)
+                                         const Metadata& metadata)
     {
-        StartupSession startupSession;
-        if (logsRoot.empty() || baseFileName.empty())
-            return startupSession;
-
-        const auto normalizedLogsRoot = Ecstatica::Recompiled::LogSupport::String::Path::EnsureTrailingSlash(std::string(logsRoot));
-        if (!Ecstatica::Recompiled::LogSupport::IO::FileSystemIO::CreateDirectory(normalizedLogsRoot))
-            return startupSession;
-
-        auto sessions = CollectSessions(normalizedLogsRoot);
-        startupSession.cleanup.scannedSessions = sessions.size();
-        startupSession.cleanup.keptSessions = sessions.size();
-
-        for (const auto& session : sessions)
-            startupSession.cleanup.retainedBytes += session.sizeBytes;
-
-        const auto minSessions = std::max(1U, policy.minSessions);
-        for (std::size_t index = sessions.size(); index > minSessions && startupSession.cleanup.retainedBytes > policy.maxTotalSizeBytes; --index)
-        {
-            const auto& session = sessions[index - 1];
-            if (RemoveSessionDirectory(session.path))
-            {
-                startupSession.cleanup.removedSessions += 1;
-                startupSession.cleanup.keptSessions -= 1;
-                startupSession.cleanup.freedBytes += session.sizeBytes;
-                startupSession.cleanup.retainedBytes -= session.sizeBytes;
-            }
-            else
-            {
-                startupSession.cleanup.failedRemovals += 1;
-            }
-        }
-
-        startupSession.cleanup.minSessionFloorPreventedBudgetCompliance =
-            startupSession.cleanup.retainedBytes > policy.maxTotalSizeBytes &&
-            startupSession.cleanup.keptSessions <= minSessions;
-
-        startupSession.sessionDirectory = Paths::BuildSessionDir(normalizedLogsRoot);
-        if (startupSession.sessionDirectory.empty())
-            return startupSession;
-
-        startupSession.logFilePath = Paths::Join(startupSession.sessionDirectory, std::string(baseFileName));
-
-        const fs::path sessionPath(startupSession.sessionDirectory);
-        WriteSessionMetadata(sessionPath, sessionPath.filename().string(), metadata, false);
-        return startupSession;
+        StartupSession session;
+        if (logsRoot.empty() || baseFileName.empty() || !LogSupport::IO::FileSystemIO::CreateDirectory(std::string(logsRoot)))
+            return session;
+        auto rootLease = LogSupport::IO::FileLock::TryAcquire(Paths::Join(std::string(logsRoot), ".retention.lock"), true);
+        if (!rootLease)
+            return session;
+        session.sessionDirectory = Paths::BuildSessionDir(logsRoot);
+        if (session.sessionDirectory.empty())
+            return session;
+        session.lease = LogSupport::IO::FileLock::TryAcquire(Paths::Join(session.sessionDirectory, "session.active.lock"));
+        if (!session.lease || !WriteSessionMetadata(session.sessionDirectory,
+                fs::path(session.sessionDirectory).filename().string(), metadata, policy))
+            return {};
+        session.logFilePath = Paths::Join(session.sessionDirectory, std::string(baseFileName));
+        session.cleanup = CleanupUnlocked(std::string(logsRoot), policy);
+        return session;
     }
 
-    void UpdateStartupSessionMetadata(std::string_view sessionDirectory,
-                                      Metadata metadata)
+    CleanupSummary CleanupSessions(std::string_view logsRoot, const RetentionPolicy& policy)
     {
-        if (sessionDirectory.empty())
-            return;
+        auto rootLease = LogSupport::IO::FileLock::TryAcquire(Paths::Join(std::string(logsRoot), ".retention.lock"));
+        return rootLease ? CleanupUnlocked(std::string(logsRoot), policy) : CleanupSummary{};
+    }
 
-        const fs::path sessionPath{std::string(sessionDirectory)};
-        WriteSessionMetadata(sessionPath, sessionPath.filename().string(), metadata, true);
+    Maintenance::Maintenance(std::string logsRoot, RetentionPolicy policy, StartupSession startup)
+        : session(std::move(startup)), worker([this, logsRoot = std::move(logsRoot), policy] {
+            std::unique_lock lock(mutex);
+            while (!wake.wait_for(lock, policy.cleanupInterval, [this] { return stopped; }))
+            {
+                lock.unlock();
+                try
+                {
+                    const auto summary = CleanupSessions(logsRoot, policy);
+                    if (summary.removedSessions || summary.failedRemovals || summary.overBudget)
+                        Logger::Instance().Log(summary.failedRemovals || summary.overBudget ? Level::Warning : Level::Info,
+                                               ModuleID::Runtime, {}, FormatCleanupSummary(summary));
+                }
+                catch (const std::exception& error)
+                {
+                    Logger::Instance().Log(Level::Warning, ModuleID::Runtime, {},
+                                           std::string("Log cleanup failed: ") + error.what());
+                }
+                lock.lock();
+            }
+        })
+    {
+    }
+
+    Maintenance::~Maintenance() { Stop(); }
+
+    void Maintenance::Stop()
+    {
+        { std::lock_guard lock(mutex); stopped = true; }
+        wake.notify_all();
+        if (worker.joinable())
+            worker.join();
     }
 
     std::string FormatCleanupSummary(const CleanupSummary& summary)
@@ -377,14 +390,16 @@ namespace Ecstatica::Recompiled::Log::Session
                << " kept=" << summary.keptSessions
                << " removed=" << summary.removedSessions;
 
+        stream << " protected=" << summary.protectedSessions;
+
         if (summary.failedRemovals > 0)
             stream << " failedRemovals=" << summary.failedRemovals;
 
         stream << " freed=" << FormatMiB(summary.freedBytes)
                << " retained=" << FormatMiB(summary.retainedBytes);
 
-        if (summary.minSessionFloorPreventedBudgetCompliance)
-            stream << " (above size limit; min-session floor preserved)";
+        if (summary.overBudget)
+            stream << " (budget exceeded; active sessions or removal failures protected)";
 
         return stream.str();
     }

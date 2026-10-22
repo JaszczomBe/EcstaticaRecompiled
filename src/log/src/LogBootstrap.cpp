@@ -5,10 +5,6 @@
 #include "Log/Core/Level.h"
 #include "Log/Core/Logger.h"
 #include "Log/Modules/ModuleId.h"
-#if defined(UNDERTONE_ENABLE_E2E_LOG_SINK)
-    #include "Log/Sinks/E2EJsonSink.h"
-    #include <cstdlib>
-#endif
 #include "Log/Sinks/FileSink.h"
 #include "Log/Sinks/StderrSink.h"
 #include "LogSupport/String/Trim.h"
@@ -91,7 +87,7 @@ namespace Ecstatica::Recompiled::Log
         const auto trimmedFilePath = Ecstatica::Recompiled::LogSupport::String::TrimAsciiWhitespace(filePath);
         if (!trimmedFilePath.empty())
         {
-            auto fileSink = std::make_shared<FileSink>(std::string(trimmedFilePath), true, 0, kLogFileRotateBytes);
+            auto fileSink = std::make_shared<FileSink>(std::string(trimmedFilePath), true, kLogFileRotateBytes);
             if (!fileSink->IsOpen())
                 return false;
             auto format = fileSink->GetFormatOptions();
@@ -103,14 +99,6 @@ namespace Ecstatica::Recompiled::Log
             sinks.emplace_back(fileSink);
         }
 
-#if defined(UNDERTONE_ENABLE_E2E_LOG_SINK)
-        if (const char* e2eEventsPath = std::getenv("UNDERTONE_E2E_EVENTS_PATH"))
-        {
-            const auto trimmedE2EEventsPath = Ecstatica::Recompiled::LogSupport::String::TrimAsciiWhitespace(e2eEventsPath);
-            if (!trimmedE2EEventsPath.empty())
-                sinks.emplace_back(std::make_shared<E2EJsonSink>(std::string(trimmedE2EEventsPath)));
-        }
-#endif
 
         auto& logger = Logger::Instance();
         logger.Start(cfg);

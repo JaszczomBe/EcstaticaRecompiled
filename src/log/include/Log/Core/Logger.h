@@ -29,8 +29,6 @@ namespace Ecstatica::Recompiled::Log
         void           Start(const Config& cfg);
         void           Stop();
 
-        void           AddSink(const SinkPtr& sink);
-        void           ClearSinks();
 
         bool           Submit(Record&& rec);
 
@@ -69,11 +67,11 @@ namespace Ecstatica::Recompiled::Log
 
         void           SetGlobalLevel(Level lvl);
         Level          GlobalLevel() const;
-        bool           IsEnabled_KTParity(Level lvl,
+        bool           IsEnabled(Level lvl,
                                           ModuleID module,
                                           ModuleMask moduleMaskOverride = 0,
                                           SubmoduleMask submoduleMask = 0);
-        bool           ShouldCaptureCallstack_KTParity(Level lvl);
+        bool           ShouldCaptureCallstack(Level lvl);
 
         uint64_t       NextSeq();
         void           MarkRealtimeThread(bool isRealtime);
@@ -99,11 +97,8 @@ namespace Ecstatica::Recompiled::Log
         Stats GetStats() const;
 
         void UpdateConfig(const std::function<void(Config&)>& updater);
-        void SetModuleMinLevelResolver(std::function<std::optional<Level>(ModuleID module, SubmoduleMask submodules)> resolver);
         void SetRateLimiter(std::function<bool(const Record&)> limiter);
         void ReplaceSinks(const std::vector<SinkPtr>& sinks);
-        bool RemoveSink(const SinkPtr& sink);
-        void UpdateSinkFormatOptions(const std::function<void(FormatOptions&)>& updater);
         void RegisterModuleSubmoduleNames(ModuleID module, void (*registrar)(FormatOptions&));
         void SetModuleMask(ModuleMask allow_mask, ModuleMask deny_mask);
         void SetSubmoduleMask(ModuleID module, SubmoduleMask allow_mask, SubmoduleMask deny_mask);

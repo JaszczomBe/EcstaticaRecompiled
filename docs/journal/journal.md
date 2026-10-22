@@ -4,6 +4,8 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Logger cleanup and bounded session maintenance — 2026-10-21](entries/logger-cleanup-and-session-maintenance-2026-10-21.md): removes unused foreign integrations while preserving RT pooling, macros/masks, native stacks and filesystem wrappers; adds periodic retention with active-session leases and verifies critical-event priority and severity bypass.
+
 - [Input log transitions and missing-sound severity — 2026-10-21](entries/input-log-transitions-and-missing-sound-severity-2026-10-21.md): gives input and missing sound separate Debug/Trace tags, logs key press/held/release changes and keeps protocol dumps opt-in; dispatcher checks prove repeated keys still reach the legacy handler.
 
 - [Logger console severity and sessions — 2026-10-21](entries/logger-console-severity-and-sessions-2026-10-21.md): replaces legacy console formatting with the C++ logger, enables severity colors and per-run session directories, and drains controlled probe exits; Debug/ASan logging checks, native adapter launches and baselines pass.

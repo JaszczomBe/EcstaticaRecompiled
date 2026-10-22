@@ -38,5 +38,4 @@ namespace Ecstatica::Recompiled::Log
     std::string RenderModuleMaskName(ModuleMask mask);
     std::string RenderRecordTag(const Record& rec, const FormatOptions& opt = {});
     void FormatLine(const Record& rec, std::string& out, const FormatOptions& opt = {});
-    void FormatAndroidLine(const Record& rec, std::string& out, const FormatOptions& opt = {});
 }
