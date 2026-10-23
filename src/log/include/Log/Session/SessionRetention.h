@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -14,8 +15,10 @@ namespace Ecstatica::Recompiled::Log::Session
 {
     struct RetentionPolicy
     {
-        unsigned maxSessions = 100;
-        std::uint64_t maxTotalSizeBytes = 128ULL * 1024ULL * 1024ULL;
+        static constexpr unsigned minimumSessions = 5;
+        unsigned maxSessions = std::numeric_limits<unsigned>::max();
+        // Byte budget applies only to sessions older than the newest five.
+        std::uint64_t maxTotalSizeBytes = 2048ULL * 1024ULL * 1024ULL;
         std::chrono::seconds cleanupInterval{60};
     };
 
@@ -31,6 +34,7 @@ namespace Ecstatica::Recompiled::Log::Session
         std::size_t scannedSessions = 0, keptSessions = 0, removedSessions = 0;
         std::size_t failedRemovals = 0, protectedSessions = 0;
         std::uint64_t freedBytes = 0, retainedBytes = 0;
+        std::uint64_t olderBytes = 0;
         bool overBudget = false;
     };
 

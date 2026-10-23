@@ -43,10 +43,10 @@ extern "C" int E2R_ArtifactsStart(const char *data) {
     return 1;
   try {
     Log::Session::RetentionPolicy policy;
-    policy.maxSessions = setting("E2R_LOG_MAX_SESSIONS", 100,
+    policy.maxSessions = setting("E2R_LOG_MAX_SESSIONS", std::numeric_limits<unsigned>::max(),
                                  std::numeric_limits<unsigned>::max());
     policy.maxTotalSizeBytes =
-        setting("E2R_LOG_MAX_TOTAL_MB", 128, UINT64_MAX / (1024 * 1024)) *
+        setting("E2R_LOG_MAX_TOTAL_MB", 2048, UINT64_MAX / (1024 * 1024)) *
         1024 * 1024;
     policy.cleanupInterval = std::chrono::seconds(
         setting("E2R_LOG_CLEANUP_INTERVAL_SECONDS", 60, INT32_MAX));

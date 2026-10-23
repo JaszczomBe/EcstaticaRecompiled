@@ -242,16 +242,20 @@ static void StorageContracts(const fs::path& root)
     auto first = Session::PrepareStartupSession(logs.string(), "e2recomp.log", policy, metadata);
     auto second = Session::PrepareStartupSession(logs.string(), "e2recomp.log", policy, metadata);
     assert(first.lease && second.lease && first.sessionDirectory != second.sessionDirectory);
-    assert(second.cleanup.overBudget && fs::exists(first.sessionDirectory));
+    assert(!second.cleanup.overBudget && fs::exists(first.sessionDirectory));
     second.lease.reset();
     auto cleanup = Session::CleanupSessions(logs.string(), policy);
-    assert(cleanup.removedSessions == 1 && !fs::exists(second.sessionDirectory));
+    assert(cleanup.removedSessions == 0 && fs::exists(second.sessionDirectory));
     assert(fs::exists(first.sessionDirectory));
-    // The byte limit wins even with fewer than ten completed sessions.
+    // The newest-five floor wins over both count and byte limits.
     first.lease.reset();
     fs::resize_file(fs::path(first.sessionDirectory) / "session.meta", 2 * 1024 * 1024);
     cleanup = Session::CleanupSessions(logs.string(), policy);
-    assert(cleanup.removedSessions == 1 && !fs::exists(first.sessionDirectory));
+    assert(cleanup.removedSessions == 0 && fs::exists(first.sessionDirectory));
+    for (unsigned i = 0; i < 5; ++i)
+        fs::create_directories(logs / ("session_20990101_000000_00" + std::to_string(i)));
+    cleanup = Session::CleanupSessions(logs.string(), policy);
+    assert(cleanup.removedSessions == 2 && !fs::exists(first.sessionDirectory));
     auto legacy = logs / "session_20000101_000000_000";
     fs::create_directory(legacy);
     auto symlink = logs / "session_20000101_000000_001";
@@ -260,7 +264,7 @@ static void StorageContracts(const fs::path& root)
     std::ofstream(legacy / "large").write("oversize", 8);
     Session::CleanupSessions(logs.string(), policy);
     assert(fs::is_symlink(symlink));
-    std::cout << "PASS: append-only rotation, exclusive active leases, hard count/size cleanup and symlink exclusion\n";
+    std::cout << "PASS: append-only rotation, exclusive active leases, newest-five floor, older-session cleanup and symlink exclusion\n";
 }
 
 int main(int argc, char** argv)

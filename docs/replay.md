@@ -168,7 +168,7 @@ pump exits roughly once per real second and at completion. Other buffered tails
 can be lost, especially without a following pump. Only completed newline-terminated rows are recoverable; an
 unfinished final row is excluded. Malformed complete rows, gaps, missing referenced
 state and invalid checksums are rejected, not skipped. Event/state files are currently bounded
-to 128 MiB each (metadata 1 MiB at preparation); reaching the capture limit marks
+to 256 MiB each (metadata 1 MiB at preparation); reaching the capture limit marks
 recording incomplete and retains the usable prefix. Parsing freezes the input
 in memory. Larger complete captures require a future streaming-reader change.
 
@@ -181,9 +181,11 @@ are process-crash recovery guarantees; power-loss durability additionally depend
 on directory publication and filesystem behavior. No whole-file compression is
 used, so valid prefixes remain inspectable.
 
-Recording and logs share one session lease and the existing 100-session/128-MiB,
-60-second maintenance policy. All regular artifact bytes count. Active sessions
-remain protected even when they alone exceed the budget. Before any startup
+Recording and logs share one session lease and the 60-second maintenance
+policy. The newest five sessions are always kept. Older sessions have a separate
+2 GiB byte budget; all their regular artifact bytes count. Active sessions and
+F5 `investigation.keep` markers remain protected even above the budget. See
+[current retention settings](building.md#runtime-logging). Before any startup
 cleanup, replay takes retention serialization and the inactive source lease,
 freezes all inputs, then releases those locks. Cleanup may subsequently remove
 the original session; playback owns the frozen copy. Active captures are rejected

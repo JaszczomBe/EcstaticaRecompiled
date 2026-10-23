@@ -2,8 +2,10 @@
 
 #include "Log/Core/Format.h"
 #include "Log/Core/Level.h"
+#include "EcstaticaLogBridge.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #if defined(__unix__) || defined(__APPLE__)
 #include <unistd.h>
@@ -22,6 +24,13 @@ namespace Ecstatica::Recompiled::Log
     void
     StderrSink::Write(const Record& rec)
     {
+        static const bool gameplayVerbose = [] {
+            const char* value = std::getenv("E2R_GAMEPLAY_CONSOLE_VERBOSE");
+            return value && value[0] && value[0] != '0';
+        }();
+        if (!gameplayVerbose && rec.module == ModuleID::Runtime &&
+            (rec.submoduleMask & E2R_LOG_TAG_ACTOR) && rec.level == Level::Trace)
+            return;
         std::string line;
         line.reserve(rec.message.size() + 96);
         Ecstatica::Recompiled::Log::FormatLine(rec, line, _fmt);

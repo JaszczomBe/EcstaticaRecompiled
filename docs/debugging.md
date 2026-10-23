@@ -21,6 +21,9 @@ source/build context under `logs/session_<id>/investigation/`. This pins the ima
 actually running even if a build replaces the selected executable path. Signal
 and breakpoint stops append bounded thread backtraces, registers and replay
 progress to `debugger.log`; the debugger remains stopped for normal inspection.
+Silent message/fatal-requester entry observations also save call stacks, even if
+replay recording has already filled up. Their bounded receipt copies use
+`.requester.log` beside the F5 index; these are observations, not proof of a crash.
 A signal stop is distinguished from process termination.
 
 When debugging ends, the **Ecstatica: Finalize gameplay investigation** task
@@ -30,8 +33,16 @@ launches retain their own leases. If VS Code/GDB is forcibly killed, the raw
 session remains useful; rerun the finalization task to process pending closed
 sessions. A partial recording/inspection remains explicitly incomplete.
 
-All these artifacts stay inside ordinary session retention, including the pinned
-binary and generated report. Export an important run before ordinary cleanup:
+The newest five sessions always survive ordinary cleanup; older sessions have
+a separate 2 GiB budget. F5 also creates `investigation.keep` before gameplay and
+keeps it after a signal or unsuccessful/unknown exit.
+These protected investigations remain until reviewed/exported and their marker
+is explicitly removed. Observed clean exits release their marker automatically, with incomplete capture still reported separately.
+Signal stacks also have a bounded copy beside their workspace index receipt in
+`.tmp/f5-investigations/`. Finalization reports incomplete capture and marks
+missing indexed sessions expired instead of returning a stale success path.
+
+Export an important run before releasing its marker:
 
 ```sh
 python3 scripts/e2-debug.py bundle /absolute/session \
@@ -70,7 +81,7 @@ Files and directories are published read-only with a recursive `SHA256SUMS` and
 manifest. Verification detects missing, changed and extra files. If export fails,
 the raw capture is retained in the reported `.e2-capture-*` directory beside the
 destination. Bundles sit outside automatic session retention. Export is bounded
-to 256 MiB per file and 512 MiB total, excluding original game assets.
+to 256 MiB per file and 768 MiB total, excluding original game assets.
 
 Export an existing **inactive** session with its matching executable:
 
@@ -120,7 +131,9 @@ and is unsuitable as a portable identity.
 
 Observations include actor positions/orientations, actions and progress,
 representation/scene IDs, active update order, input bytes, camera, RNG state,
-script wait/modal state, last script opcode/cursor and attachment ownership.
+script wait/modal state, requester ID, last script opcode/cursor and attachment ownership.
+Message requesters publish a `requester` event before entering their blocking loop
+and request the next presented frame; actor updates are not required to observe them.
 They sample script state; they do not trace every interpreter instruction or
 serialize all script state. Terrain-query internals remain available through
 `scripts/probe-e2-player-motion.py --trace-queries` and its original-code fixtures.
@@ -261,6 +274,29 @@ source unchanged. Use the warnings to investigate original calling conventions;
 initializing decompiler placeholders arbitrarily would conceal the missing
 contract. New data layouts and arithmetic should follow original-code evidence.
 
+## Console gameplay detail
+
+Frequent `42b004` action events and `42ad60` action completions are
+`Runtime.Actor` Trace records. Session files retain them at Trace level, while
+the console hides them by default. Set `E2R_GAMEPLAY_CONSOLE_VERBOSE=1` and keep
+the Trace threshold to show them in the console. Input summaries and critical
+messages keep their existing behavior. Recording-limit notices are warnings.
+
+## Large recordings and missing message text
+
+Replay event/checkpoint files now allow 256 MiB each. The reader validates rows
+without retaining an additional complete collection of CSV strings, and releases
+raw checkpoint text after constructing its expectations. This makes the reported
+2.88-million-event human capture readable in i386. Logical events and snapshots
+still reside in memory; streaming/compressed storage remains a further improvement.
+The cap still marks a recording incomplete and does not promise arbitrary route
+length or a clean completion. A larger retention budget does not extend recording.
+
+An empty/unreadable game message now shows "Internal game error. See the session
+log." and emits an Error with native call-site evidence. This is a hosted
+presentation fallback; it preserves the caller's existing modal/exit behavior.
+It is not acceptance of the unrecovered caller or proof that its exit was repaired.
+
 ## Verify the tools
 
 ```sh
@@ -268,6 +304,8 @@ python3 scripts/check-e2-inspection.py
 python3 scripts/check-e2-inspection.py --asan
 python3 scripts/check-e2-debug-tools.py --native
 python3 scripts/check-e2-f5-investigation.py --native
+python3 scripts/check-e2-empty-requester.py
+python3 scripts/check-e2-directional-reaction.py /path/to/E2WIN95.EXE
 python3 scripts/check-docs-tree-contracts.py
 python3 scripts/check-docs-tree.py
 python3 scripts/check-e2-replay.py build/Debug/clang21-i386-sdl/e2recomp --inspect

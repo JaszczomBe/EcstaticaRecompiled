@@ -90,7 +90,7 @@ extern "C" void E2R_InspectObserve(const char *kind, int64_t a, int64_t b) {
         (before == previous.end() || !before->second.count(name) ||
          before->second.at(name) != after->second.at(name))) frameRequested = true;
   }
-  if (std::string(kind) == "bookmark") frameRequested = true;
+  if (std::string(kind) == "bookmark" || std::string(kind) == "requester") frameRequested = true;
   ++snapshot;
   std::string rows;
   for (const auto &[key, fields] : current)

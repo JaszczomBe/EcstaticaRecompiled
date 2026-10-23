@@ -52,8 +52,19 @@ historical evidence. Former links to the absent post-pedestal continuation now
 lead to the available task/replay record, which identifies the missing artifacts.
 Normal human F5 sessions enable recording/inspection, pin the running binary,
 retain debugger stops and finalize their report inside ordinary session retention.
+The [human-run retention assessment](../../journal/entries/investigation-retention-2026-10-23.md)
+adds a newest-five floor, separate 2 GiB older budget, failed/pending capture
+protection and durable signal evidence. The surviving human replay matches
+1,158 checkpoints, but its event-file limit demonstrates that longer recording
+duration needs further work. The absent reported crash awaits a new capture.
 
 ## Verification
+
+The [large human replay/requester investigation](../../journal/entries/blank-requester-and-large-replay-2026-10-23.md)
+adds row-wise i386 CSV validation, larger capture/export limits, modal-entry
+observations and quiet console action traces. The old route's divergence remains
+explicit; the user repeat at camera 722 completes without the reported prompt
+and passes three exact replays with 120 matching checkpoints each.
 
 Tool verification commands and current evidence are recorded in the
 [2026-10-23 journal](../../journal/entries/debugging-tools-2026-10-23.md).

@@ -89,9 +89,9 @@ std::string csv(const Row &row) {
 }
 // Strict bounded RFC-4180 records. Only an unterminated final record is
 // recoverable.
-std::vector<Row> parse(const std::string &data, bool recover,
-                       bool *truncated = nullptr) {
-  std::vector<Row> rows;
+template <typename Visitor>
+void parseRows(const std::string &data, bool recover, Visitor visit,
+               bool *truncated = nullptr) {
   Row row;
   std::string field;
   bool quoted = false, closed = false, start = true;
@@ -127,7 +127,7 @@ std::vector<Row> parse(const std::string &data, bool recover,
       if (c != ',') {
         if (c == '\r')
           ++i;
-        rows.push_back(std::move(row));
+        visit(row);
         row = {};
         length = 0;
       }
@@ -144,6 +144,10 @@ std::vector<Row> parse(const std::string &data, bool recover,
     if (truncated)
       *truncated = true;
   }
+}
+std::vector<Row> parse(const std::string &data, bool recover) {
+  std::vector<Row> rows;
+  parseRows(data, recover, [&](Row &row) { rows.push_back(std::move(row)); });
   return rows;
 }
 int64_t number(const std::string &s) {
@@ -202,7 +206,7 @@ void write(FILE *f, const std::string &bytes) {
                         ? &r.eventBytesWritten
                         : (f == r.states ? &r.stateBytesWritten : nullptr);
   if (written) {
-    constexpr size_t limit = 128u * 1024u * 1024u;
+    constexpr size_t limit = 256u * 1024u * 1024u;
     if (bytes.size() > limit - *written) {
       fail("capture file limit reached; retained prefix remains replayable");
       return;
@@ -342,23 +346,26 @@ void validate() {
     throw std::runtime_error("unsupported startup command");
   if (r.metadata["schema"] != "e2replay.csv.1")
     throw std::runtime_error("unsupported replay schema");
-  auto states = parse(r.stateBytes, true);
-  if (states.empty() || csv(states[0]) != stateHeader)
-    throw std::runtime_error("checkpoint header");
-  for (size_t i = 1; i < states.size(); ++i) {
-    auto &row = states[i];
-    if (row.size() != 5)
-      throw std::runtime_error("checkpoint columns");
+  size_t stateRow = 0;
+  parseRows(r.stateBytes, true, [&](Row &row) {
+    if (stateRow++ == 0) {
+      if (csv(row) != stateHeader) throw std::runtime_error("checkpoint header");
+      return;
+    }
+    if (row.size() != 5) throw std::runtime_error("checkpoint columns");
     auto id = positive(row[0]);
     auto entity = number(row[2]);
     if (entity < INT32_MIN || entity > INT32_MAX)
       throw std::runtime_error("entity range");
-    r.checkpoints[id].push_back({row[1], row[3], int(entity), number(row[4])});
-  }
+    r.checkpoints[id].push_back({std::move(row[1]), std::move(row[3]), int(entity), number(row[4])});
+  });
+  if (!stateRow) throw std::runtime_error("checkpoint header");
+  std::string().swap(r.stateBytes);
   bool truncated = false;
-  auto rows = parse(r.eventBytes, true, &truncated);
-  if (rows.empty() || csv(rows[0]) != eventHeader)
-    throw std::runtime_error("event header");
+  size_t eventRow = 0;
+  // Avoid both a complete vector of CSV strings and repeated reallocations of
+  // millions of events in the i386 address space. Event fields remain owned.
+  r.input.reserve(std::count(r.eventBytes.begin(), r.eventBytes.end(), '\n'));
   replay::Sha256 eventHash;
   eventHash.add(eventHeader);
   uint64_t seq = 1, cp = 0;
@@ -367,8 +374,12 @@ void validate() {
   const std::vector<std::string> kinds = {
       "clock", "localtime",  "pump_begin", "pump_end",   "input", "queued",
       "sleep", "cursor_set", "cursor_get", "checkpoint", "end"};
-  for (size_t i = 1; i < rows.size(); ++i) {
-    auto &row = rows[i];
+  parseRows(r.eventBytes, true, [&](Row &row) {
+    if (eventRow++ == 0) {
+      if (csv(row) != eventHeader) throw std::runtime_error("event header");
+      return;
+    }
+    if (r.complete) throw std::runtime_error("invalid completion marker");
     if (row.size() != 13)
       throw std::runtime_error("event columns");
     Event e;
@@ -424,7 +435,7 @@ void validate() {
         throw std::runtime_error("checkpoint checksum mismatch");
     }
     if (e.kind == "end") {
-      if (i + 1 != rows.size() || truncated || e.v[0] != int64_t(cp))
+      if (e.v[0] != int64_t(cp))
         throw std::runtime_error("invalid completion marker");
       if (e.detail != eventHash.finish())
         throw std::runtime_error("event checksum mismatch");
@@ -432,7 +443,10 @@ void validate() {
     }
     eventHash.add(csv(row));
     r.input.push_back(std::move(e));
-  }
+  }, &truncated);
+  if (!eventRow) throw std::runtime_error("event header");
+  if (r.complete && truncated) throw std::runtime_error("invalid completion marker");
+  std::string().swap(r.eventBytes);
   if (r.input.empty())
     throw std::runtime_error("no recoverable events");
 }
@@ -500,8 +514,8 @@ extern "C" int E2R_ReplayPrepare(const char *path) {
 #endif
     r.sourceIncomplete = fs::exists(directory / "recording.incomplete");
     r.metadataBytes = read(directory / "metadata.csv", 1024 * 1024);
-    r.eventBytes = read(directory / "events.csv", 128 * 1024 * 1024);
-    r.stateBytes = read(directory / "checkpoints.csv", 128 * 1024 * 1024);
+    r.eventBytes = read(directory / "events.csv", 256 * 1024 * 1024);
+    r.stateBytes = read(directory / "checkpoints.csv", 256 * 1024 * 1024);
     validate();
     if (r.sourceIncomplete)
       r.complete = false;

@@ -136,6 +136,9 @@ end
 call (void)free($e2r_msg)
 call (void)E2R_LogDiagnostic("game state: sound archive missing ignored id=43 archive=0xffffffff")
 call (void)E2R_LogDiagnostic("game state: 15d40.enter input esc=0 space=0")
+call (void)E2R_LogDiagnostic("game state: 42b004.event begin fixture")
+call (void)E2R_LogDiagnostic("game state: 42ad60.complete end fixture")
+call (void)E2R_LogDiagnostic("replay: RECORDING INCOMPLETE: fixture warning")
 continue
 ''')
     expected = [('Up', 'pressed'), ('Up', 'held'), ('Down', 'pressed'),
@@ -148,6 +151,10 @@ continue
                       {'E2R_INPUT_DIAG_VERBOSE': '1' if verbose else '0'},
                       command=('--host-backend-key-probe',), gdb_script=input_script)
         log = records(output / name)
+        assert '42b004.event begin fixture' not in console
+        assert '42ad60.complete end fixture' not in console
+        assert '[Runtime.Diagnostic][WARN] replay: RECORDING INCOMPLETE: fixture warning' in console
+        assert ('[Runtime.Actor][TRACE] game state: 42b004.event begin fixture' in log) == (level == 'Trace')
         assert 'PASS: all 605 keydowns reached the legacy handler' in console
         assert 'exited normally' in console
         for text in (console, log):
@@ -157,6 +164,12 @@ continue
             assert ('game input:' in text) == verbose
             assert ('host input event:' in text) == verbose
             assert ('game state: 15d40.enter input' in text) == verbose
+
+    console = run('actor-console-verbose', ['--log-level', 'Trace'],
+                  {'E2R_GAMEPLAY_CONSOLE_VERBOSE':'1'},
+                  command=('--host-backend-key-probe',), gdb_script=input_script)
+    assert '[Runtime.Actor][TRACE] game state: 42b004.event begin fixture' in console
+    assert '[Runtime.Actor][TRACE] game state: 42ad60.complete end fixture' in console
 
     # Run the game long enough to use its variadic/fragmented state logger.
     # This catches missing vfprintf bodies that a startup-only smoke test misses.
@@ -186,7 +199,7 @@ continue
         (session / 'session.meta').write_text('{}')
     oldest = retained_logs / 'session_20000101_000000_000'
     with (oldest / 'oversize.log').open('wb') as sparse:
-        sparse.truncate(128 * 1024 * 1024 + 1)
+        sparse.truncate(2048 * 1024 * 1024 + 1)
     legacy = retained_logs / 'e2recomp_legacy.log'
     legacy.write_text('retain legacy logs')
     cleanup = run('retention')
@@ -194,6 +207,11 @@ continue
     assert not oldest.exists()
     assert len(list(retained_logs.glob('session_*'))) == 11
     assert legacy.read_text() == 'retain legacy logs'
+    newest_meta = max(retained_logs.glob('session_*/session.meta')).read_text()
+    retention_meta = json.loads(newest_meta)
+    assert retention_meta['retentionMinimumSessions'] == 5
+    assert retention_meta['retentionMaxTotalSizeMb'] == 2048
+    assert retention_meta['retentionBudgetScope'] == 'older-than-newest-five'
     for setting, value in [('E2R_LOG_MAX_SESSIONS', '0'), ('E2R_LOG_MAX_TOTAL_MB', '-1'),
                            ('E2R_LOG_CLEANUP_INTERVAL_SECONDS', 'invalid')]:
         error = run('invalid-' + setting.lower(), overrides={setting: value}, success=False)

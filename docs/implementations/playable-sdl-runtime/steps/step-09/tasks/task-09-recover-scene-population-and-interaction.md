@@ -6,13 +6,21 @@
 
 Status: in progress; workshop initialization crash reproduced/repaired and object/actor visibility audited; manual location re-entry and sword pickup remain open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
-Last Updated: 2026-10-22
+Last Updated: 2026-10-23
 
 ## Goal
 
 Restore original scene objects and NPCs needed for exploration and basic interaction while retaining cylinder presentation and Joe's working movement/camera transitions. Begin with one verified original resource and behavior; original models and full combat remain later work.
 
 ## Current Continuation — NPC Poses And Object Interaction
+
+The [camera-722 continuation](../../../../../journal/entries/blank-requester-and-large-replay-2026-10-23.md)
+restores the full original directional-reaction table and passes 524,288 x86
+comparisons normally/ASan. The user repeated the location without the blank OK
+prompt; the new recording completes and passes three exact replays with all 120
+checkpoints matching. The old recording's post-repair divergence
+keeps its original terminating caller unproven. Requester text/evidence and
+console/reader improvements are documented with the tool acceptance.
 
 The [post-pedestal callback repair](../../../../../replay.md#status-and-current-acceptance) reproduces the user's new `FUN_0043cac0 ← FUN_00414e68 ← FUN_0044f508 ← FUN_0044f310 ← FUN_00426ca4` stack by exact replay at sequence 890,925,953/checkpoint 47. Original instructions recover selected code/actor arguments, cleared script node and retained actor lifetime. Compatible replay returns from four callbacks before incomplete-prefix exhaustion; natural Debug/ASan intros and 60-second released idle observations pass. Original callback comparisons and baselines pass. An additional populated Debug traversal remains failing its floor-return assertion; ASan's bounded round trip passes. Workshop re-entry, pickup and full experimental ASan acceptance remain open.
 

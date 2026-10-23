@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Check periodic cleanup and active/crashed session leases across real processes."""
+"""Check newest-five retention, older-byte budgets and investigation/active leases."""
 import argparse
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -14,7 +15,7 @@ args = parser.parse_args()
 exe = args.exe.resolve()
 
 
-def eventually(predicate, seconds=5):
+def eventually(predicate, seconds=6):
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         if predicate():
@@ -23,42 +24,69 @@ def eventually(predicate, seconds=5):
     raise AssertionError('Timed out waiting for session maintenance')
 
 
-with tempfile.TemporaryDirectory(prefix='e2-periodic-retention-') as directory:
+def seed(root, year, number, size=0):
+    session = root/f'logs/session_{year}0101_000000_{number:03}'
+    session.mkdir(parents=True)
+    (session/'session.meta').write_text('{}')
+    with (session/'evidence').open('wb') as output:
+        output.truncate(size)  # Sparse files exercise accounting without filling disk.
+    return session
+
+
+def run(root, **overrides):
+    env = os.environ | dict(E2R_DATA_DIR=str(root), SDL_VIDEODRIVER='dummy',
+        E2R_RECORD='off', E2R_INSPECT='0', E2R_LOG_LEVEL='Warning',
+        E2R_LOG_MAX_SESSIONS='4294967295', E2R_LOG_MAX_TOTAL_MB='1',
+        E2R_LOG_CLEANUP_INTERVAL_SECONDS='1') | overrides
+    result = subprocess.run([str(exe), '--host-backend-present-probe'], cwd=exe.parent,
+        env=env, capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+    return result
+
+
+with tempfile.TemporaryDirectory(prefix='e2-retention-') as directory:
     root = Path(directory)
-    env = os.environ | dict(E2R_DATA_DIR=directory, SDL_VIDEODRIVER='dummy',
-                            E2R_STARTUP_LOGO_DELAY_MS='0', E2R_LOG_LEVEL='Warning',
-                            E2R_LOG_DISABLE_MODULES='', E2R_LOG_MAX_SESSIONS='1',
-                            E2R_LOG_MAX_TOTAL_MB='1', E2R_LOG_CLEANUP_INTERVAL_SECONDS='1')
-    with (root / 'active-console.txt').open('w') as output:
-        active = subprocess.Popen([str(exe), '--dump-frame', str(root / 'frame.pgm'), '10'],
-                                  cwd=exe.parent, env=env, stdout=output, stderr=output)
+    floor = root/'floor'
+    newest = [seed(floor,2099,i,300*1024*1024) for i in range(4)]
+    run(floor,E2R_LOG_MAX_SESSIONS='1')
+    assert all(p.exists() for p in newest)
+    assert len(list((floor/'logs').glob('session_*'))) == 5
+    # 1.2 GiB of newest data must not reduce the separate 1 MiB older budget.
+    budget = root/'budget'
+    newest = [seed(budget,2099,i,300*1024*1024) for i in range(5)]
+    older = [seed(budget,2000,i,400*1024) for i in range(3)]
+    run(budget)
+    assert not older[0].exists() and all(p.exists() for p in older[1:]+newest)
+    kept = seed(budget,1998,0,2*1024*1024)
+    (kept/'investigation.keep').write_text('pending/crashed investigation')
+    active = seed(budget,1999,0,2*1024*1024)
+    legacy = seed(budget,1997,0)
+    (legacy/'session.meta').write_text(json.dumps({'pid':os.getpid()}))
+    with (active/'session.active.lock').open('a') as lease:
+        fcntl.flock(lease,fcntl.LOCK_EX)
+        result = run(budget)
+        assert all(p.exists() for p in [kept,active,legacy])
+        assert 'budget exceeded' in result.stderr
+    run(budget)
+    assert not active.exists() and kept.exists() and legacy.exists()
+    (kept/'investigation.keep').unlink()
+    run(budget)
+    assert not kept.exists() and all(p.exists() for p in newest)
+    # Exercise the periodic worker, not only startup cleanup.
+    periodic = root/'periodic'
+    for i in range(5): seed(periodic,2099,i)
+    env=os.environ | dict(E2R_DATA_DIR=str(periodic),SDL_VIDEODRIVER='dummy',
+        E2R_RECORD='off',E2R_INSPECT='0',E2R_LOG_MAX_TOTAL_MB='1',
+        E2R_LOG_CLEANUP_INTERVAL_SECONDS='1')
+    with (root/'console').open('w') as console:
+        process=subprocess.Popen([str(exe),'--dump-frame',str(root/'frame.pgm'),'10'],
+            cwd=exe.parent,env=env,stdout=console,stderr=console)
         try:
-            def active_session():
-                for meta in (root / 'logs').glob('session_*/session.meta'):
-                    if json.loads(meta.read_text())['pid'] == active.pid:
-                        return meta.parent
-            eventually(active_session)
-            first = active_session()
-            result = subprocess.run([str(exe), '--host-backend-present-probe'], cwd=exe.parent,
-                                    env=env, capture_output=True, text=True, timeout=15)
-            assert result.returncode == 0, result.stderr
-            assert 'budget exceeded' in result.stderr
-            assert first.exists() and active.poll() is None
-            # The still-running process cleans up the now-completed second session.
-            eventually(lambda: list((root / 'logs').glob('session_*')) == [first])
-            assert active.poll() is None
-            # Test a pre-lease session owned by a still-running older build too.
-            legacy = root / 'logs/session_20000101_000000_000'
-            legacy.mkdir()
-            (legacy / 'session.meta').write_text(json.dumps({'pid': active.pid}))
-            time.sleep(1.3)
-            assert legacy.exists()
+            eventually(lambda:list((periodic/'logs').glob('session_202*')))
+            time.sleep(.3)  # Let startup cleanup finish before testing the worker.
+            candidate=seed(periodic,1990,0,2*1024*1024)
+            eventually(lambda:not candidate.exists())
+            assert process.poll() is None
         finally:
-            active.kill()  # Intentionally bypass shutdown; the OS must release its lease.
-            active.wait(timeout=5)
-        result = subprocess.run([str(exe), '--host-backend-present-probe'], cwd=exe.parent,
-                                env=env, capture_output=True, text=True, timeout=15)
-        assert result.returncode == 0, result.stderr
-        assert not first.exists() and not legacy.exists()
-        assert len(list((root / 'logs').glob('session_*'))) == 1
-        print('PASS: periodic cleanup, concurrent active protection, legacy PID protection and crash lease release')
+            process.kill();process.wait(timeout=5)
+    print('PASS: newest-five floor despite count/size limits; separate older-byte budget; oldest-first purge; retained investigations, active/legacy leases and periodic cleanup')

@@ -231,6 +231,8 @@ namespace Ecstatica::Recompiled::Log::Session
                    << "  \"rootLogFileBaseName\": \"" << JsonEscape(metadata.rootLogFileBaseName) << "\",\n"
                    << "  \"rotateBytes\": " << metadata.rotateBytes << ",\n"
                    << "  \"retentionMaxSessions\": " << policy.maxSessions << ",\n"
+                   << "  \"retentionMinimumSessions\": " << RetentionPolicy::minimumSessions << ",\n"
+                   << "  \"retentionBudgetScope\": \"older-than-newest-five\",\n"
                    << "  \"retentionMaxTotalSizeMb\": " << (policy.maxTotalSizeBytes / (1024 * 1024)) << "\n"
                    << "}\n";
             output.close();
@@ -284,10 +286,25 @@ namespace Ecstatica::Recompiled::Log::Session
             summary.scannedSessions = summary.keptSessions = sessions.size();
             for (const auto& session : sessions)
                 summary.retainedBytes += session.sizeBytes;
+            const auto olderCount = sessions.size() > RetentionPolicy::minimumSessions
+                ? sessions.size() - RetentionPolicy::minimumSessions : 0;
+            for (std::size_t i = RetentionPolicy::minimumSessions; i < sessions.size(); ++i)
+                summary.olderBytes += sessions[i].sizeBytes;
+            const auto countLimit = std::max(policy.maxSessions, RetentionPolicy::minimumSessions);
+            std::size_t visited = 0;
             for (auto it = sessions.rbegin(); it != sessions.rend(); ++it)
             {
-                if (summary.keptSessions <= policy.maxSessions && summary.retainedBytes <= policy.maxTotalSizeBytes)
+                if (visited++ >= olderCount)
                     break;
+                if (summary.keptSessions <= countLimit && summary.olderBytes <= policy.maxTotalSizeBytes)
+                    break;
+                // F5 marks pending/failed investigations while its active lease
+                // is held. Keep their evidence until explicitly released.
+                if (fs::exists(it->path / "investigation.keep"))
+                {
+                    ++summary.protectedSessions;
+                    continue;
+                }
                 const auto leasePath = it->path / "session.active.lock";
                 // Pre-lease sessions can belong to an older, still-running build.
                 if (!fs::exists(leasePath) && LegacySessionIsActive(it->path / kSessionMetaFileName))
@@ -311,11 +328,12 @@ namespace Ecstatica::Recompiled::Log::Session
                     --summary.keptSessions;
                     summary.freedBytes += it->sizeBytes;
                     summary.retainedBytes -= it->sizeBytes;
+                    summary.olderBytes -= it->sizeBytes;
                 }
                 else
                     ++summary.failedRemovals;
             }
-            summary.overBudget = summary.keptSessions > policy.maxSessions || summary.retainedBytes > policy.maxTotalSizeBytes;
+            summary.overBudget = summary.keptSessions > countLimit || summary.olderBytes > policy.maxTotalSizeBytes;
             return summary;
         }
     }
@@ -395,9 +413,10 @@ namespace Ecstatica::Recompiled::Log::Session
 
         stream << " freed=" << FormatMiB(summary.freedBytes)
                << " retained=" << FormatMiB(summary.retainedBytes);
+        stream << " older=" << FormatMiB(summary.olderBytes);
 
         if (summary.overBudget)
-            stream << " (budget exceeded; active sessions or removal failures protected)";
+            stream << " (budget exceeded; active/retained investigations or removal failures protected)";
 
         return stream.str();
     }

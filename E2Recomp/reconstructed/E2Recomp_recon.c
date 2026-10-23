@@ -21691,7 +21691,9 @@ LAB_00428c0d:
         }
       }
       else {
-        piVar22 = &DAT_00427140;
+        /* Original 0x42980e..0x42981e copies all eight table entries. */
+        static const int reaction_directions[8] = {5,8,7,6,3,0,1,2};
+        piVar22 = (int *)reaction_directions;
         piVar26 = local_fc;
         for (iVar7 = 8; iVar7 != 0; iVar7 = iVar7 + -1) {
           *piVar26 = *piVar22;
@@ -33355,8 +33357,13 @@ undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)
   undefined4 local_single [2];
 
   in_EAX = E2R_ResolveMenuStringList(param_1,param_2,local_single);
-  if (in_EAX == (int *)0x0) {
-    return (ulonglong)param_2 << 0x20;
+  if (in_EAX == (int *)0x0 || *in_EAX == 0) {
+    /* Hosted error presentation: never display an empty OK-only message. */
+    fprintf(stderr,"error: Game message has no readable text (first=0x%lx second=0x%lx)\n",
+            (unsigned long)param_1,(unsigned long)param_2);
+    local_single[0] = (undefined4)(uintptr_t)"Internal game error. See the session log.";
+    local_single[1] = 0;
+    in_EAX = (int *)local_single;
   }
   E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;
   /* Original static record at 0x47a630 and the 18 line items built by
@@ -33411,6 +33418,7 @@ undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)
   else {
     *(undefined4 *)0x006432ec = 0x643de4;
   }
+  E2R_InspectObserve("requester",0x2e,iVar1);
   uVar5 = FUN_0043b384(0x0047a630,0);
   return CONCAT44(param_2,(int)uVar5);
 }

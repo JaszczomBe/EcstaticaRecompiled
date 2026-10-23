@@ -46,4 +46,7 @@ with tempfile.TemporaryDirectory(prefix='e2-replay-contracts-') as temporary:
     dest,replay=case('truncated');data=(replay/'events.csv').read_bytes();(replay/'events.csv').write_bytes(data[:data.rfind(b'\n',0,-1)+1]+b'2000017,1,"unterminated');run('play',dest,75)
     dest,replay=case('unpublished');(replay/'recording.incomplete').write_text('incomplete');run('play',dest,75)
     dest,replay=case('corrupt-middle');data=(replay/'events.csv').read_bytes();(replay/'events.csv').write_bytes(data.replace(b',clock,',b',"clock"x,',1));run('play',dest,73)
+    dest,replay=case('tail-after-end')
+    with (replay/'events.csv').open('ab') as f:f.write(b'9999999,1,"unfinished')
+    run('play',dest,73)
     print('PASS: ordered clocks/repeats/services, first field divergence, malformed input, identity, both checksums, truncated-tail recovery')

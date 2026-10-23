@@ -158,6 +158,7 @@ void E2R_SampleInspection(void) {
   E2R_InspectField("world", 0, "simulation_time", (uint32_t)_DAT_00636588);
   E2R_InspectField("world", 0, "script_wait", DAT_0047a76c);
   E2R_InspectField("world", 0, "modal_state", _DAT_00643650);
+  E2R_InspectField("world", 0, "requester_id", ((uint32_t)DAT_0047a45e >> 16) & 0xffff);
   E2R_InspectField("script", 0, "last_opcode", E2R_action_last_opcode);
   /* Diagnostic address only: never used as a portable state identity. */
   E2R_InspectField("script", 0, "last_cursor_address", E2R_action_last_cursor);

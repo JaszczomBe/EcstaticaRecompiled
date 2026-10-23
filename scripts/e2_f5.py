@@ -24,6 +24,7 @@ def begin(session: Path, executable: Path, pid: int):
     session = session.resolve(strict=True)
     destination = session/'investigation'
     destination.mkdir(exist_ok=False)
+    (session/'investigation.keep').write_text('Pending F5 investigation; release only after reviewing/exporting evidence.\n')
     INDEX.mkdir(parents=True,exist_ok=True)
     key = hashlib.sha256(str(session).encode()).hexdigest()[:12]
     record = INDEX/(session.name+'_'+key+'.json')
@@ -47,6 +48,19 @@ def begin(session: Path, executable: Path, pid: int):
 def append(record: Path, kind: str, detail: str, **progress):
     state = json.loads(record.read_text())
     destination = Path(state['session'])/'investigation'
+    if kind in ('signal','requester'):
+        if kind == 'signal':
+            state['last_signal'] = progress.get('signal')
+        else:
+            state['last_requester'] = progress
+        save_json(record,state)
+        # Keep a bounded stack/register copy even if an older executable's
+        # retention worker does not understand investigation.keep.
+        evidence = record.with_suffix('.'+kind+'.log')
+        if not evidence.exists() or evidence.stat().st_size < 8*1024*1024:
+            remaining = 8*1024*1024-(evidence.stat().st_size if evidence.exists() else 0)
+            with evidence.open('ab') as stream:
+                stream.write((json.dumps(progress)+'\n'+detail[:512*1024]+'\n').encode()[:remaining])
     path = destination/'debugger.log'
     remaining = 8*1024*1024-(path.stat().st_size if path.exists() else 0)
     if remaining <= 0:
@@ -67,12 +81,12 @@ def finalize(record: Path):
     with record.with_suffix('.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX)
         state = json.loads(record.read_text())
-        if state['state'] == 'finalized':
-            return state
         session = Path(state['session'])
         if not session.is_dir():
             state.update(state='expired',note='Session was removed by ordinary retention before finalization')
             save_json(record,state)
+            return state
+        if state['state'] == 'finalized':
             return state
         with source_lock(session):
             destination = session/'investigation'
@@ -81,6 +95,16 @@ def finalize(record: Path):
             if not report.exists():
                 write_report(capture,report)
             state.update(state='finalized',inspection_complete=capture.complete,report=str(report))
+            replay = session/'replay'
+            state['replay_complete'] = (replay/'events.csv').is_file() and not (replay/'recording.incomplete').exists()
+            result = state.get('result',{})
+            state['retention_protected'] = bool(state.get('last_signal') or
+                result.get('status') != 'exited' or result.get('returncode') != 0)
+            marker = session/'investigation.keep'
+            if state['retention_protected']:
+                marker.write_text('Failed or interrupted F5 investigation. Export/review before removing this marker.\n')
+            else:
+                marker.unlink(missing_ok=True)
             save_json(destination/'manifest.json',state)
             save_json(record,state)
         return state
@@ -96,10 +120,18 @@ def main():
     for record in sorted(INDEX.glob('*.json')):
         try:
             state = json.loads(record.read_text())
-            if state['state'] != 'collecting':
+            if state['state'] == 'expired':
                 continue
+            previous = state['state']
             state = finalize(record)
-            print('F5 investigation: '+state.get('report',state['session']))
+            if state['state'] == 'expired':
+                print('F5 investigation EXPIRED: '+state['session'])
+            elif previous == 'collecting':
+                print('F5 investigation: '+state.get('report',state['session']))
+                if state.get('retention_protected'):
+                    print('F5 evidence RETAINED: signal or unsuccessful/unknown exit; review before releasing investigation.keep.')
+                if not state.get('replay_complete') or not state.get('inspection_complete'):
+                    print('F5 capture INCOMPLETE: review manifest; process exit does not establish replay completion.')
         except BlockingIOError:
             # Another F5 session still owns its lease; leave it pending.
             continue

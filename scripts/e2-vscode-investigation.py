@@ -9,6 +9,7 @@ import e2_f5
 
 record = None
 startup = None
+requesters = []
 
 
 def diagnostic(error):
@@ -76,12 +77,28 @@ def debugger_exiting(event):
         diagnostic(error)
 
 
+class RequesterEntry(gdb.Breakpoint):
+    def stop(self):
+        if record is not None:
+            try:
+                detail = gdb.execute('thread apply all bt full',to_string=True)
+                e2_f5.append(record,'requester',detail,function=self.location,
+                             replay_sequence=int(gdb.parse_and_eval('E2R_replay_sequence')),
+                             replay_checkpoint=int(gdb.parse_and_eval('E2R_replay_last_checkpoint')))
+            except Exception as error:
+                diagnostic(error)
+        return False
+
+
 def install(event=None):
     global startup
     # cppdbg can source setup commands before executable symbols are loaded.
     if record is None and (startup is None or not startup.is_valid()):
         if gdb.lookup_global_symbol('E2R_SampleInspection') is not None:
             startup = InvestigationStart('E2R_SampleInspection',internal=True,temporary=True)
+    for name in ('FUN_0043cbf0','FUN_00414e5c'):
+        if gdb.lookup_global_symbol(name) is not None and not any(b.location == name for b in requesters):
+            requesters.append(RequesterEntry(name,internal=True))
 
 
 gdb.events.new_objfile.connect(install)

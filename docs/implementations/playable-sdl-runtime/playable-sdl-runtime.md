@@ -7,7 +7,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-10-22
+Last Updated: 2026-10-23
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -64,6 +64,13 @@ Step numbers are stable identifiers, not execution order. Step 07 is complete. T
 | [06 — Developer runtime packaging](steps/step-06/step-06-package-reproducible-developer-runtime.md) | planned | Consolidate existing setup docs, add unified validation, define release gate |
 
 ## Active Frontier
+
+The [camera-722 requester investigation](../../journal/entries/blank-requester-and-large-replay-2026-10-23.md)
+recovers the original eight-direction reaction table after large-capture replay
+exposes an earlier native fault. The user repeated the route without the blank
+prompt; requester fallback/evidence and reader/logging improvements are verified
+within their recorded limits. The old capture diverges after the table repair,
+so its terminating caller is not claimed reproduced or identified.
 
 Developer tooling is available through the [debugging tools implementation](../debugging-tools/debugging-tools.md)
 and [usage guide](../../debugging.md): opt-in state/frame observations, native bug

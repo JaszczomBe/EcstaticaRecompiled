@@ -8,6 +8,10 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Blank requester and large human replay — 2026-10-23](entries/blank-requester-and-large-replay-2026-10-23.md): repairs i386 reader memory use and the original eight-direction reaction table, improves requester evidence and fallback text, and removes frequent action traces from the normal console; user repeat reaches camera 722 without the prompt.
+
+- [Investigation retention and human replay assessment — 2026-10-23](entries/investigation-retention-2026-10-23.md): preserves the newest five sessions plus a separate 2 GiB older-session budget, protects failed F5 evidence, and verifies the surviving human recording through 1,158 checkpoints; missing-crash investigation awaits a fresh capture.
+
 - [F5 investigation and documentation tree — 2026-10-23](entries/f5-investigation-and-documentation-tree-2026-10-23.md): enables the normal selected-target launch to record, inspect, pin executable/context, retain debugger stops and finalize reports; connects project Markdown through the central README with automated tree checks.
 
 - [Debugging tools implementation — 2026-10-23](entries/debugging-tools-2026-10-23.md): correlated state/frame inspection, shared original-x86 fixtures, pinned native bug bundles, reverse-debugging launchers, recorded-route assertions and recovery/diagnostic queries, with native replay and baseline verification.

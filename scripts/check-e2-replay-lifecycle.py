@@ -27,6 +27,10 @@ with tempfile.TemporaryDirectory(prefix='e2-replay-lifecycle-') as directory:
     # Appending an unfinished CSV row emulates an interrupted write at the tail.
     with (source/'events.csv').open('ab') as f:f.write(b'99999999,1,"unfinished')
     limited=env|{'E2R_LOG_MAX_SESSIONS':'1'}
+    # Retention always keeps the newest five; make this source older than them.
+    for index in range(5):
+        newer=root/f'data/logs/session_20990101_000000_{index:03}'
+        newer.mkdir();(newer/'session.meta').write_text('{}')
     result=subprocess.run([str(exe),'--data-dir',str(root/'data'),'--replay',str(source),'--run-recon'],env=limited,capture_output=True,text=True,timeout=20)
     assert result.returncode==75,(result.returncode,result.stderr[-1500:])
     assert 'INCOMPLETE' in result.stderr and 'last_matching_checkpoint=' in result.stderr

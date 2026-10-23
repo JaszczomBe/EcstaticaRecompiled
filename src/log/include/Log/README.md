@@ -24,20 +24,23 @@ Retention runs at startup and periodically on its own maintenance thread:
 
 | Environment setting | Default |
 | --- | --- |
-| `E2R_LOG_MAX_SESSIONS` | 100 |
-| `E2R_LOG_MAX_TOTAL_MB` | 128 |
+| `E2R_LOG_MAX_SESSIONS` | 4294967295 (effectively unlimited) |
+| `E2R_LOG_MAX_TOTAL_MB` | 2048, for sessions older than the newest five |
 | `E2R_LOG_CLEANUP_INTERVAL_SECONDS` | 60 |
 
-Values must be positive integers. Oldest completed sessions are removed until
-both caps are met; there is no minimum-session floor overriding the budget.
+Values must be positive integers. The newest five sessions are always preserved,
+even with smaller count limits or oversized sessions. Their bytes are excluded
+from the older-session budget. Older eligible sessions are removed oldest first
+until that budget and any explicit count cap are met.
 Active sessions are protected by OS-managed leases, automatically released even
 after a crash or debugger kill. The filesystem wrapper implements leases on
 POSIX and Windows. Older sessions without leases are protected while their saved
 PID is alive. Concurrent session creation and cleanup share a root lock.
 
-The budget includes active sessions, but active sessions are never deleted.
-If active data alone exceeds the caps, cleanup reports the overrun and retries
-at the next interval. Legacy flat files, unrelated directory names and symlinked
+Older active sessions count against the older-session budget but are never
+deleted. `investigation.keep` also protects pending or failed F5 evidence until
+explicitly released after review/export. If protected older data exceeds the
+budget, cleanup reports the overrun and retries at the next interval. Legacy flat files, unrelated directory names and symlinked
 session directories are excluded. Each launch always creates a fresh directory;
 a completed session is never reactivated.
 
@@ -130,3 +133,11 @@ ownership, native source stacks, priority, RT allocations/wakeups/pool reuse,
 deferred argument lifetime, append-only rotation and retention leases/budgets.
 `scripts/check-e2-log-retention.py EXE` checks real-process periodic cleanup,
 concurrent sessions, legacy active PIDs and lease release after a killed process.
+
+## Gameplay detail in the console
+
+Frequent action events (`42b004`) and completions (`42ad60`) use the
+`Runtime.Actor` Trace tag. They remain in Trace-level session files and are
+hidden in the console by default. `E2R_GAMEPLAY_CONSOLE_VERBOSE=1` enables their
+console output when the global threshold admits Trace. Other levels/tags retain
+their existing behavior. Recording-limit notices use Warning severity.

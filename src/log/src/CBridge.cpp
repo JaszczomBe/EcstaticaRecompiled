@@ -77,6 +77,8 @@ namespace
 
     int DiagnosticLevel(std::string_view message)
     {
+        if (message.starts_with("replay: RECORDING INCOMPLETE:"))
+            return E2R_LOG_LEVEL_WARNING;
         if (message.starts_with("fatal:") || message.starts_with("FATAL:"))
             return E2R_LOG_LEVEL_FATAL;
         if (message.starts_with("error:") || message.starts_with("ERROR:") || message.starts_with("failed to "))
@@ -184,6 +186,11 @@ extern "C" void E2R_LogDiagnostic(const char* message)
     {
         level = E2R_LOG_LEVEL_DEBUG;
         tag = E2R_LOG_TAG_INPUT;
+    }
+    else if (text.starts_with("game state: 42b004.") || text.starts_with("game state: 42ad60."))
+    {
+        level = E2R_LOG_LEVEL_TRACE;
+        tag = E2R_LOG_TAG_ACTOR;
     }
     E2R_LogWrite(level, E2R_LOG_MODULE_RUNTIME, tag, nullptr, nullptr, 0, message);
 }

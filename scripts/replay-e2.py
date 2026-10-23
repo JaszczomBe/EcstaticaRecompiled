@@ -49,7 +49,7 @@ def copy_input(destination):
     if (source/'recording.incomplete').exists():names.append('recording.incomplete')
     for name in names:
         path=source/name
-        if path.is_symlink() or not path.is_file() or path.stat().st_size>128*1024*1024:raise ValueError('Invalid replay input: '+str(path))
+        if path.is_symlink() or not path.is_file() or path.stat().st_size>256*1024*1024:raise ValueError('Invalid replay input: '+str(path))
         shutil.copyfile(path,destination/name)
 
 def metadata(directory):

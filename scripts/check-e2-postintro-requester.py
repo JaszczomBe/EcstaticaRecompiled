@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('exe', type=Path)
 parser.add_argument('--output', type=Path, default=Path('/tmp/e2-postintro-requester'))
 parser.add_argument('--timeout', type=int, default=90)
+parser.add_argument('--empty',action='store_true',help='Inject an empty list at the real message boundary and verify hosted fallback text')
 args = parser.parse_args()
 prefix = str(args.output.resolve())
 env = os.environ.copy()
@@ -78,6 +79,18 @@ quit
     'e2r_write_visibility_packet((HWND)_DAT_00ac4dac,' + json.dumps(prefix) + ')'))
 
 with tempfile.TemporaryDirectory(prefix='e2-requester-check-') as tmp:
+    if args.empty:
+        commands=commands.replace('gdb.execute("run")', '''empty = gdb.Breakpoint("E2R_ResolveMenuStringList",internal=True)
+gdb.execute("run")
+stopped_in("E2R_ResolveMenuStringList")
+gdb.execute("finish")
+gdb.execute("next")  # Finish storing the helper return before replacing the local list.
+empty.delete()
+gdb.execute("set in_EAX = (int*)calloc(2,4)")
+gdb.execute("continue")''')
+        commands=commands.replace('"Can\'t load action:"','"Internal game error. See the session log."')
+        commands=commands.replace('require("384" in gdb.parse_and_eval("(char*)0x64406d").string(), "Missing action id")',
+                                  'require(gdb.parse_and_eval("(char*)0x64406d").string() == "", "Unexpected second line")')
     script = Path(tmp) / 'check.gdb'
     script.write_text(commands)
     try:

@@ -8470,6 +8470,23 @@ source = replaceRectangleInput(source, '#include "e2recomp_log.h"',
 source = replaceRectangleInput(source,
   '        uVar3 = FUN_0042a70c(extraout_ECX_00,extraout_EDX);',
   '        E2R_InspectUpdate(0);\n        uVar3 = FUN_0042a70c(extraout_ECX_00,extraout_EDX);\n        E2R_InspectUpdate(1);');
+// Preserve the full original directional-reaction table, not a scalar host global.
+patchRectangleFunction("FUN_00427584", body => replaceRectangleInput(body,
+  "        piVar22 = &DAT_00427140;",
+  `        /* Original 0x42980e..0x42981e copies all eight table entries. */
+        static const int reaction_directions[8] = {5,8,7,6,3,0,1,2};
+        piVar22 = (int *)reaction_directions;`));
+
+// Hosted fallback preserves the caller's modal/exit behavior and reports missing text.
+patchRectangleFunction("FUN_0043cbf0", body => replaceRectangleInput(body,
+  "  if (in_EAX == (int *)0x0) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;",
+  "  if (in_EAX == (int *)0x0 || *in_EAX == 0) {\n    /* Hosted error presentation: never display an empty OK-only message. */\n    fprintf(stderr,\"error: Game message has no readable text (first=0x%lx second=0x%lx)\\n\",\n            (unsigned long)param_1,(unsigned long)param_2);\n    local_single[0] = (undefined4)(uintptr_t)\"Internal game error. See the session log.\";\n    local_single[1] = 0;\n    in_EAX = (int *)local_single;\n  }\n  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;"));
+
+// Observe the modal before entering its blocking loop, independently of actor updates.
+patchRectangleFunction("FUN_0043cbf0", body => replaceRectangleInput(body,
+  '  uVar5 = FUN_0043b384(0x0047a630,0);',
+  '  E2R_InspectObserve("requester",0x2e,iVar1);\n  uVar5 = FUN_0043b384(0x0047a630,0);'));
+
 fs.writeFileSync(outSrc, source);
 
 const sortedIds = [...ids].sort();
