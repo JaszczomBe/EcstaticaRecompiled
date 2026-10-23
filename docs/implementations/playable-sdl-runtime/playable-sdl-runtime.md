@@ -65,6 +65,15 @@ Step numbers are stable identifiers, not execution order. Step 07 is complete. T
 
 ## Active Frontier
 
+The [water-entry continuation](../../journal/entries/water-entry-and-player-resource-2026-10-23.md)
+reproduces the user's death/menu in complete exact replay. Gameplay now loads
+Joe's original resource instead of potion actor `fpot6`, reads live swimming
+flags and restores the packed reload-state write. Fresh Debug/ASan SDL routes
+reach camera 543, finish the original transition and swim forward at height
+5120 with health 100, state 4 and wait/modal zero. Manual F5 water confirmation,
+shore exit and held-weapon swimming remain separate acceptance. Task 09 still
+owns broader population/object interactions and workshop sword pickup.
+
 The [camera-722 requester investigation](../../journal/entries/blank-requester-and-large-replay-2026-10-23.md)
 recovers the original eight-direction reaction table after large-capture replay
 exposes an earlier native fault. The user repeated the route without the blank

@@ -159,12 +159,19 @@ void E2R_SampleInspection(void) {
   E2R_InspectField("world", 0, "script_wait", DAT_0047a76c);
   E2R_InspectField("world", 0, "modal_state", _DAT_00643650);
   E2R_InspectField("world", 0, "requester_id", ((uint32_t)DAT_0047a45e >> 16) & 0xffff);
+  E2R_InspectField("world", 0, "terrain_type", DAT_0047a7ec);
+  E2R_InspectField("world", 0, "map_height_shift", DAT_0047a738);
+  E2R_InspectField("world", 0, "swimming_scene_flags", *(const uint8_t *)0x670c44);
   E2R_InspectField("script", 0, "last_opcode", E2R_action_last_opcode);
   /* Diagnostic address only: never used as a portable state identity. */
   E2R_InspectField("script", 0, "last_cursor_address", E2R_action_last_cursor);
   for (int id = 0; id < 5000; ++id) {
     uintptr_t actor = read_u32(0x630b60 + id * 4);
     if (!actor || IsBadReadPtr((void *)actor, 0x18c)) continue;
+    /* Investigation fields stay outside the canonical replay digest. */
+    E2R_InspectField("actor", id, "health", read_s16(actor + 0xec));
+    E2R_InspectField("actor", id, "water_capable", (read_s16(actor + 2) & 0x100) != 0);
+    E2R_InspectField("actor", id, "archive_offset", (int32_t)read_u32(0x653840 + id * 4));
     uintptr_t node = read_u32(actor + 0xf2);
     E2R_InspectField("actor", id, "attachment_present", node != 0);
     if (node && IsBadReadPtr((void *)node, 0x26)) {

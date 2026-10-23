@@ -93,6 +93,8 @@ prefix = str(args.output.resolve())
 Path(prefix).parent.mkdir(parents=True, exist_ok=True)
 env = os.environ.copy()
 env["E2R_RECORD"] = "off"
+# Agent probes own their sessions; keep normal human log retention independent.
+env["E2R_DATA_DIR"] = prefix + "-runtime"
 if args.video_driver == 'dummy':env.pop('DISPLAY', None)
 env.update(SDL_VIDEODRIVER=args.video_driver, E2R_STARTUP_LOGO_DELAY_MS=str(args.startup_logo_delay_ms),
            E2R_ACTION_INDEX_PROBE='1', E2R_ACTOR_CYLINDERS='1',
@@ -123,6 +125,13 @@ def require(condition,message):
     if not condition:raise gdb.GdbError(message)
 ready=gdb.Breakpoint('FUN_00415d40',internal=True)
 ready.condition='DAT_0047a76c == 0 && _DAT_0073cc3c == 0x67da4c && DAT_0047a470 != 0'
+if natural_intro and not check_guards:
+    ready.enabled=False
+    class Released(gdb.Breakpoint):
+        def stop(self):
+            return value('DAT_0047a76c')==0 and value('_DAT_0073cc3c')==0x67da4c and value('DAT_0047a470')!=0
+    released=Released('DAT_0047a76c',type=gdb.BP_WATCHPOINT,internal=True)
+
 if check_guards:
     ready.condition='DAT_0047a76c != 0 && _DAT_0073cc3c == 0x67da4c && DAT_0047a470 != 0 && *(int*)(0x630b60+284*4) != 0 && *(int*)(0x630b60+293*4) != 0'
 intro_actions=[]
@@ -160,6 +169,10 @@ if intro_skip_action:
     gdb.execute('continue',to_string=True)
 elif natural_intro:
     gdb.execute('run --run-recon',to_string=True)
+    if not check_guards:
+        released.delete()
+        ready.enabled=True
+        gdb.execute('continue',to_string=True)
 else:
     gdb.execute('run --inject-key-sequence-surfaces ' + json.dumps(prefix+'-startup') +
                 ' space 3 250 PROCESS_SECONDS',to_string=True)

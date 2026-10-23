@@ -8,6 +8,8 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Water entry and Joe’s original resource — 2026-10-23](entries/water-entry-and-player-resource-2026-10-23.md): reproduces the fatal water transition, restores Joe’s resource and live swimming flags, and verifies keyboard-driven swimming in Debug/ASan; adds health/terrain/resource inspection fields.
+
 - [Blank requester and large human replay — 2026-10-23](entries/blank-requester-and-large-replay-2026-10-23.md): repairs i386 reader memory use and the original eight-direction reaction table, improves requester evidence and fallback text, and removes frequent action traces from the normal console; user repeat reaches camera 722 without the prompt.
 
 - [Investigation retention and human replay assessment — 2026-10-23](entries/investigation-retention-2026-10-23.md): preserves the newest five sessions plus a separate 2 GiB older-session budget, protects failed F5 evidence, and verifies the surviving human recording through 1,158 checkpoints; missing-crash investigation awaits a fresh capture.

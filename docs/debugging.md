@@ -98,6 +98,13 @@ build that does not embed its debug information.
 
 ## Inspect state and frames
 
+Actor observations include `health`, `water_capable` and `archive_offset`.
+World observations include `terrain_type`, `map_height_shift` and
+`swimming_scene_flags`. These are inspection-only fields, so adding them leaves
+replay checkpoint sampling unchanged. The [water-entry investigation](journal/entries/water-entry-and-player-resource-2026-10-23.md)
+shows why health and original resource identity matter even when the process
+exits cleanly. Agent motion probes write sessions beneath `<output>-runtime`.
+
 Enable inspection on an ordinary launch or while replaying:
 
 ```sh

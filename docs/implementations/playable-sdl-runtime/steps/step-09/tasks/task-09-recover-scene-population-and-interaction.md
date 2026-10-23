@@ -12,7 +12,19 @@ Last Updated: 2026-10-23
 
 Restore original scene objects and NPCs needed for exploration and basic interaction while retaining cylinder presentation and Joe's working movement/camera transitions. Begin with one verified original resource and behavior; original models and full combat remain later work.
 
-## Current Continuation — NPC Poses And Object Interaction
+## Current Continuation — Water Entry And Object Interaction
+
+The [water-entry repair](../../../../../journal/entries/water-entry-and-player-resource-2026-10-23.md)
+restores original actor identity for ordinary gameplay loading: local node zero
+formerly aliased potion actor 4119/`fpot6` as Joe, losing his swimming capability.
+Live swimming-scene reads and opcode-0x54's packed state write are also recovered.
+All 1,922 actor headers and bounded original-x86 water/selector/reload contracts
+pass. Natural-startup Debug/ASan input routes reach camera 543 and swim forward
+with health 100, state 4, representation 13 and no modal. Human F5 confirmation,
+shore exit and held-item swimming remain open. Workshop re-entry/pickup remain
+the next object-interaction acceptance.
+
+## Prior Continuations — NPC Poses And Object Interaction
 
 The [camera-722 continuation](../../../../../journal/entries/blank-requester-and-large-replay-2026-10-23.md)
 restores the full original directional-reaction table and passes 524,288 x86

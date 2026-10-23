@@ -1184,13 +1184,16 @@ static int E2R_ActionIndexProbeEnabled(void)
   return cached;
 }
 
-/* Original scheduler/event loads scope global archive actor identities.
- * The optional probe can also enable lookup after a diagnostic checkpoint. */
+/* Gameplay loading uses original global archive actor identities.
+ * The optional probe also enables lookup in older diagnostic routes. */
 static int E2R_actor_resource_name_context = -1;
 static int E2R_actor_archive_load_context;
 
 static int E2R_PopulationProbeEnabled(void)
 {
+  /* Recovered gameplay loads use global actor names, including initial Joe.
+   * A local node ID of zero also occurs in unrelated actor resources. */
+  if (E2R_ActionIndexProbeEnabled()) return 1;
   if (E2R_actor_archive_load_context != 0) return 1;
   const char *value = getenv("E2R_POPULATION_PROBE");
   return value != NULL && value[0] != '\0' && value[0] != '0';
@@ -45455,8 +45458,7 @@ void FUN_0044d634(int actor_id)
 
 
 
-/* Scope corrected global archive identity to original population/spawn loads.
- * Initial Joe/intro loading retains its existing resource boundary. */
+/* Retain original population/spawn load ownership across nested callbacks. */
 static void E2R_LoadPopulationActor(int actor_id)
 {
   int entry_archive = E2R_actor_archive_load_context;
@@ -47562,7 +47564,8 @@ LAB_0044f7a9:
                "4f508.op54.reload",
                (uintptr_t)*(ushort **)((undefined1 *)0x00630b60 + iVar23 * 4));
           if (DAT_0047a470 != (ushort *)0x0) {
-            ((undefined4 *)(uintptr_t)DAT_0047a470)[0x41] = 4;
+            /* Original 0x44fd93 writes a word at actor +0x82. */
+            *(ushort *)(DAT_0047a470 + 0x82) = 4;
           }
           puVar13 = extraout_ECX_34;
           puVar18 = (ushort *)(uintptr_t)iVar23;
@@ -48428,7 +48431,7 @@ undefined8 __fastcall FUN_00451e84(undefined4 param_1,undefined4 param_2)
 
 /* 00451f5c */
 
-/* Find one binary actor section without changing the working intro resources.
+/* Find a binary actor section by its global name.
  * The parser normalizes raw word 2 as the global actor name (0x42ba2c). */
 static int E2R_FindActorArchiveOffset(int actor_id)
 {
@@ -48679,11 +48682,8 @@ void __fastcall FUN_00452140(undefined4 param_1)
   /* Original 0x45214f..0x452157 retains the supplied scene in EAX. */
   in_EAX = E2R_NormalizeSceneRecordPointer((int)(uintptr_t)param_1);
   if (in_EAX != 0) {
-    /* Source dav:skipsc pairs Start_sc with St_gobsc. Keep
-     * corrected archive identity scoped while other intro actors are audited. */
-    int recover_names = E2R_PopulationProbeEnabled() ||
-        (E2R_ActionIndexProbeEnabled() && *(short *)(uintptr_t)in_EAX ==
-         E2R_FindPackedNameIndex("St_gobsc",_DAT_006366bc,20000,0x9c4));
+    /* Scene actors use the same global archive identity policy. */
+    int recover_names = E2R_PopulationProbeEnabled();
     E2R_TraceSceneChildren("52140.enter",(short *)(uintptr_t)in_EAX);
     guard = 0;
     for (psVar3 = *(short **)(in_EAX + 4);
@@ -53108,10 +53108,10 @@ static void E2R_SelectPlayerRepresentation(void)
     representation = swimming ? 10 : actor[0xc2] == 0 ? 0xf : 0x10;
   }
   actor[0x91] = (short)representation;
-  if (representation != 10 && representation != 0xd && (DAT_00670c44 & 8) != 0) {
+  if (representation != 10 && representation != 0xd && (*(byte *)0x00670c44 & 8) != 0) {
     action_id = 4;
   }
-  else if ((representation == 10 || representation == 0xd) && (DAT_00670c44 & 8) == 0) {
+  else if ((representation == 10 || representation == 0xd) && (*(byte *)0x00670c44 & 8) == 0) {
     action_id = 3;
   }
   else return;

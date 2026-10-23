@@ -52,6 +52,13 @@ and suppressed during replay, including while expanding long clock runs.
 
 ## Status and current acceptance
 
+The [water-entry capture](journal/entries/water-entry-and-player-resource-2026-10-23.md)
+reproduces the user's post-death menu exactly with its pinned executable. The
+repair restores Joe's resource, so compatible replay now stops at sequence
+21,659 / last matching checkpoint 11. Fresh input-driven Debug/ASan routes prove
+water survival and forward swimming separately; they do not claim an old-capture
+checkpoint match.
+
 - **0 / MATCHED:** all recorded ordered calls and sampled checkpoints matched;
   a clean completion marker was reached. This verifies the sampled route, not
   every byte of game memory or causality of a crash.

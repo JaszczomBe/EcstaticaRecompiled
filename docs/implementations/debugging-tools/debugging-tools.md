@@ -71,3 +71,12 @@ Tool verification commands and current evidence are recorded in the
 The [F5 and documentation integration record](../../journal/entries/f5-investigation-and-documentation-tree-2026-10-23.md)
 covers the normal selected-target launch, Debug/ASan adapter verification and the
 README-rooted navigation checks.
+
+The [water-entry investigation](../../journal/entries/water-entry-and-player-resource-2026-10-23.md)
+uses a complete replay, state timeline and pinned GDB watchpoints to distinguish
+an incorrect actor death from a crash. New observational health/terrain/resource
+fields expose the missing context; canonical replay sampling stays unchanged.
+The final Debug/ASan keyboard routes demonstrate forward swimming, while the old
+recording correctly diverges after loading changes. Agent motion probes isolate
+their sessions under the output prefix and use hardware release watchpoints for
+natural-intro readiness where no earlier guard checkpoint is needed.

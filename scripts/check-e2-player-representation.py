@@ -91,7 +91,8 @@ static void setup(int owner,int held,int stance,int terrain,int height,int shift
     *(int*)0x900126=0x905000;
     DAT_0047a7ec=*(int*)0x47a7ec=terrain;
     DAT_0047a738=*(byte*)0x47a738=shift;
-    DAT_00670c44=*(byte*)0x670c44=bit?8:0;
+    *(byte*)0x670c44=bit?8:0;
+    DAT_00670c44=bit?0:8; // Independent generated label must not hide live scene updates.
     *(int*)0x62ba2c=*(int*)0x62ba30=loaded==0?0:loaded==1?0x904000:0x906000;
     calls=0;load_id=-1;
 }
