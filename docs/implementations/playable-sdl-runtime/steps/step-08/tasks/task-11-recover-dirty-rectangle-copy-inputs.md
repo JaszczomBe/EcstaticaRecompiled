@@ -1,5 +1,9 @@
 # Recover Dirty-Rectangle Copy Inputs
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
+<!-- /docs-tree:parent -->
+
 Status: implemented; full-route validation blocked by Task 12
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)

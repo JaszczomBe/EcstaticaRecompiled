@@ -1,5 +1,9 @@
 # Dependencies
 
+<!-- docs-tree:parent -->
+[Project README](../README.md)
+<!-- /docs-tree:parent -->
+
 ## SDL
 
 SDL is the source-inspectable host backend dependency for `E2R_HOST_BACKEND=sdl`.
@@ -33,3 +37,9 @@ git submodule update --init --depth 1 dep/ghidra
 The source submodule is large and still needs a Ghidra build before `analyzeHeadless`
 is available. For day-to-day reverse engineering, a release distribution is usually
 the quicker path.
+
+<!-- docs-tree:children -->
+## Related documents
+
+- [Upstream dependency documentation](../docs/dependencies/README.md)
+<!-- /docs-tree:children -->

@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "e2recomp_log.h"
+#include "EcstaticaInspect.h"
 #ifdef NAN
 #undef NAN
 #endif
@@ -19661,7 +19662,9 @@ void FUN_00426df8(void)
         FUN_00415d40(extraout_ECX,iVar1);
         E2R_TraceFrameStage("26df8.after-15d40");
         E2R_TraceFrameStage("26df8.before-42a70c");
+        E2R_InspectUpdate(0);
         uVar3 = FUN_0042a70c(extraout_ECX_00,extraout_EDX);
+        E2R_InspectUpdate(1);
         E2R_TraceFrameStage("26df8.after-42a70c");
         iVar1 = (int)((ulonglong)uVar3 >> 0x20);
         uVar2 = extraout_ECX_01;

@@ -1,5 +1,9 @@
 # Generated Code Repairs
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 ## Purpose
 
 Record transformations in `E2Recomp/tools/GenerateRecon.js` that preserve manual fixes when reconstructed C is regenerated.

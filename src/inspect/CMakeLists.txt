@@ -1,0 +1,6 @@
+add_library(e2r_inspect STATIC src/Inspect.cpp)
+target_include_directories(e2r_inspect PUBLIC include)
+target_compile_definitions(e2r_inspect PUBLIC E2R_ENABLE_RUNTIME_OPTIONS=1)
+target_compile_features(e2r_inspect PRIVATE cxx_std_20)
+target_compile_options(e2r_inspect PRIVATE -Wall -Wextra)
+target_link_libraries(e2r_inspect PUBLIC e2r_replay)

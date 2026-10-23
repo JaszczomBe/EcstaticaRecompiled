@@ -8464,6 +8464,12 @@ patchRectangleFunction("FUN_00415d40", body => replaceRectangleInput(body,
   `        /* Original 0x416107..0x41610d supplies current actor in EDX. */
         FUN_0044f310(iVar2,(ushort *)DAT_0047a470);`));
 
+// Observational update boundaries; no game inputs, clocks or state are changed.
+source = replaceRectangleInput(source, '#include "e2recomp_log.h"',
+  '#include "e2recomp_log.h"\n#include "EcstaticaInspect.h"');
+source = replaceRectangleInput(source,
+  '        uVar3 = FUN_0042a70c(extraout_ECX_00,extraout_EDX);',
+  '        E2R_InspectUpdate(0);\n        uVar3 = FUN_0042a70c(extraout_ECX_00,extraout_EDX);\n        E2R_InspectUpdate(1);');
 fs.writeFileSync(outSrc, source);
 
 const sortedIds = [...ids].sort();

@@ -1,5 +1,9 @@
 # <Plan Title>
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Implementation Workflow](../implementation-workflow.template.md)
+<!-- /docs-tree:parent -->
+
 Status: planned
 Priority: <low|medium|high|top>
 Owner: <user|ai|mixed>

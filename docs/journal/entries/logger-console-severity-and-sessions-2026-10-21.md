@@ -1,5 +1,9 @@
 # Logger Console Severity And Sessions — 2026-10-21
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user confirmed the native F5 crash fix, then requested the new logger on the console with severity, colors and sessions under `~/.ecstatica2`. The prior integration still printed through the old C timestamp wrapper and mirrored diagnostics into a file-only C++ sink.
 
 ## Implementation

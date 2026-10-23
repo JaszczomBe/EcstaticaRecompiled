@@ -1,5 +1,9 @@
 # Recover NPC Spawn Query Inputs
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Enable Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
+<!-- /docs-tree:parent -->
+
 Status: query/range/placement and generic activation recovered; wider gameplay coverage remains open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 Last Updated: 2026-10-19

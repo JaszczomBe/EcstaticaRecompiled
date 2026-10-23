@@ -1,5 +1,9 @@
 # Reverse Engineering Workflow
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 ## Purpose
 
 Track how local Ghidra analysis is used to verify or improve reconstructed functions against the original Ecstatica II executable.

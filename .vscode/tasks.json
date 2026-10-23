@@ -16,6 +16,15 @@
       "problemMatcher": [
         "$gcc"
       ]
+    },
+    {
+      "label": "Ecstatica: Finalize gameplay investigation",
+      "type": "process",
+      "command": "python3",
+      "args": ["${workspaceFolder}/scripts/e2_f5.py", "--pending"],
+      "options": {"cwd": "${workspaceFolder}"},
+      "problemMatcher": [],
+      "presentation": {"reveal": "silent", "panel": "dedicated"}
     }
   ]
 }

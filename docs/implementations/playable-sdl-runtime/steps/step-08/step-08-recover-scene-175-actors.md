@@ -1,5 +1,9 @@
 # Recover Scene 175 Actors
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../README.md) · [Parent: Playable SDL Runtime](../../playable-sdl-runtime.md)
+<!-- /docs-tree:parent -->
+
 Status: active
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-10-14

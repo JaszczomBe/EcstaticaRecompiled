@@ -29,6 +29,7 @@ env["E2R_RECORD"] = "off"
 env.update({item['name']: re.sub(r'\$\{env:([^}]+)\}',
                                lambda match: os.environ.get(match[1], ''), item['value'])
             for item in launch['environment']})
+env['E2R_RECORD'] = 'off'  # Agent probes override the human F5 recording policy.
 env.update(SDL_VIDEODRIVER='dummy')
 assert 'detect_leaks=0' in env['ASAN_OPTIONS']
 env.pop('DISPLAY', None)

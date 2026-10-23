@@ -1,5 +1,9 @@
 # Natural Intro Attachment Detach — 2026-10-22
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user reports the same `FUN_0042db74:25297` crash after the recorder work and
 asks to reproduce it by starting normally and waiting through the intros.
 Recording/replay is not used in this continuation. All runs explicitly set

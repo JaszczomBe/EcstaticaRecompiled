@@ -1,5 +1,9 @@
 # Verify Front Buffer Presentation
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Recover DirectDraw Page And Palette Semantics](../step-02-recover-directdraw-page-and-palette-semantics.md)
+<!-- /docs-tree:parent -->
+
 Status: completed
 Parent Step: [Recover DirectDraw Page And Palette Semantics](../step-02-recover-directdraw-page-and-palette-semantics.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)

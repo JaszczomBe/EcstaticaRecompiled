@@ -1,5 +1,9 @@
 # Logger Cleanup And Bounded Session Maintenance — 2026-10-21
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user approved a narrowed cleanup after clarifying the required capabilities: retain real-time pools/deferred formatting, macros and module/submodule masks, native callstacks, filesystem wrappers and capped periodic retention. Error/Fatal must bypass severity thresholds and take priority over ordinary records; chronological reconstruction uses producer timestamps and sequence numbers.
 
 ## Removed And Preserved

@@ -2,9 +2,16 @@
  * projection, state repair, allocation, or clock reads. */
 #include "E2Recomp_recon.h"
 #include "EcstaticaReplay.h"
+#include "EcstaticaInspect.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#include <sanitizer/asan_interface.h>
+#define E2R_INSPECTION_ASAN 1
+#endif
+#endif
 extern uint E2R_rand_seed_fallback;
 static int64_t read_s16(uintptr_t p) {
   int16_t v;
@@ -16,14 +23,11 @@ static uint32_t read_u32(uintptr_t p) {
   memcpy(&v, (const void *)p, 4);
   return v;
 }
-static void field(const char *s, int id, const char *n, int64_t v) {
-  E2R_ReplayField(s, id, n, v);
-}
 static int resource(uintptr_t p) {
   return p && p >= 0x10000 && !IsBadReadPtr((void *)p, 2) ? (int)read_s16(p)
                                                           : -1;
 }
-void E2R_SampleReplayCheckpoint(void) {
+static void sample_fields(void (*field)(const char *, int, const char *, int64_t)) {
 #if UINTPTR_MAX <= UINT32_MAX
 #define GLOBAL(name) field("world", 0, #name, (int64_t)name)
   GLOBAL(_DAT_00636588);
@@ -146,3 +150,44 @@ void E2R_SampleReplayCheckpoint(void) {
 #undef GLOBAL
 #endif
 }
+void E2R_SampleReplayCheckpoint(void) { sample_fields(E2R_ReplayField); }
+#if E2R_ENABLE_RUNTIME_OPTIONS
+void E2R_SampleInspection(void) {
+  sample_fields(E2R_InspectField);
+#if UINTPTR_MAX <= UINT32_MAX
+  E2R_InspectField("world", 0, "simulation_time", (uint32_t)_DAT_00636588);
+  E2R_InspectField("world", 0, "script_wait", DAT_0047a76c);
+  E2R_InspectField("world", 0, "modal_state", _DAT_00643650);
+  E2R_InspectField("script", 0, "last_opcode", E2R_action_last_opcode);
+  /* Diagnostic address only: never used as a portable state identity. */
+  E2R_InspectField("script", 0, "last_cursor_address", E2R_action_last_cursor);
+  for (int id = 0; id < 5000; ++id) {
+    uintptr_t actor = read_u32(0x630b60 + id * 4);
+    if (!actor || IsBadReadPtr((void *)actor, 0x18c)) continue;
+    uintptr_t node = read_u32(actor + 0xf2);
+    E2R_InspectField("actor", id, "attachment_present", node != 0);
+    if (node && IsBadReadPtr((void *)node, 0x26)) {
+      E2R_InspectField("actor", id, "attachment_unreadable", 1);
+      continue;
+    }
+#ifdef E2R_INSPECTION_ASAN
+    if (node && __asan_region_is_poisoned((void *)node, 0x26)) {
+      E2R_InspectField("actor", id, "attachment_unreadable", 1);
+      continue;
+    }
+#endif
+    if (node) {
+      uintptr_t owner = read_u32(node + 0x22);
+      int owner_id = -1;
+      if (owner && !IsBadReadPtr((void *)owner, 2)) {
+#ifdef E2R_INSPECTION_ASAN
+        if (!__asan_region_is_poisoned((void *)owner, 2))
+#endif
+          owner_id = (int)read_s16(owner);
+      }
+      E2R_InspectField("actor", id, "attachment_owner_id", owner_id);
+    }
+  }
+#endif
+}
+#endif

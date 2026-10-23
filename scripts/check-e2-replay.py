@@ -17,12 +17,14 @@ p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('exe',type=Path)
 p.add_argument('--released-player',action='store_true',help='Wait for release before movement; broader gameplay fidelity gate')
 p.add_argument('--background-spawns',action='store_true',help='Also exercise populated gameplay; divergence is a failing fidelity check')
+p.add_argument('--inspect',action='store_true',help='Also verify observational capture and replay with inspection disabled')
 p.add_argument('--output',type=Path,default=Path('/tmp/e2-replay-route'))
 a=p.parse_args();exe=a.exe.resolve();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True)
 env=os.environ.copy()
 for key in list(env):
     if key.startswith('E2R_'):env.pop(key)
 env.update(SDL_VIDEODRIVER='dummy',SDL_AUDIODRIVER='dummy',E2R_STARTUP_LOGO_DELAY_MS='0',E2R_ACTOR_CYLINDERS='1',E2R_ACTION_INDEX_PROBE='1',E2R_PROXY_MESH_BYPASS='1',E2R_DEFER_BACKGROUND_SPAWNS='0' if a.background_spawns else '1',ASAN_OPTIONS='detect_leaks=0')
+if a.inspect:env['E2R_INSPECT']='1'
 body=r'''
 import gdb
 value=lambda s:int(gdb.parse_and_eval(s))
@@ -106,6 +108,13 @@ inputs=[x for x in rows if x['kind']=='input']
 assert sum(x['message_or_result']=='256' and x['wparam']=='38' for x in inputs)>=2
 command=[str(exe),'--data-dir',str(out/'playback'),'--replay',str(source),'--run-recon']
 results=[run('play-'+str(i),command) for i in range(3)]
+if a.inspect:
+    from e2_inspection import Inspection
+    capture=Inspection(source.parent)
+    assert capture.complete and any(e['kind']=='frame_written' for e in capture.events)
+    env.pop('E2R_INSPECT')
+    results.append(run('play-inspection-off',command))
+    env['E2R_INSPECT']='1'
 # Pause after a real checkpoint; wall time must not influence game-visible clocks.
 (out/'pause.gdb').write_text('set pagination off\nset confirm off\nbreak E2R_ReplayPumpBegin\nignore 1 100\nrun\npython\nimport time\ntime.sleep(2)\nend\ndisable 1\ncontinue\n')
 results.append(run('pause',['gdb','--nx','-q','--batch','-x',str(out/'pause.gdb'),'--args',*command]))

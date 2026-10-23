@@ -1,5 +1,9 @@
 # Sustain Main Loop Heartbeat
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../README.md) · [Parent: Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
+<!-- /docs-tree:parent -->
+
 Status: completed
 Parent Implementation: [Run Reconstructed E2 On Linux](../../linux-e2-reconstructed-runtime.md)
 Last Updated: 2026-07-16

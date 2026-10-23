@@ -1,5 +1,9 @@
 # Recover Post-Intro Placement And Motion Queries
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Enable Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
+<!-- /docs-tree:parent -->
+
 Status: basic control/traversal/collision manually confirmed; broader automated physics and full runtime acceptance remain open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 Last Updated: 2026-10-19

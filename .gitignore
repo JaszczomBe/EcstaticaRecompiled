@@ -3,3 +3,4 @@ compile_commands.json
 .tmp/
 CMakeUserPresets.json
 data/
+__pycache__/

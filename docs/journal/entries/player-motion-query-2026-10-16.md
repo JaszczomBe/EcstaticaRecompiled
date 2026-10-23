@@ -1,5 +1,9 @@
 # 2026-10-16 — Player Motion Vectors And World Query
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: Step 09 Task 05, action motion event `0x13` through `0x448c1c/0x448cb4`.
 
 Up now changes Joe's real position in both Debug and ASan. A corrected Debug press/release probe also turns Left/Right and stops those changes on release. This is bounded movement evidence, not playable/traversal acceptance: Down has no observed displacement in the short probe, and ASan fails after Up release in a separate gravity/floor path.

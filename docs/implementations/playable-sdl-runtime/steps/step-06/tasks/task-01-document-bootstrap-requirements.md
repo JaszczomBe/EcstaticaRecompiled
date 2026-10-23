@@ -1,5 +1,9 @@
 # Document Bootstrap Requirements
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Package Reproducible Developer Runtime](../step-06-package-reproducible-developer-runtime.md)
+<!-- /docs-tree:parent -->
+
 Status: planned
 Parent Step: [Package Reproducible Developer Runtime](../step-06-package-reproducible-developer-runtime.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)

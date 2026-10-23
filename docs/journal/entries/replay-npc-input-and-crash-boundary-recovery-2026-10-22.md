@@ -1,5 +1,9 @@
 # Replay NPC Inputs And Crash Boundary Recovery — 2026-10-22
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user authorized continuation after the [human pedestal replay test](pedestal-crash-replay-test-2026-10-22.md)
 diverged before its reported `FUN_0042db74` crash. Existing staged implementation
 is preserved; all changes in this continuation remain unstaged. No commit.

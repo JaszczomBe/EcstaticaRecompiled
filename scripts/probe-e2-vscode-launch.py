@@ -22,18 +22,26 @@ parser.add_argument('--adapter', type=Path, help='OpenDebugAD7 path; otherwise d
 parser.add_argument('--record', choices=['off', 'auto'], default='off',
                     help='Agent runs default off; auto explicitly verifies human F5 recording')
 parser.add_argument('--seconds', type=float, default=30)
+parser.add_argument('--engine-log',action='store_true',help='Retain debugger setup command details in the probe output')
+parser.add_argument('--verify-investigation',action='store_true',help='Verify human F5 artifacts and run its finalization task after disconnect')
 parser.add_argument('--output', type=Path, default=Path('/tmp/e2-vscode-launch'))
 args = parser.parse_args()
 if args.seconds <= 0:
     parser.error('--seconds must be positive')
+if args.verify_investigation and args.record!='auto':
+    parser.error('--verify-investigation requires --record auto')
 root = Path(__file__).resolve().parent.parent
 launch = json.loads((root / '.vscode/launch.json').read_text())['configurations'][0]
 assert launch['type'] == 'cppdbg' and launch['request'] == 'launch'
 assert launch['program'] == '${command:cmake.launchTargetPath}'
 assert launch['cwd'] == '${command:cmake.getLaunchTargetDirectory}'
-launch.setdefault('environment', []).append({'name':'E2R_RECORD','value':args.record})
+launch['environment'] = [item for item in launch.get('environment',[]) if item['name'] != 'E2R_RECORD']
+launch['environment'].append({'name':'E2R_RECORD','value':args.record})
 launch['program'] = str(args.exe.resolve(strict=True))
 launch['cwd'] = str(args.exe.resolve().parent)
+if args.engine_log:launch['logging']={'engineLogging':True}
+for command in launch.get('setupCommands', []):
+    command['text'] = command['text'].replace('${workspaceFolder}',str(root))
 for item in launch.get('environment', []):
     item['value'] = re.sub(r'\$\{env:([^}]+)\}', lambda m: os.environ.get(m[1], ''), item['value'])
 if args.adapter:
@@ -153,6 +161,25 @@ report = dict(adapter=str(adapter), program=launch['program'], cwd=launch['cwd']
               stopped=stopped, stack=stack, failure=failure)
 Path(str(prefix) + '.json').write_text(json.dumps(report, indent=2))
 success = started and configured and run_start and not stopped and not failure
+if args.verify_investigation:
+    import hashlib
+    sessions=[]
+    for line in Path(str(prefix)+'.jsonl').read_text().splitlines():
+        message=json.loads(line)
+        if message.get('event')=='output':
+            sessions.extend(re.findall(r'^F5 investigation: (.+)/investigation\s*$',message.get('body',{}).get('output',''),re.M))
+    assert sessions,'F5 startup hook did not preserve the running executable'
+    subprocess.run(['python3',str(root/'scripts/e2_f5.py'),'--pending'],check=True)
+    session=Path(sessions[-1])
+    investigation=session/'investigation'
+    metadata=dict(list(__import__('csv').reader((session/'replay/metadata.csv').open()))[1:])
+    assert hashlib.sha256((investigation/'e2recomp').read_bytes()).hexdigest()==metadata['executable_sha256']
+    assert (session/'inspection/timeline.csv').is_file()
+    assert (investigation/'report.html').is_file()
+    assert (investigation/'debugger.log').is_file()
+    report['investigation']=str(investigation)
+    report['investigation_verified']=True
+    Path(str(prefix)+'.json').write_text(json.dumps(report,indent=2))
 print(f'{"PASS" if success else "FAIL"}: launch.json via cppdbg; observed {observed_seconds:.2f} seconds')
 print(f'Evidence: {prefix}.json, {prefix}.jsonl and {prefix}-adapter.log')
 raise SystemExit(0 if success else 1)

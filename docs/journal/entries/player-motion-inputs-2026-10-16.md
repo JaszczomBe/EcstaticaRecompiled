@@ -1,5 +1,9 @@
 # 2026-10-16 — Player Representation And Live Keyboard Inputs
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: Step 09 Task 02, Joe's representation selector and player-state-4 keyboard reads.
 
 Joe now receives the source-selected representation, and Up reaches movement event `0x13` and the real world-motion query. Debug and ASan then fail in the unrecovered vector/query contract. Displacement, turning and traversal remain unproven; full experimental ASan runtime acceptance remains open.

@@ -1,5 +1,9 @@
 # Manual Castle Exploration And Population Frontier — 2026-10-19
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user reports manually traversing several stairs and angled ledges, finding collisions work well, and moving freely around the castle for an extended session without problems. This adds practical manual evidence for basic locomotion, physical boundaries and wider exploration beyond the automated courtyard round trip. The report does not specify an exact duration, build or sanitizer configuration; it does not establish every collision/falling path or full experimental ASan acceptance.
 
 The remaining visible gap is scene population and interaction: no switches, doors, traps, enemies or pickups such as points/weapons are present. Prioritize that frontier over more locomotion work unless a new concrete movement failure appears. Original models remain secondary; use cylinders for recovered instances where applicable.

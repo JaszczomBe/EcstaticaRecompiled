@@ -1,8 +1,13 @@
 # Journal Templates And Conventions
 
+<!-- docs-tree:parent -->
+[Project README](../../README.md) · [Parent: Workflow templates](README.md)
+<!-- /docs-tree:parent -->
+
 ## Handling Rules
 
-- Keep [../HANDOFF.md](../HANDOFF.md) as the root context anchor, not a timeline.
+- Keep the [project README](../../README.md) as the central entry and [handoff](../HANDOFF.md) as its durable working-rules branch, not a timeline.
+- Link a new entry from its journal parent and refresh/check README-rooted navigation.
 - Add each entry to the journal entry subfile that owns the investigation target or fix target.
 - Keep entries concise, but include enough evidence to reproduce the reasoning later.
 - Record the next exposed crash or risk when a fix only moves the runtime forward.

@@ -1,5 +1,9 @@
 # 2026-10-16 — Forward/Turn Caller Actor Ownership
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user reports that cylinder rotation works after the intro, but pressing Up then crashes in `FUN_0042b074`, called by `FUN_00427584` at line 21323. This matches the previously recorded combined-input failure and is now repaired in both player-state-4 forward/turn branches. The independent ASan gravity/release frontier remains open.
 
 ## Cause And Repair

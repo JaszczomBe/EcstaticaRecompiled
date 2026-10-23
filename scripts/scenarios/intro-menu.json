@@ -1,0 +1,12 @@
+{
+  "schema": "e2debug.scenario.1",
+  "name": "Recorded intro/menu route",
+  "assertions": [
+    {"name": "Courtyard camera observed", "when": "eventually", "scope": "world", "entity_id": 0, "field": "camera", "value": 175},
+    {"name": "Joe loaded", "when": "eventually", "scope": "actor", "entity_id": 0, "field": "id", "value": 0}
+  ],
+  "events": [
+    {"kind": "input_before", "a": 256, "b": 38},
+    {"kind": "input_before", "a": 257, "b": 38}
+  ]
+}

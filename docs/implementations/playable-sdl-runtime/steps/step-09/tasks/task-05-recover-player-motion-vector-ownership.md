@@ -1,5 +1,9 @@
 # Recover Player Motion Vector And Query Ownership
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Enable Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
+<!-- /docs-tree:parent -->
+
 Status: implemented contracts; Up displaces in Debug/ASan, full control acceptance remains open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 Last Updated: 2026-10-16

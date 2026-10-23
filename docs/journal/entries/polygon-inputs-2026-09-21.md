@@ -1,5 +1,9 @@
 # 2026-09-21 — Polygon inputs and reference-plane ownership
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: `FUN_00424e44 → FUN_00433d30 → FUN_00431a7c` and adjacent polygon callers.
 
 Symptom: gated SDL crashes on `*(int *)(unaff_EBX + 4)` with `unaff_EBX=1`, while drawing polygon `0x84b34c`. This is the source task following the post-intro requester repair. The worktree was clean at entry.

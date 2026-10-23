@@ -1,5 +1,9 @@
 # 2026-10-14 — Documentation and next-step review
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: handoff, current implementation state, build guidance and Step 08 Task 11.
 
 Question: does the documentation match the latest source, and what evidence is needed next?

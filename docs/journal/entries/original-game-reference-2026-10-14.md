@@ -1,5 +1,9 @@
 # 2026-10-14 — Original-game video reference
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: castle/credits intro, pedestal restraint and release, first gameplay, and their relationship to the reconstructed runtime at `4fb151a`.
 
 ## Source And Method

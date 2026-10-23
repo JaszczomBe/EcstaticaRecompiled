@@ -1,5 +1,9 @@
 # Input Log Transitions And Missing-Sound Severity — 2026-10-21
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user requested lower severity and separate tags for input and missing sound, plus compact key logs showing pressed/released/held state. The existing output duplicated each input across SDL events, key translation, host dispatch, legacy entry/exit, flag writes and keyboard snapshots, mostly at Info.
 
 ## Behavior

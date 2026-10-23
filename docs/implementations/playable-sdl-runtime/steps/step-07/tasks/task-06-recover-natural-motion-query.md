@@ -1,5 +1,9 @@
 # Recover Natural Motion Query
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Restore Reproducible Runtime Baseline](../step-07-restore-reproducible-runtime-baseline.md)
+<!-- /docs-tree:parent -->
+
 Status: completed
 Parent Step: [Restore Reproducible Runtime Baseline](../step-07-restore-reproducible-runtime-baseline.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)

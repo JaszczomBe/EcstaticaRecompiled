@@ -1,5 +1,9 @@
 # 2026-10-19 — SDL Arrow Release, Frame Clock And Target Facing
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: Step 09 Task 02, the user's manual spinning/circling report and `FUN_0042ed6c` crash.
 
 Three recovered contracts address the report: actual SDL arrow release now clears the held key, the update loop again waits for a real clock change, and the target-facing caller/helper retain actor, elapsed time, range and angular inputs. Earlier direct-WndProc probes supplied complete key metadata and therefore missed the actual SDL release defect. Full control, collision, traversal and sustained experimental ASan acceptance remain open.

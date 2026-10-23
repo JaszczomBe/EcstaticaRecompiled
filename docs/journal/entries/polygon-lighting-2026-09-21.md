@@ -1,5 +1,9 @@
 # 2026-09-21 — Flat-polygon lighting inputs
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: the normal/lighting block in `FUN_00431a7c`, its angle lookup and local rotations.
 
 Symptom: after polygon argument recovery, gated SDL reached `FUN_004226bc → FUN_004228b8 → FUN_0045dd04` with unrecovered matrix pointers. The existing polygon-input changes were unstaged at entry and are preserved.

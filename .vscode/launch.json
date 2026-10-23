@@ -10,8 +10,28 @@
         "--run-recon"
       ],
       "stopAtEntry": false,
+      "postDebugTask": "Ecstatica: Finalize gameplay investigation",
+      "setupCommands": [
+        {
+          "description": "Preserve the running binary and observe debugger stops",
+          "text": "source ${workspaceFolder}/scripts/e2-vscode-investigation.py",
+          "ignoreFailures": false
+        }
+      ],
       "cwd": "${command:cmake.getLaunchTargetDirectory}",
       "environment": [
+        {
+          "name": "E2R_RECORD",
+          "value": "auto"
+        },
+        {
+          "name": "E2R_REPLAY",
+          "value": ""
+        },
+        {
+          "name": "E2R_INSPECT",
+          "value": "1"
+        },
         {
           "name": "ASAN_OPTIONS",
           "value": "${env:ASAN_OPTIONS}:detect_leaks=0"

@@ -1,5 +1,9 @@
 # NPC Endpoint And Reverse-Chain Pose Recovery — 2026-10-20
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user accepted restored generic population after early Space and authorized the next bounded implementation: recover NPC node/root/IK inputs, extend original-code comparisons and verify populated traversal with sustained NPC updates. The existing index snapshot remains unchanged; this continuation is unstaged. No commits were made.
 
 ## Original-Code Evidence And Repair

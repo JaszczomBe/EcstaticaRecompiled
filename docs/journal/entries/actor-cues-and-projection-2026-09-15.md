@@ -1,5 +1,9 @@
 # 2026-09-15 — Scene projection and actor recovery
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: camera arithmetic, SDL diagnostic cues, scene activation and render inputs.
 
 Symptom: the X/Z inset did not place Joe or enemies relative to the background, and intro/input probes left Joe at the same coordinates.

@@ -18,6 +18,12 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
                             unsigned width, unsigned height, unsigned pitch,
                             const uint32_t *palette_rgb);
 int E2R_HostDumpPresentation(E2R_HostWindow *window, const char *prefix);
+#ifdef E2R_HOST_BACKEND_SDL
+int E2R_HostDumpInspectionFrame(E2R_HostWindow *window, const char *prefix);
+#else
+static inline int E2R_HostDumpInspectionFrame(E2R_HostWindow *window, const char *prefix)
+{ (void)window; (void)prefix; return -1; }
+#endif
 
 /* Read-only runtime snapshot for optional host-side actor diagnostics. */
 #define E2R_ACTOR_CUE_CAPACITY 64

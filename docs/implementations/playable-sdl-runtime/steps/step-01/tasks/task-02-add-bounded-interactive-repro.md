@@ -1,5 +1,9 @@
 # Add Bounded Interactive Repro
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Stabilize Interactive SDL F5 Runtime](../step-01-stabilize-interactive-sdl-f5-runtime.md)
+<!-- /docs-tree:parent -->
+
 Status: completed
 Parent Step: [Stabilize Interactive SDL F5 Runtime](../step-01-stabilize-interactive-sdl-f5-runtime.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)

@@ -1,5 +1,9 @@
 # 2026-10-14 — Dirty-rectangle copy inputs and surface ownership
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: `FUN_00418484`, `FUN_00418514`, their four callers and directly required lock/unlock inputs.
 
 Symptom: gated actor recovery reached framebuffer copying with lost surface/row state. The worktree already contained the documentation and original-video analysis from this session; those changes are preserved.

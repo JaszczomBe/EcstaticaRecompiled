@@ -1,5 +1,9 @@
 # Courtyard Camera Traversal — 2026-10-19
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user confirms that input now works and reports no view change when Joe leaves the pedestal. This continuation recovers the required camera and terrain-script contracts. SDL Debug and ASan both complete **camera 175 → 166 → 175** using actual SDL keys, retaining Joe with wait/modal zero. This is bounded view traversal; movement fidelity, complete collisions, sustained-time acceptance and full experimental ASan remain open.
 
 ## First Divergence: Camera Slot Used As Script Resource

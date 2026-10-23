@@ -1,5 +1,9 @@
 # Ecstatica Runtime Logger
 
+<!-- docs-tree:parent -->
+[Project README](../../../../README.md) · [Parent: Debugging the reconstructed runtime](../../../../docs/debugging.md)
+<!-- /docs-tree:parent -->
+
 The runtime uses the C API in `EcstaticaLogBridge.h`. C++ instrumentation can use
 `Log/Log.h`, formatted macros and module/submodule masks. The logger owns message,
 field and deferred argument storage before submission returns.

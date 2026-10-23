@@ -1,5 +1,9 @@
 # Package Reproducible Developer Runtime
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../README.md) · [Parent: Playable SDL Runtime](../../playable-sdl-runtime.md)
+<!-- /docs-tree:parent -->
+
 Status: planned
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-09-14

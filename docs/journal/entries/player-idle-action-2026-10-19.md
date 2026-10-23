@@ -1,5 +1,9 @@
 # 2026-10-19 — Queued Idle-Action And Floor-Map Ownership
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: Step 09 Task 06, player update `0x429bcc → 0x451880`, upstream of the release gravity write.
 
 The observed ASan release-height failure is repaired. Both Debug and ASan now complete the bounded arrow and combined turn/Up probes at height 3328 in camera 175. Up release executes a queued action with further displacement; settled stopping, Down displacement, collision and scene traversal remain open. This does not establish full experimental sanitizer acceptance.

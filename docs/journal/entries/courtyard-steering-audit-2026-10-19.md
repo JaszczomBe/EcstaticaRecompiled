@@ -1,5 +1,9 @@
 # Courtyard Steering Replay And Sustained Observation — 2026-10-19
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user authorized the next bounded Step 09 task after tagging the first playable courtyard milestone. The first differing Debug/ASan steering events now have live input, terrain and original-code replay evidence. **No mismatch was found in this captured steering family.** Both builds also complete a camera round trip followed by 60 seconds with released input, without a required-path crash or sanitizer diagnostic. Complete collision/falling behavior, wider exploration and continuous active-play acceptance remain open.
 
 ## First Differing Turn

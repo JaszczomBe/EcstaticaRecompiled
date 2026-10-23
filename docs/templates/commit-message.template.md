@@ -1,5 +1,9 @@
 # Commit Message Template
 
+<!-- docs-tree:parent -->
+[Project README](../../README.md) · [Parent: Workflow templates](README.md)
+<!-- /docs-tree:parent -->
+
 Use this format for commits prepared from this exploratory Linux runtime work:
 
 ```text

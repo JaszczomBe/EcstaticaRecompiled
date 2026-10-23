@@ -1,5 +1,9 @@
 # 2026-10-16 — Terminal Root-Pose Ownership
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: `FUN_0042b004 → FUN_0042b880 → FUN_0042b0f4`, Step 09 Task 02.
 
 The terminal ASan event-link fault is repaired. Debug and ASan now execute the same 30 terminal events and reach the courtyard release. Joe remains immobile; this closes the observed corruption family, not gameplay or full experimental ASan acceptance.

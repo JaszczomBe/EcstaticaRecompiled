@@ -1,5 +1,9 @@
 # 2026-10-14 — Align F5 With The Diagnostic Route
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: VS Code launch, action-event ownership and script inputs.
 
 Problem: the user's **Ecstatica Recompiled** F5 screenshots showed the old cue panel, Joe behind camera 175, the `dav:heropick` action-384 error and camera 87 after OK. The earlier cylinder screenshot came from an opt-in, debugger-stopped run. It did not represent the editor launch or successful gameplay.

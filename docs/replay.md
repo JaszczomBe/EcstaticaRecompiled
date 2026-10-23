@@ -1,5 +1,15 @@
 # Gameplay recording and replay
 
+<!-- docs-tree:parent -->
+[Project README](../README.md) · [Parent: Project documentation](README.md)
+<!-- /docs-tree:parent -->
+
+For correlated state/frame inspection, native crash bundles, reverse-debugging
+launchers and recorded-route assertions, see [Debugging the reconstructed
+runtime](debugging.md). `E2R_INSPECT=1` adds a separate observational capture;
+`scripts/replay-e2.py run ... --inspect` enables it during replay. Inspection
+settings do not enter replay identity or change the CSV replay schema.
+
 Normal SDL `--run-recon` and human F5 launches record automatically in
 `<data-dir>/logs/session_<id>/replay/`. `--data-dir` overrides `E2R_DATA_DIR`;
 the default remains `~/.ecstatica2`. Logging filters do not control recording.
@@ -68,7 +78,7 @@ compatible mode does not conceal that difference. See the
 That bundle pins the pre-fix executable. The native detach crash was
 [subsequently repaired and tested through natural intros without replay](journal/entries/natural-intro-attachment-detach-2026-10-22.md).
 
-A separate [post-pedestal callback recording](journal/entries/post-pedestal-deactivation-callback-2026-10-22.md), pinned to `2e6c7e1`'s executable hash, reproduces the reported `FUN_0043cac0 ← FUN_00414e68 ← FUN_0044f508 ← FUN_0044f310 ← FUN_00426ca4` stack by exact replay at sequence 890,925,953/checkpoint 47. The repaired executable's explicit compatible attempt returns from all four callbacks, then exits **75/INCOMPLETE** at the recorded prefix end with no divergence. This establishes passage through that failure boundary, not a clean replay completion. The export and matching executable are preserved separately in `.tmp/replay-bugs/post-pedestal-20261022*`.
+A separate [post-pedestal callback recording](implementations/playable-sdl-runtime/steps/step-09/tasks/task-09-recover-scene-population-and-interaction.md#callback-contract), pinned to `2e6c7e1`'s executable hash, reproduces the reported `FUN_0043cac0 ← FUN_00414e68 ← FUN_0044f508 ← FUN_0044f310 ← FUN_00426ca4` stack by exact replay at sequence 890,925,953/checkpoint 47. The repaired executable's explicit compatible attempt returns from all four callbacks, then exits **75/INCOMPLETE** at the recorded prefix end with no divergence. This establishes passage through that failure boundary, not a clean replay completion. The export and matching executable are preserved separately in `.tmp/replay-bugs/post-pedestal-20261022*`.
 
 The recovery fixes lost NPC coordinate/facing/actor inputs against original
 instructions, separately from recorder scheduling. Replay never writes physics,

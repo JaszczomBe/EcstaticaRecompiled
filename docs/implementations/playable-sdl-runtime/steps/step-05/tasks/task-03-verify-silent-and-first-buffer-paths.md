@@ -1,5 +1,9 @@
 # Verify Silent And First Buffer Paths
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Begin DirectSound Compatibility](../step-05-begin-directsound-compatibility.md)
+<!-- /docs-tree:parent -->
+
 Status: planned
 Parent Step: [Begin DirectSound Compatibility](../step-05-begin-directsound-compatibility.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)

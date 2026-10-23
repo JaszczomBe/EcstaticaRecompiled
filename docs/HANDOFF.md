@@ -1,6 +1,14 @@
 # EcstaticaRecompiled Handoff
 
-This is the durable root road sign for future context windows. It explains where project truth lives and how to resume work; it is intentionally not a timeline or a copy of the current crash frontier.
+<!-- docs-tree:parent -->
+[Project README](../README.md) · [Parent: Project documentation](README.md)
+<!-- /docs-tree:parent -->
+
+Start at the central [project README](../README.md). This handoff is its durable
+working-rules branch: it explains where project truth lives and how to resume
+work, without copying the changing crash frontier. The README-rooted
+[documentation tree](README.md) connects capabilities, plans, implementation
+state, tasks, journal, tools and collaboration/style guidance.
 
 ## Project Objective
 
@@ -12,16 +20,23 @@ Development is evidence-driven: use repeatable CMake builds, bounded runtime pro
 
 ## Resume Here
 
+For a fresh AI context, read the root README, [capabilities](capabilities.md),
+this handoff, the active implementation and current task, then relevant dated
+evidence. Normal human investigation uses the single **Ecstatica Recompiled**
+F5 launch with recording, inspection, executable pinning and debugger evidence.
+See [build setup](building.md) and [debugging usage](debugging.md).
+
 Read these sources in order:
 
-1. [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md) - completed reconstruction result, proof history, roadmap, and verification commands.
-2. [Playable SDL Runtime](implementations/playable-sdl-runtime/playable-sdl-runtime.md) - active post-reconstruction implementation for SDL F5 stability, presentation fidelity, controls, timing, audio, and developer workflow.
-3. The active step linked from the active implementation - current scope, acceptance criteria, evidence, and next frontier.
-4. [Runtime crash fixes](journal/entries/runtime-crash-fixes.md) and any journal linked by the active step - historical reasoning and regression risks.
-5. [Runtime Milestones](plans/runtime-milestones.md) - durable milestone order and architecture direction.
-6. `git status --short` and `git log -1 --oneline` - worktree and latest-commit state.
+1. [Playable SDL Runtime](implementations/playable-sdl-runtime/playable-sdl-runtime.md) - current execution state, acceptance limits and active gameplay work.
+2. The active step/task linked from that implementation - scope, criteria, evidence and next bounded action.
+3. Relevant journal entries and [runtime crash fixes](journal/entries/runtime-crash-fixes.md) - dated reasoning and regression risks.
+4. [Debugging tools](debugging.md) and their implementation record when the work concerns investigation capabilities.
+5. [Runtime Milestones](plans/runtime-milestones.md) - planned work and architecture direction.
+6. [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md) when historical reconstruction proof is needed.
+7. `git status --short` and `git log -1 --oneline` - worktree and latest-commit state.
 
-Do not infer the current step from this file. The active implementation document owns changing execution state so this root anchor cannot drift out of sync. The completed reconstruction record is [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md), and the active next horizon is [Playable SDL Runtime](implementations/playable-sdl-runtime/playable-sdl-runtime.md).
+Do not infer the current step from this file. The active implementation document owns changing execution state so this durable guide cannot drift out of sync. The completed reconstruction record is [Run Reconstructed E2 On Linux](implementations/linux-e2-reconstructed-runtime/linux-e2-reconstructed-runtime.md), and the active next horizon is [Playable SDL Runtime](implementations/playable-sdl-runtime/playable-sdl-runtime.md).
 
 ## Blank Context Protocol
 

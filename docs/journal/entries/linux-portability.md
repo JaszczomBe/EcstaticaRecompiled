@@ -1,5 +1,8 @@
 # Linux Portability
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
 
 ## 2026-09-14 - Build Types, Configuration-First Directories And Clang Family Selection
 

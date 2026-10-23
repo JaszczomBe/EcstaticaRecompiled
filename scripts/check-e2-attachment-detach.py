@@ -7,22 +7,16 @@ placement branches, field widths and unlinking execute without game-state guards
 import argparse
 from pathlib import Path
 import re
-import struct
-import subprocess
-import tempfile
+from e2_original import OriginalImage, run_fixture, support
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('exe',type=Path);p.add_argument('--asan',action='store_true');p.add_argument('--keep-harness',type=Path)
 a=p.parse_args()
 s=(Path(__file__).resolve().parent.parent/'E2Recomp/reconstructed/E2Recomp_recon.c').read_text()
-pe=a.exe.read_bytes();h=struct.unpack_from('<I',pe,60)[0];n=struct.unpack_from('<H',pe,h+6)[0];opt=struct.unpack_from('<H',pe,h+20)[0]
-def original(start,end):
- for i in range(n):
-  at=h+24+opt+i*40;_,va,size,raw=struct.unpack_from('<IIII',pe,at+8);va+=0x400000
-  if va<=start<end<=va+size:return pe[raw+start-va:raw+end-va]
- raise ValueError(hex(start))
+image=OriginalImage(a.exe)
+original=image.code
 body=re.search(r'^undefined4 __fastcall FUN_0042db74\([^\n]*\)\s*\{.*?\n\}',s,re.M|re.S).group()
 call=re.search(r'FUN_0042db74\([^;]*& 2\)\);',s).group()
-c=r'''
+c=support()+r'''
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,8 +49,8 @@ __attribute__((naked)) static void hud_hook(void){__asm__("pushal; call hud; pop
 static uint seen_node,seen_mode;
 __attribute__((regparm(2),used,noinline)) static uint capture_detach(uint node,int mode){seen_node=node;seen_mode=mode;return 0;}
 __attribute__((naked)) static void detach_hook(void){__asm__("pushal; call capture_detach; popal; ret");}
-__attribute__((naked)) static void run_original(uint node,int mode){__asm__("pushal; mov 36(%esp),%eax; mov 40(%esp),%edx; mov $0x42db74,%edi; call *%edi; popal; ret");}
-__attribute__((naked)) static void run_event(uint action,uint node){__asm__("pushal; mov 36(%esp),%ecx; mov 40(%esp),%esi; mov $0x42c42b,%edi; call *%edi; popal; ret");}
+static void run_original(uint node,int mode){struct E2R_Registers regs={.eax=node,.edx=mode};e2r_original_call(0x42db74,&regs);}
+static void run_event(uint action,uint node){struct E2R_Registers regs={.ecx=action,.esi=node};e2r_original_call(0x42c42b,&regs);}
 '''+body+r'''
 #define FUN_0042db74 capture_detach
 static void native_event(uint param_1,short *unaff_ESI){
@@ -101,7 +95,7 @@ int main(void){
   setup(test);run_original(0x900100,mode);memcpy(expected,(void*)0x900000,sizeof expected);
   int count=calls;memcpy(expected_trace,trace,sizeof trace);
   setup(test);FUN_0042db74(0x900100,mode);
-  if(calls!=count||memcmp(trace,expected_trace,sizeof trace)||memcmp(expected,(void*)0x900000,sizeof expected)||E2R_actor_calc_context!=0x907000) {
+  if(calls!=count||memcmp(trace,expected_trace,sizeof trace)||!e2r_memory_equal("detach memory",expected,(void*)0x900000,sizeof expected)||E2R_actor_calc_context!=0x907000) {
    fprintf(stderr,"detach mismatch test=%u mode=%d calls=%d/%d\n",test,mode,count,calls);abort();
   }
  }
@@ -115,9 +109,5 @@ int main(void){
  puts("PASS: 16384 original detach link/pose/floor/rotation/HUD cases; 65536 original event node/placement-flag handoffs");
 }
 '''
-with tempfile.TemporaryDirectory(prefix='e2-attachment-detach-') as tmp:
- src=Path(tmp)/'check.c';exe=Path(tmp)/'check';src.write_text(c)
- if a.keep_harness:a.keep_harness.write_text(c)
- command=['clang-21','-m32','-O1','-g','-fno-pie','-no-pie',str(src),'-o',str(exe)]
- if a.asan:command[1:1]=['-fsanitize=address','-fno-omit-frame-pointer']
- subprocess.run(command,check=True);subprocess.run([str(exe)],check=True,timeout=20)
+run_fixture(c, asan=a.asan, timeout=20, keep=a.keep_harness, image=image,
+            dependencies=('pose', 'root', 'floor query', 'vector copy', 'HUD'))

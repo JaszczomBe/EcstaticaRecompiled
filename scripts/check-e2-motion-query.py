@@ -9,9 +9,7 @@ import argparse
 import json
 from pathlib import Path
 import re
-import struct
-import subprocess
-import tempfile
+from e2_original import OriginalImage, run_fixture
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('exe', type=Path)
@@ -36,18 +34,8 @@ live_floors=[[[*f['coord'],int(bool(f['actor'])),int(f['terrain']),f['floor'],f[
 live_after=[q['after']+[q['after_facing']] for q in live]
 def c_array(value):
     return '{'+','.join(c_array(v) if isinstance(v,list) else str(v) for v in value)+'}'
-pe = args.exe.read_bytes()
-header = struct.unpack_from('<I', pe, 60)[0]
-sections = struct.unpack_from('<H', pe, header + 6)[0]
-optional = struct.unpack_from('<H', pe, header + 20)[0]
-def original(start, end):
-    for i in range(sections):
-        at = header + 24 + optional + i * 40
-        _, va, size, raw = struct.unpack_from('<IIII', pe, at + 8)
-        va += 0x400000
-        if va <= start < end <= va + size:
-            return pe[raw + start - va:raw + end - va]
-    raise ValueError(start)
+image = OriginalImage(args.exe)
+original = image.code
 source = (Path(__file__).resolve().parent.parent / 'E2Recomp/reconstructed/E2Recomp_recon.c').read_text()
 def function(name):
     m = re.search(r'^(?:static )?(?:void|short|undefined4) (?:__fastcall )?' + name +
@@ -240,9 +228,5 @@ harness=harness.replace('LIVE_ARRAYS',
     'static const int live_inputs[][16]='+c_array(live_inputs or [[0]*16])+';\n'+
     'static const int live_floors[][7][7]='+c_array(live_floors or [[[0]*7]*7])+';\n'+
     'static const int live_after[][4]='+c_array(live_after or [[0]*4])+';\n').replace('LIVE_COUNT',str(len(live)))
-with tempfile.TemporaryDirectory(prefix='e2-motion-query-') as tmp:
-    c=Path(tmp)/'check.c';exe=Path(tmp)/'check';c.write_text(harness)
-    if args.keep_harness:args.keep_harness.write_text(harness)
-    flags=['-fsanitize=address','-fno-omit-frame-pointer'] if args.asan else []
-    subprocess.run([args.cc,'-m32','-O1','-fno-pie','-no-pie','-Wno-int-conversion',*flags,str(c),'-lm','-o',str(exe)],check=True)
-    subprocess.run([str(exe)],check=True,timeout=90)
+run_fixture(harness, cc=args.cc, asan=args.asan, timeout=90, keep=args.keep_harness, libraries=('-lm',),
+            image=image, dependencies=('deterministic terrain/floor service',))

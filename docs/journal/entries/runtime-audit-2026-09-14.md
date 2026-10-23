@@ -1,5 +1,9 @@
 # Runtime And Documentation Audit — 2026-09-14
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 ## Scope And Provenance
 
 Audited clean commit `43ddc8a` on `linux-e2-reconstructed-runtime` against the handoff, active implementation, related tasks, generator, native probes, compatibility code, original executable disassembly, and runtime output. The audit made no source changes. Documentation reconciliation followed in a separate pass; the repairs described below remain pending until their tasks are implemented.

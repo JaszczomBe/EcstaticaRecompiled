@@ -1,5 +1,9 @@
 # Recover Hosted Floor Byte Reads
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Enable Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
+<!-- /docs-tree:parent -->
+
 Status: completed bounded decoder/handoff repair; gameplay acceptance remains open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 Last Updated: 2026-10-14

@@ -1,5 +1,9 @@
 # Startup Skip Feasibility — 2026-10-20
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user requests shorter F5 startup and an assessment of whether an environment/command option can skip the logos and intros without disturbing recovered gameplay initialization. This continuation audits the existing paths, measures them and enables only the existing tested logo-delay setting. It does not add a full-intro shortcut.
 
 ## Available Now

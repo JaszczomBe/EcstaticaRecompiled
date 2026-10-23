@@ -1,10 +1,18 @@
 # Project Journal
 
+<!-- docs-tree:parent -->
+[Project README](../../README.md) · [Parent: Project documentation](../README.md)
+<!-- /docs-tree:parent -->
+
 This journal is the historical project memory for exploratory Linux runtime work. Keep it as an index and place detailed entries under [entries/](entries/).
 
 ## Entries
 
-- [Post-pedestal deactivation callback — 2026-10-22](entries/post-pedestal-deactivation-callback-2026-10-22.md): exact replay reproduces the new fatal-script stack; original callback code/actor/node ownership is restored, compatible replay passes the failure boundary, and natural Debug/ASan intros plus 60-second idle observations pass. Debug's broader steering/floor-return check remains failing.
+- [F5 investigation and documentation tree — 2026-10-23](entries/f5-investigation-and-documentation-tree-2026-10-23.md): enables the normal selected-target launch to record, inspect, pin executable/context, retain debugger stops and finalize reports; connects project Markdown through the central README with automated tree checks.
+
+- [Debugging tools implementation — 2026-10-23](entries/debugging-tools-2026-10-23.md): correlated state/frame inspection, shared original-x86 fixtures, pinned native bug bundles, reverse-debugging launchers, recorded-route assertions and recovery/diagnostic queries, with native replay and baseline verification.
+
+- [Post-pedestal deactivation callback — 2026-10-22](../implementations/playable-sdl-runtime/steps/step-09/tasks/task-09-recover-scene-population-and-interaction.md#callback-contract): exact replay reproduces the new fatal-script stack; original callback code/actor/node ownership is restored, compatible replay passes the failure boundary, and natural Debug/ASan intros plus 60-second idle observations pass. Debug's broader steering/floor-return check remains failing.
 
 - [Natural intro attachment detach — 2026-10-22](entries/natural-intro-attachment-detach-2026-10-22.md): reproduces the reported no-input `FUN_0042db74` crash, recovers its event node/attached-actor contract from original instructions and verifies natural Debug intro completion plus idle survival; a separate script-deactivation fault retains full ASan's unaccepted status.
 
@@ -87,3 +95,11 @@ This journal is the historical project memory for exploratory Linux runtime work
 ## Conventions
 
 Use [journal.template.md](../templates/journal.template.md) for new journal entries. Add a new entry file under `entries/` when a topic grows beyond one ownership area.
+
+<!-- docs-tree:children -->
+## Related documents
+
+- [Courtyard Camera Traversal — 2026-10-19](entries/courtyard-camera-traversal-2026-10-19.md)
+- [Courtyard Steering Replay And Sustained Observation — 2026-10-19](entries/courtyard-steering-audit-2026-10-19.md)
+- [Manual Castle Exploration And Population Frontier — 2026-10-19](entries/manual-castle-exploration-2026-10-19.md)
+<!-- /docs-tree:children -->

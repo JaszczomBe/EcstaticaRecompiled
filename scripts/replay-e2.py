@@ -23,6 +23,7 @@ run=sub.add_parser('run');run.add_argument('exe',type=Path);run.add_argument('so
 run.add_argument('--timeout',type=float,default=120);run.add_argument('--stop-before',type=int)
 run.add_argument('--stop-checkpoint',type=int);run.add_argument('--compatible',action='store_true')
 run.add_argument('--data-dir',type=Path);run.add_argument('--pause',action='store_true')
+run.add_argument('--inspect',action='store_true',help='Write a separate observational timeline and bounded frames')
 export=sub.add_parser('export');export.add_argument('source',type=Path);export.add_argument('destination',type=Path)
 inspect=sub.add_parser('inspect');inspect.add_argument('source',type=Path)
 a=parser.parse_args()
@@ -93,6 +94,7 @@ else:
             if key.startswith('E2R_') or key in ('SDL_VIDEODRIVER','SDL_AUDIODRIVER','ASAN_OPTIONS','TZ'):env.pop(key)
         env.update({k[4:]:v for k,v in meta.items() if k.startswith('env.')})
         env['E2R_RECORD']='off'
+        if a.inspect:env['E2R_INSPECT']='1'
         if a.pause:env['E2R_REPLAY_PAUSE']='1'
         command=[str(a.exe.resolve(strict=True)),'--data-dir',str(a.data_dir.absolute() if a.data_dir else Path(temporary)/'output'),
                  '--game-data-dir',meta['game_data_path'],'--replay',str(frozen)]

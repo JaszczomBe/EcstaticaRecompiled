@@ -1,5 +1,9 @@
 # Expand Gameplay Control And Camera Proofs
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../README.md) · [Parent: Playable SDL Runtime](../../playable-sdl-runtime.md)
+<!-- /docs-tree:parent -->
+
 Status: partially deferred; basic movement/camera proofs planned with Step 09
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-10-14

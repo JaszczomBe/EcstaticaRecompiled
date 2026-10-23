@@ -1,5 +1,9 @@
 # 2026-10-14 — Diagnostic Cylinders And Polygon Boundary
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: read-only actor snapshots, SDL presentation and an opt-in reconstructed raster boundary.
 
 Symptom: input latches pass, but the default runtime has no loaded actions and Joe projects behind the pedestal camera. Original mesh/lighting/copy failures prevent inspection of the recovered action route. The user prioritizes cylinder-based movement and scene testing over original visual fidelity.

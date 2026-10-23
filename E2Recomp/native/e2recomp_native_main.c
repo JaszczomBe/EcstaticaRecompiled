@@ -5,10 +5,12 @@
 #endif
 #include "e2recomp_host_backend.h"
 #include "EcstaticaReplay.h"
+#include "EcstaticaInspect.h"
 #if E2R_ENABLE_RUNTIME_OPTIONS
 #include "RunArtifacts.h"
 #endif
 void E2R_SampleReplayCheckpoint(void);
+void E2R_SampleInspection(void);
 
 #include <errno.h>
 #include <stdint.h>
@@ -500,6 +502,9 @@ static int e2r_present_current_frame(HWND hwnd, int force_present)
         }
     }
     if (presented) {
+        const char *inspection_prefix = E2R_InspectPresent();
+        if (inspection_prefix)
+            E2R_InspectFrameResult(E2R_HostDumpInspectionFrame((E2R_HostWindow *)hwnd->ptr, inspection_prefix));
         static int auto_initialized;
         static int auto_done;
         static int auto_enabled;
@@ -2620,6 +2625,7 @@ static int e2r_run_host_backend_present_probe(void)
 #if E2R_ENABLE_RUNTIME_OPTIONS
 static void e2r_shutdown_logging(void)
 {
+    E2R_InspectFinish();
     E2R_ReplayFinish();
     E2R_LogFlush();
     E2R_LogShutdown();
@@ -2668,6 +2674,8 @@ int main(int argc, char **argv)
     E2R_MapLegacyAddressSpace();
     E2R_InitData();
 #if E2R_ENABLE_RUNTIME_OPTIONS
+    if (argc > 1 && strcmp(argv[1], "--run-recon") == 0)
+        E2R_InspectStart(E2R_ArtifactsDirectory(), E2R_SampleInspection);
     if (!E2R_ReplayStart(runtime_options.record,argc>1 && strcmp(argv[1],"--run-recon")==0,
           E2R_ArtifactsDirectory(),runtime_options.game_data_dir,argc-1,argv+1,
           runtime_options.replay_compatible,runtime_options.replay_stop_sequence,

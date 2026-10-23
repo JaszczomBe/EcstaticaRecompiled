@@ -1,5 +1,9 @@
 # Recover Action Event 0x3f Node Removal
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Enable Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
+<!-- /docs-tree:parent -->
+
 Status: completed for node-input/unlink ownership; gameplay acceptance remains open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 Last Updated: 2026-10-14

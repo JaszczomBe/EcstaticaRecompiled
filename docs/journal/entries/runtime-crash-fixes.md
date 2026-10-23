@@ -1,5 +1,9 @@
 # Runtime Crash Fixes
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Use the runtime crash fix template in [journal.template.md](../../templates/journal.template.md) for new entries.
 
 ## 2026-09-14 - Enable Actor Cues In The Usual SDL Launch

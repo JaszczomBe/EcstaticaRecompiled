@@ -1,5 +1,9 @@
 # Playable SDL Runtime
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Implementations and task state](../README.md)
+<!-- /docs-tree:parent -->
+
 Status: active
 Priority: top
 Owner: mixed
@@ -61,7 +65,13 @@ Step numbers are stable identifiers, not execution order. Step 07 is complete. T
 
 ## Active Frontier
 
-The [post-pedestal callback continuation](../../journal/entries/post-pedestal-deactivation-callback-2026-10-22.md) exactly reproduces the user's new script-deactivation crash and restores its original code/actor/node contract. Debug/ASan natural intros plus 60-second idle checks pass; compatible replay returns from the formerly faulting callbacks before reporting incomplete-prefix exhaustion. An additional populated Debug traversal fails its floor-return check; the ASan round trip passes. Workshop re-entry, sword pickup and full experimental ASan acceptance remain separate under Step 09 / Task 09.
+Developer tooling is available through the [debugging tools implementation](../debugging-tools/debugging-tools.md)
+and [usage guide](../../debugging.md): opt-in state/frame observations, native bug
+bundles, original-code fixture support, reverse-debugging launchers, recorded-route
+assertions and recovery/diagnostic queries. This tooling preserves the gameplay
+frontier and replay acceptance distinctions below.
+
+The [post-pedestal callback continuation](steps/step-09/tasks/task-09-recover-scene-population-and-interaction.md#callback-contract) exactly reproduces the user's new script-deactivation crash and restores its original code/actor/node contract. Debug/ASan natural intros plus 60-second idle checks pass; compatible replay returns from the formerly faulting callbacks before reporting incomplete-prefix exhaustion. An additional populated Debug traversal fails its floor-return check; the ASan round trip passes. Workshop re-entry, sword pickup and full experimental ASan acceptance remain separate under Step 09 / Task 09.
 
 At Step 07 completion, all automated baseline checks passed. Tasks 03–06 repaired recursive actor corruption, default-action context, action-advance inputs, and motion-query ownership. The long-delay ASan probe dispatches Space/Up and captures a nonblank scene-87 surface (`bf4a8e25`) without sanitizer errors. The then-current default SDL skip route captured scene 175 with the recorded static hashes. Task 09 below supersedes that capture after making the blocking dialog visible. The user’s crash-free F5 report and subsequent screenshot/log confirm the static scene-175 final image, completing [Task 02’s manual check](steps/step-07/tasks/task-02-repair-canonical-control-regressions.md) and Step 07. Original scene-selection fidelity and living actors remain Step 08 work.
 

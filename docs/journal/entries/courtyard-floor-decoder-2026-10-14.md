@@ -1,5 +1,9 @@
 # 2026-10-14 — Restore Courtyard Floor Decoding
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: hosted stream byte reads and FAN floor descriptors.
 
 Symptom: the user confirms the palette repair and a visible cylinder during freeing, but Joe enters forest camera 221 immediately after the pedestal intro. That is fallback resource 7, not the expected courtyard gameplay.

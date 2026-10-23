@@ -994,6 +994,18 @@ int E2R_HostPresentIndexed8(E2R_HostWindow *window, const unsigned char *pixels,
     return 1;
 }
 
+int E2R_HostDumpInspectionFrame(E2R_HostWindow *window, const char *prefix)
+{
+    char path[4096];
+    unsigned hash;
+    int nonblack;
+    if (!SDL_IsMainThread() || window != &e2r_sdl_backend || !window->present_surface ||
+        window->present_surface->w > 640 || window->present_surface->h > 480)
+        return 0;
+    if (snprintf(path, sizeof(path), "%s.ppm", prefix) >= (int)sizeof(path)) return 0;
+    return e2r_sdl_write_surface_ppm(path, window->present_surface, &hash, &nonblack);
+}
+
 int E2R_HostDumpPresentation(E2R_HostWindow *window, const char *prefix)
 {
     SDL_Surface *window_surface;

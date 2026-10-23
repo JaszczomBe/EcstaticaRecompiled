@@ -1,5 +1,9 @@
 # Stables Node Hit-Query Inputs — 2026-10-20
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 The user reports a crash entering the stables, where the horse should be. The screenshot identifies camera 177, Joe at `2986,4096,-6646`, three live actors and no modal/script wait. The supplied stack is `0x427160 ← 0x42efdc ← 0x42faf8 ← 0x42b880`, through an NPC action update. This is the hit-query leaf beyond the [preceding node/pose handoff recovery](npc-pose-chain-recovery-2026-10-20.md); that recovery explicitly left general hit queries/combat unaccepted.
 
 ## Cause And Original Contract

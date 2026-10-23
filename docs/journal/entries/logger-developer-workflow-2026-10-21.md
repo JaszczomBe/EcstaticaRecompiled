@@ -1,5 +1,9 @@
 # Logger Developer Workflow — 2026-10-21
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 ## Problem And Scope
 
 After preparing the uncommitted `linux-e2-reconstructed-runtime` merge into `feature/logger`, the user requested functional integration with the current CMake/VS Code workflow. The logger branch's old presets, launch paths and opt-in bootstrap were insufficient: the current single F5 launch passed only `--run-recon`, so it never started the logger. ASan presets disabled runtime options and logging, and the C++ toolchain settings embedded this machine's GCC 14 header and library paths.

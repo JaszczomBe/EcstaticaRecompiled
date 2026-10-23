@@ -1,5 +1,9 @@
 # Gameplay CSV Recorder And Replay Prototype — 2026-10-22
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Branch entry: `feature/logger`, HEAD `f714d24`, clean staged/unstaged worktree.
 The user approved implementation after investigation and selected readable CSV
 instead of the earlier suggested JSON Lines. Capture failure must leave gameplay

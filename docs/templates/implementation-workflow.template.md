@@ -1,5 +1,9 @@
 # Implementation Workflow
 
+<!-- docs-tree:parent -->
+[Project README](../../README.md) · [Parent: Workflow templates](README.md)
+<!-- /docs-tree:parent -->
+
 This document defines how to create and maintain markdown trees for complex implementation work in this repository.
 
 ## Repository Layout
@@ -37,7 +41,12 @@ docs/
 
 ## Document Roles
 
-`docs/HANDOFF.md` is the only root anchor future context windows should need.
+`README.md` is the single central entry for users and future AI contexts.
+Its documentation branch leads to `docs/HANDOFF.md` for durable working rules,
+the current implementation for execution state, and all other project guidance.
+Follow [documentation ownership](../documentation.md) and run the tree checker
+when adding or moving Markdown. Every project document has a parent backlink
+and is linked from its parent; retain cross-references as needed.
 
 `docs/plans/*.md` contains target direction, milestone ordering, and durable project strategy.
 
@@ -95,3 +104,11 @@ Mutable working files can be edited as needed while executing the active impleme
 2. `docs/journal/journal.md`
 3. `docs/journal/entries/**`
 4. `docs/style/**`
+
+<!-- docs-tree:children -->
+## Related documents
+
+- [<Plan Title>](implementation-workflow.template/plan.template.md)
+- [<Step Title>](implementation-workflow.template/step.template.md)
+- [<Task Title>](implementation-workflow.template/task.template.md)
+<!-- /docs-tree:children -->

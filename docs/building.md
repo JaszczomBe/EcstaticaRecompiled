@@ -1,5 +1,9 @@
 # Build And Debug The Developer Runtime
 
+<!-- docs-tree:parent -->
+[Project README](../README.md) · [Parent: Project documentation](README.md)
+<!-- /docs-tree:parent -->
+
 The everyday configuration is **Debug · Clang 21 · i386 · SDL**, selected through CMake presets. The single VS Code launch **Ecstatica Recompiled** follows the selected CMake executable and enables the experimental cylinder/action route. The runtime remains experimental; a successful build or static capture does not prove playable behavior.
 
 ## Requirements
@@ -102,8 +106,10 @@ The former `linux-clang32-asan` and `linux-clang32-sdl-asan` preset names are re
 
 1. After initial configuration, run **CMake: Select Configure Preset** and choose **Debug · Clang 21 · i386 · SDL**. Existing VS Code selections may still point to an older/native preset; make this selection once.
 2. Select the matching build preset if prompted, and select the `e2recomp` launch target.
-3. Press F5 using **Ecstatica Recompiled**. CMake Tools builds the selected target, resolves its executable and working directory, and launches GDB with `--run-recon` and `E2R_ACTOR_CYLINDERS=1 E2R_ACTION_INDEX_PROBE=1 E2R_PROXY_MESH_BYPASS=1 E2R_DEFER_BACKGROUND_SPAWNS=0 E2R_STARTUP_LOGO_DELAY_MS=0`.
-4. Ctrl+Shift+B uses the single CMake build task for the active build preset. There are no shell configure/build launch wrappers or duplicate SDL/X11 launch entries.
+3. Press F5 using **Ecstatica Recompiled**. CMake Tools builds the selected target, resolves its executable and working directory, and launches GDB with `--run-recon` and `E2R_ACTOR_CYLINDERS=1 E2R_ACTION_INDEX_PROBE=1 E2R_PROXY_MESH_BYPASS=1 E2R_DEFER_BACKGROUND_SPAWNS=0 E2R_STARTUP_LOGO_DELAY_MS=0 E2R_RECORD=auto E2R_INSPECT=1`.
+4. Investigate normally. Logs, replay, state and rolling game frames share the session. The GDB startup hook pins the actual running executable and source/build context; debugger stops retain stacks and registers without resuming the game.
+5. End debugging normally. The finalization task generates the session's inspection report, including usable prefixes after a crash or debugger Stop. The Debug Console/task output identifies the session and report. See [investigation artifacts](debugging.md#normal-gameplay-investigation-in-vs-code).
+6. Ctrl+Shift+B uses the CMake build task for the active build preset. There are no shell configure/build launch wrappers or duplicate SDL/X11 launch entries; the additional process task finalizes investigation artifacts after debugging.
 
 Changing the selected preset changes F5's executable. CMake Tools must have successfully configured that preset before its target commands can resolve. F5 uses its build-before-run integration; no additional pre-launch build task is attached.
 
@@ -166,10 +172,11 @@ The developer-launch checks read the single VS Code launch configuration and exe
 Also exercise the actual game entry on the desktop through the installed `cppdbg` adapter:
 
 ```sh
-python3 scripts/probe-e2-vscode-launch.py build/Debug/clang21-i386-sdl/e2recomp --seconds 30
+python3 scripts/probe-e2-vscode-launch.py build/Debug/clang21-i386-sdl/e2recomp \
+    --record auto --verify-investigation --seconds 30
 ```
 
-This opens the normal game window using `launch.json` arguments/environment and the supplied CMake executable's working directory. It uses the current desktop backend and physical input, without substituting a smoke-test command, dummy video or gameplay breakpoints. It records adapter events and any stopped-thread stack. A pass establishes survival of that interval; it does not verify the editor's current preset selection or complete gameplay. Repeat with the ASan executable when checking that preset.
+This opens the normal game window using `launch.json` arguments/environment and the supplied CMake executable's working directory. It uses the current desktop backend and physical input. The silent inspection-start boundary runs the same capture hook as F5. The probe records adapter events and stopped-thread stacks, then runs the finalization task and verifies the pinned executable, inspection and report. Agent probes default to recording off unless `--record auto` is explicit. A pass establishes survival of that interval and capture integration; it does not verify the editor's current preset selection or complete gameplay. Repeat with the ASan executable when checking that preset.
 
 Use fresh capture prefixes and inspect the actual scene/actor state. ASan and gated action-index paths have known runtime limitations documented in the [active implementation](implementations/playable-sdl-runtime/playable-sdl-runtime.md). Manual F5 is still the final check of the actual editor integration; shell probes cannot establish VS Code's selected state.
 

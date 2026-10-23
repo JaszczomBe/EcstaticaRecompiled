@@ -1,5 +1,9 @@
 # Project Actor Cues Into The Scene
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
+<!-- /docs-tree:parent -->
+
 Status: completed
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)

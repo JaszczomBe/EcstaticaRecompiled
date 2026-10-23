@@ -1,5 +1,9 @@
 # Recover Scene Population And Interaction
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Enable Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
+<!-- /docs-tree:parent -->
+
 Status: in progress; workshop initialization crash reproduced/repaired and object/actor visibility audited; manual location re-entry and sword pickup remain open
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 Last Updated: 2026-10-22
@@ -10,7 +14,7 @@ Restore original scene objects and NPCs needed for exploration and basic interac
 
 ## Current Continuation — NPC Poses And Object Interaction
 
-The [post-pedestal callback repair](../../../../../journal/entries/post-pedestal-deactivation-callback-2026-10-22.md) reproduces the user's new `FUN_0043cac0 ← FUN_00414e68 ← FUN_0044f508 ← FUN_0044f310 ← FUN_00426ca4` stack by exact replay at sequence 890,925,953/checkpoint 47. Original instructions recover selected code/actor arguments, cleared script node and retained actor lifetime. Compatible replay returns from four callbacks before incomplete-prefix exhaustion; natural Debug/ASan intros and 60-second released idle observations pass. Original callback comparisons and baselines pass. An additional populated Debug traversal remains failing its floor-return assertion; ASan's bounded round trip passes. Workshop re-entry, pickup and full experimental ASan acceptance remain open.
+The [post-pedestal callback repair](../../../../../replay.md#status-and-current-acceptance) reproduces the user's new `FUN_0043cac0 ← FUN_00414e68 ← FUN_0044f508 ← FUN_0044f310 ← FUN_00426ca4` stack by exact replay at sequence 890,925,953/checkpoint 47. Original instructions recover selected code/actor arguments, cleared script node and retained actor lifetime. Compatible replay returns from four callbacks before incomplete-prefix exhaustion; natural Debug/ASan intros and 60-second released idle observations pass. Original callback comparisons and baselines pass. An additional populated Debug traversal remains failing its floor-return assertion; ASan's bounded round trip passes. Workshop re-entry, pickup and full experimental ASan acceptance remain open.
 
 The [natural-intro detach repair](../../../../../journal/entries/natural-intro-attachment-detach-2026-10-22.md) recovers the reported `FUN_0042db74` event node and attached-actor inputs. Its original checkpoint completes both intros in Debug without input or recording, followed by a verified 15-second idle observation. Original detach/caller comparisons pass normally and under ASan. The separate actor-deactivation script failure exposed then is addressed by the callback continuation above; workshop re-entry, sword pickup and broader interaction acceptance remain open.
 
@@ -84,3 +88,16 @@ The live census records resource names, loaded instances, active membership, pos
 - Script-owned scene activation remains independent: the original empty release census predates the fixed guard companion. Switches, doors, traps and pickups still require a source-confirmed resource and one verified interaction. Camera slots are not script IDs.
 
 See the [population recovery journal](../../../../../journal/entries/scene-population-recovery-2026-10-19.md) for evidence and commands. Keep the original Task 09 acceptance criteria and F5 spawn deferral in place.
+
+## Callback contract
+
+The post-pedestal repair supplies the selected script code and actor to
+`FUN_0044f310`, clears the script node/child arguments, and preserves actor ownership
+across the callback. The durable repair is mirrored in `GenerateRecon.js` and
+covered by the script-flow and population fixtures. The replay guide records the
+historical exact-crash and compatible-prefix results; native completion and wider
+traversal remain separate acceptance gates.
+
+The originally referenced continuation journal and its local bug bundle are not
+present in this checkout. This task and the replay status are the available
+implementation record; they do not replace the missing raw historical artifacts.

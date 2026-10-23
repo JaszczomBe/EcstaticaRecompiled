@@ -1,5 +1,9 @@
 # 2026-09-15 — Post-intro action-error requester
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: `FUN_00451880`, `FUN_0043cbf0`, mapped requester records and hosted OK routing.
 
 Symptom: the supplied F5 recording (`Screencast From 2026-09-15 19-22-06.mp4`, 35 seconds) shows Space reaching the pedestal camera, the projected-cue status replacing the old grid, and later arrows/Escape producing no visible response. It confirms bounded default-route survival and cue replacement, not living actors or playable controls.

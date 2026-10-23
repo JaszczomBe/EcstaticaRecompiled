@@ -1,5 +1,9 @@
 # 2026-10-14 — Palette Regression And Release Handoff
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Area: palette fade inputs, scene-grid ceiling selection and no-view resource fallback.
 
 **Later continuation:** the [courtyard floor-decoder repair](courtyard-floor-decoder-2026-10-14.md) fixes the shifted descriptors that caused the forest fallback. Its current F5 route defers automatic background spawning explicitly; movement remains unverified. The captures/results below remain historical checkpoints.

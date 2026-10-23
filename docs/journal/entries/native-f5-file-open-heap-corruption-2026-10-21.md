@@ -1,5 +1,9 @@
 # Native F5 File-Open Heap Corruption — 2026-10-21
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 ## Report And Reproduction
 
 After the logger/configuration continuation, the user's actual F5 launch aborts during startup, following both logos and `E2R open failed: path=rb`, with **`malloc(): unaligned tcache chunk detected`**. The earlier dummy-SDL startup/presentation and debugger smoke tests did not establish this native startup path.

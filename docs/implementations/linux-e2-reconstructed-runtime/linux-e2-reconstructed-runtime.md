@@ -1,5 +1,9 @@
 # Run Reconstructed E2 On Linux
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Implementations and task state](../README.md)
+<!-- /docs-tree:parent -->
+
 Status: completed
 Priority: top
 Owner: mixed

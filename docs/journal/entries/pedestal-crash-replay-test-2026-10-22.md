@@ -1,5 +1,9 @@
 # Human Pedestal Crash Replay Test — 2026-10-22
 
+<!-- docs-tree:parent -->
+[Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
+<!-- /docs-tree:parent -->
+
 Subsequent authorized work recovers the first differing NPC inputs and a lost
 crash-triggering clock boundary. A **new** recording now reproduces the native
 crash; the old human capture below remains preserved and divergent. See the

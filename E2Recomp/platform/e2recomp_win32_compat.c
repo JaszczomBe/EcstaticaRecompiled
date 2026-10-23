@@ -1,6 +1,7 @@
 #include "e2recomp_win32_compat.h"
 #include "e2recomp_host_backend.h"
 #include "EcstaticaReplay.h"
+#include "EcstaticaInspect.h"
 #if E2R_ENABLE_RUNTIME_OPTIONS
 #include "EcstaticaLogBridge.h"
 #endif
@@ -301,9 +302,11 @@ static void e2r_queue_host_message(UINT msg, WPARAM wparam, LPARAM lparam, void 
 
     (void)user;
     if ((msg==WM_KEYDOWN || msg==WM_KEYUP) && wparam==VK_F12) {
+        if(msg==WM_KEYDOWN) E2R_InspectObserve("bookmark",0,0);
         if(msg==WM_KEYDOWN) E2R_RequestVisibilityDump();
         return;
     }
+    if (msg != WM_MOUSEMOVE) E2R_InspectObserve("input_before",msg,wparam);
     E2R_ReplayInput(msg,wparam,lparam,
         (int)(int16_t)(lparam&0xffff),(int)(int16_t)((lparam>>16)&0xffff));
     switch (msg) {
@@ -345,7 +348,7 @@ static void e2r_replay_physical(UINT msg,WPARAM key,LPARAM lp,void *user)
 {
     (void)lp; (void)user;
     if(msg==WM_CLOSE || (msg==WM_KEYDOWN && key==0x7a)) E2R_ReplayAbort();
-    if(msg==WM_KEYDOWN && key==VK_F12) E2R_RequestVisibilityDump();
+    if(msg==WM_KEYDOWN && key==VK_F12) { E2R_InspectObserve("bookmark",0,0); E2R_RequestVisibilityDump(); }
 }
 
 static void e2r_replay_control(void)
@@ -354,6 +357,7 @@ static void e2r_replay_control(void)
 }
 static void e2r_replay_flush(void)
 {
+    E2R_InspectFinish();
 #if E2R_ENABLE_RUNTIME_OPTIONS
     E2R_LogFlush();
     E2R_LogShutdown();

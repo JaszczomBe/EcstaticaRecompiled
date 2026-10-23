@@ -1,10 +1,14 @@
 # Enable Diagnostic Gameplay With Cylinder Actors
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../README.md) · [Parent: Playable SDL Runtime](../../playable-sdl-runtime.md)
+<!-- /docs-tree:parent -->
+
 Status: active; stables hit-query inputs repaired; manual stable re-entry and object interactions remain open
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-10-22
 
-The [post-pedestal callback repair](../../../../journal/entries/post-pedestal-deactivation-callback-2026-10-22.md) reproduces the new fatal-script crash by exact replay and restores original code/actor/node ownership. Natural Debug/ASan intros and 60-second idle checks pass; compatible replay crosses the fault before incomplete-prefix exhaustion. The broader populated Debug traversal still fails its floor-return check, while ASan's bounded round trip passes. Task 09 remains active; workshop re-entry, sword pickup and full experimental ASan acceptance remain open.
+The [post-pedestal callback repair](tasks/task-09-recover-scene-population-and-interaction.md#callback-contract) reproduces the new fatal-script crash by exact replay and restores original code/actor/node ownership. Natural Debug/ASan intros and 60-second idle checks pass; compatible replay crosses the fault before incomplete-prefix exhaustion. The broader populated Debug traversal still fails its floor-return check, while ASan's bounded round trip passes. Task 09 remains active; workshop re-entry, sword pickup and full experimental ASan acceptance remain open.
 
 The [blacksmith sword continuation](../../../../journal/entries/blacksmith-sword-activation-2026-10-20.md) restores original scene-1909/actor-3717 visibility activation and cylinder presentation in camera 347. Debug/ASan integration and populated courtyard return pass. The workshop camera is selected diagnostically without moving Joe; manual F5 workshop re-entry, pickup, sword animation and door destruction remain open in Task 09.
 

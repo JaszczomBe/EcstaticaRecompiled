@@ -1,5 +1,9 @@
 # Verify SDL Backend Parity
 
+<!-- docs-tree:parent -->
+[Project README](../../../../../../README.md) · [Parent: Add SDL Host Backend](../step-13-add-sdl-host-backend.md)
+<!-- /docs-tree:parent -->
+
 Status: completed
 Parent Step: [Add SDL Host Backend](../step-13-add-sdl-host-backend.md)
 Parent Implementation: [Run Reconstructed E2 On Linux](../../../linux-e2-reconstructed-runtime.md)
