@@ -9712,8 +9712,8 @@ LAB_00415ea5:
             ((iVar2 = _DAT_006297f8, DAT_00636859 != '\0' ||
              (iVar2 = _DAT_006297fc, DAT_00636858 != '\0')))))) ||
           (iVar2 = _DAT_00629800, DAT_0063685b != '\0')) && (iVar2 != 0)) {
-        FUN_0044f310();
-        param_1 = extraout_ECX_00;
+        /* Original 0x416107..0x41610d supplies current actor in EDX. */
+        FUN_0044f310(iVar2,(ushort *)DAT_0047a470);
         param_2 = extraout_EDX_00;
       }
     }
@@ -19561,9 +19561,6 @@ void FUN_00426ca4(void)
   int iVar3;
   bool bVar4;
   short *in_EAX;
-  int extraout_ECX;
-  short *extraout_ECX_00;
-  short *extraout_ECX_01;
 
   in_EAX = (short *)(uintptr_t)E2R_actor_calc_context;
   if (in_EAX == (short *)0x0 || IsBadReadPtr(in_EAX,0x136)) {
@@ -19602,8 +19599,10 @@ void FUN_00426ca4(void)
             if ((((*(short *)(iVar3 + 2) == 0x2e) && (*(short *)(iVar3 + 4) == 4)) &&
                 (*(short *)(iVar3 + 6) != 0)) &&
                (*(int *)((*(int *)(iVar3 + 4) >> 0x10) * 4 + 0x6297bc) != 0)) {
-              FUN_0044f310();
-              in_EAX = extraout_ECX_01;
+              /* Original 0x426daf..0x426dc2 selects EAX code, EDX actor;
+               * the wrapper preserves the actor retained in ECX. */
+              FUN_0044f310(*(uint *)((*(int *)(iVar3 + 4) >> 0x10) * 4 + 0x6297bc),
+                           (ushort *)in_EAX);
             }
           }
         }
@@ -46431,12 +46430,12 @@ undefined4 FUN_0044f2fc(undefined4 action)
 
 /* 0044f310 */
 
-void FUN_0044f310(void)
+void FUN_0044f310(undefined4 code,ushort *actor)
 
 {
-  ushort *in_EDX;
-
-  FUN_0044f508(in_EDX,in_EDX,(ushort *)0x0);
+  /* Original 0x44f310 preserves ECX/EBX, forwards EAX code and EDX actor,
+   * and clears the script node and child argument. */
+  E2R_DispatchScriptRecord((ushort *)(uintptr_t)code,actor,actor,NULL,NULL);
   return;
 }
 

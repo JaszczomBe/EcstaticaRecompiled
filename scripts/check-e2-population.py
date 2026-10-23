@@ -3,7 +3,9 @@
 
 Uses the user's original EXE and archive; no game data is copied into the repo.
 The constructor and script entry compare extracted production code to original
-instructions with only allocation and script execution intercepted.
+instructions with allocation and script execution intercepted. Deactivation
+executes the original callback wrapper and compares ordered interpreter inputs,
+full actor/cache memory, and retained actor/dispatch/node ownership.
 """
 import argparse
 from pathlib import Path
@@ -73,7 +75,24 @@ static uintptr_t DAT_0047a724,DAT_0047a470;
 static short DAT_00479e4c;
 static uintptr_t _DAT_0063726c;
 static int E2R_actor_calc_context,DAT_0047a34a,_DAT_00636588;
-static void FUN_0044f310(void) { assert(0); }
+static short *E2R_action_dispatch_node;
+static ushort *E2R_script_node_context;
+static uint callback_trace[8][5];
+static int callback_calls;
+__attribute__((force_align_arg_pointer,used,noinline)) static void callback_observe(uint code,uint actor,uint other,uint child,uint node) {
+  assert(callback_calls<8);
+  uint values[]={code,actor,other,child,node};
+  memcpy(callback_trace[callback_calls++],values,sizeof values);
+  /* A real callback may set active again; the caller must retain its actor. */
+  *(byte*)(actor+2)|=1;
+}
+static void FUN_0044f508(ushort *actor,ushort *other,ushort *child) {
+  callback_observe((uint)E2R_action_dispatch_node,(uint)actor,(uint)other,(uint)child,(uint)E2R_script_node_context);
+}
+static void E2R_DispatchScriptRecord(ushort*,ushort*,ushort*,ushort*,ushort*);
+__attribute__((naked)) static void callback_interpreter_hook(void) {
+  __asm__("pushal; push %ebx; push 40(%esp); push %ecx; push %edx; push %eax; call callback_observe; add $20,%esp; popal; mov $0xdeadbeef,%ecx; mov $0xdeadbeef,%ebx; ret $4");
+}
 #define CONCAT44(a,b) (((uint64_t)(uint)(a)<<32)|(uint)(b))
 #define E2R_STREAM_MAGIC 0x45525354u
 static int IsBadReadPtr(void *p,uint size) { return p==NULL; }
@@ -120,6 +139,7 @@ for name in ('FUN_00422a48','FUN_00422aa0'):
     match=re.search(r'(?:void|undefined4) __fastcall '+name+r'\([^)]*\)\s*\{.*?\n\}',source,re.S)
     assert match,name
     harness+=match.group().replace('__fastcall','')+'\n'
+harness+=function('FUN_0044f310')+'\n'+function('E2R_DispatchScriptRecord')+'\n'
 harness+=function('FUN_00426ca4')+'\n'+function('FUN_0044e238')+'\n'
 harness+=r"""
 static int DAT_0047a4a0,DAT_00479dd0;
@@ -158,7 +178,7 @@ harness+='static short *construct_native(short *in_EAX) { uint param_1=0; int iV
 at=source.index('    if ((-1 < *(short *)(in_EAX + 0x13a))',source.index('void FUN_00420dcc'))
 end=source.index('\n  }\n  return;',at)
 harness+='static void initial_native(uint in_EAX) {\n'+source[at:end]+'\n}\n'
-for name,start,end in [('construct_bytes',0x42ba20,0x42ba4c),('initial_bytes',0x420ea5,0x420ebe),('sight_bytes',0x428080,0x4280c2),('add_bytes',0x422a48,0x422a71),('copy_bytes',0x422aa0,0x422abc),('wander_bytes',0x42a058,0x42a3ae),('sine',0x59b590,0x5bb590),('cosine',0x5de590,0x5fe590),('polar_bytes',0x427160,0x427214),('angle_bytes',0x432c64,0x432de4),('unlink_bytes',0x426ca4,0x426df8),('deactivate_bytes',0x44e238,0x44e354),('scale_bytes',0x42ce70,0x42cf02),('sound_bytes',0x42fce0,0x42fe5e),('root_bytes',0x423858,0x423953),('vector_bytes',0x45de8b,0x45df0e)]:
+for name,start,end in [('construct_bytes',0x42ba20,0x42ba4c),('initial_bytes',0x420ea5,0x420ebe),('sight_bytes',0x428080,0x4280c2),('add_bytes',0x422a48,0x422a71),('copy_bytes',0x422aa0,0x422abc),('wander_bytes',0x42a058,0x42a3ae),('sine',0x59b590,0x5bb590),('cosine',0x5de590,0x5fe590),('polar_bytes',0x427160,0x427214),('angle_bytes',0x432c64,0x432de4),('callback_bytes',0x44f310,0x44f320),('unlink_bytes',0x426ca4,0x426df8),('deactivate_bytes',0x44e238,0x44e354),('scale_bytes',0x42ce70,0x42cf02),('sound_bytes',0x42fce0,0x42fe5e),('root_bytes',0x423858,0x423953),('vector_bytes',0x45de8b,0x45df0e)]:
     harness+='static const byte '+name+'[]={'+','.join(map(str,original(start,end)))+'};\n'
 harness+=r"""
 static void map(uint addr,uint size) { assert(mmap((void*)addr,size,7,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,-1,0)==(void*)addr); }
@@ -339,8 +359,10 @@ int main(int argc,char **argv) {
   }
   map(0x640000,0x40000);
   memcpy((void*)0x426ca4,unlink_bytes,sizeof unlink_bytes);memcpy((void*)0x44e238,deactivate_bytes,sizeof deactivate_bytes);
-  for(int mode=0;mode<2;mode++)for(int selected=0;selected<4;selected++) {
-    byte expected_actors[0x800],expected_static[0x40000];
+  memcpy((void*)0x44f310,callback_bytes,sizeof callback_bytes);jump(0x44f508,callback_interpreter_hook);
+  unsigned callback_total=0,multiple_callback_cases=0;
+  for(int mode=0;mode<2;mode++)for(int selected=0;selected<4;selected++)for(int seed=0;seed<512;seed++) {
+    byte expected_actors[0x1000],expected_static[0x40000];
     memset((void*)0x900000,0,0x1000);memset((void*)0x640000,0,0x40000);
     for(int i=0;i<3;i++) {
       uint actor=0x900100+i*0x200;*(short*)actor=i+1;*(uint*)(actor+0x4c)=i<2?actor+0x200:0;
@@ -348,15 +370,38 @@ int main(int argc,char **argv) {
       for(int j=0;j<3;j++){*(short*)(actor+0x84+j*2)=i*100+j;*(short*)(actor+0x90+j*2)=i*50+j;}
       *(byte*)(0x64a178+(i+1)*2)=2;
     }
-    byte original_actors[0x800];memcpy(original_actors,(void*)0x900000,sizeof original_actors);
+    // Two callback lists with mixed event types, signed one-based code IDs,
+    // absent code records, and gating by representation/game state/list membership.
+    for(int i=-4;i<=4;i++)*(uint*)(0x6297bc+i*4)=(seed&32)&&(i==-2 || i==2)?0:0x910000+i*16;
+    for(int i=0;i<3;i++) {
+      uint owner=0x900100+i*0x200;
+      *(uint*)(owner+0xa6)=(seed&1)?0x1234:0;
+      *(uint*)(owner+0xae)=(seed&2)?0x900800:0;
+      *(byte*)(owner+2)=seed&4?1:0;
+    }
+    *(uint*)0x900802=(seed&8)?0x900820:0;
+    *(uint*)0x900806=0x900900;*(uint*)0x900826=0x900980;
+    for(int i=0;i<6;i++) {
+      uint event=0x900900+(i/3)*0x80+(i%3)*0x20;
+      *(short*)(event+2)=((seed>>(i+2))&1)?0x2e:0x2d;
+      *(short*)(event+4)=((seed>>(i+1))&1)?4:3;
+      *(short*)(event+6)=i==0?-2:(i==1?0:i);
+      *(uint*)(event+10)=i%3==2?0:event+0x20;
+    }
+    byte original_actors[0x1000];memcpy(original_actors,(void*)0x900000,sizeof original_actors);
     uint actor=0x900100+selected*0x200;
-    *(uint*)0x63726c=0x900100;*(uint*)0x636588=1000;*(uint*)0x47a34a=0;
+    *(uint*)0x63726c=0x900100;*(uint*)0x636588=1000;*(uint*)0x47a34a=(seed&16)?1:0;
+    callback_calls=0;memset(callback_trace,0,sizeof callback_trace);
     actor_original(mode?0x44e238:0x426ca4,actor);
-    uint expected_head=*(uint*)0x63726c;
+    uint expected_head=*(uint*)0x63726c,expected_callbacks[8][5];int expected_calls=callback_calls;
+    memcpy(expected_callbacks,callback_trace,sizeof callback_trace);
+    callback_total+=expected_calls;multiple_callback_cases+=expected_calls>1;
     memcpy(expected_actors,(void*)0x900000,sizeof expected_actors);memcpy(expected_static,(void*)0x640000,sizeof expected_static);
     memcpy((void*)0x900000,original_actors,sizeof original_actors);memset((void*)0x640000,0,0x40000);
     for(int i=1;i<=3;i++)*(byte*)(0x64a178+i*2)=2;
-    _DAT_0063726c=0x900100;_DAT_00636588=1000;DAT_0047a34a=0;E2R_actor_calc_context=actor;
+    _DAT_0063726c=0x900100;_DAT_00636588=1000;DAT_0047a34a=(seed&16)?1:0;E2R_actor_calc_context=actor;
+    E2R_action_dispatch_node=(short*)0x919000;E2R_script_node_context=(ushort*)0x919100;
+    callback_calls=0;memset(callback_trace,0,sizeof callback_trace);
     if(mode)FUN_0044e238(actor);else FUN_00426ca4();
     if(_DAT_0063726c!=expected_head || memcmp(expected_actors,(void*)0x900000,sizeof expected_actors)) {
       fprintf(stderr,"unlink mismatch mode=%d selected=%d head=%x expected=%x\n",mode,selected,(uint)_DAT_0063726c,expected_head);
@@ -364,9 +409,14 @@ int main(int argc,char **argv) {
       abort();
     }
     assert(!memcmp(expected_static,(void*)0x640000,sizeof expected_static));
+    assert(callback_calls==expected_calls && !memcmp(callback_trace,expected_callbacks,sizeof callback_trace));
+    assert(E2R_action_dispatch_node==(short*)0x919000 && E2R_script_node_context==(ushort*)0x919100);
+    assert(E2R_actor_calc_context==actor);
   }
+  assert(callback_total>0 && multiple_callback_cases>0);
+  printf("PASS: %u observed original deactivation callbacks, %u multi-callback cases\n",callback_total,multiple_callback_cases);
   free(data);
-  printf("PASS: %u binary actor headers, %u real archive lookups; 128 original-x86 actor constructions and 128 initial-code handoffs; 512 line-of-sight vector traces; 4096 wander terrain traces; 65536 NPC polar vectors; 8 actor unlink/deactivation cases\n",headers,sampled);
+  printf("PASS: %u binary actor headers, %u real archive lookups; 128 original-x86 actor constructions and 128 initial-code handoffs; 512 line-of-sight vector traces; 4096 wander terrain traces; 65536 NPC polar vectors; 4096 actor unlink/deactivation callback/filter/ownership cases\n",headers,sampled);
 }
 """
 with tempfile.TemporaryDirectory(prefix='e2-population-') as tmp:

@@ -69,7 +69,7 @@ __attribute__((naked)) void interpreter_hook(void) {
     __asm__("pushal; push %ebx; push 40(%esp); push %ecx; push %edx; push %eax; call observe; add $20,%esp; popal; ret $4");
 }
 '''
-for name in ('FUN_0044e74c', 'FUN_0044e7a4', 'FUN_0044f2fc', 'FUN_0044f320', 'E2R_DispatchScriptRecord'):
+for name in ('FUN_0044e74c', 'FUN_0044e7a4', 'FUN_0044f2fc', 'FUN_0044f310', 'FUN_0044f320', 'E2R_DispatchScriptRecord'):
     match = re.search(r'^(?:static )?(?:void|undefined4) (?:__fastcall )?' + name + r'\([^\n]*\)\s*\{.*?\n\}', source, re.M | re.S)
     assert match, name
     harness += match.group() + '\n'
@@ -80,7 +80,9 @@ for opcode in ('0x27', '0x29', '0x2a'):
     branch = source[at:end]
     # Wrap the case in a one-case switch so its real break retains its meaning.
     harness += f'int proxy_{opcode}(int *local_2c) {{ switch(1) {{ case 1:\n' + branch.split(':\n',1)[1] + ' } return (int)local_2c; }\n'
-for at, end in ((0x44e745, 0x44e810), (0x44f2fc, 0x44f32c), (0x450af6, 0x450b17), (0x450b8a, 0x450bab), (0x450c20, 0x450c3e)):
+key_call = re.search(r'FUN_0044f310\(iVar2,\(ushort \*\)DAT_0047a470\);', source).group()
+harness += 'static uintptr_t DAT_0047a470;\nstatic void key_callback(uint iVar2) { ' + key_call + ' }\n'
+for at, end in ((0x416107, 0x416112), (0x44e745, 0x44e810), (0x44f2fc, 0x44f32c), (0x450af6, 0x450b17), (0x450b8a, 0x450bab), (0x450c20, 0x450c3e)):
     code = original(at, end)
     harness += f'static const unsigned char code_{at:x}[]={{' + ','.join(map(str, code)) + '};\n'
 harness += r'''
@@ -98,7 +100,8 @@ static void wrapper_original(int fn,uintptr_t code,uintptr_t actor,uintptr_t nod
     __asm__ volatile("call *%%edi" : "+a"(code), "+d"(actor), "+b"(node) : "D"(fn) : "ecx","memory","cc");
 }
 int main(void) {
-    map(0x440000,0x20000); map(0x900000,0x20000);
+    map(0x410000,0x10000); map(0x470000,0x10000); map(0x440000,0x20000); map(0x900000,0x20000);
+    memcpy((void*)0x416107,code_416107,sizeof code_416107); *(byte*)0x416112=0xc3;
     memcpy((void*)0x44e745,code_44e745,sizeof code_44e745);
     memcpy((void*)0x44f2fc,code_44f2fc,sizeof code_44f2fc);
     *(unsigned char*)0x44f508=0xe9;
@@ -154,10 +157,18 @@ int main(void) {
         assert(E2R_action_dispatch_node==(short*)0x903000 && E2R_script_node_context==(ushort*)0x903100);
         wrapper_original(0x44f2fc,code,actor,node); memcpy(expected,observed,sizeof expected);
         FUN_0044f2fc(code); assert(!memcmp(expected,observed,sizeof expected));
+        wrapper_original(0x44f310,code,actor,node); memcpy(expected,observed,sizeof expected);
+        FUN_0044f310(code,(ushort*)actor); assert(!memcmp(expected,observed,sizeof expected));
+        assert(E2R_action_dispatch_node==(short*)0x903000 && E2R_script_node_context==(ushort*)0x903100);
+        nested=1; FUN_0044f310(code,(ushort*)actor);
+        assert(!nested && E2R_action_dispatch_node==(short*)0x903000 && E2R_script_node_context==(ushort*)0x903100);
+        *(uint*)0x47a470=DAT_0047a470=actor;
+        wrapper_original(0x416107,code,0xdeadbeef,node); memcpy(expected,observed,sizeof expected);
+        key_callback(code); assert(!memcmp(expected,observed,sizeof expected));
         nested=1; E2R_DispatchScriptRecord((ushort*)code,(ushort*)actor,(ushort*)actor,NULL,(ushort*)node);
         assert(!nested && E2R_action_dispatch_node==(short*)0x903000 && E2R_script_node_context==(ushort*)0x903100);
     }
-    printf("PASS: %u original-x86 script cursor cases, 64 script-wrapper inputs and 32 nested ownership cases; %u diagnostic graphics operand spans\n",cases,graphics);
+    printf("PASS: %u original-x86 script cursor cases, 96 script-wrapper inputs, 32 key-callback callers and 64 nested ownership cases; %u diagnostic graphics operand spans\n",cases,graphics);
 }
 '''
 with tempfile.TemporaryDirectory(prefix='e2-script-flow-') as tmp:

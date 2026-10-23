@@ -8432,6 +8432,38 @@ patchRectangleFunction("FUN_0042b880", body => replaceRectangleInput(body,
 
 // Export storage for read-only native checkpoints; keep the LCG and seed unchanged.
 source = source.replace("static uint E2R_rand_seed_fallback =", "uint E2R_rand_seed_fallback =");
+
+// Original deactivation callback: EAX is the selected record, EDX is the
+// retained actor, EBX/node and child are zero. The wrapper preserves ECX.
+patchRectangleFunction("FUN_0044f310", () => `void FUN_0044f310(undefined4 code,ushort *actor)
+
+{
+  /* Original 0x44f310 preserves ECX/EBX, forwards EAX code and EDX actor,
+   * and clears the script node and child argument. */
+  E2R_DispatchScriptRecord((ushort *)(uintptr_t)code,actor,actor,NULL,NULL);
+  return;
+}`);
+{
+  const at = prototypes.indexOf("void FUN_0044f310(void);");
+  if (at < 0) throw new Error("Missing actor callback wrapper prototype");
+  prototypes[at] = "void FUN_0044f310(undefined4 code,ushort *actor);";
+}
+patchRectangleFunction("FUN_00426ca4", body => {
+  for (const line of ["  int extraout_ECX;\n", "  short *extraout_ECX_00;\n", "  short *extraout_ECX_01;\n"]) {
+    body = replaceRectangleInput(body,line,"");
+  }
+  return replaceRectangleInput(body,`              FUN_0044f310();
+              in_EAX = extraout_ECX_01;`,`              /* Original 0x426daf..0x426dc2 selects EAX code, EDX actor;
+               * the wrapper preserves the actor retained in ECX. */
+              FUN_0044f310(*(uint *)((*(int *)(iVar3 + 4) >> 0x10) * 4 + 0x6297bc),
+                           (ushort *)in_EAX);`);
+});
+patchRectangleFunction("FUN_00415d40", body => replaceRectangleInput(body,
+  `        FUN_0044f310();
+        param_1 = extraout_ECX_00;`,
+  `        /* Original 0x416107..0x41610d supplies current actor in EDX. */
+        FUN_0044f310(iVar2,(ushort *)DAT_0047a470);`));
+
 fs.writeFileSync(outSrc, source);
 
 const sortedIds = [...ids].sort();

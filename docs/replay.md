@@ -68,6 +68,8 @@ compatible mode does not conceal that difference. See the
 That bundle pins the pre-fix executable. The native detach crash was
 [subsequently repaired and tested through natural intros without replay](journal/entries/natural-intro-attachment-detach-2026-10-22.md).
 
+A separate [post-pedestal callback recording](journal/entries/post-pedestal-deactivation-callback-2026-10-22.md), pinned to `2e6c7e1`'s executable hash, reproduces the reported `FUN_0043cac0 ← FUN_00414e68 ← FUN_0044f508 ← FUN_0044f310 ← FUN_00426ca4` stack by exact replay at sequence 890,925,953/checkpoint 47. The repaired executable's explicit compatible attempt returns from all four callbacks, then exits **75/INCOMPLETE** at the recorded prefix end with no divergence. This establishes passage through that failure boundary, not a clean replay completion. The export and matching executable are preserved separately in `.tmp/replay-bugs/post-pedestal-20261022*`.
+
 The recovery fixes lost NPC coordinate/facing/actor inputs against original
 instructions, separately from recorder scheduling. Replay never writes physics,
 random values, script state or positions. RNG seed/LCG arithmetic are unchanged.

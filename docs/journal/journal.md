@@ -4,6 +4,8 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Post-pedestal deactivation callback — 2026-10-22](entries/post-pedestal-deactivation-callback-2026-10-22.md): exact replay reproduces the new fatal-script stack; original callback code/actor/node ownership is restored, compatible replay passes the failure boundary, and natural Debug/ASan intros plus 60-second idle observations pass. Debug's broader steering/floor-return check remains failing.
+
 - [Natural intro attachment detach — 2026-10-22](entries/natural-intro-attachment-detach-2026-10-22.md): reproduces the reported no-input `FUN_0042db74` crash, recovers its event node/attached-actor contract from original instructions and verifies natural Debug intro completion plus idle survival; a separate script-deactivation fault retains full ASan's unaccepted status.
 
 - [Replay NPC inputs and crash boundary recovery — 2026-10-22](entries/replay-npc-input-and-crash-boundary-recovery-2026-10-22.md): recovers original NPC target/angle/turn inputs and publishes changed clocks before game control resumes; a new Debug crash capture reaches the same helper across fresh replays and a debugger pause, while Debug/ASan clean menu routes pass and the old human capture remains explicitly divergent.

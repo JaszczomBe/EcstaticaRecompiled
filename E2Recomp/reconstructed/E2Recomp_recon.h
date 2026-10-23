@@ -475,7 +475,7 @@ void FUN_0044e74c(int *cursor);
 void FUN_0044e7a4(int *cursor);
 uint __fastcall FUN_0044e810(ushort *param_1,int param_2,ushort *param_3,int param_4,int *cursor,ushort *node);
 undefined4 FUN_0044f2fc(undefined4 action);
-void FUN_0044f310(void);
+void FUN_0044f310(undefined4 code,ushort *actor);
 undefined4 __fastcall FUN_0044f320(undefined4 param_1,ushort *param_2,ushort *node);
 undefined4 __fastcall FUN_0044f32c(ushort *param_1,ushort *param_2,ushort *param_3);
 void __fastcall FUN_0044f508(ushort *param_1,ushort *param_2,ushort *param_3);
