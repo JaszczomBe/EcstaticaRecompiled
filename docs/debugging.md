@@ -67,6 +67,13 @@ offscreen. Visibility packets include the corresponding `player_status` row;
 status codes are 0/1/2/3 in the order above. See the
 [health/status evidence](journal/entries/diagnostic-health-and-potion-status-2026-10-24.md).
 
+Exact replay includes recorded RNG outcomes, so repeating a recording selects
+the same potion branch. To exercise different random outcomes, repeat a fresh
+input route and record the actual selected branch. A full-health pickup does
+not prove healing; the
+[random-potion review](journal/entries/random-potion-outcomes-2026-10-24.md)
+separates those checks.
+
 ## Capture an investigation from the terminal
 
 ```sh

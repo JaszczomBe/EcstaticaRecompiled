@@ -65,6 +65,18 @@ Step numbers are stable identifiers, not execution order. Step 07 is complete. T
 
 ## Active Frontier
 
+The [random-outcome review](../../journal/entries/random-potion-outcomes-2026-10-24.md)
+confirms all **135** exact checkpoints of the user's no-effect recording. It
+selects `ken:potmagic`: without an existing poison/invisibility timer, drinking
+and bottle removal complete while health stays **85**. The selector also contains
+healing, poison and invisibility branches. Fresh inputs sample new outcomes;
+exact replay preserves the recorded RNG. Fresh routes confirm poison onset
+(including Joe health **85**) and invisibility dispatch/cleanup. Two fresh healing
+selections now execute `gethealth` and restore naturally damaged Joe **85→100**,
+with bottle removal and continued control. All four branches appear across **17**
+successful fresh pickups. Final effect lifetime/cure checks remain open. Wider
+work stays deferred.
+
 The [health/status continuation](../../journal/entries/diagnostic-health-and-potion-status-2026-10-24.md)
 confirms bottle removal followed by sword use in human session
 **20261024_152305_822**. Its health falls from **100 to 70** before drinking;

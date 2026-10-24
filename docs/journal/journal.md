@@ -8,6 +8,8 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Random potion outcomes — 2026-10-24](entries/random-potion-outcomes-2026-10-24.md): exact replay confirms the reported no-effect pickup selects a conditional cure/no-op branch; 17 fresh pickups cover all four branches, including two natural-health recoveries from 85 to 100; effect expiry/cure remains open.
+
 - [Diagnostic health and potion status — 2026-10-24](entries/diagnostic-health-and-potion-status-2026-10-24.md): confirms the latest human bottle/sword run and adds a read-only health/effect panel; healing and effect verification take priority while wider work is deferred.
 
 - [Consumed potion removal — 2026-10-24](entries/consumed-potion-removal-2026-10-24.md): confirms simultaneous bottle/sword attachments, restores original animation-name byte bounds and verifies bottle removal before sword pickup and four-direction attacks in Debug/ASan.

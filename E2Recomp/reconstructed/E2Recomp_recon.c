@@ -3293,9 +3293,6 @@ static short E2R_InternPackedName(char *input,char *table,uint capacity,short ma
       /* Original 0x446788 also clears a newly interned actor's slot. */
       if (table == (char *)(uintptr_t)_DAT_006366b4)
         *(uint *)(0x00630b60 + (uint)(ushort)index * 4) = 0;
-      /* Original 0x446860 clears the newly interned animation's slot. */
-      if (table == (char *)(uintptr_t)_DAT_006366b8)
-        *(uint *)(0x0062ba20 + (uint)(ushort)index * 4) = 0;
       return index;
     }
     offset = offset + length + 1;
@@ -36547,7 +36544,7 @@ undefined8 __fastcall FUN_00441ac8(undefined4 param_1,undefined4 param_2)
 
 {
   return CONCAT44(param_2,(int)E2R_FindPackedNameIndex((char *)(uintptr_t)param_1,
-                                                       _DAT_006366b8,0x445c,2000));
+                                                       _DAT_006366b8,0x1117,2000));
 }
 
 
@@ -40506,7 +40503,7 @@ undefined8 __fastcall FUN_0044679c(undefined4 param_1,undefined4 param_2)
   undefined2 uStack_1a;
 
   return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
-                                                       _DAT_006366b8,0x445c,2000));
+                                                       _DAT_006366b8,0x1117,2000));
 
   local_1c = 0;
   puVar5 = _DAT_006366b8;

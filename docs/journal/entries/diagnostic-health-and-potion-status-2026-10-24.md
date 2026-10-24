@@ -12,6 +12,10 @@ coverage, extended stability work and original rendering are explicitly deferred
 The immediate work is to make health and potion effects observable, then verify
 their original behavior.
 
+The subsequent [random-outcome review](random-potion-outcomes-2026-10-24.md)
+confirms the reported no-effect pickup and verifies two naturally damaged healing
+routes from 85 to 100. Acceptance limits below describe the display change.
+
 ## Latest human run
 
 Session **20261024_152305_822** is finalized, with complete replay/inspection and

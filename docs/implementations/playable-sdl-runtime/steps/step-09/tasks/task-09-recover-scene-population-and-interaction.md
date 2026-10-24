@@ -4,7 +4,7 @@
 [Project README](../../../../../../README.md) · [Parent: Enable Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 <!-- /docs-tree:parent -->
 
-Status: in progress; human sword pickup, four kills and two door destructions verified; animation-cache stall repaired; typed markers and Debug/ASan gameplay menu Quit pass; human random-potion pickup verified; delayed potion effects repaired; human bottle removal/sword use confirmed; diagnostic health/effect panel added; healing/effects verification next; wider pickups, extended stability and rendering deferred
+Status: in progress; human sword pickup, four kills and two door destructions verified; animation-cache stall repaired; typed markers and Debug/ASan gameplay menu Quit pass; human random-potion pickup verified; delayed potion effects repaired; human bottle removal/sword use confirmed; diagnostic health/effect panel added; fresh healing 85→100, poison onset and conditional no-op verified; effect expiry/cure open; wider pickups, extended stability and rendering deferred
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 Last Updated: 2026-10-24
 
@@ -12,7 +12,23 @@ Last Updated: 2026-10-24
 
 Restore original scene objects and NPCs needed for exploration and basic interaction while retaining cylinder presentation and Joe's working movement/camera transitions. Begin with one verified original resource and behavior; original models and full combat remain later work.
 
-## Current Continuation — Visible Health And Potion Status
+## Current Continuation — Random Potion Outcomes
+
+The [outcome review](../../../../../journal/entries/random-potion-outcomes-2026-10-24.md)
+replays human session **20261024_153511_995** through all **135** exact checkpoints.
+Its `ken:potmagic` selection is a conditional cure/no-op: Joe has neither relevant
+timer, so health remains **85** while drinking and bottle removal succeed.
+The original selector has healing, poison, invisibility and this conditional
+branch. Repeating exact replay cannot vary recorded RNG; bounded fresh input
+routes sample different branches without assigning health or RNG. Poison onset
+and invisibility dispatch/cleanup have fresh evidence. A route derived from human
+keyboard holds now reproduces natural damage before adaptive workshop navigation;
+two fresh healing selections restore Joe **85→100** through `gethealth`, remove
+the bottle and retain control. All four branches are observed across **17**
+successful fresh pickups. Final poison death, invisibility expiry/cure and human
+healing repetition remain open. Wider work stays deferred.
+
+## Prior Continuation — Visible Health And Potion Status
 
 The [health/status review](../../../../../journal/entries/diagnostic-health-and-potion-status-2026-10-24.md)
 confirms the user's latest bottle removal and later sword attachment/attacks.
@@ -222,12 +238,15 @@ Automatic NPC population and scripted objects are separate paths. An empty cylin
 
 ## Next Bounded Action
 
-The user confirms bottle removal and subsequent sword use in the latest F5 run.
-Use the new **HEALTH / POISON / INVISIBILITY** panel to verify healing from
-naturally received damage, then poison lifetime/cure and invisibility expiry.
-Record the actual random branch and state change; drinking alone does not prove
-a particular effect. Current evidence and indicator semantics belong to the
-[health/status journal](../../../../../journal/entries/diagnostic-health-and-potion-status-2026-10-24.md).
+The user confirms bottle removal and subsequent sword use. Fresh Debug routes
+now verify healing from natural damage **85→100**, poison onset and a valid
+conditional no-op; invisibility dispatch is also observed. Use the visible
+**HEALTH / POISON / INVISIBILITY** panel for human healing repetition and the
+remaining poison deadline, invisibility expiry and cure checks. Record the
+actual random branch: a no-op is valid when the conditional cure has no effect
+to clear. Repeating exact replay preserves RNG; use fresh input routes for new
+selections. Current evidence belongs to the
+[random-outcome journal](../../../../../journal/entries/random-potion-outcomes-2026-10-24.md).
 
 Defer broader items/points, prolonged stability investigation and original mesh
 work until these focused checks are complete or the user changes priorities.
