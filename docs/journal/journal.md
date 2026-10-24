@@ -8,6 +8,8 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Extended-gameplay alternate-target crash — 2026-10-24](entries/alternate-target-crash-2026-10-24.md): preserves and reproduces the latest human SIGSEGV, restores the original actor/XZ contract and verifies the fault boundary in isolated generated Debug/ASan replays; records the separately committed animation-name regression and incomplete-recording limits.
+
 - [Random potion outcomes — 2026-10-24](entries/random-potion-outcomes-2026-10-24.md): exact replay confirms the reported no-effect pickup selects a conditional cure/no-op branch; 17 fresh pickups cover all four branches, including two natural-health recoveries from 85 to 100; effect expiry/cure remains open.
 
 - [Diagnostic health and potion status — 2026-10-24](entries/diagnostic-health-and-potion-status-2026-10-24.md): confirms the latest human bottle/sword run and adds a read-only health/effect panel; healing and effect verification take priority while wider work is deferred.

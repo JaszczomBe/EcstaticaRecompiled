@@ -8653,6 +8653,15 @@ patchRectangleFunction("FUN_00421074", body => {
   return body;
 });
 
+// Original alternate-target query retains the updating actor and both X/Z inputs.
+patchRectangleFunction("FUN_0042e684", body => {
+  body = replaceRectangleInput(body,"  short *in_EAX;","  short *in_EAX = (short *)(uintptr_t)param_1;");
+  return replaceRectangleInput(body,"          uVar6 = FUN_00432c64(iVar5,(short)iVar5);","          /* Original 0x42e718..0x42e71c retains X in EBX and Z in ECX. */\n          extraout_ECX = iVar5;\n          uVar6 = E2R_PolygonAngle16((short)iVar3,(short)iVar5);");
+});
+patchRectangleFunction("FUN_00427584", body => replaceRectangleInput(body,
+  "          lVar28 = FUN_0042e684(CONCAT22(uVar12,sVar18),local_6c);",
+  "          lVar28 = FUN_0042e684((uint)(uintptr_t)local_6c,(uint)(uintptr_t)local_6c);"));
+
 // Original attack-height query retains the player and both X/Z angle inputs.
 patchRectangleFunction("FUN_0042e7dc", body => {
   body = replaceRectangleInput(body,"  short *in_EAX;","  short *in_EAX = (short *)(uintptr_t)param_1;");

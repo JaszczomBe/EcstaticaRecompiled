@@ -20631,7 +20631,7 @@ switchD_0042763f_default:
           lVar28 = CONCAT44(local_6c,DAT_0047a470);
         }
         else {
-          lVar28 = FUN_0042e684(CONCAT22(uVar12,sVar18),local_6c);
+          lVar28 = FUN_0042e684((uint)(uintptr_t)local_6c,(uint)(uintptr_t)local_6c);
         }
         goto LAB_00427d14;
       }
@@ -25717,7 +25717,7 @@ undefined8 __fastcall FUN_0042e684(undefined4 param_1,undefined4 param_2)
 {
   short *psVar1;
   short sVar2;
-  short *in_EAX;
+  short *in_EAX = (short *)(uintptr_t)param_1;
   int iVar3;
   int iVar4;
   int iVar5;
@@ -25747,7 +25747,9 @@ undefined8 __fastcall FUN_0042e684(undefined4 param_1,undefined4 param_2)
           iVar4 = -iVar5;
         }
         if (iVar4 < 0x400) {
-          uVar6 = FUN_00432c64(iVar5,(short)iVar5);
+          /* Original 0x42e718..0x42e71c retains X in EBX and Z in ECX. */
+          extraout_ECX = iVar5;
+          uVar6 = E2R_PolygonAngle16((short)iVar3,(short)iVar5);
           if ((iVar3 == 0) && (extraout_ECX == 0)) {
 LAB_0042e793:
             iVar4 = 0;

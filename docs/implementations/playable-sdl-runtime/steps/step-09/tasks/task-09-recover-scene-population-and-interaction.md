@@ -4,7 +4,7 @@
 [Project README](../../../../../../README.md) · [Parent: Enable Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 <!-- /docs-tree:parent -->
 
-Status: in progress; human sword pickup, four kills and two door destructions verified; animation-cache stall repaired; typed markers and Debug/ASan gameplay menu Quit pass; human random-potion pickup verified; delayed potion effects repaired; human bottle removal/sword use confirmed; diagnostic health/effect panel added; fresh healing 85→100, poison onset and conditional no-op verified; effect expiry/cure open; wider pickups, extended stability and rendering deferred
+Status: in progress; human sword pickup, four kills and two door destructions verified; animation-cache stall repaired; typed markers and Debug/ASan gameplay menu Quit pass; human random-potion pickup verified; delayed potion effects repaired; human bottle removal/sword use confirmed; diagnostic health/effect panel added; fresh healing 85→100, poison onset and conditional no-op verified; effect expiry/cure open; alternate-target crash repaired with bounded evidence; extended stability open; wider pickups/rendering deferred
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 Last Updated: 2026-10-24
 
@@ -12,7 +12,30 @@ Last Updated: 2026-10-24
 
 Restore original scene objects and NPCs needed for exploration and basic interaction while retaining cylinder presentation and Joe's working movement/camera transitions. Begin with one verified original resource and behavior; original models and full combat remain later work.
 
-## Current Continuation — Random Potion Outcomes
+## Current Continuation — Extended-Gameplay Alternate Target Crash
+
+The [crash investigation](../../../../../journal/entries/alternate-target-crash-2026-10-24.md)
+supersedes the earlier stability deferral. Pinned human session
+**20261024_161320_208** reproduces `FUN_0042e684` SIGSEGV at sequence
+**2,260,310,849**, checkpoint **204**. Original caller/leaf instructions recover
+the updating actor in EAX and independent X/Z angle inputs with retained Z.
+The scoped repair is mirrored in the generator; **65,536** alternate-target
+and **65,536** sibling attack-height comparisons pass normally/ASan.
+
+The formerly unexplained animation-name hunk is now committed in **e2c4acd**:
+its reduced bounds and removed slot clearing remain preserved. Current-source
+Debug/ASan compatible replay diverges at checkpoint **155**; the existing
+animation-name fixture also fails. Isolated generated builds retain the original
+animation-name repair and match all **204** checkpoints in Debug/ASan, returning
+a valid target at the exact former fault before exit **75/INCOMPLETE**. This is
+failure-boundary evidence, not complete replay or extended gameplay acceptance.
+The journal distinguishes those isolated executables from normal build outputs.
+Four ordinary builds, baseline/control/requester checks and fresh Debug/ASan
+sword routes pass. Longer fresh input trials survive 300 additional updates and
+15 seconds in isolated generated Debug/ASan, but do not select a nonempty target;
+they retain their distinct paths and health observations in the journal.
+
+## Prior Continuation — Random Potion Outcomes
 
 The [outcome review](../../../../../journal/entries/random-potion-outcomes-2026-10-24.md)
 replays human session **20261024_153511_995** through all **135** exact checkpoints.
@@ -238,20 +261,19 @@ Automatic NPC population and scripted objects are separate paths. An empty cylin
 
 ## Next Bounded Action
 
-The user confirms bottle removal and subsequent sword use. Fresh Debug routes
-now verify healing from natural damage **85→100**, poison onset and a valid
-conditional no-op; invisibility dispatch is also observed. Use the visible
-**HEALTH / POISON / INVISIBILITY** panel for human healing repetition and the
-remaining poison deadline, invisibility expiry and cure checks. Record the
-actual random branch: a no-op is valid when the conditional cure has no effect
-to clear. Repeating exact replay preserves RNG; use fresh input routes for new
-selections. Current evidence belongs to the
-[random-outcome journal](../../../../../journal/entries/random-potion-outcomes-2026-10-24.md).
+Extended gameplay stability takes priority after the latest human crash report.
+Repeat the longer route through the normal **Ecstatica Recompiled** F5 launch,
+preserve its pinned executable/recording, and investigate the first new failure
+from original code. The current crash recording ends at its fault, so further
+route acceptance requires fresh bounded input or a new human recording.
 
-Defer broader items/points, prolonged stability investigation and original mesh
-work until these focused checks are complete or the user changes priorities.
-Retain existing courtyard steering and full-render limits without reopening
-those tasks during this continuation.
+Keep the preserved animation-name source/generator mismatch explicit: current
+builds do not inherit the isolated generated builds' replay or animation-name
+acceptance. Do not silently overwrite that hunk during generation. The linked
+crash journal records its origin, failing fixture and exact residual drift.
+
+Potion lifetime/cure, broader items/points and original mesh work remain later
+work. Retain existing courtyard steering and full-render limits.
 
 ## Acceptance And Limits
 

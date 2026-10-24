@@ -4,9 +4,14 @@
 [Project README](../../../../../README.md) · [Parent: Playable SDL Runtime](../../playable-sdl-runtime.md)
 <!-- /docs-tree:parent -->
 
-Status: active; stables hit-query inputs repaired; manual stable re-entry and object interactions remain open
+Status: active; Task 09 alternate-target crash repaired with bounded evidence; extended gameplay stability open
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-10-22
+Last Updated: 2026-10-24
+
+Current work is [Task 09's extended-gameplay crash continuation](tasks/task-09-recover-scene-population-and-interaction.md#current-continuation--extended-gameplay-alternate-target-crash).
+It supersedes the earlier stability deferral. Complete replay and longer human
+acceptance remain open; preserved animation-name drift is tracked separately.
+The following continuations retain their historical limits.
 
 The [post-pedestal callback repair](tasks/task-09-recover-scene-population-and-interaction.md#callback-contract) reproduces the new fatal-script crash by exact replay and restores original code/actor/node ownership. Natural Debug/ASan intros and 60-second idle checks pass; compatible replay crosses the fault before incomplete-prefix exhaustion. The broader populated Debug traversal still fails its floor-return check, while ASan's bounded round trip passes. Task 09 remains active; workshop re-entry, sword pickup and full experimental ASan acceptance remain open.
 

@@ -52,6 +52,14 @@ and suppressed during replay, including while expanding long clock runs.
 
 ## Status and current acceptance
 
+The [latest extended-gameplay crash](journal/entries/alternate-target-crash-2026-10-24.md)
+reproduces with its pinned executable at sequence **2,260,310,849**, checkpoint
+**204**. Isolated generated Debug/ASan repairs return a valid target at that
+boundary with all checkpoints matching, then exit **75/INCOMPLETE**. Current
+worktree builds retain a separately committed animation-name regression and
+diverge earlier at checkpoint **155**. These outcomes are distinct; none claims
+complete replay acceptance of the crashed recording.
+
 The [water-entry capture](journal/entries/water-entry-and-player-resource-2026-10-23.md)
 reproduces the user's post-death menu exactly with its pinned executable. The
 repair restores Joe's resource, so compatible replay now stops at sequence

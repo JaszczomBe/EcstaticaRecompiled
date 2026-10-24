@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare attack target-height selection and both player callers with original x86.
+"""Compare alternate/attack targets and their actor-preserving callers with original x86.
 
 Synthetic live lists exercise angle priority, eligibility, distance and model
 height boundaries. Trigonometric code runs directly; damage/contact is separate.
@@ -30,9 +30,10 @@ typedef uint32_t uint,undefined4;typedef uint64_t undefined8;
 #define CONCAT44(a,b) (((uint64_t)(uint)(a)<<32)|(uint)(b))
 #define _DAT_0063726c (*(short**)0x63726c)
 '''
-for name in ('E2R_PolygonAngle16', 'FUN_0042e7dc'):
+for name in ('E2R_PolygonAngle16', 'FUN_0042e684', 'FUN_0042e7dc'):
     harness += function(source, name)+'\n'
 player = function(source, 'FUN_00427584')
+assert 'lVar28 = FUN_0042e684((uint)(uintptr_t)local_6c,(uint)(uintptr_t)local_6c);' in player
 assert player.count('lVar28 = FUN_0042e7dc((uint)(uintptr_t)local_6c,uVar16);') == 2
 assert not re.search(r'lVar28 = FUN_0042e7dc[^;]+;\s*uVar25 =', player)
 harness += r'''
@@ -78,12 +79,15 @@ static void setup(uint test){
  if(test%29==0)*(uint*)(owner+0x808)=0;
 }
 '''
-for label, start, end in [('query', 0x42e7dc, 0x42ea00), ('angle', 0x432c64, 0x432de4),
+for label, start, end in [('alternate', 0x42e684, 0x42e7dc), ('alternate_caller', 0x427cf2, 0x427d14),
+                           ('query', 0x42e7dc, 0x42ea00), ('angle', 0x432c64, 0x432de4),
                            ('caller_low', 0x429191, 0x4291b1), ('caller_mid', 0x429307, 0x429327)]:
     harness += f'static const byte {label}_code[]={{'+','.join(map(str, image.code(start, end)))+'};\n'
 harness += r'''
 int main(void){
  map(0x420000,0x20000);map(0x590000,0x80000);map(0x630000,0x20000);map(0x900000,0x10000);
+ memcpy((void*)0x42e684,alternate_code,sizeof alternate_code);
+ memcpy((void*)0x427cf2,alternate_caller_code,sizeof alternate_caller_code);*(byte*)0x427d14=0xc3;
  memcpy((void*)0x42e7dc,query_code,sizeof query_code);memcpy((void*)0x432c64,angle_code,sizeof angle_code);
  memcpy((void*)0x429191,caller_low_code,sizeof caller_low_code);*(byte*)0x4291b1=0xc3;
  memcpy((void*)0x429307,caller_mid_code,sizeof caller_mid_code);*(byte*)0x429327=0xc3;
@@ -113,6 +117,51 @@ int main(void){
    assert(call.eax==expected&&call.edx==(test^0x89abcdef)&&call.ecx==(test^0xfeedcafe));
   }
  }
+
+ // Alternate targeting uses the 0x10 eligibility bit and a narrower 1024 box.
+ // Deliberately vary Z independently of X, signed heading wrap, list order,
+ // coincident actors, ties and both sides of the component bounds.
+ static const int offsets[]={0,1,-1,1023,1024,1025,-1023,-1024,-1025,511,-511};
+ uint alternate_hits=0,alternate_empty=0;
+ for(uint test=0;test<65536;test++){
+  setup(test);uint owner=0x900000,seed=test^0x1345;
+  for(int i=0;i<=5;i++){
+   uint actor=owner+i*0x1000;
+   *(byte*)(actor+3)=next(&seed)&0x10;
+   if(i){
+    *(short*)(actor+0x84)=*(short*)(owner+0x84)+offsets[next(&seed)%11];
+    *(short*)(actor+0x88)=*(short*)(owner+0x88)+offsets[next(&seed)%11];
+   }
+  }
+  // Ensure frequent actual selections, including same-position ties.
+  if(test%3==0){
+   *(byte*)0x901003=0x10;*(byte*)0x64a17a=0;
+   *(short*)0x901084=*(short*)0x900084;
+   *(short*)0x901088=*(short*)0x900088;
+  }
+  memcpy(before,(void*)owner,sizeof before);
+  uint preserved=test^0x89abcdef;
+  struct E2R_Registers regs={.eax=owner,.edx=preserved,.ecx=test^0xfeedcafe,
+                            .ebx=0xface1234,.esi=0x13579bdf,.edi=0x2468ace0,.ebp=0x90f000};
+  e2r_original_call(0x42e684,&regs);
+  uint64_t actual=FUN_0042e684(owner,preserved);
+  if((uint)actual!=regs.eax||(uint)(actual>>32)!=preserved){
+   fprintf(stderr,"alternate target mismatch test=%u expected=%x actual=%x\n",test,regs.eax,(uint)actual);return 1;
+  }
+  assert(regs.edx==preserved&&regs.ecx==(test^0xfeedcafe));
+  assert(regs.ebx==0xface1234&&regs.esi==0x13579bdf&&regs.edi==0x2468ace0&&regs.ebp==0x90f000);
+  assert(e2r_memory_equal("alternate actors",before,(void*)owner,sizeof before));
+  if(regs.eax)alternate_hits++;else alternate_empty++;
+  *(uint*)0x90f02a=owner;
+  for(int flag=0;flag<2;flag++){
+   *(byte*)(owner+0x146)=flag?8:0;
+   struct E2R_Registers call={.ebp=0x90f000,.ebx=0x901000,.edx=preserved,.ecx=test^0xfeedcafe};
+   e2r_original_call(0x427cf2,&call);
+   assert(*(uint*)0x90f026==(flag?regs.eax:0x901000));
+   assert(call.edx==owner&&call.ecx==(test^0xfeedcafe));
+  }
+ }
+ printf("PASS: 65536 original alternate-target selections (%u selected/%u empty), eligibility/range/XZ/facing/ties, read-only actors and caller actor/EDX preservation\n",alternate_hits,alternate_empty);
  printf("PASS: 65536 original attack-height selections (%u low/%u level/%u high), eligibility/range/facing/priority/model fallback; both actor/direction-preserving callers\n",selected[0],selected[1],selected[2]);
 }
 '''

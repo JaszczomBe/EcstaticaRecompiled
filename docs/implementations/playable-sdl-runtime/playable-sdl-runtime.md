@@ -65,6 +65,19 @@ Step numbers are stable identifiers, not execution order. Step 07 is complete. T
 
 ## Active Frontier
 
+The [extended-gameplay crash investigation](../../journal/entries/alternate-target-crash-2026-10-24.md)
+now takes priority over the earlier stability deferral. Original EAX actor and
+X/Z angle contracts repair `FUN_0042e684`, with normal/ASan original-code
+comparisons. Isolated generated Debug/ASan builds match all **204** checkpoints
+and return from the exact former fault at sequence **2,260,310,849**, then report
+**75/INCOMPLETE** at the recorded boundary. Complete replay and extended gameplay
+acceptance remain open. The animation-name regression committed in **e2c4acd**
+is preserved and independently fails its existing fixture; normal current-source
+replays diverge at checkpoint **155**. Generator delta parity passes with exactly
+that pre-existing drift retained. Task 09 and the linked journal distinguish the
+ordinary builds from isolated generated acceptance. Wider interaction coverage
+and original rendering remain later work.
+
 The [random-outcome review](../../journal/entries/random-potion-outcomes-2026-10-24.md)
 confirms all **135** exact checkpoints of the user's no-effect recording. It
 selects `ken:potmagic`: without an existing poison/invisibility timer, drinking
