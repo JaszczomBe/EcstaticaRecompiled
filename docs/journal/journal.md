@@ -8,6 +8,10 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Visible suite blocks, unarmed combat and retention abort — 2026-10-24](entries/suite-visible-unarmed-and-retention-abort-2026-10-24.md): reproduces and repairs cleanup error-handler termination under allocation failure; adds unarmed action/contact regressions and sequential full/block SDL launches with a default-headless display picker.
+
+- [Automated gameplay regression suite — 2026-10-24](entries/gameplay-regression-suite-2026-10-24.md): implements dependency-aware fresh gameplay journeys, original-code gates, bounded evidence and GoogleTest-style console plus HTML/JSON/JUnit reporting; adds a separate full-suite VS Code launch and records passing routes, preserved regressions and blocked coverage.
+
 - [Extended-gameplay alternate-target crash — 2026-10-24](entries/alternate-target-crash-2026-10-24.md): preserves and reproduces the latest human SIGSEGV, restores the original actor/XZ contract and verifies the fault boundary in isolated generated Debug/ASan replays; records the separately committed animation-name regression and incomplete-recording limits.
 
 - [Random potion outcomes — 2026-10-24](entries/random-potion-outcomes-2026-10-24.md): exact replay confirms the reported no-effect pickup selects a conditional cure/no-op branch; 17 fresh pickups cover all four branches, including two natural-health recoveries from 85 to 100; effect expiry/cure remains open.

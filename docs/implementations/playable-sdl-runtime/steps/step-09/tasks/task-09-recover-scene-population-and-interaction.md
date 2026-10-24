@@ -12,7 +12,61 @@ Last Updated: 2026-10-24
 
 Restore original scene objects and NPCs needed for exploration and basic interaction while retaining cylinder presentation and Joe's working movement/camera transitions. Begin with one verified original resource and behavior; original models and full combat remain later work.
 
-## Current Continuation — Extended-Gameplay Alternate Target Crash
+## Current Continuation — Automated Gameplay Regression Suite
+
+The [visible-block and abort continuation](../../../../../journal/entries/suite-visible-unarmed-and-retention-abort-2026-10-24.md)
+repairs session maintenance's allocating error handler after the user's new
+suite SIGABRT. A controlled i386 allocation/reporter fault reproduces the old
+termination and passes after repair normally/ASan; the original allocation
+failure's cause remains unproven. The catalogue now has **86** cases, including
+eight unarmed attack directions/modifier combinations and real unarmed enemy
+contact independently of sword pickup. Full and block launches offer a
+default-headless display picker, automatic prerequisites and sequential visible
+SDL windows; a direct visible full-suite entry is also available. Parallelism
+is deferred. The normal human F5 launch remains unchanged.
+
+Focused final checks pass **14/14** in Debug/ASan: eight unarmed input/action
+combinations in each, actual smith damage **100→80** without sword pickup, their
+movement/workshop/menu prerequisites and both host fault contracts. Separate
+workshop probes pass **65-second** released observations and clean menu exit in
+both configurations, beyond the default retention interval. Earlier prototype
+contact failures remain recorded. These fresh probes do not establish an exact
+replay of the reported allocation failure or close broader stability.
+
+The user now prioritizes a maintained end-to-end regression suite. The
+[suite guide](../../../../../gameplay-tests.md) describes its separate full-suite
+VS Code launch, dependency order, fresh-process input-only journeys and
+PASS/FAIL/BLOCKED/SKIPPED HTML/JSON/JUnit reports. Original-code checks run
+independently of failed traversal prerequisites. Every successful journey also
+checks menu cancellation, resumed movement and confirmed Quit/native exit zero.
+
+The catalogue covers startup variants, movement, courtyard/workshop traversal,
+sword pickup and attacks, smith death, player damage, door passage, potion
+consumption and branch coverage, swimming and bounded mixed stability. Remaining
+potion lifetime/cure and armed-water routes are explicit skips. Four bounded
+fresh potion trials cannot guarantee every random branch; missing required
+coverage is reported separately. The preserved animation-name mismatch remains
+a real failing gate and is not regenerated away. See the
+[suite journal](../../../../../journal/entries/gameplay-regression-suite-2026-10-24.md)
+for current runs, route limitations and evidence.
+
+The first 80-case integration run finishes with **43 pass / 10 fail / 21 blocked /
+6 skipped**. Focused final checks recover correct menu/waypoint qualification;
+Debug/ASan core sword, smith kill, door and swimming journeys pass. Damage is
+observed **100→95** in a focused Debug run, but fresh trials can remain unexercised.
+A later ASan mixed-journey process exposes a new `FUN_0042f85c ← FUN_0042b880`
+SIGSEGV during workshop traversal. Its binary/input/state/stack evidence is
+preserved in the suite journal; source-backed recovery and longer stability
+remain open.
+
+The newer visible ASan block catches that same `FUN_0042f85c` leaf before the
+movement scenario's courtyard readiness, correctly blocking dependent unarmed
+combat. Its separate pinned bundle and limits are in the visible-block journal.
+It remains an open event-contract fault, distinct from retention's repaired
+exception handler. Source-backed recovery of this captured failure takes
+priority when gameplay stability work resumes.
+
+## Prior Continuation — Extended-Gameplay Alternate Target Crash
 
 The [crash investigation](../../../../../journal/entries/alternate-target-crash-2026-10-24.md)
 supersedes the earlier stability deferral. Pinned human session

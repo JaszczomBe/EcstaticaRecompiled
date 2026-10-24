@@ -336,6 +336,23 @@ namespace Ecstatica::Recompiled::Log::Session
             summary.overBudget = summary.keptSessions > countLimit || summary.olderBytes > policy.maxTotalSizeBytes;
             return summary;
         }
+
+        void ReportCleanupFailure(const char* detail) noexcept
+        {
+            // Cleanup can fail because allocation is unavailable. Do not allocate
+            // another string while handling that failure, or trust the logger
+            // callback (which can allocate) to succeed in the same conditions.
+            char message[512];
+            std::snprintf(message, sizeof(message), "Log cleanup failed: %s", detail);
+            try
+            {
+                E2R_ArtifactsReport(message);
+            }
+            catch (...)
+            {
+                std::fprintf(stderr, "%s\n", message);
+            }
+        }
     }
 
     StartupSession PrepareStartupSession(std::string_view logsRoot,
@@ -381,7 +398,11 @@ namespace Ecstatica::Recompiled::Log::Session
                 }
                 catch (const std::exception& error)
                 {
-                    E2R_ArtifactsReport((std::string("Log cleanup failed: ") + error.what()).c_str());
+                    ReportCleanupFailure(error.what());
+                }
+                catch (...)
+                {
+                    ReportCleanupFailure("unknown exception");
                 }
                 lock.lock();
             }

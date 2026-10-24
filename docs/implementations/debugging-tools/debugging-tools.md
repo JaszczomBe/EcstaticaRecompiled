@@ -5,7 +5,7 @@
 <!-- /docs-tree:parent -->
 
 Status: initial tool set implemented
-Last Updated: 2026-10-23
+Last Updated: 2026-10-24
 Usage: [Debugging the reconstructed runtime](../../debugging.md)
 
 ## Goal
@@ -14,6 +14,17 @@ Reduce repeated investigation work by connecting replay, engine observations,
 original-code comparisons and native debugging. Keep recovered game behavior and
 existing replay acceptance rules intact. The user authorized the six additions
 in priority order; gameplay recovery remains under the active SDL implementation.
+
+The [gameplay regression suite](../../gameplay-tests.md) adds dependency-aware
+fresh-process journeys over the existing probe, with full/block VS Code launches,
+a default-headless display picker, sequential visible SDL journeys and incremental
+console/HTML/JSON/JUnit reports. Host worker fault injection guards the repaired
+allocation-failure reporting path in session maintenance. It preserves strict replay
+acceptance and uses bounded input plus inspection with recording explicitly off.
+Runner contracts and current native evidence are recorded in the
+[suite journal](../../journal/entries/gameplay-regression-suite-2026-10-24.md).
+The [visible/block and abort continuation](../../journal/entries/suite-visible-unarmed-and-retention-abort-2026-10-24.md)
+records the host exception repair, unarmed contact acceptance and desktop runs.
 
 ## Delivery sequence
 

@@ -1,0 +1,429 @@
+{
+  "schema": "e2suite.waypoints.1",
+  "source": "Human session 20261024_115621_101; materialized published inspection states, water-replay-and-sword-pickup-2026-10-24.md",
+  "waypoints": [
+    {
+      "snapshot": 119,
+      "camera": 175,
+      "position": [
+        9988,
+        3328,
+        -17408
+      ]
+    },
+    {
+      "snapshot": 133,
+      "camera": 175,
+      "position": [
+        9743,
+        3456,
+        -16847
+      ]
+    },
+    {
+      "snapshot": 137,
+      "camera": 175,
+      "position": [
+        9433,
+        3584,
+        -16509
+      ]
+    },
+    {
+      "snapshot": 138,
+      "camera": 175,
+      "position": [
+        8961,
+        3712,
+        -16262
+      ]
+    },
+    {
+      "snapshot": 142,
+      "camera": 166,
+      "position": [
+        8416,
+        4096,
+        -16223
+      ]
+    },
+    {
+      "snapshot": 147,
+      "camera": 166,
+      "position": [
+        7610,
+        4096,
+        -16498
+      ]
+    },
+    {
+      "snapshot": 150,
+      "camera": 166,
+      "position": [
+        6840,
+        4096,
+        -16365
+      ]
+    },
+    {
+      "snapshot": 154,
+      "camera": 166,
+      "position": [
+        6380,
+        4096,
+        -16110
+      ]
+    },
+    {
+      "snapshot": 156,
+      "camera": 166,
+      "position": [
+        5970,
+        4096,
+        -16037
+      ]
+    },
+    {
+      "snapshot": 158,
+      "camera": 166,
+      "position": [
+        5236,
+        4096,
+        -15908
+      ]
+    },
+    {
+      "snapshot": 160,
+      "camera": 166,
+      "position": [
+        4355,
+        4096,
+        -15751
+      ]
+    },
+    {
+      "snapshot": 164,
+      "camera": 166,
+      "position": [
+        3703,
+        4096,
+        -15394
+      ]
+    },
+    {
+      "snapshot": 167,
+      "camera": 166,
+      "position": [
+        3394,
+        4096,
+        -14882
+      ]
+    },
+    {
+      "snapshot": 171,
+      "camera": 166,
+      "position": [
+        2773,
+        4096,
+        -14234
+      ]
+    },
+    {
+      "snapshot": 176,
+      "camera": 176,
+      "position": [
+        2401,
+        4096,
+        -14015
+      ]
+    },
+    {
+      "snapshot": 177,
+      "camera": 176,
+      "position": [
+        1966,
+        4096,
+        -13900
+      ]
+    },
+    {
+      "snapshot": 179,
+      "camera": 176,
+      "position": [
+        1330,
+        4096,
+        -13737
+      ]
+    },
+    {
+      "snapshot": 181,
+      "camera": 176,
+      "position": [
+        621,
+        4096,
+        -13555
+      ]
+    },
+    {
+      "snapshot": 183,
+      "camera": 176,
+      "position": [
+        149,
+        4096,
+        -13431
+      ]
+    },
+    {
+      "snapshot": 184,
+      "camera": 176,
+      "position": [
+        -370,
+        4096,
+        -13296
+      ]
+    },
+    {
+      "snapshot": 186,
+      "camera": 164,
+      "position": [
+        -1038,
+        4096,
+        -13124
+      ]
+    },
+    {
+      "snapshot": 189,
+      "camera": 164,
+      "position": [
+        -1653,
+        4096,
+        -12965
+      ]
+    },
+    {
+      "snapshot": 192,
+      "camera": 164,
+      "position": [
+        -2012,
+        4096,
+        -12713
+      ]
+    },
+    {
+      "snapshot": 195,
+      "camera": 164,
+      "position": [
+        -2183,
+        4096,
+        -12334
+      ]
+    },
+    {
+      "snapshot": 198,
+      "camera": 164,
+      "position": [
+        -2775,
+        4096,
+        -11828
+      ]
+    },
+    {
+      "snapshot": 200,
+      "camera": 125,
+      "position": [
+        -3322,
+        4096,
+        -11449
+      ]
+    },
+    {
+      "snapshot": 204,
+      "camera": 125,
+      "position": [
+        -3889,
+        4096,
+        -11057
+      ]
+    },
+    {
+      "snapshot": 207,
+      "camera": 125,
+      "position": [
+        -4403,
+        4096,
+        -10567
+      ]
+    },
+    {
+      "snapshot": 210,
+      "camera": 125,
+      "position": [
+        -4602,
+        4096,
+        -10132
+      ]
+    },
+    {
+      "snapshot": 216,
+      "camera": 125,
+      "position": [
+        -4746,
+        4096,
+        -9584
+      ]
+    },
+    {
+      "snapshot": 217,
+      "camera": 125,
+      "position": [
+        -4860,
+        4096,
+        -9020
+      ]
+    },
+    {
+      "snapshot": 219,
+      "camera": 124,
+      "position": [
+        -4988,
+        4096,
+        -8410
+      ]
+    },
+    {
+      "snapshot": 222,
+      "camera": 124,
+      "position": [
+        -5123,
+        4096,
+        -7750
+      ]
+    },
+    {
+      "snapshot": 226,
+      "camera": 124,
+      "position": [
+        -5057,
+        4096,
+        -7274
+      ]
+    },
+    {
+      "snapshot": 238,
+      "camera": 124,
+      "position": [
+        -4012,
+        4096,
+        -7053
+      ]
+    },
+    {
+      "snapshot": 243,
+      "camera": 124,
+      "position": [
+        -3581,
+        4096,
+        -6760
+      ]
+    },
+    {
+      "snapshot": 247,
+      "camera": 124,
+      "position": [
+        -3300,
+        4096,
+        -6119
+      ]
+    },
+    {
+      "snapshot": 272,
+      "camera": 124,
+      "position": [
+        -3126,
+        4096,
+        -6881
+      ]
+    },
+    {
+      "snapshot": 288,
+      "camera": 177,
+      "position": [
+        -2750,
+        4096,
+        -6596
+      ]
+    },
+    {
+      "snapshot": 294,
+      "camera": 177,
+      "position": [
+        -2260,
+        4096,
+        -6085
+      ]
+    },
+    {
+      "snapshot": 298,
+      "camera": 177,
+      "position": [
+        -1980,
+        4096,
+        -5785
+      ]
+    },
+    {
+      "snapshot": 307,
+      "camera": 177,
+      "position": [
+        -1803,
+        4096,
+        -5060
+      ]
+    },
+    {
+      "snapshot": 311,
+      "camera": 544,
+      "position": [
+        -1398,
+        4096,
+        -4734
+      ]
+    },
+    {
+      "snapshot": 317,
+      "camera": 544,
+      "position": [
+        -877,
+        4096,
+        -4392
+      ]
+    },
+    {
+      "snapshot": 330,
+      "camera": 544,
+      "position": [
+        -674,
+        4096,
+        -3879
+      ]
+    },
+    {
+      "snapshot": 334,
+      "camera": 544,
+      "position": [
+        -551,
+        4096,
+        -3414
+      ]
+    },
+    {
+      "snapshot": 338,
+      "camera": 543,
+      "position": [
+        -774,
+        4460,
+        -2636
+      ]
+    }
+  ]
+}

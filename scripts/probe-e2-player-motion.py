@@ -16,6 +16,9 @@ import tempfile
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('exe', type=Path)
+parser.add_argument('--game-data', type=Path)
+parser.add_argument('--suite-scenario', choices=('startup','movement','courtyard','workshop','sword','attacks','unarmed','unarmed-contact','enemy','damage','door','potion','potion-damaged','potion-sword','swimming','menus','stability'))
+parser.add_argument('--suite-options', type=json.loads, default={})
 parser.add_argument('--output', type=Path, default=Path('/tmp/e2-player-motion'))
 parser.add_argument('--intro-skip-action', type=int, default=0,
                     help='Send SDL Space at the Nth distinct horseback action using the real --run-recon path')
@@ -43,6 +46,9 @@ parser.add_argument('--sdl-events', action='store_true',
                     help='Send SDL keyboard events through the real backend pump')
 parser.add_argument('--video-driver', choices=('dummy','x11','wayland'), default='dummy',
                     help='SDL video driver; x11/wayland use the current desktop display')
+parser.add_argument('--watch', action='store_true',
+                    help='Pace updates for watching in a real SDL window (at most 60 updates/s)')
+parser.add_argument('--window-title', default='Ecstatica regression probe')
 parser.add_argument('--hold-through-release', action='store_true',
                     help='With --pedestal-guards and --simultaneous-turn, hold both keys while Joe is still restrained')
 parser.add_argument('--tap-modifiers', nargs='+', choices=('shift','ctrl','alt'), default=[],
@@ -82,6 +88,8 @@ if args.intro_skip_progress < 0 or (args.intro_skip_progress and not args.intro_
     parser.error('intro-skip-progress requires an intro-skip-action and must be nonnegative')
 if args.frames < 1 or args.timeout < 1 or args.release_delay < 0:
     parser.error('frames/timeout must be positive and release-delay nonnegative')
+if args.watch and args.video_driver=='dummy':
+    parser.error('--watch requires a desktop video driver')
 if args.startup_logo_delay_ms < 0:
     parser.error('startup logo delay must be nonnegative')
 if args.population_only and (not args.population_frames or args.camera_round_trip or args.turn_forward):
@@ -111,6 +119,11 @@ if args.sword_pickup and (args.camera_round_trip or args.turn_forward or args.po
 prefix = str(args.output.resolve())
 Path(prefix).parent.mkdir(parents=True, exist_ok=True)
 env = os.environ.copy()
+if args.suite_scenario:
+    for key_name in list(env):
+        if key_name.startswith("E2R_"):
+            env.pop(key_name)
+    env.update(E2R_INSPECT="1", E2R_INSPECT_MAX_FRAMES="8")
 env["E2R_RECORD"] = "off"
 # Agent probes own their sessions; keep normal human log retention independent.
 env["E2R_DATA_DIR"] = prefix + "-runtime"
@@ -142,6 +155,8 @@ intro_skip_action=INTRO_SKIP_ACTION
 population_only=POPULATION_ONLY
 population_samples=[]
 value=lambda expression:int(gdb.parse_and_eval(expression))
+exit_status=[]
+gdb.events.exited.connect(lambda event:exit_status.append(getattr(event,'exit_code',None)))
 def require(condition,message):
     if not condition:raise gdb.GdbError(message)
 ready=gdb.Breakpoint('FUN_00415d40',internal=True)
@@ -206,6 +221,12 @@ else:
                 ' space 3 250 PROCESS_SECONDS',to_string=True)
 if gdb.selected_frame().name()!='FUN_00415d40':gdb.execute('bt 32')
 require(gdb.selected_frame().name()=='FUN_00415d40','Missing courtyard release checkpoint')
+def set_phase_title(phase):
+    if WATCH_MODE:
+        title=WINDOW_TITLE+' | '+phase
+        gdb.execute('call (bool)SDL_SetWindowTitle(e2r_sdl_backend.window,'+json.dumps(title)+')',to_string=True)
+        time.sleep(.25)
+set_phase_title('startup released')
 def key(vk,pressed):
     scan={0x26:0x48,0x28:0x50,0x25:0x4b,0x27:0x4d,0x10:0x2a,0x11:0x1d,0x12:0x38}[vk]
     extended=vk in (0x26,0x28,0x25,0x27)
@@ -311,13 +332,18 @@ def population_census(label):
 frame=gdb.Breakpoint('FUN_00415d40',internal=True)
 def advance(count):
     if count == 0:return
-    if BURST_FRAMES:frame.ignore_count=count-1
-    for i in range(1 if BURST_FRAMES else count):
+    remaining=count
+    while remaining:
+        batch=min(remaining,3) if WATCH_MODE and BURST_FRAMES else remaining if BURST_FRAMES else 1
+        started=time.monotonic()
+        frame.ignore_count=batch-1
         gdb.execute('continue',to_string=True)
         if gdb.selected_frame().name()!='FUN_00415d40':
             if population_frames:population_census('runtime-stop')
             gdb.execute('bt 16')
             raise gdb.GdbError('Unexpected runtime stop')
+        remaining-=batch
+        if WATCH_MODE:time.sleep(max(0,batch/60-(time.monotonic()-started)))
         if globals().get('trace_heading',False):
             heading_samples.append(dict(position=[field(0x84+j*2) for j in range(3)],
                 angles=[field(0x90+j*2) for j in range(3)],
@@ -355,7 +381,8 @@ def snapshot(label):
                          for name,scan in [('up',0x48),('down',0x50),('left',0x4b),('right',0x4d)]})
     packet=prefix+'-'+label
     expression='e2r_write_visibility_packet((HWND)_DAT_00ac4dac,'+json.dumps(packet)+')'
-    require(value(expression)==1,'Visibility packet failed')
+    if not SUITE_SCENARIO:
+        require(value(expression)==1,'Visibility packet failed')
     return data
 states=[]
 camera_samples=[]
@@ -517,7 +544,13 @@ if population_frames:
     if REQUIRE_POPULATION:
         require(population_samples[-1]['population_disabled']==0,'Script still disables terrain population')
         require(bool(population_samples[-1]['generated_active']),'No terrain-generated actor is active')
-if population_only:
+suite_result=None
+if SUITE_SCENARIO:
+    import sys
+    sys.path.insert(0,SCRIPT_DIRECTORY)
+    from e2_gameplay_steps import run as run_suite_journey
+    suite_result=run_suite_journey(globals(),SUITE_SCENARIO,SUITE_OPTIONS)
+elif population_only:
     pass
 elif camera_route:
     require(observe_camera()==175,'Missing pedestal camera at readiness')
@@ -780,63 +813,79 @@ if observe_seconds:
         npc_observation=dict(samples=len(npc_samples),active_windows=active_windows,
                              moved_ids=sorted(moved),changed_ids=sorted(changed))
 if GAMEPLAY_MENU_EXIT:
-    def menu_escape(pressed):
-        gdb.execute('set $menu_key=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
-        gdb.execute(f'set $menu_key->key.type={0x300 if pressed else 0x301}',to_string=True)
-        gdb.execute(f'set $menu_key->key.down={int(pressed)}',to_string=True)
-        gdb.execute('set $menu_key->key.key=27',to_string=True)
-        gdb.execute('set $menu_key->key.scancode=41',to_string=True)
-        gdb.execute('set $menu_key->key.windowID=SDL_GetWindowID(e2r_sdl_backend.window)',to_string=True)
-        require(value('SDL_PushEvent($menu_key)')==1,'SDL Escape input failed')
-        gdb.execute('call (void)free($menu_key)',to_string=True)
-        gdb.execute('call e2r_poll_host_events("gameplay-menu")',to_string=True)
-    frame.enabled=False
-    menu=gdb.Breakpoint('FUN_0041ba7c',internal=True)
-    menu_escape(True)
-    gdb.execute('continue',to_string=True)
-    gdb.execute('call e2r_present_current_frame((HWND)_DAT_00ac4dac,1)',to_string=True)
-    menu_escape(False)
-    snapshot('escape-menu')
-    for n in range(3):gdb.execute('continue',to_string=True)
-    gdb.execute('call e2r_present_current_frame((HWND)_DAT_00ac4dac,1)',to_string=True)
-    snapshot('escape-menu-pumped')
-    menu_escape(True)
-    menu_escape(False)
-    menu.delete();frame.enabled=True;advance(3)
-    checkpoint('escape-menu-cancelled')
-    require(value('_DAT_00643650')==0,'Escape cancellation did not resume gameplay')
-    frame.enabled=False
-    menu=gdb.Breakpoint('FUN_0041ba7c',internal=True)
-    menu_escape(True)
-    for n in range(3):gdb.execute('continue',to_string=True)
-    menu_escape(False)
-    # Use the original item's computed hit rectangle through the SDL mouse path.
-    def click_item(address):
-        x=(value(f'*(short*)({address}+22)')+value(f'*(short*)({address}+24)'))//2
-        y=(value(f'*(short*)({address}+26)')+value(f'*(short*)({address}+28)'))//2
-        gdb.execute(f'call SetCursorPos({x},{y})',to_string=True)
-        gdb.execute('set $menu_event=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
-        gdb.execute('set $menu_event->button.type=0x401',to_string=True)
-        gdb.execute('set $menu_event->button.down=1',to_string=True)
-        gdb.execute('set $menu_event->button.button=1',to_string=True)
-        gdb.execute(f'set $menu_event->button.x={x}',to_string=True)
-        gdb.execute(f'set $menu_event->button.y={y+80}',to_string=True)
-        gdb.execute('set $menu_event->button.windowID=SDL_GetWindowID(e2r_sdl_backend.window)',to_string=True)
-        require(value('SDL_PushEvent($menu_event)')==1,'SDL menu click failed')
-        gdb.execute('call (void)free($menu_event)',to_string=True)
-    click_item(0x643ca4)
-    menu.condition='*(unsigned short*)((char*)&DAT_0047a45e+2)==0x14'
-    gdb.execute('continue',to_string=True)
-    require(value('*(unsigned short*)((char*)&DAT_0047a45e+2)')==0x14,'Quit did not open confirmation')
-    for n in range(2):gdb.execute('continue',to_string=True)
-    gdb.execute('call e2r_present_current_frame((HWND)_DAT_00ac4dac,1)',to_string=True)
-    snapshot('quit-confirmation')
-    click_item(0x643dc4)
-    menu.delete()
-    gdb.execute('continue',to_string=True)
-    require(gdb.selected_inferior().pid==0,'Confirmed Quit did not terminate the game')
-    print('MENU EXIT COMPLETE',flush=True)
-report=dict(probe_complete=True,frames_per_phase=frames,states=states,sword_pickup=pickup_result,workshop_door=door_result,gameplay_menu_exit=GAMEPLAY_MENU_EXIT,
+    from contextlib import nullcontext
+    menu_phase=suite_journey.phase('menus.cancel-resume-quit',observe=False) if SUITE_SCENARIO else nullcontext()
+    with menu_phase:
+        def menu_escape(pressed):
+            gdb.execute('set $menu_key=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
+            gdb.execute(f'set $menu_key->key.type={0x300 if pressed else 0x301}',to_string=True)
+            gdb.execute(f'set $menu_key->key.down={int(pressed)}',to_string=True)
+            gdb.execute('set $menu_key->key.key=27',to_string=True)
+            gdb.execute('set $menu_key->key.scancode=41',to_string=True)
+            gdb.execute('set $menu_key->key.windowID=SDL_GetWindowID(e2r_sdl_backend.window)',to_string=True)
+            require(value('SDL_PushEvent($menu_key)')==1,'SDL Escape input failed')
+            gdb.execute('call (void)free($menu_key)',to_string=True)
+            gdb.execute('call e2r_poll_host_events("gameplay-menu")',to_string=True)
+        frame.enabled=False
+        menu=gdb.Breakpoint('FUN_0041ba7c',internal=True)
+        menu_escape(True)
+        gdb.execute('continue',to_string=True)
+        gdb.execute('call e2r_present_current_frame((HWND)_DAT_00ac4dac,1)',to_string=True)
+        menu_escape(False)
+        snapshot('escape-menu')
+        for n in range(3):gdb.execute('continue',to_string=True)
+        gdb.execute('call e2r_present_current_frame((HWND)_DAT_00ac4dac,1)',to_string=True)
+        snapshot('escape-menu-pumped')
+        if WATCH_MODE:time.sleep(.75)
+        menu_escape(True)
+        menu_escape(False)
+        menu.delete();frame.enabled=True;advance(3)
+        checkpoint('escape-menu-cancelled')
+        require(value('_DAT_00643650')==0,'Escape cancellation did not resume gameplay')
+        if SUITE_SCENARIO:
+            resume_position=[field(0x84+i*2) for i in range(3)]
+            # The pedestal can block backward movement. Exercise both travel
+            # directions before deciding whether menu cancellation lost control.
+            for resume_key in (0x26,0x28):
+                key(resume_key,True);advance(30);key(resume_key,False);advance(90)
+                if [field(0x84+i*2) for i in range(3)]!=resume_position:break
+            checkpoint('menus-resumed-movement')
+            require([field(0x84+i*2) for i in range(3)]!=resume_position,'Menu cancellation did not restore movement')
+        frame.enabled=False
+        menu=gdb.Breakpoint('FUN_0041ba7c',internal=True)
+        menu_escape(True)
+        for n in range(3):gdb.execute('continue',to_string=True)
+        menu_escape(False)
+        # Use the original item's computed hit rectangle through the SDL mouse path.
+        def click_item(address):
+            x=(value(f'*(short*)({address}+22)')+value(f'*(short*)({address}+24)'))//2
+            y=(value(f'*(short*)({address}+26)')+value(f'*(short*)({address}+28)'))//2
+            gdb.execute(f'call SetCursorPos({x},{y})',to_string=True)
+            gdb.execute('set $menu_event=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
+            gdb.execute('set $menu_event->button.type=0x401',to_string=True)
+            gdb.execute('set $menu_event->button.down=1',to_string=True)
+            gdb.execute('set $menu_event->button.button=1',to_string=True)
+            gdb.execute(f'set $menu_event->button.x={x}',to_string=True)
+            gdb.execute(f'set $menu_event->button.y={y+80}',to_string=True)
+            gdb.execute('set $menu_event->button.windowID=SDL_GetWindowID(e2r_sdl_backend.window)',to_string=True)
+            require(value('SDL_PushEvent($menu_event)')==1,'SDL menu click failed')
+            gdb.execute('call (void)free($menu_event)',to_string=True)
+        click_item(0x643ca4)
+        menu.condition='*(unsigned short*)((char*)&DAT_0047a45e+2)==0x14'
+        gdb.execute('continue',to_string=True)
+        require(value('*(unsigned short*)((char*)&DAT_0047a45e+2)')==0x14,'Quit did not open confirmation')
+        for n in range(2):gdb.execute('continue',to_string=True)
+        gdb.execute('call e2r_present_current_frame((HWND)_DAT_00ac4dac,1)',to_string=True)
+        snapshot('quit-confirmation')
+        if WATCH_MODE:time.sleep(.75)
+        click_item(0x643dc4)
+        menu.delete()
+        gdb.execute('continue',to_string=True)
+        require(gdb.selected_inferior().pid==0,'Confirmed Quit did not terminate the game')
+        if SUITE_SCENARIO:require(exit_status and exit_status[-1]==0,'Game exited with a nonzero/unknown native status')
+        print('MENU EXIT COMPLETE',flush=True)
+report=dict(probe_complete=True,native_exit_code=exit_status[-1] if exit_status else None,suite_result=suite_result,frames_per_phase=frames,states=states,sword_pickup=pickup_result,workshop_door=door_result,gameplay_menu_exit=GAMEPLAY_MENU_EXIT,
+            watch=WATCH_MODE,window_title=WINDOW_TITLE,
             object_view_sample=object_view_sample,
             combined_turn=TURN_FORWARD,move_key=MOVE_KEY,turn_calls=turn_calls,
             simultaneous_turn=SIMULTANEOUS_TURN,burst_frames=BURST_FRAMES,
@@ -857,12 +906,14 @@ print('PROBE COMPLETE: position_changed='+str(report['position_changed'])+
       ' facing_changed='+str(report['facing_changed'])+'; gameplay acceptance remains open')
 end
 quit
-'''.replace('GAMEPLAY_MENU_EXIT',repr(args.gameplay_menu_exit)).replace('BASH_WORKSHOP_DOOR',repr(args.bash_workshop_door)).replace('SWORD_ATTACKS',repr(args.sword_attacks)).replace('SWORD_PICKUP',repr(args.sword_pickup)).replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
+'''.replace('WATCH_MODE',repr(args.watch)).replace('WINDOW_TITLE',repr(args.window_title)).replace('SUITE_SCENARIO',repr(args.suite_scenario)).replace('SUITE_OPTIONS',repr(args.suite_options)).replace('SCRIPT_DIRECTORY',repr(str(Path(__file__).resolve().parent))).replace('GAMEPLAY_MENU_EXIT',repr(args.gameplay_menu_exit)).replace('BASH_WORKSHOP_DOOR',repr(args.bash_workshop_door)).replace('SWORD_ATTACKS',repr(args.sword_attacks)).replace('SWORD_PICKUP',repr(args.sword_pickup)).replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
     'PROCESS_SECONDS', str(args.timeout + 10)).replace('LOGO_DELAY',str(args.startup_logo_delay_ms)).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
-    'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip or args.sword_pickup or args.gameplay_menu_exit or bool(args.tap_modifiers))).replace('TAP_MODIFIERS',repr(args.tap_modifiers)).replace(
+    'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip or args.sword_pickup or args.gameplay_menu_exit or args.suite_scenario or bool(args.tap_modifiers))).replace('TAP_MODIFIERS',repr(args.tap_modifiers)).replace(
     'RELEASE_TURN',repr(args.release_turn_first)).replace('SIMULTANEOUS_TURN',repr(args.simultaneous_turn)).replace('HOLD_THROUGH_RELEASE',repr(args.hold_through_release)).replace('VIDEO_DRIVER',repr(args.video_driver)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(
     'QUERY_LIMIT',str(args.trace_queries)).replace('OBSERVE_SECONDS',str(args.observe_seconds)).replace(
     'POPULATION_COUNT',str(args.population_frames)).replace('POPULATION_ONLY',repr(args.population_only)).replace('REQUIRE_POPULATION',repr(args.require_background_population)).replace('BACKGROUND_SPAWNS',repr(args.background_spawns)).replace('CHECK_GUARDS',repr(args.pedestal_guards)).replace('NATURAL_INTRO',repr(args.natural_intro)).replace('INTRO_SKIP_ACTION',str(args.intro_skip_action)).replace('INTRO_SKIP_PROGRESS',str(args.intro_skip_progress))
+if args.game_data:
+    commands = commands.replace(repr('run --run-recon'),repr('run --game-data-dir '+json.dumps(str(args.game_data.resolve()))+' --run-recon'))
 with tempfile.TemporaryDirectory(prefix='e2-player-motion-') as tmp:
     script = Path(tmp) / 'probe.gdb'
     # Desktop drivers load GDB Python helpers from shared libraries. Their

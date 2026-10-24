@@ -4,7 +4,15 @@
 [Project README](../README.md) · [Parent: Project documentation](README.md)
 <!-- /docs-tree:parent -->
 
-The everyday configuration is **Debug · Clang 21 · i386 · SDL**, selected through CMake presets. The single VS Code launch **Ecstatica Recompiled** follows the selected CMake executable and enables the experimental cylinder/action route. The runtime remains experimental; a successful build or static capture does not prove playable behavior.
+The everyday configuration is **Debug · Clang 21 · i386 · SDL**, selected through CMake presets. The gameplay launch **Ecstatica Recompiled** follows the selected CMake executable and enables the experimental cylinder/action route. The runtime remains experimental; a successful build or static capture does not prove playable behavior.
+
+The separate **Ecstatica: Full regression suite** launch builds and runs all
+registered Debug/ASan regression cases sequentially in dependency order. Full
+and block launches offer a headless/visible picker (headless by default); a
+direct visible SDL full-suite entry is also available. Its terminal ends
+with PASS/FAIL/BLOCKED/SKIPPED counts and HTML/JSON/JUnit reports. See
+[automated gameplay tests](gameplay-tests.md). The ordinary gameplay launch
+continues to use the selected CMake target.
 
 ## Requirements
 

@@ -65,6 +65,23 @@ Step numbers are stable identifiers, not execution order. Step 07 is complete. T
 
 ## Active Frontier
 
+The [visible-block/unarmed continuation](../../journal/entries/suite-visible-unarmed-and-retention-abort-2026-10-24.md)
+adds sequential SDL watching and prerequisite-aware suite launches. Unarmed
+attack/contact cases are independent of sword pickup. Session-retention error
+reporting now survives repeated allocation and reporter failure in i386
+Debug/ASan contracts; the allocation failure preceding the reported abort remains
+unexplained. Broader gameplay stability and the earlier ASan event fault remain
+open.
+
+The [automated gameplay suite](../../gameplay-tests.md) now exercises recovered
+capabilities in dependency order from fresh processes. Its separate full-suite
+launch runs Debug/ASan and reports failed prerequisites as blocked scenarios,
+with explicit unfinished/random coverage skips. The
+[suite journal](../../journal/entries/gameplay-regression-suite-2026-10-24.md)
+records current results and distinguishes route qualification from runtime
+regressions. Existing animation-name drift remains preserved and failing; the
+suite does not turn historical success into current acceptance.
+
 The [extended-gameplay crash investigation](../../journal/entries/alternate-target-crash-2026-10-24.md)
 now takes priority over the earlier stability deferral. Original EAX actor and
 X/Z angle contracts repair `FUN_0042e684`, with normal/ASan original-code

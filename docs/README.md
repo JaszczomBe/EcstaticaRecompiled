@@ -15,6 +15,7 @@ project reached that state.
 - [Build and VS Code setup](building.md)
 - [Debugging tools and normal F5 investigation](debugging.md)
 - [Gameplay recording and replay](replay.md)
+- [Automated gameplay regression suite](gameplay-tests.md)
 - [Documentation ownership and maintenance](documentation.md)
 - [Code formatting and style](style/README.md)
 

@@ -59,6 +59,102 @@
       ],
       "externalConsole": false,
       "MIMode": "gdb"
+    },
+    {
+      "name": "Ecstatica: Full regression suite",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Ecstatica: Full regression suite \u2014 visible SDL",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --display visible",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Ecstatica suite: Source, tools and original contracts",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block checks --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Ecstatica suite: Startup",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block startup --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Ecstatica suite: Movement and courtyard",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block movement --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Ecstatica suite: Unarmed combat and damage",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block unarmed --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Ecstatica suite: Workshop, sword combat and doors",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block workshop --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Ecstatica suite: Potions and equipment",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block potions --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Ecstatica suite: Swimming",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block swimming --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Ecstatica suite: Menus",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block menus --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Ecstatica suite: Mixed gameplay stability",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block stability --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Ecstatica suite: Complete replay corpus",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block replay --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "e2SuiteDisplay",
+      "type": "pickString",
+      "description": "Regression gameplay display (scenarios run one at a time)",
+      "options": [
+        "headless",
+        "visible"
+      ],
+      "default": "headless"
     }
   ]
 }

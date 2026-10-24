@@ -8,6 +8,13 @@ The debugging tools connect recorded input, engine state, game frames and native
 failures. Use `scripts/e2-debug.py --help` for the command inventory. All commands
 run locally; original game assets remain in their external installation.
 
+The [gameplay regression suite](gameplay-tests.md) runs bounded fresh-input
+journeys and original-code comparisons with dependency-aware reports. Select
+**Ecstatica: Full regression suite** for all configured Debug/ASan cases, or a
+separate block launch with automatic prerequisites. A headless/visible picker
+defaults to headless; a direct visible SDL launch runs windows one at a time. Use the
+ordinary gameplay launch for human F5 investigation.
+
 ## Normal gameplay investigation in VS Code
 
 Use the existing **Ecstatica Recompiled** launch with the SDL/i386 Debug preset.

@@ -8,8 +8,11 @@ Status: active; Task 09 alternate-target crash repaired with bounded evidence; e
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-10-24
 
-Current work is [Task 09's extended-gameplay crash continuation](tasks/task-09-recover-scene-population-and-interaction.md#current-continuation--extended-gameplay-alternate-target-crash).
-It supersedes the earlier stability deferral. Complete replay and longer human
+Current work is [Task 09's automated gameplay suite](tasks/task-09-recover-scene-population-and-interaction.md#current-continuation--automated-gameplay-regression-suite).
+It adds dependency-aware acceptance around recovered gameplay, unarmed coverage
+and sequential visible/headless block launches. The reported session-retention
+error-handler abort has a fault-injection repair; the preceding allocation
+failure and extended gameplay stability remain open. Complete replay and longer human
 acceptance remain open; preserved animation-name drift is tracked separately.
 The following continuations retain their historical limits.
 
