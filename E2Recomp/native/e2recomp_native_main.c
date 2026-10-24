@@ -4,6 +4,7 @@
 #include "EcstaticaRuntimeBridge.h"
 #endif
 #include "e2recomp_host_backend.h"
+#include "e2recomp_actor_markers.h"
 #include "EcstaticaReplay.h"
 #include "EcstaticaInspect.h"
 #if E2R_ENABLE_RUNTIME_OPTIONS
@@ -24,12 +25,66 @@ void E2R_SampleInspection(void);
 #include <unistd.h>
 #endif
 
+/* Names come from the original packed pools; unknown types remain props. */
+static void e2r_cue_name(char *out, size_t capacity, uintptr_t pool, size_t bytes, int index)
+{
+    out[0] = 0;
+    if (index < 0 || !pool || IsBadReadPtr((void *)pool, bytes)) return;
+    const char *cursor = (const char *)pool, *end = cursor + bytes;
+    for (int i = 0; cursor < end; ++i) {
+        const char *nul = memchr(cursor, 0, (size_t)(end - cursor));
+        if (!nul || nul == cursor) return;
+        if (i == index) {
+            size_t count = (size_t)(nul - cursor);
+            if (count >= capacity) count = capacity - 1;
+            memcpy(out, cursor, count); out[count] = 0; return;
+        }
+        cursor = nul + 1;
+    }
+}
+
+static void e2r_cue_potion_status(E2R_ActorCue *cue, uintptr_t actor)
+{
+    uint32_t action, timer;
+    int16_t action_id = -1;
+    memcpy(&action, (void *)(actor + 0xa6), 4);
+    if (action && !IsBadReadPtr((void *)(uintptr_t)action, 2))
+        memcpy(&action_id, (void *)(uintptr_t)action, 2);
+    cue->healing = action_id == 391; /* gethealth */
+    if (action_id == 409 || action_id == 5) cue->poison_status = E2R_POTION_ACTIVE;
+    if (action_id == 383) cue->invisibility_status = E2R_POTION_ACTIVE;
+    if (action_id == 387) cue->invisibility_status = E2R_POTION_FADING;
+
+    /* Original 0x4538c0/0x457cf0: 100 packed, ten-byte timer records.
+     * Poison schedules poisondie; invisibility schedules invisfade. Observe
+     * those lifetimes without consuming timers or predicting random pickups. */
+    memcpy(&timer, (void *)(actor + 0x17c), 4);
+    for (unsigned visited = 0; timer && visited < 100; ++visited) {
+        uint32_t next;
+        int16_t id;
+        if (timer < 0x9373dcu || timer >= 0x9373dcu + 100u * 10u ||
+            (timer - 0x9373dcu) % 10u || IsBadReadPtr((void *)(uintptr_t)timer, 10)) break;
+        memcpy(&id, (void *)(uintptr_t)timer, 2);
+        memcpy(&next, (void *)(uintptr_t)(timer + 6), 4);
+        if (id == 5) cue->poison_status = E2R_POTION_ACTIVE;
+        if (id == 409 && cue->poison_status == E2R_POTION_NONE)
+            cue->poison_status = E2R_POTION_PENDING;
+        if (id == 387 && cue->invisibility_status != E2R_POTION_FADING)
+            cue->invisibility_status = E2R_POTION_ACTIVE;
+        if (id == 383 && cue->invisibility_status == E2R_POTION_NONE)
+            cue->invisibility_status = E2R_POTION_PENDING;
+        timer = next;
+    }
+}
+
 /* Host diagnostics only: never write actor state or reconstructed pixels. */
 void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
 {
     memset(snapshot, 0, sizeof(*snapshot));
     snapshot->scene_slot = -1;
 #if UINTPTR_MAX <= UINT32_MAX
+    static int previous_kind[5000];
+    static uintptr_t previous_actor[5000];
     uintptr_t scene = (uintptr_t)_DAT_0073cc3c;
     uintptr_t actor = (uintptr_t)_DAT_0063726c;
     if (scene >= 0x67c728u && scene < 0x67c728u + 1200u * 28u &&
@@ -75,6 +130,27 @@ void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
                  * asset taxonomy. Unclassified scripted actors retain ACTOR. */
                 cue->is_object = !cue->is_joe && !cue->generated &&
                     representation == 0 && scene_owner == 0;
+                char rep_name[48];
+                int16_t rep_id = -1, health, actor_state;
+                memcpy(&health, (void *)(actor + 0xec), 2);
+                memcpy(&actor_state, (void *)(actor + 0x82), 2);
+                if (representation && !IsBadReadPtr((void *)(uintptr_t)representation, 2))
+                    memcpy(&rep_id, (void *)(uintptr_t)representation, 2);
+                e2r_cue_name(cue->name, sizeof(cue->name), (uintptr_t)_DAT_006366b4, 40000, id);
+                e2r_cue_name(rep_name, sizeof(rep_name), (uintptr_t)_DAT_0063668c, 4000, rep_id);
+                int prior = previous_actor[id] == actor && (actor_state == 5 || actor_state == 11) ?
+                            previous_kind[id] : E2R_MARKER_OBJECT;
+                int kind = e2r_marker_kind(cue->name, rep_name, flags | ((unsigned)*(byte *)(actor + 3) << 8),
+                                           cue->generated, prior);
+                previous_actor[id] = actor;
+                previous_kind[id] = kind;
+                cue->marker_kind = cue->is_joe ? E2R_MARKER_PLAYER : kind;
+                cue->health = health; cue->actor_state = actor_state;
+                if (cue->is_joe) e2r_cue_potion_status(cue, actor);
+                if (actor_state == 5 || actor_state == 11) {
+                    if (kind == E2R_MARKER_CREATURE) cue->marker_kind = E2R_MARKER_CORPSE;
+                    if (kind == E2R_MARKER_DOOR) cue->marker_kind = E2R_MARKER_DEBRIS;
+                }
                 /* Keep Joe's diagnostic cue while his original mesh is hidden. */
                 cue->visible_in_view = cue->is_joe || (flags & 8u) != 0;
                 cue->x = position[0]; cue->y = position[1]; cue->z = position[2];
@@ -96,17 +172,45 @@ void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
                     };
                     int16_t focal_word;
                     memcpy(&focal_word, (void *)(scene + 12), 2);
-                    /* An octagonal stand-in; diagonals approximate a radius
-                     * of 256. Project world points, never a screen-size icon. */
-                    static const short ring[E2R_CYLINDER_RING_POINTS][2] = {
-                        {256,0}, {181,181}, {0,256}, {-181,181},
-                        {-256,0}, {-181,-181}, {0,-256}, {181,-181}
-                    };
+                    /* Project category-specific world geometry. Joe retains
+                     * the original octagonal diagnostic dimensions. */
                     short basis[9], local_z[3] = {0,0,512}, world_z[3];
                     /* Original 0x4210b8..0x421101 builds actor +6 from Euler
                      * words +90/+92/+94. +Z is an axis, not asserted forward. */
                     memcpy(basis, (void *)(actor + 6), sizeof(basis));
                     E2R_TransformVector14(world_z,local_z,basis);
+                    short door_basis[9], door_origin[3], door_half[3];
+                    int door_model_ready = 0;
+                    if (cue->marker_kind == E2R_MARKER_DOOR) {
+                        uint32_t node, owner, pose_target;
+                        memcpy(&node, (void *)(actor + 0x1e), 4);
+                        if (node && !IsBadReadPtr((void *)(uintptr_t)node, 0x132)) {
+                            memcpy(&owner, (void *)(uintptr_t)(node + 0x22), 4);
+                            memcpy(&pose_target, (void *)(uintptr_t)(node + 0x12e), 4);
+                            memcpy(door_half, (void *)(uintptr_t)(node + 0x68), 6);
+                            if (owner == actor && !pose_target && !(*(byte *)(uintptr_t)(node + 2) & 0x20) &&
+                                door_half[0] > 0 && door_half[1] > 0 && door_half[2] > 0) {
+                                /* Original 0x42391b..0x423c70: first-node origin,
+                                 * basis and Euler rotations. A door leaf is
+                                 * offset from its actor/hinge, not centred on it.
+                                 * Build privately; proxy rendering skips pose. */
+                                short relative[3], node_angles[3], actor_tip[3], actor_kind;
+                                memcpy(relative, (void *)(uintptr_t)(node + 0x2c), 6);
+                                memcpy(actor_tip, (void *)(actor + 0x6e), 6);
+                                memcpy(&actor_kind, (void *)(actor + 4), 2);
+                                for (int axis = 0; axis < 3; ++axis)
+                                    if (actor_kind != 7) relative[axis] += actor_tip[axis];
+                                E2R_TransformVector14(door_origin,relative,basis);
+                                memcpy(door_basis, (*(byte *)(uintptr_t)(node + 2) & 0x10) ?
+                                       (void *)(uintptr_t)(node + 0xec) : (void *)basis, sizeof(door_basis));
+                                memcpy(node_angles, (void *)(uintptr_t)(node + 0x26), 6);
+                                if (node_angles[1]) FUN_00422460((uintptr_t)door_basis, (uint16_t)node_angles[1]);
+                                if (node_angles[0]) FUN_00422368((uintptr_t)door_basis, (uint16_t)node_angles[0]);
+                                if (node_angles[2]) FUN_00422538((uintptr_t)door_basis, (uint16_t)node_angles[2]);
+                                door_model_ready = 1;
+                            }
+                        }
+                    }
                     for (int vertex = 0; vertex < 6 + 2 * E2R_CYLINDER_RING_POINTS + 1; ++vertex) {
                         short relative[3], projected[3];
                         short offset[3];
@@ -116,9 +220,19 @@ void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
                             output = cue->screen[vertex];
                         } else if (vertex < 6 + 2 * E2R_CYLINDER_RING_POINTS) {
                             int point = vertex - 6;
-                            offset[0] = ring[point % E2R_CYLINDER_RING_POINTS][0];
-                            offset[1] = point < E2R_CYLINDER_RING_POINTS ? 0 : -1024;
-                            offset[2] = ring[point % E2R_CYLINDER_RING_POINTS][1];
+                            e2r_marker_offset(cue->marker_kind, point, offset);
+                            if (door_model_ready) {
+                                short local[3] = {
+                                    offset[0] < 0 ? -door_half[0] : door_half[0],
+                                    (point & 7) < 4 ? door_half[1] : -door_half[1],
+                                    offset[2] < 0 ? -door_half[2] : door_half[2]
+                                };
+                                E2R_TransformVector14(offset,local,door_basis);
+                                for (int axis = 0; axis < 3; ++axis) offset[axis] += door_origin[axis];
+                            } else if (cue->marker_kind == E2R_MARKER_DOOR || cue->marker_kind == E2R_MARKER_WEAPON) {
+                                short local[3]; memcpy(local, offset, sizeof(local));
+                                E2R_TransformVector14(offset, local, basis);
+                            }
                             output = cue->cylinder[point];
                         } else {
                             memcpy(offset,world_z,sizeof(offset));
@@ -1458,6 +1572,11 @@ static void e2r_write_visibility_state(FILE *out, unsigned front_surface,
             fprintf(out, "actor_cue[%u] id=%d joe=%d live=%d,%d,%d object=%d generated=%d visible_in_view=%d\n",
                     i, cue->id, cue->is_joe, cue->x, cue->y, cue->z,
                     cue->is_object, cue->generated, cue->visible_in_view);
+            fprintf(out, "actor_marker[%u] kind=%s name=%s health=%d state=%d dimensions=illustrative\n",
+                    i, e2r_marker_label(cue->marker_kind), cue->name, cue->health, cue->actor_state);
+            if (cue->is_joe)
+                fprintf(out, "player_status health=%d poison=%d invisibility=%d healing=%d\n",
+                        cue->health, cue->poison_status, cue->invisibility_status, cue->healing);
             fprintf(out, "actor_cue[%u] camera_ready=%d screen=%d,%d depth=%d tip=%d,%d tip_depth=%d camera_z=%d\n",
                     i, cues.camera_ready, cue->screen[0][0], cue->screen[0][1], cue->screen[0][2],
                     cue->screen[1][0], cue->screen[1][1], cue->screen[1][2], cue->camera_z);

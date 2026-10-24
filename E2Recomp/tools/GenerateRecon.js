@@ -4199,10 +4199,10 @@ source = source.replace(
   "  }\n  return CONCAT44(param_2,(ushort)E2R_InternPackedName(in_EAX,(char *)_DAT_006366a4,\n                                                       4000,0x22b));\n  \n  local_1c = 0;\n  puVar6 = _DAT_006366a4;"
 );
 const fanNameInternSpecs = [
-  ["004466c4", "_DAT_006366b4", "10000", "5000",
+  ["004466c4", "_DAT_006366b4", "40000", "5000",
    "FUN_004466c4(iVar12,(int)(short)iVar12)",
    "FUN_004466c4((undefined4)(uintptr_t)(acStack_81 + 1),e2r_table_indices[1])"],
-  ["0044679c", "_DAT_006366b8", "0x1117", "2000",
+  ["0044679c", "_DAT_006366b8", "0x445c", "2000",
    "FUN_0044679c(iVar12,(int)(short)iVar12)",
    "FUN_0044679c((undefined4)(uintptr_t)(acStack_81 + 1),e2r_table_indices[2])"],
   ["00446874", "_DAT_006366bc", "20000", "0x9c4",
@@ -4238,10 +4238,10 @@ for (const [name, table, capacity, maxNames, oldCall, newCall] of fanNameInternS
   );
 }
 const fanNameLookupSpecs = [
-  ["004418fc", "_DAT_006366b4", "10000", "5000"],
+  ["004418fc", "_DAT_006366b4", "40000", "5000"],
   ["00441958", "(char *)_DAT_00636694", "0x177", "100"],
   ["00441a10", "_DAT_0063668c", "1000", "500"],
-  ["00441ac8", "_DAT_006366b8", "0x1117", "2000"],
+  ["00441ac8", "_DAT_006366b8", "0x445c", "2000"],
   ["00441ea4", "_DAT_006366bc", "20000", "0x9c4"],
   ["00441f00", "_DAT_00636698", "24000", "2000"],
 ];
@@ -6744,7 +6744,7 @@ patchPolygonFunction('FUN_00431a7c', body => body
 
 // Original dirty-rectangle ABI: EAX surface, EDX x, EBX y, ECX width, stack height.
 function patchRectangleFunction(name, edit) {
-  const match = new RegExp(`^(?:void|uint|undefined[2468]|short \\*) (?:__fastcall )?${name}\\([^\\n]*\\)`, 'm').exec(source);
+  const match = new RegExp(`^(?:void|uint|longlong|undefined[2468]|short \\*) (?:__fastcall )?${name}\\([^\\n]*\\)`, 'm').exec(source);
   if (!match) throw new Error(`Missing rectangle function ${name}`);
   const start = match.index;
   const end = source.indexOf('\n}', start) + 2;
@@ -6989,6 +6989,133 @@ patchRectangleFunction('FUN_0044f320', () => `undefined4 __fastcall FUN_0044f320
   return 0;
 }`);
 
+source = replaceRectangleInput(source, "static void E2R_MirrorStartupPartNames(void)", `/* Original startup actor literals include suffixes beyond exported scalars.
+ * Truncating these names shifts every later imported actor identity. */
+static void E2R_MirrorStartupActorNames(void)
+{
+  static const struct { uintptr_t address; const char *name; } names[] = {
+    {0x00470740,"w_gob1"},
+    {0x00470748,"w_gob2"},
+    {0x00470750,"w_gob3"},
+    {0x00470758,"w_gob4"},
+    {0x00470760,"w_gost"},
+    {0x00470768,"w_gost2"},
+    {0x00470770,"w_gost3"},
+    {0x00470778,"w_bhold"},
+    {0x00470780,"w_bhold2"},
+    {0x0047078c,"w_bhold3"},
+    {0x00470798,"w_spidl1"},
+    {0x004707a4,"w_spidl3"},
+    {0x004707b0,"w_spidl4"},
+    {0x004707bc,"w_spidl2"},
+    {0x004707c8,"w_spidl5"},
+    {0x004707d4,"w_spidl6"},
+    {0x004707e0,"w_spids1"},
+    {0x004707ec,"w_spids4"},
+    {0x004707f8,"w_spids5"},
+    {0x00470804,"w_spids2"},
+    {0x0047081c,"w_spids6"},
+    {0x00470828,"w_bxorc1"},
+    {0x00470834,"w_bxorc2"},
+    {0x00470840,"w_bxorc3"},
+    {0x0047086c,"w_bar1"},
+    {0x00470874,"w_bar2"},
+    {0x0047087c,"w_bar3"},
+    {0x00470884,"w_bar4"},
+    {0x0047088c,"w_bar5"},
+    {0x00470894,"w_bar6"},
+    {0x0047089c,"w_bar7"},
+    {0x004708a4,"w_bar8"},
+    {0x004708ac,"w_bar9"},
+    {0x004708b4,"w_bar10"},
+    {0x004708bc,"w_bar11"},
+    {0x004708c4,"w_bar12"},
+    {0x004708cc,"w_bar13"},
+    {0x004708d4,"w_bar14"},
+    {0x004708dc,"w_bar15"},
+    {0x004708e4,"w_blob"},
+    {0x004708ec,"w_blob2"},
+    {0x004708f4,"w_blob3"},
+    {0x004708fc,"w_slim"},
+    {0x00470904,"w_slim2"},
+    {0x0047090c,"w_slim3"},
+    {0x00470914,"w_cyclp"},
+    {0x0047091c,"w_cyclp2"},
+    {0x00470928,"w_cyclp3"},
+    {0x00470934,"w_zomb"},
+    {0x0047093c,"w_zomb2"},
+    {0x00470944,"w_zomb3"},
+    {0x00470958,"w_vil1"},
+    {0x00470960,"w_vil2"},
+    {0x00470968,"w_vil3"},
+    {0x00470970,"w_monk"},
+    {0x00470978,"w_monk2"},
+    {0x00470980,"w_monk3"},
+    {0x004709a8,"w_trol"},
+    {0x004709b0,"w_trol2"},
+    {0x004709b8,"w_trol3"},
+    {0x004709e0,"w_dorc2"},
+    {0x004709f0,"w_dorc4"},
+    {0x004709f8,"w_beye"},
+    {0x00470a00,"w_beye2"},
+    {0x00470a08,"w_beye3"},
+    {0x00470a30,"w_gagol"},
+    {0x00470a38,"w_gagol2"},
+    {0x00470a44,"w_gagol3"},
+    {0x00470a50,"w_wolf"},
+    {0x00470a58,"w_wolf2"},
+    {0x00470a60,"w_wolf3"},
+    {0x00470a74,"w_hun2"},
+    {0x00470a7c,"w_hun3"},
+    {0x00470a84,"w_skel"},
+    {0x00470a8c,"w_skel2"},
+    {0x00470a94,"w_skel3"},
+    {0x00470a9c,"w_bnite"},
+    {0x00470aa4,"w_bnite2"},
+    {0x00470ab0,"w_bnite3"},
+    {0x00470af0,"w_creep3"},
+    {0x00470b04,"w_fairy2"},
+    {0x00470b10,"w_fairy3"},
+    {0x00470b1c,"w_fairy4"},
+    {0x00470b28,"w_fairy5"},
+    {0x00470b34,"w_fairy6"},
+    {0x00470b40,"w_fish"},
+    {0x00470b48,"w_fish2"},
+    {0x00470b50,"w_fish3"},
+    {0x00470b58,"w_amaz1"},
+    {0x00470b60,"w_amaz2"},
+    {0x00470b68,"w_amaz3"},
+    {0x00470b70,"w_amaz4"},
+    {0x00470b78,"w_amaz5"},
+    {0x00470b80,"w_amaz6"},
+    {0x00470b88,"w_amaz7"},
+    {0x00470b90,"w_amaz8"},
+    {0x00470b98,"w_bgel1"},
+    {0x00470ba0,"w_bgel2"},
+    {0x00470ba8,"w_bgel3"},
+    {0x00470bb0,"w_mummy"},
+    {0x00470bb8,"w_mummy1"},
+    {0x00470bc4,"w_mummy2"},
+    {0x00470bd0,"w_mush"},
+    {0x00470bd8,"w_mush1"},
+    {0x00470be0,"w_mush2"},
+    {0x00470be8,"w_sgel1"},
+    {0x00470bf0,"w_sgel2"},
+    {0x00470bf8,"w_sgel3"},
+  };
+  uint i;
+
+  for (i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+    memcpy((void *)names[i].address,names[i].name,strlen(names[i].name) + 1);
+  }
+}
+
+static void E2R_MirrorStartupPartNames(void)`);
+source = replaceRectangleInput(source, "    *(undefined4 *)startupNameWords3[i].address = startupNameWords3[i].value;\n  }\n}", "    *(undefined4 *)startupNameWords3[i].address = startupNameWords3[i].value;\n  }\n  E2R_MirrorStartupActorNames();\n}");
+
+// Original 0x44673c bounds actor-name bytes at base +0x9c40 (40000).
+// Keep observational name lookups on the same allocation boundary.
+source = source.replaceAll("_DAT_006366b4,10000,5000", "_DAT_006366b4,40000,5000");
 // Original script-name byte capacity and mutable-pool cache ownership.
 source = replaceRectangleInput(source,"  return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,\n                                                       _DAT_00636698,24000,2000));","  /* Original 0x4469c4 bounds the byte pool at base +0x5dc0 (24000). */\n  short index = E2R_InternPackedName((char *)(uintptr_t)param_1,\n                                     (char *)(uintptr_t)_DAT_00636698,24000,2000);\n  /* Parsing appends names without reallocating the pool. */\n  E2R_action_name_cache_ready = 0;\n  return CONCAT44(param_2,(ushort)index);");
 
@@ -7013,7 +7140,7 @@ patchRectangleFunction('FUN_0044f2fc', () => `undefined4 FUN_0044f2fc(undefined4
 }
 
 // Retained original script cursor and EBX node across condition/skip helpers.
-source = replaceRectangleInput(source,"      table[offset + input_length + 1] = '\\0';\n      return index;","      table[offset + input_length + 1] = '\\0';\n      /* Original 0x446a10 clears the newly interned script's code slot. */\n      if (table == (char *)(uintptr_t)_DAT_00636698)\n        *(uint *)(0x006297c0 + (uint)(ushort)index * 4) = 0;\n      return index;");
+source = replaceRectangleInput(source,"      table[offset + input_length + 1] = '\\0';\n      return index;","      table[offset + input_length + 1] = '\\0';\n      /* Original 0x446a10 clears the newly interned script's code slot. */\n      if (table == (char *)(uintptr_t)_DAT_00636698)\n        *(uint *)(0x006297c0 + (uint)(ushort)index * 4) = 0;\n      /* Original 0x446788 also clears a newly interned actor's slot. */\n      if (table == (char *)(uintptr_t)_DAT_006366b4)\n        *(uint *)(0x00630b60 + (uint)(ushort)index * 4) = 0;\n      /* Original 0x446860 clears the newly interned animation's slot. */\n      if (table == (char *)(uintptr_t)_DAT_006366b8)\n        *(uint *)(0x0062ba20 + (uint)(ushort)index * 4) = 0;\n      return index;");
 source = replaceRectangleInput(source,'static short *E2R_action_dispatch_node;',
   'static short *E2R_action_dispatch_node;\nstatic ushort *E2R_script_node_context;');
 patchRectangleFunction('FUN_0044e74c', body => body.replace('(void)','(int *cursor)')
@@ -7127,7 +7254,7 @@ source = replaceRectangleInput(source,"void FUN_00451f5c(void)\n\n{","/* Find a 
 patchRectangleFunction("FUN_00451f5c", body => replaceRectangleInput(body,"  iVar1 = actor_id * 4;\n  if (*(int *)((undefined1 *)0x00630b60 + iVar1) == 0) {","  iVar1 = actor_id * 4;\n  if (*(int *)((undefined1 *)0x00630b60 + iVar1) == 0) {\n    if (E2R_PopulationProbeEnabled() && DAT_0047ab10 != 0) {\n      int offset = E2R_FindActorArchiveOffset(actor_id);\n      if (offset >= 0) *(int *)(0x653840 + iVar1) = offset;\n    }"));
 
 patchRectangleFunction("FUN_00423858", body => replaceRectangleInput(body,"        psVar9 = (short *)(local_54 + 0x10);\n        FUN_0045de8b();","        psVar9 = (short *)(local_54 + 0x10);\n        /* Original 0x4238a3..0x4238b7 retains reference input/matrix/output. */\n        E2R_TransformVector14(psVar9,(short *)(uintptr_t)(local_54 + 4),\n                              (short *)(uintptr_t)local_40);"));
-patchRectangleFunction("FUN_00423858", body => replaceRectangleInput(body,"  if ((short)local_18 == 0) {","  /* Cylinder mode retains the root and its motion references above. Child\n   * bone transforms and IK (0x4238fe onward) belong to mesh articulation;\n   * their collision/attachment fidelity remains outside this prototype. */\n  const char *proxy_bones = getenv(\"E2R_PROXY_MESH_BYPASS\");\n  if (proxy_bones && *proxy_bones && *proxy_bones != '0') return;\n  if ((short)local_18 == 0) {"));
+patchRectangleFunction("FUN_00423858", body => replaceRectangleInput(body,"  if ((short)local_18 == 0) {","  /* Pickup selection reads the first model node's world height. Retain\n   * original 0x42391b..0x423a64 before bypassing mesh articulation. */\n  const char *proxy_bones = getenv(\"E2R_PROXY_MESH_BYPASS\");\n  if (proxy_bones && *proxy_bones && *proxy_bones != '0') {\n    int node = *(int *)(local_3c + 0x1e);\n    if (node != 0 && (short)local_18 != 0) node = *(int *)(node + 0xca);\n    if (node != 0) {\n      short relative[3];\n      for (int i = 0; i < 3; ++i) {\n        relative[i] = *(short *)(node + 0x2c + i * 2);\n        if (*(short *)(local_3c + 4) != 7)\n          relative[i] += *(short *)(local_3c + 0x6e + i * 2);\n      }\n      E2R_TransformVector14((short *)(node + 0x50),relative,(short *)(local_3c + 6));\n      for (int i = 0; i < 3; ++i)\n        *(short *)(node + 0x18 + i * 2) = *(short *)(local_3c + 0x18 + i * 2) +\n                                        *(short *)(node + 0x50 + i * 2);\n      memcpy((void *)(node + 6),(void *)((*(byte *)(node + 2) & 0x10) ?\n                                       node + 0xec : local_3c + 6),18);\n    }\n    return;\n  }\n  if ((short)local_18 == 0) {"));
 
 patchRectangleFunction("FUN_0042fce0", () => "undefined4 __fastcall FUN_0042fce0(int sound,int node,int close,int override_volume,int channel)\n\n{\n  /* Original 0x42fce0 retains sound EAX, node EDX, proximity flag EBX,\n   * volume override ECX and the stack channel independently. */\n  if (DAT_0047a4a0 != 0 && DAT_00479dd0 != 0) {\n    int volume = override_volume;\n    if (volume == 0) {\n      volume = 127;\n      if (node != 0 && *(int *)(node + 0x22) != DAT_0047a470) {\n        int owner = *(int *)(node + 0x22);\n        short angle, distance;\n        int height = *(short *)(owner + 0x86) - *(short *)(DAT_0047a470 + 0x86);\n        E2R_NpcPolar16(&angle,&distance,\n            (short)(*(short *)(owner + 0x84) - *(short *)(DAT_0047a470 + 0x84)),\n            (short)(*(short *)(owner + 0x88) - *(short *)(DAT_0047a470 + 0x88)));\n        distance = (short)(distance + abs(height));\n        if (close != 0) distance = (short)(distance - 1024);\n        if (distance < 0) distance = 0;\n        volume = (8192 - distance) >> 6;\n        if (volume > 127) volume = 127;\n        if (volume < 0) volume = 0;\n      }\n    }\n    if (volume != 0) {\n      if (node != 0 && *(int *)(node + 0x22) == DAT_0047a470 && sound == 0)\n        sound = (int)FUN_0042fc84(0,volume);\n      FUN_00451a54(0,sound);\n      int resource = *(int *)(sound * 4 + 0x62d960);\n      if (resource != 0) {\n        int percent = *(short *)(resource + 0x16);\n        volume = percent > 100 ? 127 : volume * percent / 100;\n        FUN_00413ea4(resource,close,volume,channel);\n      }\n    }\n  }\n  return 0;\n}");
 patchRectangleFunction("FUN_00413ea4", body => replaceRectangleInput(body,"void __fastcall FUN_00413ea4(undefined4 param_1)\n\n{\n  int iVar1;\n  int in_EAX;\n  int unaff_EBX;","void __fastcall FUN_00413ea4(int resource,int close,int volume,int channel)\n\n{\n  int iVar1;\n  int in_EAX = resource;\n  int unaff_EBX = volume;\n  int param_1 = channel;\n  (void)close;"));
@@ -8468,6 +8595,140 @@ patchRectangleFunction("FUN_00415d40", body => replaceRectangleInput(body,
         param_1 = extraout_ECX_00;`,
   `        /* Original 0x416107..0x41610d supplies current actor in EDX. */
         FUN_0044f310(iVar2,(ushort *)DAT_0047a470);`));
+
+// Original 0x42c417 forwards the pickup event node in ESI.
+patchRectangleFunction("FUN_0042deb8", body => {
+  body = replaceRectangleInput(body,"undefined4 FUN_0042deb8(void)","undefined4 FUN_0042deb8(int node)");
+  body = replaceRectangleInput(body,"  short *in_EAX;","  short *in_EAX = (short *)(uintptr_t)node;");
+  body = replaceRectangleInput(body,"  undefined4 local_1a;","  undefined4 local_1a = 0;\n  short angle, distance;");
+  body = replaceRectangleInput(body,"  uVar5 = FUN_00424318();","  int entry_context = E2R_actor_calc_context;\n  E2R_actor_calc_context = *(int *)(node + 0x22);\n  FUN_00424318();\n  E2R_actor_calc_context = entry_context;\n  uVar5 = 0;");
+  body = replaceRectangleInput(body,"    FUN_00427160((int)(short)(in_EAX[0xe] - puVar3[0x44]),(short *)((int)&local_1a + 2));","    E2R_NpcPolar16(&angle,&distance,(short)(in_EAX[0xc] - puVar3[0x42]),\n                    (short)(in_EAX[0xe] - puVar3[0x44]));\n    local_1a = CONCAT22(distance,0);");
+  body = replaceRectangleInput(body,"      FUN_00420ec4(extraout_ECX,in_EAX);","      FUN_00420ec4(iVar8,in_EAX);");
+  body = replaceRectangleInput(body,"      iVar6 = FUN_00448a3c(extraout_ECX_00,0);","      iVar6 = FUN_00448a3c(iVar8 + 0x84,0);");
+  body = replaceRectangleInput(body,"        FUN_00422aa0(iVar7,(undefined2 *)(*(int *)(in_EAX + 0x11) + 0x84));","        FUN_00422aa0(iVar8 + 0x84,(undefined2 *)(*(int *)(in_EAX + 0x11) + 0x84));");
+  body = replaceRectangleInput(body,"        uVar5 = FUN_0044f32c(*(ushort **)(in_EAX + 0x11),puVar3,puVar3);","        E2R_DispatchScriptRecord(*(ushort **)(0x6297c0 + (short)uVar1 * 4),\n                                 *(ushort **)(in_EAX + 0x11),puVar3,puVar3,NULL);");
+  return body;
+});
+patchRectangleFunction("FUN_0042b880", body => replaceRectangleInput(body,
+  "FUN_0042deb8()","FUN_0042deb8((int)(uintptr_t)unaff_ESI)"));
+{
+  const at = prototypes.indexOf("undefined4 FUN_0042deb8(void);");
+  if (at < 0) throw new Error("Missing pickup event prototype");
+  prototypes[at] = "undefined4 FUN_0042deb8(int node);";
+}
+
+// Original pickup selection retains Joe in EAX and independent polar outputs.
+patchRectangleFunction("FUN_00427584", body => replaceRectangleInput(body,
+  "            lVar28 = FUN_0042dc9c(uVar25,uVar16);",
+  "            lVar28 = FUN_0042dc9c((uint)(uintptr_t)local_6c,uVar16);"));
+patchRectangleFunction("FUN_0042dc9c", body => {
+  body = replaceRectangleInput(body,"  int in_EAX;","  int in_EAX = (int)param_1;");
+  body = replaceRectangleInput(body,"  undefined4 local_1c;",
+    "  undefined4 local_1c;\n  short angle;\n  short dx;\n  short dz;");
+  body = replaceRectangleInput(body,
+    "      sVar5 = *(short *)(iVar4 + 0x84) - (short)local_24;",
+    "      sVar5 = *(short *)(iVar4 + 0x84) - (short)local_24;\n      dx = sVar5;");
+  body = replaceRectangleInput(body,
+    "        sVar5 = *(short *)(iVar4 + 0x88) - (short)local_20;",
+    "        sVar5 = *(short *)(iVar4 + 0x88) - (short)local_20;\n        dz = sVar5;");
+  return replaceRectangleInput(body,"          FUN_00427160((int)sVar5,local_2c);",
+    "          /* Original 0x42ddbb supplies separate angle/distance outputs and X/Z. */\n          E2R_NpcPolar16(&angle,local_2c,dx,dz);");
+});
+
+// Original attached rendering keeps owner/node/actor identities separate.
+source = replaceRectangleInput(source,"void __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)\n\n{","/* Keep the original attachment chain's world transforms when cylinder mode\n * omits the full mesh pose pass. The event pose entry uses the same chain math. */\nstatic void E2R_PoseAttachmentForProxy(int node)\n{\n  const char *proxy = getenv(\"E2R_PROXY_MESH_BYPASS\");\n  if (proxy == NULL || *proxy == '\\0' || *proxy == '0') return;\n  for (int cursor = node; *(int *)(cursor + 0x44) != 0;\n       cursor = *(int *)(cursor + 0x44))\n    *(int *)(*(int *)(cursor + 0x44) + 0x48) = cursor;\n  *(int *)(node + 0x48) = 0;\n  int entry_context = E2R_actor_calc_context;\n  E2R_actor_calc_context = *(int *)(node + 0x22);\n  FUN_00424318();\n  E2R_actor_calc_context = entry_context;\n}\n\nvoid __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)\n\n{");
+patchRectangleFunction("FUN_00421074", body => {
+  body = replaceRectangleInput(body,"      FUN_00421074((undefined4)(uintptr_t)psVar6,param_2);","      /* Original 0x421091..0x42109d updates the attachment owner. */\n      FUN_00421074(*(uint *)(psVar6 + 0x11),param_2);");
+  body = replaceRectangleInput(body,"    FUN_00420ec4(uVar4,psVar6);","    E2R_PoseAttachmentForProxy((int)(uintptr_t)psVar6);\n    /* Original 0x4210a2 retains the attached actor in EDI. */\n    FUN_00420ec4((uint)(uintptr_t)in_EAX,psVar6);");
+  return body;
+});
+
+// Original pose work-list counter survives child transforms.
+patchRectangleFunction("FUN_00421074", body => {
+  body = replaceRectangleInput(body,"  undefined4 uVar4;\n","");
+  body = replaceRectangleInput(body,"    uVar4 = extraout_ECX;\n","");
+  body = replaceRectangleInput(body,"      uVar4 = extraout_ECX_00;\n","");
+  body = replaceRectangleInput(body,"    iVar5 = extraout_ECX_04;","    /* Original 0x421160 starts a preserved five-pass pose counter. */\n    iVar5 = 0;");
+  body = replaceRectangleInput(body,"        iVar5 = extraout_ECX_05;\n","");
+  return body;
+});
+
+// Original attack-height query retains the player and both X/Z angle inputs.
+patchRectangleFunction("FUN_0042e7dc", body => {
+  body = replaceRectangleInput(body,"  short *in_EAX;","  short *in_EAX = (short *)(uintptr_t)param_1;");
+  body = replaceRectangleInput(body,"          uVar4 = FUN_00432c64(iVar5,(short)iVar5);","          /* Original 0x42e8a7..0x42e8b4 retains X in ESI and Z in ECX. */\n          extraout_ECX = iVar5;\n          uVar4 = E2R_PolygonAngle16((short)iVar7,(short)iVar5);");
+  return body;
+});
+patchRectangleFunction("FUN_00427584", body => {
+  if (body.split("lVar28 = FUN_0042e7dc(uVar25,uVar16);").length !== 3)
+    throw new Error("Expected two player attack-height query callers");
+  body = body.replaceAll("lVar28 = FUN_0042e7dc(uVar25,uVar16);",
+                         "lVar28 = FUN_0042e7dc((uint)(uintptr_t)local_6c,uVar16);");
+  // Original helper preserves ECX: the left direction must survive the call.
+  body = replaceRectangleInput(body,"                uVar25 = extraout_ECX_38;\n","");
+  return replaceRectangleInput(body,"              uVar25 = extraout_ECX_37;\n","");
+});
+
+// Original weapon contact selects the attack and target-hit records independently.
+patchRectangleFunction("FUN_0042efdc", body => {
+  body = replaceRectangleInput(body,"\n          FUN_0044f32c(puVar8,puVar3,puVar3);\n","\n          /* Original 0x42f208..0x42f213 supplies the attacker's code in EAX. */\n          E2R_DispatchScriptRecord(*(ushort **)(0x6297c0 + (short)puVar8[0x9c] * 4),\n                                   puVar8,puVar3,puVar3,NULL);\n");
+  body = replaceRectangleInput(body,"\n            FUN_0044f32c(puVar8,puVar3,puVar3);\n","\n            /* Original 0x42f44b..0x42f456 supplies the target's hit code. */\n            E2R_DispatchScriptRecord(*(ushort **)(0x6297c0 + (short)puVar3[0x9b] * 4),\n                                     puVar8,puVar3,puVar3,NULL);\n");
+  return body;
+});
+
+// Original cache reclamation retains the selected action and releases its records.
+patchRectangleFunction("FUN_00452f18", body => {
+  body = replaceRectangleInput(body,"FUN_00452738(_DAT_00636588,iVar2);","FUN_00452738(iVar5,iVar2);");
+  body = replaceRectangleInput(body,"FUN_00452c70(_DAT_00636588,iVar2);","/* Original 0x452fb7 passes the selected cached action in EAX. */\n    FUN_00452c70(iVar6,iVar2);");
+  return body;
+});
+patchRectangleFunction("FUN_00452c70", body => {
+  body = replaceRectangleInput(body,"  *(undefined4 *)(action + 2) = 0;\n  *(undefined4 *)(action + 4) = 0;\n  action[6] = (short)0x8000;","  /* Original 0x452d2c..0x452d2e releases every keyframe/event record. */\n  FUN_0043aa14((int)(uintptr_t)action);");
+  return body;
+});
+patchRectangleFunction("FUN_0043aa14", body => {
+  body = replaceRectangleInput(body,"void FUN_0043aa14(void)","void FUN_0043aa14(int action)");
+  body = replaceRectangleInput(body,"  short *in_EAX;","  short *in_EAX = (short *)(uintptr_t)action;\n  int entry_cleanup_context = E2R_cleanup_context;");
+  body = replaceRectangleInput(body,"  FUN_00453330();\n  E2R_cleanup_context = 0;","  in_EAX[6] = (short)0x8000;\n  E2R_cleanup_context = entry_cleanup_context;");
+  return body;
+});
+patchRectangleFunction("FUN_00444668", body => {
+  body = replaceRectangleInput(body,"        FUN_0043aa14();","        FUN_0043aa14(*(int *)(0x62ba20 + *psVar3 * 4));");
+  return body;
+});
+patchRectangleFunction("FUN_0043ab38", body => {
+  body = replaceRectangleInput(body,"      FUN_0045f9b5();","      /* Original 0x43ab5c..0x43ab5f retains next before releasing EAX. */\n      LocalFree((HLOCAL)(uintptr_t)iVar1);");
+  return body;
+});
+prototypes[prototypes.indexOf("void FUN_0043aa14(void);")] = "void FUN_0043aa14(int action);";
+
+// Original 0x4279e3..0x4279ed uses a signed, wrapping deadline difference.
+patchRectangleFunction("FUN_00427584", body => replaceRectangleInput(body,
+  "     (_DAT_00636588 != *(int *)(psVar15 + 1) && -1 < _DAT_00636588 - *(int *)(psVar15 + 1))) {",
+  "     ((int)((uint)_DAT_00636588 - (uint)*(int *)(psVar15 + 1)) > 0)) {"));
+
+// Original fixed 100-record timer pool; scalar host globals cannot hold it.
+patchRectangleFunction("FUN_004538c0", body => body
+  .replace("if (-1 < _DAT_009373dc)", "if (-1 < *(short *)0x009373dc)")
+  .replace("(ushort *)(&DAT_009373e6 + iVar3)", "(ushort *)(0x009373e6 + iVar3)")
+  .replace("puVar4 = &DAT_009373dc + iVar2;", "puVar4 = (undefined1 *)(0x009373dc + iVar2);"));
+
+// Original delayed potion/effect scheduling retains actor, action and delay.
+patchRectangleFunction("FUN_00457cf0", body => {
+  body = body.replace("undefined4 param_1,int param_2", "int actor_id,int action_id,int delay")
+    .replace("int in_EAX;", "int in_EAX = actor_id;")
+    .replace("int unaff_EBX;", "int unaff_EBX = delay;")
+    .replace(/\bparam_2\b/g, "action_id");
+  return replaceRectangleInput(body,
+    "  uVar5 = FUN_004538c0(*(int *)((undefined1 *)0x00630b60 + in_EAX * 4),_DAT_00636588 + unaff_EBX * 7);",
+    "  /* Original 0x457cf0 retains actor EAX, action EDX and delay EBX. */\n  extraout_ECX = *(int *)(0x00630b60 + in_EAX * 4);\n  uVar5 = FUN_004538c0(extraout_ECX,(uint)_DAT_00636588 + (uint)unaff_EBX * 7u);");
+});
+prototypes[prototypes.indexOf("void __fastcall FUN_00457cf0(undefined4 param_1,int param_2);")] = "void __fastcall FUN_00457cf0(int actor_id,int action_id,int delay);";
+patchRectangleFunction("FUN_0044f508", body => replaceRectangleInput(body,
+    "        FUN_00457cf0(CONCAT22(uVar14,*(short *)((int)local_2c + 2)) & 0xffff0fff,\n                     (int)(short)(*(ushort *)(local_2c + 1) & 0xfff));",
+    "        /* Original 0x44fb4f..0x44fb84 decodes three independent words. */\n        uVar7 = *(ushort *)((int)local_2c + 6);\n        FUN_00457cf0((short)(*(ushort *)((int)local_2c + 2) & 0xfff),\n                     (short)(*(ushort *)((int)local_2c + 4) & 0xfff),\n                     (uVar7 & 0x800) ? (short)(uVar7 | 0xf000) : (uVar7 & 0xfff));"));
+patchRectangleFunction("FUN_00415d40", body => replaceRectangleInput(body,
+    "FUN_00457cf0(param_1,6);", "FUN_00457cf0(0,6,1);"));
 
 // Observational update boundaries; no game inputs, clocks or state are changed.
 source = replaceRectangleInput(source, '#include "e2recomp_log.h"',

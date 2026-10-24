@@ -19,6 +19,8 @@ parser.add_argument('exe', type=Path)
 parser.add_argument('--output', type=Path, default=Path('/tmp/e2-player-motion'))
 parser.add_argument('--intro-skip-action', type=int, default=0,
                     help='Send SDL Space at the Nth distinct horseback action using the real --run-recon path')
+parser.add_argument('--intro-skip-progress', type=int, default=0,
+                    help='Wait for this action-progress tick before the selected horseback Space tap')
 parser.add_argument('--natural-intro', action='store_true',
                     help='Let the horseback intro finish without the diagnostic Space shortcut')
 parser.add_argument('--startup-logo-delay-ms', type=int, default=0,
@@ -45,6 +47,14 @@ parser.add_argument('--hold-through-release', action='store_true',
                     help='With --pedestal-guards and --simultaneous-turn, hold both keys while Joe is still restrained')
 parser.add_argument('--tap-modifiers', nargs='+', choices=('shift','ctrl','alt'), default=[],
                     help='Tap and release these modifiers through SDL before the input route')
+parser.add_argument('--gameplay-menu-exit', action='store_true',
+                    help='After the input route, verify Escape, Cancel, reopened Quit and Yes through SDL input')
+parser.add_argument('--sword-attacks', action='store_true',
+                    help='After --sword-pickup, hold SDL Ctrl and exercise all four attack directions, then verify released movement')
+parser.add_argument('--bash-workshop-door', action='store_true',
+                    help='After --sword-pickup, approach left door 980 and bash it using bounded SDL Ctrl/Up input')
+parser.add_argument('--sword-pickup', action='store_true',
+                    help='Walk the recorded workshop route using SDL arrows, pick up actor 3717 with Space, then verify equipped movement')
 parser.add_argument('--camera-round-trip', action='store_true',
                     help='Try SDL Up, then Down if needed, to cross into camera 166 and reverse to the pedestal')
 parser.add_argument('--trace-queries', type=int, default=0,
@@ -68,6 +78,8 @@ parser.add_argument('--inspect-approach-cameras', type=int, nargs='+', default=[
 args = parser.parse_args()
 if args.intro_skip_action < 0 or (args.intro_skip_action and args.natural_intro):
     parser.error('intro skip action must be nonnegative and separate from --natural-intro')
+if args.intro_skip_progress < 0 or (args.intro_skip_progress and not args.intro_skip_action):
+    parser.error('intro-skip-progress requires an intro-skip-action and must be nonnegative')
 if args.frames < 1 or args.timeout < 1 or args.release_delay < 0:
     parser.error('frames/timeout must be positive and release-delay nonnegative')
 if args.startup_logo_delay_ms < 0:
@@ -89,6 +101,13 @@ if args.inspect_object_scene < -1 or args.inspect_object_scene >= 2500:
 if args.inspect_approach_cameras and (args.inspect_object_scene < 0 or
         any(v < 0 or v >= 1200 for v in args.inspect_approach_cameras)):
     parser.error('approach cameras require --inspect-object-scene and camera IDs below 1200')
+if args.bash_workshop_door and not args.sword_pickup:
+    parser.error('--bash-workshop-door requires --sword-pickup')
+if args.sword_attacks and not args.sword_pickup:
+    parser.error('--sword-attacks requires --sword-pickup')
+if args.sword_pickup and (args.camera_round_trip or args.turn_forward or args.population_only or
+        args.inspect_object_scene >= 0 or args.hold_through_release):
+    parser.error('--sword-pickup requires a separate input route without camera selection')
 prefix = str(args.output.resolve())
 Path(prefix).parent.mkdir(parents=True, exist_ok=True)
 env = os.environ.copy()
@@ -112,6 +131,8 @@ prefix=PREFIX
 frames=FRAMES
 use_sdl=SDL_EVENTS
 camera_route=CAMERA_ROUTE
+pickup_result=None
+door_result=None
 query_limit=QUERY_LIMIT
 observe_seconds=OBSERVE_SECONDS
 population_frames=POPULATION_COUNT
@@ -148,6 +169,13 @@ if intro_skip_action:
         if ordinal+1<intro_skip_action:
             intro.condition=base_condition+f' && *(unsigned int*)((int)DAT_0047a470+0xa6) != {pointer}'
             gdb.execute('continue',to_string=True)
+    if INTRO_SKIP_PROGRESS:
+        require(INTRO_SKIP_PROGRESS<value('*(unsigned short*)((int)DAT_0047a470+0xaa)'),
+                'Requested skip progress is outside the selected action')
+        intro.condition=base_condition+f' && *(unsigned int*)((int)DAT_0047a470+0xa6) == {pointer} && *(unsigned short*)((int)DAT_0047a470+0xac) >= INTRO_SKIP_PROGRESS'
+        gdb.execute('continue',to_string=True)
+        require(gdb.selected_frame().name()=='FUN_00415d40','Missing delayed skip checkpoint')
+    intro_actions[-1]['skip_progress']=value('*(unsigned short*)((int)DAT_0047a470+0xac)')
     # Queue a real SDL Space tap, retaining it through one update frame.
     gdb.execute('set $skip_event=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
     gdb.execute('set $skip_event->key.type=0x300',to_string=True)
@@ -252,7 +280,7 @@ def population_census(label):
     import struct
     inf=gdb.selected_inferior()
     table=struct.unpack('<5000I',bytes(inf.read_memory(0x630b60,20000)))
-    names=bytes(inf.read_memory(value('_DAT_006366b4'),10000)).split(b'\0')
+    names=bytes(inf.read_memory(value('_DAT_006366b4'),40000)).split(b'\0')
     actors=[]
     for index,pointer in enumerate(table):
         if not pointer:continue
@@ -320,7 +348,7 @@ def snapshot(label):
               action=action,action_id=value(f'*(short*){action}') if action else -1,
               progress=field(0xac,'unsigned short'),duration=field(0xaa,'unsigned short'),
               previous_slot=field(0x96),input_direction=value('_DAT_00479e78'),
-              actor_state=field(0x82),motion_flags=field(0x146,'unsigned char'),
+              health=field(0xec),actor_state=field(0x82),motion_flags=field(0x146,'unsigned char'),
               modifiers={name:value(symbol) for name,symbol in
                          [('shift','DAT_00636846'),('ctrl','DAT_00636852'),('alt','DAT_0063684a')]},
               held_keys={name:value(f'*(unsigned char*)({0x4c3a90}+{scan})')
@@ -335,6 +363,7 @@ def observe_camera():
     require(value('DAT_0047a470')==actor,'Traversal changed the current actor')
     require(value('_DAT_00643650')==0,'Traversal opened a requester')
     require(value('DAT_0047a76c')==0,'Traversal restored the script wait')
+    require(field(0xec)>0 and field(0x82) not in (5,8,11),'Traversal entered a death state')
     camera=(value('_DAT_0073cc3c')-0x67c728)//28
     camera_samples.append(dict(camera=camera,position=[field(0x84+i*2) for i in range(3)]))
     return camera
@@ -517,6 +546,174 @@ elif camera_route:
     key(return_vk,False);advance(90);checkpoint('pedestal-released')
     require(observe_camera()==175,'Camera changed after releasing movement')
     require(all(held==0 for held in states[-1]['held_keys'].values()),'Traversal left a key held')
+elif SWORD_PICKUP:
+    import math
+    # Waypoints sampled from human session 20261024_115718_697; input only.
+    waypoints=[
+        [9988, 3328, -17408], [9736, 3328, -16910], [8936, 3840, -16518],
+        [8260, 4096, -16259], [7554, 4096, -15990], [7170, 4096, -15558],
+        [6878, 4096, -14734], [6637, 4096, -14338], [6267, 4096, -14015],
+        [5486, 4096, -13551], [4671, 4096, -13485], [4023, 4096, -13434],
+        [3269, 4096, -13375], [2796, 4096, -13337], [2314, 4096, -12892],
+        [1836, 4096, -12592], [1970, 4096, -11896], [2154, 4096, -11361],
+        [2350, 4096, -10889], [2007, 4096, -10465], [1555, 4096, -10499],
+        [833, 4096, -10493], [378, 4096, -10244], [-125, 4096, -9845],
+        [-789, 4096, -9781], [-1278, 4096, -9756], [-837, 4096, -10021],
+        [-871, 4096, -10006],
+    ]
+    held={0x26:False,0x25:False,0x27:False}
+    def setkey(vk,on):
+        if held[vk]!=on:key(vk,on);held[vk]=on
+    travel=[]
+    for waypoint_index,waypoint in enumerate(waypoints[1:]):
+        for attempt in range(180):
+            pos=[field(0x84+i*2) for i in range(3)]
+            distance=math.hypot(waypoint[0]-pos[0],waypoint[2]-pos[2])
+            row=dict(waypoint=waypoint_index,position=pos,yaw=field(0x92),health=field(0xec),state=field(0x82))
+            travel.append(row)
+            with open(prefix+'-travel.json','w') as out:json.dump(travel,out)
+            require(row['health']>0 and row['state'] not in (5,8,11),'Player died during sword traversal')
+            require(value('_DAT_00643650')==0,'Sword traversal opened a requester')
+            if distance<160:break
+            desired=int(math.atan2(waypoint[0]-pos[0],waypoint[2]-pos[2])*65536/(2*math.pi))
+            difference=(desired-field(0x92)+32768)%65536-32768
+            setkey(0x25,difference < -800);setkey(0x27,difference > 800)
+            setkey(0x26,abs(difference)<5000)
+            advance(1 if abs(difference)>800 or distance<450 else 3)
+        else:raise gdb.GdbError('Sword traversal missed waypoint '+str(waypoint_index))
+    sword=value('*(unsigned int*)(0x630b60+3717*4)')
+    require(sword!=0,'Original sword is absent at workshop')
+    target=[value(f'*(short*)({sword}+0x84+{i}*2)') for i in range(3)]
+    for approach in range(180):
+        pos=[field(0x84+i*2) for i in range(3)]
+        distance=math.hypot(target[0]-pos[0],target[2]-pos[2])
+        desired=int(math.atan2(target[0]-pos[0],target[2]-pos[2])*65536/(2*math.pi))
+        difference=(desired-field(0x92)+32768)%65536-32768
+        setkey(0x25,difference < -400);setkey(0x27,difference > 400)
+        setkey(0x26,distance>220 and abs(difference)<5000)
+        if distance<=220 and abs(difference)<=400:break
+        advance(1)
+    else:raise gdb.GdbError('Could not approach/facing sword')
+    for vk in held:setkey(vk,False)
+    advance(8);checkpoint('sword-before-space')
+    def space(pressed):
+        gdb.execute('set $interaction_event=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
+        gdb.execute(f'set $interaction_event->key.type={0x300 if pressed else 0x301}',to_string=True)
+        gdb.execute(f'set $interaction_event->key.down={int(pressed)}',to_string=True)
+        gdb.execute('set $interaction_event->key.key=32',to_string=True)
+        gdb.execute('set $interaction_event->key.scancode=44',to_string=True)
+        gdb.execute('set $interaction_event->key.windowID=SDL_GetWindowID(e2r_sdl_backend.window)',to_string=True)
+        require(value('SDL_PushEvent($interaction_event)')==1,'SDL Space input failed')
+        gdb.execute('call (void)free($interaction_event)',to_string=True)
+        gdb.execute('call e2r_poll_host_events("sword-interaction")',to_string=True)
+    space(True);advance(12);checkpoint('sword-space-pressed')
+    space(False)
+    advance(150);checkpoint('sword-after-pickup')
+    owner=value(f'*(unsigned int*)({sword}+0xf2)')
+    require(owner!=0 and value(f'*(unsigned int*)({owner}+0x22)')==actor,'Sword is not attached to Joe')
+    require(value(f'*(unsigned int*)({owner}+0x13a)')==sword,'Pickup node does not own the sword')
+    require(field(0xf0)==3,'Pickup did not equip the sword')
+    sword_before=[value(f'*(short*)({sword}+0x84+{i}*2)') for i in range(3)]
+    attacks=[]
+    if SWORD_ATTACKS:
+        key(0x11,True)
+        for direction_index,(direction,vk) in enumerate([('up',0x26),('left',0x25),('right',0x27),('down',0x28)]):
+            key(vk,True)
+            for attack_wait in range(12):
+                advance(30)
+                slot=field(0x96)
+                if 0xb8<=slot<=0xd3 and (slot-0xb8)%4==direction_index:break
+            else:raise gdb.GdbError('Requested sword attack direction did not start: '+direction)
+            checkpoint('sword-attack-'+direction)
+            sample=states[-1]
+            require(0xb8<=sample['previous_slot']<=0xd3,'Ctrl/arrow did not select a sword attack')
+            require(sample['modifiers']['ctrl']==1,'Sword attack lost Ctrl input')
+            attacks.append(dict(direction=direction,action=sample['action_id'],slot=sample['previous_slot']))
+            key(vk,False);advance(30)
+        key(0x11,False);advance(90)
+    before_move=[field(0x84+i*2) for i in range(3)]
+    key(0x28,True);advance(30);key(0x28,False);advance(30)
+    checkpoint('sword-equipped-movement')
+    require(before_move!=[field(0x84+i*2) for i in range(3)],'Joe cannot move after pickup')
+    require(value(f'*(unsigned int*)({sword}+0xf2)')==owner,'Movement lost the sword attachment')
+    sword_after=[value(f'*(short*)({sword}+0x84+{i}*2)') for i in range(3)]
+    require(sword_after!=target,'Picked-up sword remained at its original placement')
+    require(sword_after!=sword_before,'Attached sword did not follow Joe movement')
+    require(states[-1]['modifiers']['ctrl']==0,'Sword attack left Ctrl held')
+    observe_camera()
+    require(field(0xec)==100 and field(0x82)==4,'Pickup changed Joe health/control')
+    require(all(v==0 for v in states[-1]['held_keys'].values()),'Pickup route left a key held')
+    pickup_result=dict(sword=sword,node=owner,owner=actor,kind=field(0xf0),
+                       representation=states[-1]['representation_id'],health=field(0xec),attacks=attacks,
+                       sword_position_before=sword_before,sword_position_after=sword_after,
+                       movement_before=before_move,movement_after=[field(0x84+i*2) for i in range(3)])
+    if BASH_WORKSHOP_DOOR:
+        door=value('*(unsigned int*)(0x630b60+980*4)')
+        require(door!=0,'Left workshop door is absent')
+        door_samples=[]
+        def door_sample(label):
+            rep=value(f'*(unsigned int*)({door}+0x11e)')
+            action=value(f'*(unsigned int*)({door}+0xa6)')
+            row=dict(phase=label,health=value(f'*(short*)({door}+0xec)'),
+                     state=value(f'*(short*)({door}+0x82)'),flags=value(f'*(unsigned short*)({door}+2)'),
+                     representation=value(f'*(short*){rep}') if rep else -1,
+                     action=value(f'*(short*){action}') if action else -1,
+                     position=[value(f'*(short*)({door}+0x84+{i}*2)') for i in range(3)],
+                     player_position=[field(0x84+i*2) for i in range(3)],player_health=field(0xec))
+            door_samples.append(row)
+            with open(prefix+'-door.json','w') as out:json.dump(door_samples,out,indent=2)
+            return row
+        door_sample('before-approach')
+        # Approach the human strike position using arrows; actor state is read only.
+        for waypoint in [(-1800,-9800),(-2200,-10100),(-2571,-10545)]:
+            for attempt in range(240):
+                dx,dz=waypoint[0]-field(0x84),waypoint[1]-field(0x88)
+                if math.hypot(dx,dz)<100:break
+                desired=int(math.atan2(dx,dz)*65536/(2*math.pi))
+                difference=(desired-field(0x92)+32768)%65536-32768
+                setkey(0x25,difference < -600);setkey(0x27,difference > 600)
+                setkey(0x26,abs(difference)<5000)
+                advance(1)
+            else:raise gdb.GdbError('Could not reach door strike approach')
+        for vk in held:setkey(vk,False)
+        for attempt in range(180):
+            dx=value(f'*(short*)({door}+0x84)')-field(0x84)
+            dz=value(f'*(short*)({door}+0x88)')-field(0x88)
+            desired=int(math.atan2(dx,dz)*65536/(2*math.pi))
+            difference=(desired-field(0x92)+32768)%65536-32768
+            setkey(0x25,difference < -400);setkey(0x27,difference > 400)
+            if abs(difference)<=400:break
+            advance(1)
+        else:raise gdb.GdbError('Could not face left door')
+        for vk in held:setkey(vk,False)
+        checkpoint('door-before-strikes');door_sample('before-strikes')
+        key(0x11,True);key(0x26,True)
+        for batch in range(40):
+            advance(30)
+            sample=door_sample('strike-'+str(batch))
+            require(field(0xec)>0 and field(0x82)!=11,'Player died while bashing door')
+            if sample['state']==11:break
+        key(0x26,False);key(0x11,False);advance(150)
+        checkpoint('door-after-strikes')
+        final=door_sample('after-strikes')
+        require(final['health']<=0 and final['state']==11 and final['representation']==-1,
+                'Bounded strikes did not finish the left door collapse/deactivation')
+        approach=final['player_position']
+        dx,dz=final['position'][0]-approach[0],final['position'][2]-approach[2]
+        key(0x26,True);advance(60);key(0x26,False);advance(30)
+        checkpoint('door-passage-released')
+        passage=door_sample('passage-released')
+        beyond=((field(0x84)-final['position'][0])*dx+
+                (field(0x88)-final['position'][2])*dz)/math.hypot(dx,dz)
+        door_result=dict(actor=980,samples=door_samples,final=final,passage=passage,
+                         distance_beyond_door=beyond)
+        print('DOOR RESULT '+json.dumps(door_result),flush=True)
+        require(beyond>100,'Joe did not pass through the collapsed door opening')
+        require(field(0xec)>0 and field(0x82)==4 and value('_DAT_00643650')==0,
+                'Door passage lost living player control')
+        require(all(v==0 for v in states[-1]['held_keys'].values()) and
+                states[-1]['modifiers']['ctrl']==0,'Door route left keys held')
+    print('PICKUP COMPLETE '+json.dumps(pickup_result),flush=True)
 elif TURN_FORWARD:
     class TurnGuard(gdb.Breakpoint):
         def stop(self):
@@ -582,7 +779,64 @@ if observe_seconds:
         require(bool(moved) and bool(changed),'Generated NPCs did not continue moving/updating')
         npc_observation=dict(samples=len(npc_samples),active_windows=active_windows,
                              moved_ids=sorted(moved),changed_ids=sorted(changed))
-report=dict(probe_complete=True,frames_per_phase=frames,states=states,
+if GAMEPLAY_MENU_EXIT:
+    def menu_escape(pressed):
+        gdb.execute('set $menu_key=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
+        gdb.execute(f'set $menu_key->key.type={0x300 if pressed else 0x301}',to_string=True)
+        gdb.execute(f'set $menu_key->key.down={int(pressed)}',to_string=True)
+        gdb.execute('set $menu_key->key.key=27',to_string=True)
+        gdb.execute('set $menu_key->key.scancode=41',to_string=True)
+        gdb.execute('set $menu_key->key.windowID=SDL_GetWindowID(e2r_sdl_backend.window)',to_string=True)
+        require(value('SDL_PushEvent($menu_key)')==1,'SDL Escape input failed')
+        gdb.execute('call (void)free($menu_key)',to_string=True)
+        gdb.execute('call e2r_poll_host_events("gameplay-menu")',to_string=True)
+    frame.enabled=False
+    menu=gdb.Breakpoint('FUN_0041ba7c',internal=True)
+    menu_escape(True)
+    gdb.execute('continue',to_string=True)
+    gdb.execute('call e2r_present_current_frame((HWND)_DAT_00ac4dac,1)',to_string=True)
+    menu_escape(False)
+    snapshot('escape-menu')
+    for n in range(3):gdb.execute('continue',to_string=True)
+    gdb.execute('call e2r_present_current_frame((HWND)_DAT_00ac4dac,1)',to_string=True)
+    snapshot('escape-menu-pumped')
+    menu_escape(True)
+    menu_escape(False)
+    menu.delete();frame.enabled=True;advance(3)
+    checkpoint('escape-menu-cancelled')
+    require(value('_DAT_00643650')==0,'Escape cancellation did not resume gameplay')
+    frame.enabled=False
+    menu=gdb.Breakpoint('FUN_0041ba7c',internal=True)
+    menu_escape(True)
+    for n in range(3):gdb.execute('continue',to_string=True)
+    menu_escape(False)
+    # Use the original item's computed hit rectangle through the SDL mouse path.
+    def click_item(address):
+        x=(value(f'*(short*)({address}+22)')+value(f'*(short*)({address}+24)'))//2
+        y=(value(f'*(short*)({address}+26)')+value(f'*(short*)({address}+28)'))//2
+        gdb.execute(f'call SetCursorPos({x},{y})',to_string=True)
+        gdb.execute('set $menu_event=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
+        gdb.execute('set $menu_event->button.type=0x401',to_string=True)
+        gdb.execute('set $menu_event->button.down=1',to_string=True)
+        gdb.execute('set $menu_event->button.button=1',to_string=True)
+        gdb.execute(f'set $menu_event->button.x={x}',to_string=True)
+        gdb.execute(f'set $menu_event->button.y={y+80}',to_string=True)
+        gdb.execute('set $menu_event->button.windowID=SDL_GetWindowID(e2r_sdl_backend.window)',to_string=True)
+        require(value('SDL_PushEvent($menu_event)')==1,'SDL menu click failed')
+        gdb.execute('call (void)free($menu_event)',to_string=True)
+    click_item(0x643ca4)
+    menu.condition='*(unsigned short*)((char*)&DAT_0047a45e+2)==0x14'
+    gdb.execute('continue',to_string=True)
+    require(value('*(unsigned short*)((char*)&DAT_0047a45e+2)')==0x14,'Quit did not open confirmation')
+    for n in range(2):gdb.execute('continue',to_string=True)
+    gdb.execute('call e2r_present_current_frame((HWND)_DAT_00ac4dac,1)',to_string=True)
+    snapshot('quit-confirmation')
+    click_item(0x643dc4)
+    menu.delete()
+    gdb.execute('continue',to_string=True)
+    require(gdb.selected_inferior().pid==0,'Confirmed Quit did not terminate the game')
+    print('MENU EXIT COMPLETE',flush=True)
+report=dict(probe_complete=True,frames_per_phase=frames,states=states,sword_pickup=pickup_result,workshop_door=door_result,gameplay_menu_exit=GAMEPLAY_MENU_EXIT,
             object_view_sample=object_view_sample,
             combined_turn=TURN_FORWARD,move_key=MOVE_KEY,turn_calls=turn_calls,
             simultaneous_turn=SIMULTANEOUS_TURN,burst_frames=BURST_FRAMES,
@@ -603,12 +857,12 @@ print('PROBE COMPLETE: position_changed='+str(report['position_changed'])+
       ' facing_changed='+str(report['facing_changed'])+'; gameplay acceptance remains open')
 end
 quit
-'''.replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
+'''.replace('GAMEPLAY_MENU_EXIT',repr(args.gameplay_menu_exit)).replace('BASH_WORKSHOP_DOOR',repr(args.bash_workshop_door)).replace('SWORD_ATTACKS',repr(args.sword_attacks)).replace('SWORD_PICKUP',repr(args.sword_pickup)).replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
     'PROCESS_SECONDS', str(args.timeout + 10)).replace('LOGO_DELAY',str(args.startup_logo_delay_ms)).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
-    'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip or bool(args.tap_modifiers))).replace('TAP_MODIFIERS',repr(args.tap_modifiers)).replace(
+    'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip or args.sword_pickup or args.gameplay_menu_exit or bool(args.tap_modifiers))).replace('TAP_MODIFIERS',repr(args.tap_modifiers)).replace(
     'RELEASE_TURN',repr(args.release_turn_first)).replace('SIMULTANEOUS_TURN',repr(args.simultaneous_turn)).replace('HOLD_THROUGH_RELEASE',repr(args.hold_through_release)).replace('VIDEO_DRIVER',repr(args.video_driver)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(
     'QUERY_LIMIT',str(args.trace_queries)).replace('OBSERVE_SECONDS',str(args.observe_seconds)).replace(
-    'POPULATION_COUNT',str(args.population_frames)).replace('POPULATION_ONLY',repr(args.population_only)).replace('REQUIRE_POPULATION',repr(args.require_background_population)).replace('BACKGROUND_SPAWNS',repr(args.background_spawns)).replace('CHECK_GUARDS',repr(args.pedestal_guards)).replace('NATURAL_INTRO',repr(args.natural_intro)).replace('INTRO_SKIP_ACTION',str(args.intro_skip_action))
+    'POPULATION_COUNT',str(args.population_frames)).replace('POPULATION_ONLY',repr(args.population_only)).replace('REQUIRE_POPULATION',repr(args.require_background_population)).replace('BACKGROUND_SPAWNS',repr(args.background_spawns)).replace('CHECK_GUARDS',repr(args.pedestal_guards)).replace('NATURAL_INTRO',repr(args.natural_intro)).replace('INTRO_SKIP_ACTION',str(args.intro_skip_action)).replace('INTRO_SKIP_PROGRESS',str(args.intro_skip_progress))
 with tempfile.TemporaryDirectory(prefix='e2-player-motion-') as tmp:
     script = Path(tmp) / 'probe.gdb'
     # Desktop drivers load GDB Python helpers from shared libraries. Their

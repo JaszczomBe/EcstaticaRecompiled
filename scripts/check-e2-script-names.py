@@ -42,7 +42,7 @@ typedef uint16_t ushort,undefined2;
 #define __fastcall
 #define CONCAT44(a,b) (((uint64_t)(uint32_t)(a)<<32)|(uint32_t)(b))
 static int IsBadReadPtr(const void *p,unsigned n) { return !p || !n; }
-static char *_DAT_00636698;
+static char *_DAT_00636698,*_DAT_006366b4,*_DAT_006366b8;
 static char *E2R_action_name_cache[0x4000], *E2R_action_name_cache_base;
 static int E2R_action_name_cache_ready;
 static int action_probe_enabled = 1;

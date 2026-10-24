@@ -8,6 +8,20 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Diagnostic health and potion status — 2026-10-24](entries/diagnostic-health-and-potion-status-2026-10-24.md): confirms the latest human bottle/sword run and adds a read-only health/effect panel; healing and effect verification take priority while wider work is deferred.
+
+- [Consumed potion removal — 2026-10-24](entries/consumed-potion-removal-2026-10-24.md): confirms simultaneous bottle/sword attachments, restores original animation-name byte bounds and verifies bottle removal before sword pickup and four-direction attacks in Debug/ASan.
+
+- [Workshop random potion and delayed effects — 2026-10-24](entries/workshop-random-potion-and-timers-2026-10-24.md): confirms the human bottle pickup and randomized poison branch, repairs timer arguments/pool/deadline dispatch, and verifies live Debug/ASan poison action; healing and bottle cleanup remain open.
+
+- [Longer playthrough, cache reclamation and typed markers — 2026-10-24](entries/long-play-cache-reclamation-and-markers-2026-10-24.md): verifies four kills, two broken doors and sword attachment; distinguishes unconfirmed workshop potion attempts; repairs the animation-cache stall and adds typed markers plus passing gameplay Cancel/Quit checks; follow-up restores creature vectors and corrects door model axes/hinge placement.
+
+- [Workshop door hit callback — 2026-10-24](entries/workshop-door-hit-callback-2026-10-24.md): confirms the recorded smith kill, reproduces the left-door hit crash, restores selected contact scripts and verifies repeated damage, collapse and passage in Debug/ASan.
+
+- [Sword attacks and attached position — 2026-10-24](entries/sword-attacks-and-attached-position-2026-10-24.md): confirms human pickup, exactly reproduces the Ctrl/arrow crash, restores attack target/direction and attached-render ownership, and verifies all four attack directions plus a moving sword in Debug/ASan.
+
+- [Water replay and sword pickup — 2026-10-24](entries/water-replay-and-sword-pickup-2026-10-24.md): confirms the human swimming recording through 565 exact checkpoints, reproduces the workshop Space crash, and restores pickup/model/attachment/release contracts; Debug/ASan acquire the sword and retain movement.
+
 - [Water entry and Joe’s original resource — 2026-10-23](entries/water-entry-and-player-resource-2026-10-23.md): reproduces the fatal water transition, restores Joe’s resource and live swimming flags, and verifies keyboard-driven swimming in Debug/ASan; adds health/terrain/resource inspection fields.
 
 - [Blank requester and large human replay — 2026-10-23](entries/blank-requester-and-large-replay-2026-10-23.md): repairs i386 reader memory use and the original eight-direction reaction table, improves requester evidence and fallback text, and removes frequent action traces from the normal console; user repeat reaches camera 722 without the prompt.
@@ -108,4 +122,5 @@ Use [journal.template.md](../templates/journal.template.md) for new journal entr
 - [Courtyard Camera Traversal — 2026-10-19](entries/courtyard-camera-traversal-2026-10-19.md)
 - [Courtyard Steering Replay And Sustained Observation — 2026-10-19](entries/courtyard-steering-audit-2026-10-19.md)
 - [Manual Castle Exploration And Population Frontier — 2026-10-19](entries/manual-castle-exploration-2026-10-19.md)
+- [Pedestal intro restart after early skip — 2026-10-24](entries/pedestal-intro-restart-2026-10-24.md)
 <!-- /docs-tree:children -->

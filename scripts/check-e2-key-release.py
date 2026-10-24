@@ -25,7 +25,7 @@ harness = r'''
 #include <assert.h>
 static unsigned char pressed_extended[128],held_extended[128],pressed_regular[128],held_regular[128];
 static unsigned E2R_input_probe_last_scan_queue;
-static uintptr_t DAT_00636846,DAT_00636852,DAT_0063684a,DAT_00479dfc;
+static uintptr_t DAT_00636846,DAT_00636852,DAT_0063684a,DAT_00636850,DAT_00479dfc;
 static unsigned char *E2R_legacy_queue(uintptr_t address) {
     switch(address) {
     case 0x507490:return pressed_extended;
@@ -60,11 +60,12 @@ int main(void) {
         E2R_feed_legacy_keyup(key,up);assert(!held_extended[scan]&&!held_regular[scan]);cases++;
     }
     printf("PASS: %u production held-key release cases, including SDL metadata-free arrows, right Alt and keypad aliases\n",cases);
-    unsigned modifiers[]={VK_SHIFT,VK_CONTROL,VK_MENU,VK_RMENU,0x58,0x5a,VK_UP};
+    unsigned modifiers[]={VK_SHIFT,VK_CONTROL,VK_MENU,VK_RMENU,0x58,0x5a,VK_UP,VK_SPACE};
     unsigned modifier_cases=0;
     for(unsigned k=0;k<sizeof(modifiers)/sizeof(modifiers[0]);k++)for(int mode=0;mode<2;mode++)
     for(int flags=0;flags<8;flags++)for(int metadata=0;metadata<3;metadata++) {
         DAT_00479dfc=mode;
+        DAT_00636850=1;
         DAT_00636846=(flags>>0)&1;DAT_00636852=(flags>>1)&1;DAT_0063684a=(flags>>2)&1;
         unsigned shift=DAT_00636846,ctrl=DAT_00636852,alt=DAT_0063684a;
         unsigned key=modifiers[k],scan=E2R_virtual_key_to_scan(key);
@@ -74,11 +75,13 @@ int main(void) {
         LPARAM up=metadata==0?0:(scan<<16)|(metadata==2&&(key==VK_RMENU||key==VK_UP)?1<<24:0)|(uint32_t)0xc0000000;
         E2R_feed_legacy_keyup(key,up);
         assert(DAT_00636846==shift&&DAT_00636852==ctrl&&DAT_0063684a==alt);
+        assert(DAT_00636850==(key==VK_SPACE?0:1));
         E2R_feed_legacy_keyup(key,up);
         assert(DAT_00636846==shift&&DAT_00636852==ctrl&&DAT_0063684a==alt);
+        assert(DAT_00636850==(key==VK_SPACE?0:1));
         modifier_cases++;
     }
-    printf("PASS: %u gameplay modifier release/preservation cases, including repeated release and X/Z control modes\n",modifier_cases);
+    printf("PASS: %u gameplay modifier/Space release/preservation cases, including repeated release and X/Z control modes\n",modifier_cases);
 }
 '''
 with tempfile.TemporaryDirectory(prefix='e2-key-release-') as tmp:

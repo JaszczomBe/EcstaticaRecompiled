@@ -2,7 +2,8 @@
 """Compare node hit-query filtering and direct contact effects with original i386.
 
 Actor records use the reported stable coordinates and synthetic nearby candidates.
-The original polar/angle instructions run directly. Sound, scripted contacts and
+The original polar/angle instructions run directly. Script callbacks are
+intercepted to compare their selected record and arguments; sound and
 weapon-charge callbacks remain outside this bounded comparison.
 """
 import argparse
@@ -65,7 +66,21 @@ typedef uint64_t undefined8,ulonglong;
 #define DAT_0047a4a4 (*(int *)0x47a4a4)
 #define DAT_0047ab28 (*(int *)0x47ab28)
 #define CONCAT22(a,b) (((uint)(ushort)(a)<<16)|(ushort)(b))
-static int hud_calls;
+static int hud_calls,callback_calls;
+static uintptr_t callback_trace[32][5];
+static short *E2R_action_dispatch_node;
+static ushort *E2R_script_node_context;
+__attribute__((used,noinline)) static void observe_script(uint code,uint actor,uint other,uint child,uint node) {
+ assert(callback_calls<32);
+ uintptr_t args[]={code,actor,other,child,node};
+ memcpy(callback_trace[callback_calls++],args,sizeof args);
+}
+static void FUN_0044f508(ushort *actor,ushort *other,ushort *child) {
+ observe_script((uint)E2R_action_dispatch_node,(uint)actor,(uint)other,(uint)child,(uint)E2R_script_node_context);
+}
+__attribute__((naked)) static void interpreter_hook(void) {
+ __asm__("pushal; push %ebx; push 40(%esp); push %edx; push %ecx; push %eax; call observe_script; add $20,%esp; popal; ret $4");
+}
 static undefined8 FUN_0045fc10(int a,int b) { assert(0);return 0; }
 static void FUN_0042fce0(int a,int b,int c,int d,int e) { assert(0); }
 static void FUN_00456924(int a,int b) { assert(0); }
@@ -78,9 +93,9 @@ __attribute__((naked)) static void hud_hook(void) {
  __asm__("pushal; call FUN_00456a3c; popal; ret");
 }
 '''
-for name in ('E2R_PolygonAngle16', 'E2R_NpcPolar16', 'FUN_0042efdc'):
+for name in ('E2R_PolygonAngle16', 'E2R_NpcPolar16', 'E2R_DispatchScriptRecord', 'FUN_0042efdc'):
     harness += function(name) + '\n'
-for start, end in ((0x42efdc, 0x42f49c), (0x427160, 0x427214), (0x432c64, 0x432de4)):
+for start, end in ((0x44f32c, 0x44f33b), (0x42efdc, 0x42f49c), (0x427160, 0x427214), (0x432c64, 0x432de4)):
     harness += f'static const byte code_{start:x}[]={{' + ','.join(map(str, original(start, end))) + '};\n'
 harness += r'''
 static void map(int at,int size) {
@@ -151,16 +166,17 @@ static void setup(int seed,int kind) {
   case 14: *(int *)(actor+0xa6)=0x905000;*(byte *)(actor+0xb2)=0x80;break;
   case 15: *(short *)(actor+0x84)=2986+1200;*(short *)(actor+0x9a)=1200;break;
  }
- hud_calls=0;
+ hud_calls=callback_calls=0;memset(callback_trace,0,sizeof callback_trace);
+ E2R_action_dispatch_node=(short*)0x909000;E2R_script_node_context=(ushort*)0x909200;
 }
 int main(void) {
- map(0x420000,0x20000);map(0x450000,0x20000);map(0x470000,0x10000);
+ map(0x420000,0x20000);map(0x440000,0x10000);map(0x450000,0x20000);map(0x470000,0x10000);
  map(0x590000,0x80000);map(0x620000,0x20000);map(0x670000,0x10000);map(0x900000,0x10000);
 '''
-for start in (0x42efdc, 0x427160, 0x432c64):
+for start in (0x44f32c, 0x42efdc, 0x427160, 0x432c64):
     harness += f'memcpy((void *)0x{start:x},code_{start:x},sizeof code_{start:x});\n'
 harness += r'''
- hook(0x456a3c,hud_hook);
+ hook(0x456a3c,hud_hook);hook(0x44f508,interpreter_hook);
  for(int i=0;i<65536;i++) {
   double phase=i*6.28318/65536.0;
   *(short *)(0x59b590+i*2)=sin(phase)*16384.5;
@@ -185,6 +201,26 @@ harness += r'''
    abort();
   }
  }
+ int scripted=0;uintptr_t expected_callbacks[32][5];
+ for(int variant=0;variant<4;variant++)for(int seed=0;seed<4096;seed++) {
+  setup(seed,0);
+  int attacker=seed&1?0x901200:0x901000;
+  if(variant&1)*(short*)(attacker+0x138)=10;
+  if(variant&2)for(int j=0;j<5;j++)*(short*)(0x900136+j*0x200)=20;
+  *(uint*)(0x6297c0+10*4)=0x906000;*(uint*)(0x6297c0+20*4)=0x906200;
+  run_original(0x902000);int expected_hud=hud_calls,count=callback_calls;
+  scripted+=count;memcpy(expected,(void*)0x900000,sizeof expected);memcpy(expected_callbacks,callback_trace,sizeof callback_trace);
+  setup(seed,0);
+  if(variant&1)*(short*)(attacker+0x138)=10;
+  if(variant&2)for(int j=0;j<5;j++)*(short*)(0x900136+j*0x200)=20;
+  FUN_0042efdc(0x902000);
+  if(hud_calls!=expected_hud||callback_calls!=count||memcmp(expected_callbacks,callback_trace,sizeof callback_trace)||memcmp(expected,(void*)0x900000,sizeof expected)||
+     E2R_action_dispatch_node!=(short*)0x909000||E2R_script_node_context!=(ushort*)0x909200) {
+   fprintf(stderr,"script contact mismatch seed=%d variant=%d callbacks=%d/%d\n",seed,variant,callback_calls,count);abort();
+  }
+ }
+ assert(scripted>1000);
+ printf("PASS: 16384 original scripted/direct contact cases, %d selected attack/target callbacks with exact code/owner/target/child/node and restored nested context\n",scripted);
  assert(contacts>1000);
  printf("PASS: 16384 original node hit-query/filter/contact cases, %d contacts; mapped actor memory and player HUD handoffs match\n",contacts);
 }

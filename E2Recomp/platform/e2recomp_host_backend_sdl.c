@@ -1,3 +1,4 @@
+#include "e2recomp_actor_markers.h"
 #include "e2recomp_host_backend.h"
 #include "EcstaticaReplay.h"
 
@@ -725,7 +726,7 @@ static void e2r_cue_rect(SDL_Surface *s, int x, int y, int w, int h, Uint32 colo
     SDL_FillSurfaceRect(s, &rect, color);
 }
 
-static void e2r_cue_text(SDL_Surface *s, int x, int y, const char *text, Uint32 color)
+static void e2r_cue_text_scaled(SDL_Surface *s, int x, int y, const char *text, Uint32 color, int scale)
 {
     static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-+/:.,";
     static const unsigned char glyphs[][5] = {
@@ -744,14 +745,35 @@ static void e2r_cue_text(SDL_Surface *s, int x, int y, const char *text, Uint32 
         {6,73,73,41,30},{8,8,8,8,8},{8,8,62,8,8},
         {32,16,8,4,2},{0,54,54,0,0},{0,96,96,0,0},{0,64,48,0,0}
     };
-    for (; *text; ++text, x += 6) {
+    for (; *text; ++text, x += 6 * scale) {
         const char *p = strchr(alphabet, *text);
         if (!p) continue;
         for (int col = 0; col < 5; ++col)
             for (int row = 0; row < 7; ++row)
                 if (glyphs[p - alphabet][col] & (1u << row))
-                    e2r_cue_rect(s, x + col, y + row, 1, 1, color);
+                    e2r_cue_rect(s, x + col * scale, y + row * scale, scale, scale, color);
     }
+}
+
+static void e2r_cue_text(SDL_Surface *s, int x, int y, const char *text, Uint32 color)
+{
+    e2r_cue_text_scaled(s, x, y, text, color, 1);
+}
+
+static void e2r_cue_player_status(SDL_Surface *surface, const E2R_ActorCue *joe)
+{
+    static const char *status[] = {"NONE", "PENDING", "ACTIVE", "FADING"};
+    char text[96];
+    int y = surface->h - 45;
+    Uint32 cyan = SDL_MapSurfaceRGB(surface, 56, 224, 244);
+    Uint32 amber = SDL_MapSurfaceRGB(surface, 255, 180, 65);
+    e2r_cue_rect(surface, 6, y, surface->w - 12, 31,
+                 SDL_MapSurfaceRGB(surface, 12, 20, 30));
+    snprintf(text, sizeof(text), "HEALTH %d%s", joe->health, joe->healing ? "  HEALING" : "");
+    e2r_cue_text_scaled(surface, 12, y + 3, text, cyan, 2);
+    snprintf(text, sizeof(text), "POISON: %s / INVISIBILITY: %s",
+             status[joe->poison_status], status[joe->invisibility_status]);
+    e2r_cue_text(surface, 12, y + 21, text, amber);
 }
 
 /* Bresenham lines are bounded by signed 16-bit projection, and SDL clips
@@ -813,6 +835,37 @@ static int e2r_cue_cylinder(SDL_Surface *surface, const E2R_ActorCue *actor, Uin
     return drawn;
 }
 
+static int e2r_cue_marker(SDL_Surface *surface, const E2R_ActorCue *actor, Uint32 color)
+{
+    int drawn = 0, kind = actor->marker_kind;
+    if (kind == E2R_MARKER_PLAYER) return e2r_cue_cylinder(surface, actor, color);
+    if (kind == E2R_MARKER_WEAPON) {
+        static const unsigned char edges[][2] = {{0,1},{0,2},{1,2},{2,3},{2,7},{4,5},{3,6},{7,6}};
+        for (unsigned i = 0; i < sizeof(edges) / sizeof(edges[0]); ++i)
+            drawn |= e2r_cylinder_line(surface, actor->cylinder[edges[i][0]], actor->cylinder[edges[i][1]], color);
+    } else if (kind == E2R_MARKER_ITEM || kind == E2R_MARKER_CORPSE) {
+        for (int i = 0; i < 4; ++i) {
+            drawn |= e2r_cylinder_line(surface, actor->cylinder[i], actor->cylinder[(i+1)&3], color);
+            drawn |= e2r_cylinder_line(surface, actor->cylinder[i], actor->cylinder[4], color);
+            drawn |= e2r_cylinder_line(surface, actor->cylinder[i], actor->cylinder[5], color);
+        }
+    } else {
+        int levels = kind == E2R_MARKER_POTION ? 4 : 2;
+        for (int level = 0; level < levels; ++level) for (int i = 0; i < 4; ++i) {
+            int point = level * 4 + i, next = level * 4 + ((i+1)&3);
+            drawn |= e2r_cylinder_line(surface, actor->cylinder[point], actor->cylinder[next], color);
+            if (level) drawn |= e2r_cylinder_line(surface, actor->cylinder[point-4], actor->cylinder[point], color);
+        }
+        if (kind == E2R_MARKER_DOOR) {
+            drawn |= e2r_cylinder_line(surface, actor->cylinder[0], actor->cylinder[6], color);
+            drawn |= e2r_cylinder_line(surface, actor->cylinder[2], actor->cylinder[4], color);
+        }
+    }
+    if (drawn && kind == E2R_MARKER_CREATURE)
+        e2r_cylinder_line(surface, actor->screen[0], actor->local_z_tip, color);
+    return drawn;
+}
+
 static void e2r_sdl_actor_cues(SDL_Surface *surface)
 {
     const char *enabled = getenv("E2R_ACTOR_CUES");
@@ -823,6 +876,7 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
     unsigned drawn = 0, behind = 0, outside = 0, hidden = 0, objects = 0, generated = 0;
     if (!cylinders && (!enabled || !*enabled || *enabled == '0')) return;
     E2R_GetActorCues(&state);
+    if (state.requester_id != 0) return; /* Keep modal controls unobscured. */
     if (!cylinders && (state.scene_slot < 0 || state.count == 0)) return;
     Uint32 cyan = SDL_MapSurfaceRGB(surface, 56, 224, 244);
     Uint32 amber = SDL_MapSurfaceRGB(surface, 255, 180, 65);
@@ -840,14 +894,23 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
             if (!actor->visible_in_view) { ++hidden; continue; }
             const int *foot = actor->screen[0], *tip = actor->screen[1];
             Uint32 color = actor->is_joe ? cyan : actor->is_object ? object_color : amber;
-            const char *kind = actor->is_joe ? "JOE" : actor->is_object ? "OBJECT" :
-                               actor->generated ? "SPAWN" : "ACTOR";
+            const char *kind = e2r_marker_label(actor->marker_kind);
+            switch (actor->marker_kind) {
+            case E2R_MARKER_CREATURE: color = SDL_MapSurfaceRGB(surface, 255, 112, 88); break;
+            case E2R_MARKER_CORPSE: color = SDL_MapSurfaceRGB(surface, 136, 128, 144); break;
+            case E2R_MARKER_DOOR: color = SDL_MapSurfaceRGB(surface, 220, 170, 90); break;
+            case E2R_MARKER_DEBRIS: color = SDL_MapSurfaceRGB(surface, 136, 112, 88); break;
+            case E2R_MARKER_POTION: color = SDL_MapSurfaceRGB(surface, 116, 232, 176); break;
+            case E2R_MARKER_WEAPON: color = SDL_MapSurfaceRGB(surface, 232, 232, 248); break;
+            case E2R_MARKER_ITEM: color = SDL_MapSurfaceRGB(surface, 248, 216, 80); break;
+            }
+
             if (cylinders) {
-                if (e2r_cue_cylinder(surface,actor,color)) {
+                if (e2r_cue_marker(surface,actor,color)) {
                     ++drawn;
                     if (foot[2] > 0 && foot[0] >= 0 && foot[0] < surface->w &&
                         foot[1] >= 0 && foot[1] < surface->h) {
-                        snprintf(label,sizeof(label),"%s %d / LOCAL +Z",kind,actor->id);
+                        snprintf(label,sizeof(label),"%s %d %s",kind,actor->id,actor->name);
                         e2r_cue_text(surface,foot[0]+7,foot[1]-5,label,color);
                     }
                 } else if (actor->camera_z < 128) ++behind;
@@ -873,7 +936,7 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
         }
     }
     snprintf(label,sizeof(label),"%s: %u VISIBLE / %u HIDDEN / %u BEHIND / %u OFFSCREEN",
-             cylinders ? "CYLINDERS" : "ACTOR CUES",drawn,hidden,behind,outside);
+             cylinders ? "MARKERS" : "ACTOR CUES",drawn,hidden,behind,outside);
     e2r_cue_rect(surface,6,6, cylinders ? surface->w - 12 : (int)strlen(label)*6+8,
                  cylinders ? 62 : 22,bg);
     e2r_cue_text(surface,10,9,label,cyan);
@@ -892,9 +955,10 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
             snprintf(label,sizeof(label),"JOE %d,%d,%d / YROT %d / DEPTH %d",
                      joe->x,joe->y,joe->z,joe->rotation_y,joe->camera_z);
             e2r_cue_text(surface,10,39,label,cyan);
-            snprintf(label,sizeof(label),"ACTION %08X / %u/%u / APPROX RADIUS 256 HEIGHT 1024",
+            snprintf(label,sizeof(label),"ACTION %08X / %u/%u / SHAPES ARE NOT COLLISION BOUNDS",
                      joe->action,joe->action_progress,joe->action_duration);
             e2r_cue_text(surface,10,49,label,amber);
+            e2r_cue_player_status(surface,joe);
             break;
         }
         e2r_cue_text(surface,10,59,bypass && *bypass && *bypass != '0' ?

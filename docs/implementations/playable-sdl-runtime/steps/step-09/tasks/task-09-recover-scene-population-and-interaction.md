@@ -4,15 +4,178 @@
 [Project README](../../../../../../README.md) · [Parent: Enable Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
 <!-- /docs-tree:parent -->
 
-Status: in progress; workshop initialization crash reproduced/repaired and object/actor visibility audited; manual location re-entry and sword pickup remain open
+Status: in progress; human sword pickup, four kills and two door destructions verified; animation-cache stall repaired; typed markers and Debug/ASan gameplay menu Quit pass; human random-potion pickup verified; delayed potion effects repaired; human bottle removal/sword use confirmed; diagnostic health/effect panel added; healing/effects verification next; wider pickups, extended stability and rendering deferred
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
-Last Updated: 2026-10-23
+Last Updated: 2026-10-24
 
 ## Goal
 
 Restore original scene objects and NPCs needed for exploration and basic interaction while retaining cylinder presentation and Joe's working movement/camera transitions. Begin with one verified original resource and behavior; original models and full combat remain later work.
 
-## Current Continuation — Water Entry And Object Interaction
+## Current Continuation — Visible Health And Potion Status
+
+The [health/status review](../../../../../journal/entries/diagnostic-health-and-potion-status-2026-10-24.md)
+confirms the user's latest bottle removal and later sword attachment/attacks.
+Recorded health falls **100→70** before drinking; original HUD graphics are
+omitted in diagnostic gameplay. A new read-only bottom panel exposes actual
+health plus poison/invisibility action/timer status. It hides during modal
+menus and stays visible with Joe offscreen. Normal/ASan marker fixtures, four
+builds and live Debug/ASan potion routes pass. Human health recovery and potion
+lifetime/cure checks are next. Wider pickups, extended stability and rendering
+are deferred at the user's explicit request.
+
+## Prior Continuation — Consumed Bottle Removal
+
+The [bottle-removal review](../../../../../journal/entries/consumed-potion-removal-2026-10-24.md)
+confirms both left-hand bottle and right-hand sword attachments in the user's
+new run; all **549** exact replay checkpoints match. Animation-name interning
+and lookup incorrectly used **4,375** of the original **17,500** bytes. This
+turned the bottle's `glofade`/`potvan` chain into missing actions. Restoring the
+original bounds and new-animation slot ownership lets `ken:RemoveActor` clear
+the bottle's representation and reciprocal attachment.
+
+All **1,800** installed animation names match original x86 in normal/ASan
+fixtures. Fresh input-only Debug/ASan routes verify drinking and bottle removal,
+then sword collection, all four attack directions and movement with the bottle
+still gone. Separate final routes retain poison dispatch. Four builds, generator
+parity, actor/script-name fixtures and runtime baselines pass. Human F5 repetition,
+healing from damage, other effects/items and broader fidelity remain open.
+
+## Prior Continuation — Workshop Random Potion And Delayed Effects
+
+The [potion review](../../../../../journal/entries/workshop-random-potion-and-timers-2026-10-24.md)
+confirms human session **20261024_142028_732** through all **742** exact
+checkpoints and clean menu exit. Bottle **537**/`fakepot2` is a random-effect
+potion: the original script **189** selects **183**/`ken:purpotion` on pickup.
+It attaches to Joe and starts `joedrink`. This corrects its earlier prop label.
+
+Delayed effects lost their actor/action/delay arguments, allocated outside the
+original timer pool and never passed an unsigned deadline test. Those contracts
+are restored with generator parity and **12,288** original-code cases each in
+normal/ASan. Fresh input-only Debug/ASan routes now queue poison/death, execute
+poison action **409** and remove its timer, retaining future death, Joe health
+**100**, state **4**, and no sanitizer report. Four builds, marker and scheduled
+completion fixtures pass. Healing from below maximum health, final bottle
+cleanup, poison death/cure/fade and broader items remain open. Current sampled
+bottle attachment persists; no speculative disappearance is introduced.
+
+## Prior Continuation — Door Marker Placement And Creature Direction
+
+The [marker follow-up](../../../../../journal/entries/long-play-cache-reclamation-and-markers-2026-10-24.md#follow-up-door-marker-placement-and-creature-direction)
+corrects intact doors to follow the first model node's offset, half-extents and
+rotation. Workshop door **980** is broad along local Z and offset from its actor;
+the previous centred X-wide slab misrepresented its placement. Living creature
+markers again draw their projected local +Z line. Corpse markers remain low.
+The host computes these cues privately, without changing actor/collision state.
+Debug/ASan marker fixtures verify both hinge-side headings, visible creature
+direction pixels, corpse suppression and unchanged game memory. Four builds
+pass; fresh Debug/ASan input routes confirm sword pickup, collapse and passage
+with health **100** and no sanitizer report. Evidence and limits are recorded
+in the linked journal.
+
+## Prior Continuation — Longer Playthrough, Cache Reclamation And Markers
+
+The [2026-10-24 review](../../../../../journal/entries/long-play-cache-reclamation-and-markers-2026-10-24.md)
+verifies deaths of actors **602, 293, 284, 74**, destruction of doors **980, 963**
+and attached sword **3717**. Potion pickup is not confirmed: the two workshop
+Space attempts leave **537**/`fakepot2` unchanged; its original handler is
+`ken:fakepot`.
+
+Exact replay reaches checkpoint **469**, then exhausts the temporary record pool
+while loading enemy animation **1439**. Escape is never delivered. Cache eviction
+now retains the selected action and releases its keyframes/event records, with
+original-code comparisons and generator mirrors. Final Debug replay passes the
+load and all **469** checkpoints, ending at the incomplete recording boundary.
+
+Host-only shapes distinguish creatures, corpses, doors, debris, bottles, blades,
+items and props, with original-name labels. Modal menus suppress the overlay.
+Fresh Debug/ASan input routes acquire the sword, destroy/pass the door, cancel
+Escape, reopen Quit, confirm Yes and exit normally. Four builds, parity,
+original comparisons, marker fixtures and runtime regressions pass. The long ASan replay is incomplete at 180 seconds/checkpoint **308** with Joe alive and no sanitizer report; the late cache boundary is established by Debug replay and original-code/ASan fixtures. Genuine
+potion effects, other items/points, wider combat and full rendering remain open;
+prior ASan courtyard steering/floor-return limits remain separate.
+
+## Prior Continuation — Workshop Door Hit Callback
+
+The [2026-10-24 door journal](../../../../../journal/entries/workshop-door-hit-callback-2026-10-24.md)
+confirms the human smith kill (actor **602**, health **−20**, state **11**) and
+exactly reproduces the door crash at checkpoint **125**, sequence
+**1,768,693,458**. Target **980**/`kdorr` still has health **60**: this is a hit
+callback failure before collapse. The selected attack and target-hit script
+records were lost entering the interpreter. Both original handoffs are restored
+with scoped code/owner/target/child/node contexts and generator parity.
+
+The expanded original-code fixture passes **32,768** cases normally/ASan,
+including **37,188** scripted callback handoffs. Fresh SDL Debug/ASan routes
+reduce the left door **100 → 60 → 20 → −20**, execute hit action **370** and
+collapse action **377**, then observe state **11** with no representation.
+Released forward movement passes through the opening into camera **164** with
+Joe health **100**, state **4** and no modal or sanitizer report. Four builds,
+baseline/control and requester checks pass. Next is human F5 door collapse and
+passage repetition; other objects, area attacks, wider combat and full rendering
+remain separate acceptance. Prior ASan courtyard steering/floor-return limits
+remain open.
+
+## Prior Continuation — Sword Attacks And Attached Position
+
+The [2026-10-24 attack journal](../../../../../journal/entries/sword-attacks-and-attached-position-2026-10-24.md)
+confirms human pickup and exactly reproduces the subsequent Ctrl/arrow crash in
+`FUN_0042e7dc` at checkpoint **91**, sequence **1,338,228,752**. Original actor/XZ
+and direction-preservation contracts are restored. The sword's persistent
+workbench cylinder reflects stale actor coordinates: attached rendering lost
+owner/actor arguments and cylinder mode omitted the moving hand pose. Those
+contracts and the original bounded pose work-list are restored, with generator
+parity and normal/ASan original-code comparisons.
+
+Fresh SDL Debug/ASan input routes acquire the sword, start all four requested
+Ctrl/arrow attack directions, release and move with health **100**, state **4**,
+representation **9**, no modal and reciprocal attachment links. The sword's
+world coordinates change with its hand attachment. Builds, baseline/control and
+requester checks pass. Debug's populated courtyard return passes; ASan steering
+attempts miss the outward camera or return floor while retaining health 100 and
+no sanitizer report. Human swing/marker repetition and actual weapon contact/damage remain open.
+
+## Prior Continuation — Water Replay And Sword Pickup
+
+The [2026-10-24 pickup journal](../../../../../journal/entries/water-replay-and-sword-pickup-2026-10-24.md)
+confirms human session `20261024_115621_101`: all **565** exact checkpoints match,
+including swimming across cameras 543→545 with health **100**, state **4** and
+representation **13**. Session `20261024_115718_697` confirms walking through
+350/348 into workshop camera **347**, then exactly reproduces the Space pickup
+crash at checkpoint **62**. Both pinned recordings are preserved independently
+of session retention.
+
+Original player/polar arguments, the first model-node origin needed for pickup
+height, the attachment event's node/owner/script handoff, and hosted Space release
+are restored. Fresh SDL Debug/ASan input routes acquire actor **3717**, verify
+reciprocal attachment links to Joe, equipped kind **3** and representation **9**,
+then move while retaining health **100**, state **4** and no modal. Original-code
+comparisons, generation parity, populated courtyard returns and baseline checks
+pass. The crashed recording ends at its fault; fresh input supplies pickup
+completion evidence. The newer human report above confirms pickup; the attack
+and attached-position continuation owns the next acceptance.
+
+## Prior Continuation — Early-Skip Startup Regression
+
+The [2026-10-24 startup repair](../../../../../journal/entries/pedestal-intro-restart-2026-10-24.md)
+reproduces the user's pedestal-to-horseback restart, rooftop displacement and
+later death/menu in a complete exact replay (1,810 matching checkpoints). The
+original skip script's nine actor cleanup references were unresolved because
+actor names were truncated at 10,000 rather than 40,000 bytes and 108 startup
+literal suffixes were absent. Both contracts and new actor-slot ownership are
+restored, with generator parity and original-code comparisons.
+
+Fresh Debug/ASan early skips finish the pedestal scene, retain movement and pass
+60-second released-input checks. Skipping at the recorded first-action progress
+83/495 also passes populated crossing/return with health 100 in both builds.
+Natural-intro water/swimming checks pass again. The complete 83/495 skip-to-water
+route passes in Debug; ASan times out before water with health 100 and remains
+incomplete. The newer human sessions confirm traversal, swimming and workshop
+re-entry after the startup repair; pickup repetition and the separate broader
+Debug floor-return issue remain open. Old recordings
+correctly diverge after changed cleanup; no checkpoint acceptance is weakened.
+
+## Prior Continuation — Water Entry And Object Interaction
 
 The [water-entry repair](../../../../../journal/entries/water-entry-and-player-resource-2026-10-23.md)
 restores original actor identity for ordinary gameplay loading: local node zero
@@ -20,9 +183,8 @@ formerly aliased potion actor 4119/`fpot6` as Joe, losing his swimming capabilit
 Live swimming-scene reads and opcode-0x54's packed state write are also recovered.
 All 1,922 actor headers and bounded original-x86 water/selector/reload contracts
 pass. Natural-startup Debug/ASan input routes reach camera 543 and swim forward
-with health 100, state 4, representation 13 and no modal. Human F5 confirmation,
-shore exit and held-item swimming remain open. Workshop re-entry/pickup remain
-the next object-interaction acceptance.
+with health 100, state 4, representation 13 and no modal. The newer human replay
+confirms water entry/swimming; shore exit and held-item swimming remain open.
 
 ## Prior Continuations — NPC Poses And Object Interaction
 
@@ -60,11 +222,17 @@ Automatic NPC population and scripted objects are separate paths. An empty cylin
 
 ## Next Bounded Action
 
-The [blacksmith sword capture](../../../../../journal/entries/blacksmith-sword-location-2026-10-20.md) selects a concrete target: original scene **1909** / actor **3717**, both `nschwrt1`, in **camera 347**, positioned at **(-972, 3884, -10208)** beside the workbench. The user's F12 packet has no sword on the active actor list, but does not establish whether it is loaded elsewhere. Switches are quest gated; doors require sword attacks. Restore this sword's presence and then pickup before using either as a first interaction target.
+The user confirms bottle removal and subsequent sword use in the latest F5 run.
+Use the new **HEALTH / POISON / INVISIBILITY** panel to verify healing from
+naturally received damage, then poison lifetime/cure and invisibility expiry.
+Record the actual random branch and state change; drinking alone does not prove
+a particular effect. Current evidence and indicator semantics belong to the
+[health/status journal](../../../../../journal/entries/diagnostic-health-and-potion-status-2026-10-24.md).
 
-1. Confirm ordinary F5 re-entry through cameras 356/350 to the user's camera-347 location, with actor 3717 visible beside the workbench; retain an F12 packet. The reported initialization crash is reproduced/repaired and automated view activation/return passes, but this manual walking route remains open. Object markers now use neutral `OBJECT` labels; their cylinders do not indicate enemies.
-2. Trace the sword's original proximity/input script and pickup action. Establish the expected original input and acquired/equipped state before implementing that first pickup; retain generic NPC updates and Joe's movement. The sword mesh and its attack/door-destruction animations remain separate work.
-3. Mirror any repair in `GenerateRecon.js`, compare the recovered pickup contract with original instructions and rerun populated Debug/ASan crossing/return plus baseline regressions. Keep combat, full models and broad category coverage separate.
+Defer broader items/points, prolonged stability investigation and original mesh
+work until these focused checks are complete or the user changes priorities.
+Retain existing courtyard steering and full-render limits without reopening
+those tasks during this continuation.
 
 ## Acceptance And Limits
 

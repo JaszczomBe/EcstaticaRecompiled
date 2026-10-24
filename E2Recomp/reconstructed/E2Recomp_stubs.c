@@ -426,6 +426,8 @@ static void E2R_feed_legacy_keyup(WPARAM key, LPARAM lParam) {
      * as the held table. Retain the hosted Shift/Ctrl/Alt aliases supplied
      * by keydown; otherwise a released desktop modifier changes gameplay. */
     switch (key) {
+    /* Original 0x45836e clears interaction on Space release. */
+    case VK_SPACE: DAT_00636850 = 0; break;
     case VK_SHIFT: DAT_00636846 = 0; break;
     case VK_CONTROL: DAT_00636852 = 0; break;
     case VK_MENU:
