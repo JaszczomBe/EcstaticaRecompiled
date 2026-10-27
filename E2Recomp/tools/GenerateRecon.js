@@ -10406,6 +10406,271 @@ source = replaceRectangleInput(source,
         _DAT_00643430 = item;
       E2R_requester_probe_action_count++;`);
 
+// Slot preview 0x43c2b8..0x43c453 retains its original 26+2 header,
+// 80x60 column order and high-resolution coordinates. Hosted requesters draw
+// into auxiliary pages 2/3; writing a physical gameplay page hides the preview
+// from the menu and leaves a dirty image behind when the requester is closed.
+patchRectangleFunction('FUN_0043c1b8', body => {
+  body = replaceRectangleInput(body,
+    '        FUN_004173c8((uintptr_t)stream,0);',
+    '        E2R_ReadFanTextByte(stream);\n        E2R_ReadFanTextByte(stream);');
+  return replaceRectangleInput(body,
+    `          int pitch;
+          int base = FUN_00418a04(surface,&pitch);
+          for (int column = 0; column < 0x50; column = column + 1)
+            for (int row = 0; row < 0x3c; row = row + 1)
+              *(byte *)(base + (y + row) * pitch + x + column) = (byte)E2R_ReadFanTextByte(stream);
+          FUN_00418b00(surface,base);`,
+    `          byte thumbnail[80 * 60];
+          for (int i = 0; i < 80 * 60; ++i)
+            thumbnail[i] = (byte)E2R_ReadFanTextByte(stream);
+          for (int target = 2; target < 4; ++target) {
+            int pitch;
+            int base = FUN_00418a04(target,&pitch);
+            for (int column = 0; column < 80; ++column)
+              for (int row = 0; row < 60; ++row)
+                *(byte *)(base + (y + row) * pitch + x + column) = thumbnail[column * 60 + row];
+            FUN_00418b00(target,base);
+          }`);
+});
+patchRectangleFunction('FUN_0043b384', body => replaceRectangleInput(body,
+  '    uVar11 = FUN_0043c1b8(uVar4,uVar7);',
+  '    uVar11 = FUN_0043c1b8(_DAT_0064353c,0);'));
+
+// Original 0x43d490 hands Load to state 4 and returns to play afterwards.
+// Keep hosted nested cancellation, but unwind both requesters on successful
+// restoration instead of explicitly reopening the parent menu. State 5 is the
+// existing resume path; state 0 would start a new game in 0x415d40.
+source = replaceRectangleInput(source,
+  'static int E2R_requester_continue_after_action;',
+  'static int E2R_requester_continue_after_action;\nstatic int E2R_requester_load_succeeded;');
+source = replaceRectangleInput(source,
+  '        if (requester_id == 0x29) FUN_004544a4(_DAT_0064353c,0);',
+  `        if (requester_id == 0x29) {
+          if ((uint)FUN_004544a4(_DAT_0064353c,0) == 0) E2R_requester_load_succeeded = 1;
+        }`);
+source = replaceRectangleInput(source,
+  '      _DAT_00643650 = E2R_TraceRequesterState("action.load",4);\n      _DAT_0064353c = -1;',
+  '      _DAT_00643650 = E2R_TraceRequesterState("action.load",4);\n      E2R_requester_load_succeeded = 0;\n      _DAT_0064353c = -1;');
+source = replaceRectangleInput(source,
+  '      } while ((int)_DAT_0064353c < 0);\n      E2R_WORD_AT(DAT_0047a45e,2) = 0x28;',
+  `      } while ((int)_DAT_0064353c < 0);
+      if (E2R_requester_load_succeeded) {
+        E2R_requester_continue_after_action = 0;
+        _DAT_006443d0 = 1;
+        _DAT_0064342c = 0;
+        E2R_WORD_AT(DAT_0047a45e,2) = 0;
+        _DAT_00643650 = E2R_TraceRequesterState("action.load_complete",5);
+        DAT_00636844 = 0;
+        DAT_0047a788 = 1;
+        return 1;
+      }
+      E2R_WORD_AT(DAT_0047a45e,2) = 0x28;`);
+
+
+// Original menu record 0x47a5a4, title registers at 0x43b5a4 and
+// high-resolution font raster at 0x419af4. Preview enlargement is display only.
+source = replaceRectangleInput(source,
+  "static const byte *E2R_HostedGlyphRows(byte ch)",
+  `static const byte *E2R_OriginalMenuGlyph(byte ch)
+{
+  static byte font[0x2c42];
+  static int loaded;
+  uint address = 0x00477068;
+
+  if (loaded == 0)
+    loaded = E2R_ReadOriginalImageData(0x00477068,font,sizeof(font)) ? 1 : -1;
+  if (loaded < 0) return (const byte *)0x0;
+  if ('0' <= ch && ch <= '9') address += (ch + 99) * 22;
+  else if ('a' <= ch && ch <= 'z') address += (ch + 0x56) * 22;
+  else if ('A' <= ch && ch <= 'Z') address += (ch + 0x5c) * 22;
+  else {
+    switch (ch) {
+    case 0x2e: address = 0x004770c0; break;
+    case 0x28: address = 0x004773ee; break;
+    case 0x5b: address = 0x00477446; break;
+    case 0x5d: address = 0x0047745c; break;
+    case 0x5f: address = 0x004771de; break;
+    case 0x21: address = 0x0047712e; break;
+    case 0x3f: address = 0x00477118; break;
+    case 0x22: address = 0x0047719c; break;
+    case 0x2b: address = 0x0047757a; break;
+    case 0x2d: address = 0x00477590; break;
+    case 0x2c: address = 0x004770aa; break;
+    case 0x2f: address = 0x004772fc; break;
+    case 0x5c: address = 0x00477312; break;
+    case 0x3a: address = 0x004770ec; break;
+    case 0x27: address = 0x004773ac; break;
+    case 0x2a: address = 0x004777b6; break;
+    case 0xdf: address = 0x0047930a; break;
+    case 0xc4: address = 0x004799a8; break;
+    case 0xd6: address = 0x004799be; break;
+    case 0xdc: address = 0x004799d4; break;
+    case 0xe4: address = 0x004799ea; break;
+    case 0xf6: address = 0x00479a00; break;
+    case 0xfc: address = 0x00479a16; break;
+    case 0x83: address = 0x00479a42; break;
+    case 0x8c: address = 0x00479a9a; break;
+    case 0x97: address = 0x00479ac6; break;
+    case 0x96: address = 0x00479adc; break;
+    case 0x87: address = 0x00479af2; break;
+    case 0x8b: address = 0x00479b08; break;
+    case 0x80: address = 0x00479b1e; break;
+    case 0xbf: address = 0x00479b34; break;
+    case 0xfa: address = 0x00479b4a; break;
+    case 0xed: address = 0x00479b60; break;
+    case 0xa1: address = 0x00479b76; break;
+    case 0xf3: address = 0x00479b8c; break;
+    case 0xec: address = 0x00479ba2; break;
+    case 0xe1: address = 0x00479bb8; break;
+    case 0x86: address = 0x00479bce; break;
+    case 0x8d: address = 0x00479be4; break;
+    case 0x91: address = 0x00479bfa; break;
+    case 0x92: address = 0x00479c10; break;
+    case 0xa4: address = 0x00479c26; break;
+    case 0x9e: address = 0x00479c3c; break;
+    case 0xa7: address = 0x00479c52; break;
+    case 0xa6: address = 0x00479c68; break;
+    case 0x9c: address = 0x00479c7e; break;
+    case 0x98: address = 0x00479c94; break;
+    case 0x29: address = 0x00477404; break;
+    case 0x85: case 0xe0: address = 0x00479a2c; break;
+    case 0x82: case 0xe9: address = 0x00479a58; break;
+    case 0x8a: case 0xe8: address = 0x00479a6e; break;
+    case 0x88: case 0xea: address = 0x00479a84; break;
+    case 0x93: case 0xf4: address = 0x00479ab0; break;
+    default: break;
+    }
+  }
+  return font + address - 0x00477068;
+}
+
+static const byte *E2R_HostedGlyphRows(byte ch)`);
+source = replaceRectangleInput(source,
+  `  const byte *rows;
+  int advance;`,
+  `  const byte *rows;
+  const byte *glyph;
+  int advance;`);
+source = replaceRectangleInput(source,
+  `  if (color == 0) {
+    color = 0xf;
+  }
+`,
+  "");
+source = replaceRectangleInput(source,
+  `    if ('a' <= ch && ch <= 'z') {
+      ch = ch - ('a' - 'A');
+    }
+    rows = E2R_HostedGlyphRows(ch);`,
+  `    glyph = DAT_0047a43c != 0 ? E2R_OriginalMenuGlyph(ch) : (const byte *)0x0;
+    if (glyph != (const byte *)0x0) {
+      /* Original 0x41a97a..0x41aac2: 11 byte-swapped bit rows,
+       * 12-pixel advance, transparent background except text mode 2. */
+      for (row = 0; row < 12; ++row) {
+        uint bits = row < 11 ? glyph[row * 2] | (uint)glyph[row * 2 + 1] << 8 : 0;
+        for (col = 0; col < 12; ++col) {
+          int px = x + (int)col;
+          int py = y + (int)row;
+          int ink = col < 11 && (bits & (1u << (col < 8 ? 7 - col : 23 - col)));
+          if ((ink || *(short *)(0x006366a8 + style_surface * 2) == 2) &&
+              0 <= px && px < _DAT_006401ec && 0 <= py && py < _DAT_006401d4) {
+            byte pixel = ink ? color : ((byte *)0x006366e8)[style_surface * 2];
+            *(byte *)(base + py * pitch + px) = pixel;
+            if (base2 != 0) *(byte *)(base2 + py * pitch2 + px) = pixel;
+          }
+        }
+      }
+      x += advance;
+      continue;
+    }
+    if ('a' <= ch && ch <= 'z') ch -= 'a' - 'A';
+    rows = E2R_HostedGlyphRows(ch);`);
+{
+  const start = source.indexOf('static void E2R_DrawHostedRequesterLabels(');
+  const end = source.indexOf('\nstatic byte *E2R_RequesterTextOrFallback(byte *text)\n{',start);
+  if (start < 0 || end < start) throw new Error('Missing provisional label redraw');
+  source = source.slice(0,start) + source.slice(end);
+}
+source = replaceRectangleInput(source,
+  `  E2R_DrawHostedRequesterLabels(in_EAX);
+`,
+  "");
+source = replaceRectangleInput(source,
+  `  E2R_DrawHostedRequesterLabels(record);
+`,
+  "");
+source = replaceRectangleInput(source,
+  "E2R_InitRequesterRecord(0x0047a5a4,-1,-1,0xf0,0xb4,",
+  "E2R_InitRequesterRecord(0x0047a5a4,-1,-1,0x10e,0xaf,");
+source = replaceRectangleInput(source,
+  `    FUN_0041b078(CONCAT22((short)(~uVar7 - 1 >> 0x10),sVar6),
+                 (short)((uint)*(undefined4 *)(in_EAX + 7) >> 0x10) +
+                 (short)(((*(int *)(in_EAX + 0xb) >> 0x10) - (int)sVar6) / 2));`,
+  `    FUN_0041b078(in_EAX[8] + (in_EAX[12] - sVar6) / 2,
+                 in_EAX[10] + DAT_0047a40c + 2);`);
+source = replaceRectangleInput(source,
+  "  int x = DAT_0047a43c == 0 ? 0x23 : 0x74;",
+  "  int x = DAT_0047a43c == 0 ? 0x23 : 72;");
+source = replaceRectangleInput(source,
+  "  int y = DAT_0047a43c == 0 ? 0x2c : 0xa2;",
+  "  int y = DAT_0047a43c == 0 ? 0x2c : 162;");
+source = replaceRectangleInput(source,
+  `            for (int column = 0; column < 80; ++column)
+              for (int row = 0; row < 60; ++row)
+                *(byte *)(base + (y + row) * pitch + x + column) = thumbnail[column * 60 + row];`,
+  `            for (int column = 0; column < 160; ++column)
+              for (int row = 0; row < 120; ++row)
+                *(byte *)(base + (y + row) * pitch + x + column) = thumbnail[(column / 2) * 60 + row / 2];`);
+source = replaceRectangleInput(source,
+  "  E2R_FillHostedRect(x,y,x + 0x4f,y + 0x3b);",
+  `  E2R_FillHostedRect(x,y,x + (DAT_0047a43c == 0 ? 79 : 159),
+                     y + (DAT_0047a43c == 0 ? 59 : 119));`);
+
+// Original 0x43baa8..0x43bbc9 distinguishes raised buttons from inset slots.
+source = replaceRectangleInput(source,"static void E2R_DrawHostedRectBorder(int left,int top,int right,int bottom)","static void E2R_DrawHostedRectBorder(int left,int top,int right,int bottom,int inset)");
+source = replaceRectangleInput(source,"*(byte *)(base + top * pitch + x) = 8;\n      *(byte *)(base + bottom * pitch + x) = 0xe;","*(byte *)(base + top * pitch + x) = inset ? 0xe : 8;\n      *(byte *)(base + bottom * pitch + x) = inset ? 8 : 0xe;");
+source = replaceRectangleInput(source,"*(byte *)(base + y * pitch + right) = 8;\n      *(byte *)(base + y * pitch + left) = 0xe;","*(byte *)(base + y * pitch + right) = inset ? 8 : 0xe;\n      *(byte *)(base + y * pitch + left) = inset ? 0xe : 8;");
+source = replaceRectangleInput(source,"  E2R_DrawHostedRectBorder(*(int *)(puVar3 + 7) >> 0x10,*(int *)(puVar3 + 9) >> 0x10,\n                           (*(int *)(puVar3 + 8) >> 0x10) + -1,\n                           (*(int *)(puVar3 + 10) >> 0x10) + -1);","  E2R_DrawHostedRectBorder(*(int *)(puVar3 + 7) >> 0x10,*(int *)(puVar3 + 9) >> 0x10,\n                           (*(int *)(puVar3 + 8) >> 0x10) + -1,\n                           (*(int *)(puVar3 + 10) >> 0x10) + -1,0);");
+source = replaceRectangleInput(source,"  E2R_DrawHostedRectBorder(*(int *)(in_EAX + 7) >> 0x10,*(int *)(in_EAX + 9) >> 0x10,\n                           (*(int *)(in_EAX + 8) >> 0x10) + -1,\n                           (*(int *)(in_EAX + 10) >> 0x10) + -1);","  E2R_DrawHostedRectBorder(*(int *)(in_EAX + 7) >> 0x10,*(int *)(in_EAX + 9) >> 0x10,\n                           (*(int *)(in_EAX + 8) >> 0x10) + -1,\n                           (*(int *)(in_EAX + 10) >> 0x10) + -1,0);");
+source = replaceRectangleInput(source,"E2R_DrawHostedRectBorder(param_2[0xb],param_2[0xd],param_2[0xc] + -1,param_2[0xe] + -1);","E2R_DrawHostedRectBorder(param_2[0xb],param_2[0xd],param_2[0xc] + -1,\n                             param_2[0xe] + -1,(param_2[8] & 0x100) != 0);");
+
+// Resolve original fixed short labels before measurement and drawing. The
+// removed duplicate label pass previously supplied Quit/Yes/No by accident.
+patchRectangleFunction('FUN_0043b9bc', body => replaceRectangleInput(body,
+  `  sVar8 = 0;
+  if (*(int *)(param_2 + 4) != 0) {`,
+  `  *(byte **)(param_2 + 4) = E2R_RequesterTextOrFallback(*(byte **)(param_2 + 4));
+  sVar8 = 0;
+  if (*(int *)(param_2 + 4) != 0) {`));
+
+// Original 0x43b660..0x43b6cc keeps ECX zero across the event pump
+// (0x41ba7d/0x41bcc2 preserve it). EAX carries mouse bits independently;
+// those bits must never enable the save-name caret on a fixed button label.
+patchRectangleFunction('FUN_0043b384', body => body
+  .replace('if (mouse_state == _DAT_0064342c)', 'if (_DAT_0064342c == 0)')
+  .replace('if (mouse_state != _DAT_0064342c)', 'if (_DAT_0064342c != 0)')
+  .replace('_DAT_0064342c = mouse_state;', '_DAT_0064342c = 0;')
+  .replaceAll('iVar2 = mouse_state;', 'iVar2 = 0;')
+  .replace('FUN_0043bd4c(mouse_state,_DAT_00643430)', 'FUN_0043bd4c((uintptr_t)in_EAX,_DAT_00643430)')
+  .replace('FUN_0043b9bc(mouse_state,_DAT_00643430)', 'FUN_0043b9bc((uintptr_t)in_EAX,_DAT_00643430)')
+  .replace('FUN_0043b708(iVar2,psVar8)', 'FUN_0043b708((uintptr_t)in_EAX,psVar8)'));
+
+// Original Save is a closing 0x2000 button (0x43b8b4..0x43b8cd),
+// followed by state 3 at 0x43d47c. The hosted action bridge owns that exit.
+source = replaceRectangleInput(source,
+  '      _DAT_00643650 = E2R_TraceRequesterState("action.save",3);',
+  '      _DAT_006443d0 = 1;\n      _DAT_00643650 = E2R_TraceRequesterState("action.save",3);');
+
+// Original requester repaint at 0x43b09f..0x43b0f4 uses the same
+// title coordinates as initial drawing; restore both lost register inputs.
+patchRectangleFunction('FUN_0043af98', body => replaceRectangleInput(body,
+  `    FUN_0041b078(CONCAT22((short)(~uVar6 - 1 >> 0x10),sVar5),
+                 (short)((uint)*(undefined4 *)(puVar3 + 7) >> 0x10) +
+                 (short)(((*(int *)(puVar3 + 0xb) >> 0x10) - (int)sVar5) / 2));`,
+  `    FUN_0041b078(puVar3[8] + (puVar3[12] - sVar5) / 2,
+                 puVar3[10] + DAT_0047a40c + 2);`));
+
 fs.writeFileSync(outSrc, source);
 
 const sortedIds = [...ids].sort();

@@ -8,6 +8,8 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Menu layout and original font — 2026-10-28](entries/menu-layout-and-font-2026-10-28.md): recovers original slot-panel dimensions, title position and mixed-case glyphs, and enlarges preview display without changing save files.
+
 - [Enemy-play crash and dropped potion — 2026-10-27](entries/enemy-play-crash-and-dropped-potion-2026-10-27.md): reproduces the human bitmap failure, repairs false action-index entries inside sound data and restores the original representation-name pool for dropped-potion healing/removal.
 
 - [Enemy bodies and animation recovery — 2026-10-27](entries/enemy-model-and-animation-2026-10-27.md): enables original character ellipsoids and bone poses in F5, verifies live guard/attack evidence and retains broader combat and polygon limits.
@@ -158,6 +160,7 @@ Use [journal.template.md](../templates/journal.template.md) for new journal entr
 - [Sequential invisible regression sweep — 2026-10-27](entries/headless-regression-sweep-2026-10-27.md)
 - [Manual Castle Exploration And Population Frontier — 2026-10-19](entries/manual-castle-exploration-2026-10-19.md)
 - [Pedestal intro restart after early skip — 2026-10-24](entries/pedestal-intro-restart-2026-10-24.md)
+- [Save/load menu refinements — 2026-10-27](entries/save-load-menu-refinements-2026-10-27.md)
 - [Shared gameplay checkpoint journeys — 2026-10-24](entries/shared-gameplay-journeys-2026-10-24.md)
 - [Swimming route navigation — 2026-10-26](entries/swimming-route-navigation-2026-10-26.md)
 - [Tower actor eviction crash — 2026-10-27](entries/tower-actor-eviction-crash-2026-10-27.md)

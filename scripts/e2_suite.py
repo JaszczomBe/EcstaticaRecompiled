@@ -528,6 +528,7 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
         for label,script,extra in [
             ('ActorNames','actor-names',[names]),('AnimationNames','animation-names',[names]),
             ('ScriptNames','script-names',[]),('Menus','menu-contracts',[]),
+            ('MenuLayout','menu-layout',[]),
             ('PlayerMesh','player-mesh',[]),('EllipsoidPixels','ellipsoid-pixels',[]),
             ('InterpolatedNodeEvents','interpolated-node-events',[]),('RenderCopies','render-copies',[]),
             ('PoseEvents','action-pose-events',[]),('BitmapRecords','bitmap-records',[]),
@@ -553,7 +554,8 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
                 ('Attachment',True,'noncombat-opening',None),('SaveFailure',False,'live','save-open')]:
             cases.append(Case(prefix+'Persistence.'+label,kind='persistence',configuration=configuration,
                 requires=tuple(prefix+name for name in ('Build','Host.SaveStorage','Host.SaveStreams',
-                    'Original.SaveContracts','Original.SaveWriter','Original.SaveSlotCallbacks','Original.SaveRestoreTimers')),
+                    'Original.SaveContracts','Original.SaveWriter','Original.SaveSlotCallbacks','Original.SaveRestoreTimers',
+                    'Original.Menus','Original.MenuLayout')),
                 timeout=180 if failure else 600,
                 options=dict(equipment=equipment,population_profile=profile,failure_case=failure)))
         live('Startup.EarlySkip','startup',intro='early')
@@ -795,7 +797,7 @@ def executor(game_data, video_driver='dummy'):
         else:
             command=case.command
             if case.name=='Source.GeneratorParity':command+=('--output',str(directory/'generation'))
-            if '.Original.Save' in case.name or '.Host.Save' in case.name:
+            if '.Original.Save' in case.name or '.Original.Menu' in case.name or '.Host.Save' in case.name:
                 command+=('--keep-harness',str(directory/'fixture.c'))
         result=execute(command,directory,case.timeout,environment)
         return result|dict(artifacts=case.name)

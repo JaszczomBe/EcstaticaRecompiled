@@ -72,6 +72,7 @@ static int streams[10][7];
 static byte contents[10][4828];
 static char filenames[10][15];
 static byte pixels[704*480];
+static byte hosted[2][704*480];
 __attribute__((used,noinline)) static unsigned open_stream(const char *path,const char *kind) {
     assert(opens<10 && !strcmp(kind,"rb"));
     unsigned slot=opens++;
@@ -117,13 +118,18 @@ __attribute__((naked)) static void close_hook(void) {
 }
 __attribute__((naked)) static void requester_hook(void) { __asm__("xor %eax,%eax; ret"); }
 __attribute__((used,noinline)) static unsigned lock_surface(unsigned surface,int *pitch) {
-    assert(surface==0);*pitch=704;return (unsigned)pixels;
+    *pitch=704;
+    if(original_mode) { assert(surface==0);return (unsigned)pixels; }
+    assert(surface==2 || surface==3);return (unsigned)hosted[surface-2];
 }
 __attribute__((used,noinline)) static void unlock_surface(unsigned surface,unsigned base) {
-    assert(surface==0 && base==(unsigned)pixels);unlocks++;
+    assert(original_mode ? surface==0 && base==(unsigned)pixels :
+           (surface==2 || surface==3) && base==(unsigned)hosted[surface-2]);unlocks++;
 }
 __attribute__((used,noinline)) static void clear_surface(unsigned surface,int x,int y,int right,int bottom) {
-    assert(surface==0);for(int row=y;row<=bottom;row++)memset(pixels+row*704+x,0,right-x+1);
+    assert(surface==0);
+    for(unsigned page=0;page<(original_mode ? 1 : 2);page++)
+        for(int row=y;row<=bottom;row++)memset((original_mode ? pixels : hosted[page])+row*704+x,0,right-x+1);
 }
 __attribute__((naked)) static void lock_hook(void) {
     __asm__("pushal; push %edx; push %eax; call lock_surface; add $8,%esp; mov %eax,28(%esp); popal; ret");
@@ -224,15 +230,20 @@ int main(void) {
         memset(pixels,0xa5,sizeof pixels);opens=slot;closes=unlocks=0;original_mode=1;
         original(0x43c1b8,slot);
         unsigned expected_closes=closes,expected_unlocks=unlocks;
-        static byte expected[sizeof pixels];memcpy(expected,pixels,sizeof pixels);
-        memset(pixels,0xa5,sizeof pixels);opens=slot;closes=unlocks=0;original_mode=0;
+        static byte expected[sizeof pixels];memset(expected,0xa5,sizeof expected);
+        /* Source-backed 80x60 oracle; intentional display-only 2x enlargement. */
+        for(unsigned y=0;y<120;y++)for(unsigned x=0;x<160;x++)
+            expected[(162+y)*704+72+x]=pixels[(162+y/2)*704+116+x/2];
+        memset(pixels,0xa5,sizeof pixels);memset(hosted,0xa5,sizeof hosted);opens=slot;closes=unlocks=0;original_mode=0;
         FUN_0043c1b8(slot,0);
-        assert(e2r_memory_equal("thumbnail/pitch/canaries",expected,pixels,sizeof pixels));
-        assert(closes==expected_closes && unlocks==expected_unlocks);preview_cases++;
+        for(unsigned page=0;page<2;page++)
+            assert(e2r_memory_equal("original thumbnail in hosted menu page/pitch/canaries",expected,hosted[page],sizeof pixels));
+        for(unsigned i=0;i<sizeof pixels;i++)assert(pixels[i]==0xa5);
+        assert(closes==expected_closes && unlocks==2*expected_unlocks);preview_cases++;
     }
     printf("PASS: %u original-x86 option storage cases, %u word-identity/canary cases and %u ten-slot missing/named/CR save-label scans; native serialization is outside this fixture\n",
            label_cases,identity_cases,slot_cases);
-    printf("PASS: %u original-x86 high-resolution thumbnail/blank cases with nontrivial pitch and full-surface canaries\n",preview_cases);
+    printf("PASS: %u original-x86 high-resolution thumbnail/blank cases mapped to both hosted menu pages, padded pitch/full-surface canaries and unchanged physical game page\n",preview_cases);
 }
 '''
 run_fixture(harness, asan=args.asan, keep=args.keep_harness, image=image,

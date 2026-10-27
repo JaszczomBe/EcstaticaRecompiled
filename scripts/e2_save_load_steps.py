@@ -1,4 +1,5 @@
 """Input-only persistence journeys, loaded inside GDB by the bounded save/load probe."""
+import hashlib
 import json
 from pathlib import Path
 import struct
@@ -13,6 +14,83 @@ FIELDS = (0x82,0x84,0x86,0x88,0x8a,0x8c,0x8e,0x90,0x92,0x94,
 
 
 class PersistenceJourney(MenuJourney):
+    def open(self):
+        super().open()
+        bounds=[self.value(f'*(short*)(0x47a588+{offset})') for offset in (16,18,20,22,24,26)]
+        self.require(bounds==[110,530,105,375,420,270],'Main requester differs from original record geometry')
+        items=[self.item(address) for address in (0x643b30,0x643b10,0x643cc4,0x6439d8,0x643ca4,0x643780)]
+        self.require(all(item['label'] for item in items),'Main requester has an empty button label')
+        self.details['main_menu_items']=items
+        if 'main_menu_bounds' not in self.details:
+            self.details['main_menu_bounds']=bounds
+            gdb.execute('call (int)e2r_write_surface_set('+json.dumps(self.prefix+'-main-menu')+')',to_string=True)
+            self.save()
+
+    def preview_pages(self):
+        read=lambda address,size:bytes(gdb.selected_inferior().read_memory(address,size))
+        visible=self.value('DAT_0047a279 >> 24')&1
+        pages={}
+        for surface in range(4):
+            if surface<2:
+                symbol='DAT_0047d0cc' if surface==visible else 'DAT_0047d0d0'
+                descriptor=f'((E2R_DDSurface*){symbol})'
+                base=self.value(descriptor+'->pixels');pitch=self.value(descriptor+'->pitch')
+            else:
+                base=self.value('_DAT_00636158' if surface==2 else '_DAT_0063615c')
+                pitch=self.value('_DAT_006401ec')
+            pages[str(surface)]=b''.join(read(base+(162+row)*pitch+72,160) for row in range(120))
+        return pages
+
+    def preview(self, slot, label, before):
+        bounds=[self.value(f'*(short*)(0x47a5a4+{offset})') for offset in (16,18,20,22,24,26)]
+        self.require(bounds==[50,590,109,371,540,262],'Slot requester differs from original record geometry')
+        requester=self.value('*(unsigned short*)((char*)&DAT_0047a45e+2)')
+        first,count=(0x642fb0,10) if requester==0x29 else (0x6432f8,9)
+        items=[self.item(first+index*30) for index in range(count)]
+        for index,item in enumerate(items):
+            y=109+(37+index*11)*3//2
+            self.require(item['bounds']==[254,570,y,y+12],'Save slot row is misplaced or extends outside its panel')
+        self.details['slot_menu_layout']=dict(bounds=bounds,items=items,preview=[72,232,162,282])
+        path=Path(self.runtime)/'Saved'/f'{slot:04d}.ECS'
+        data=path.read_bytes()
+        thumbnail=data[28:4828]
+        expected=bytes(thumbnail[(column//2)*60+row//2] for row in range(120) for column in range(160)) if len(thumbnail)==4800 else bytes(160*120)
+        pages=self.preview_pages()
+        row=dict(label=label,slot=slot,expected_sha256=hashlib.sha256(expected).hexdigest(),
+                 matches={key:page==expected for key,page in pages.items()},
+                 physical_unchanged={key:pages[key]==before[key] for key in ('0','1')})
+        self.details.setdefault('previews',[]).append(row);self.save()
+        self.present()
+        capture=self.prefix+'-'+label
+        gdb.execute('call (int)e2r_write_surface_set('+json.dumps(capture)+')',to_string=True)
+        self.require(all(row['matches'][key] for key in ('2','3')),'Saved thumbnail does not match both displayed menu pages')
+        self.require(all(row['physical_unchanged'].values()),'Preview changed a physical gameplay page')
+
+    def cancel_previews(self, slot):
+        loads=[]
+        class ObserveLoad(gdb.Breakpoint):
+            def stop(self):
+                loads.append(True)
+                return False
+        watch=ObserveLoad('FUN_004544a4',internal=True)
+        self.open();self.click(0x643cc4);self.pump();self.requester(0x29)
+        initial=self.preview_pages()
+        empty=[i for i in range(9) if i!=slot and (Path(self.runtime)/'Saved'/f'{i:04d}.ECS').read_bytes()==b'\r\n\r\n']
+        sequence=[slot,*empty[:1],slot]
+        for index,selected in enumerate(sequence):
+            before=self.preview_pages()
+            self.click(0x642fb0+selected*30);self.pump()
+            self.preview(selected,'cancel-preview-'+str(index),before)
+        self.key(27,True);self.key(27,False);self.pump();self.requester(0x28)
+        returned=self.preview_pages()
+        self.require(all(returned[key]==initial[key] for key in ('0','1')),
+                     'Cancelling Load left thumbnail pixels in gameplay pages')
+        self.close();self.step(30)
+        watch.delete()
+        self.require(not loads,'Cancelling previews dispatched the game loader')
+        self.details['cancel_preview_load_calls']=len(loads)
+        self.details['cancel_preview_resumed']=self.state('cancel-preview-resumed');self.save()
+
     def key(self, key, down):
         scans = {8:42,13:40,17:224,18:226,16:225,27:41,32:44,37:80,38:82,39:79,40:81}
         scan = scans.get(key)
@@ -114,7 +192,9 @@ class PersistenceJourney(MenuJourney):
                 return False
         watch=SaveEntry('FUN_00453920',internal=True)
         self.open();self.click(0x643b10);self.pump();self.requester(0x2a)
+        preview_before=self.preview_pages()
         self.click(0x6432f8+slot*30);self.pump()
+        self.preview(slot,'save-preview-'+str(len(self.details.get('save_close_results',[]))),preview_before)
         self.require(self.value('_DAT_0064353c')==slot,'Wrong Save selection')
         # The first cycle begins with an empty slot; repeated cycles retain its label.
         existing=bytes(gdb.selected_inferior().read_memory(0x643434+slot*26,26)).split(b'\0')[0]
@@ -130,7 +210,9 @@ class PersistenceJourney(MenuJourney):
 
     def menu_load(self, slot, expected):
         self.open();self.click(0x643cc4);self.pump();self.requester(0x29)
+        before=self.preview_pages()
         self.click(0x642fb0+slot*30);self.pump()
+        self.preview(slot,'load-preview-'+str(len(self.details.get('previews',[]))),before)
         self.require(self.value('_DAT_0064353c')==slot,'Load rejected the test-owned save')
         entry=gdb.Breakpoint('FUN_004544a4',internal=True)
         self.click(0x643de4);self.menu.enabled=False
@@ -140,7 +222,21 @@ class PersistenceJourney(MenuJourney):
         gdb.execute('continue',to_string=True)
         self.require(not finished.is_valid(),'Loader stopped before returning')
         self.compare_world(expected,self.world())
-        self.menu.enabled=True;self.pump();self.requester(0x28);self.close()
+        self.menu.enabled=True;self.frame.enabled=True
+        dismissal=[]
+        for _ in range(12):
+            gdb.execute('continue',to_string=True)
+            dismissal.append(dict(frame=gdb.selected_frame().name(),modal=self.value('_DAT_00643650'),
+                requester=self.value('*(unsigned short*)((char*)&DAT_0047a45e+2)'),
+                closed=self.value('_DAT_006443d0'),loaded=self.value('E2R_requester_load_succeeded'),
+                backdrop_depth=self.value('E2R_requester_backdrop_depth')))
+            if dismissal[-1]['modal']==0 and dismissal[-1]['requester']==0 and dismissal[-1]['backdrop_depth']==0:break
+        else:
+            self.details['dismissal_failure']=dict(samples=dismissal,stack=gdb.execute('bt 16',to_string=True));self.save()
+            raise gdb.GdbError('Successful Load did not automatically dismiss the menu')
+        self.menu.delete();self.menu=None;self.step(3)
+        self.require(self.value('_DAT_00643650')==0,'Loaded game remains modal')
+        self.details['load_auto_dismissed']=True;self.save()
         self.require(self.state('resumed')['camera']==expected['player']['camera'],'Saved camera not reconstructed')
 
     def move(self):
@@ -189,6 +285,7 @@ class PersistenceJourney(MenuJourney):
 
 def run(prefix, runtime, game_data, slot, mode, equipment, expected_path):
     journey=PersistenceJourney(prefix,{'checks':['Menus.Gameplay.SaveDialog']},False,'save-load',game_data,0,False)
+    journey.runtime=runtime
     journey.frame=gdb.Breakpoint('FUN_00415d40',internal=True);journey.frame.condition=journey.HORSE
     command='run --game-data-dir '+json.dumps(game_data)+' --data-dir '+json.dumps(runtime)+' --record off --run-recon'
     gdb.execute(command,to_string=True)
@@ -199,6 +296,7 @@ def run(prefix, runtime, game_data, slot, mode, equipment, expected_path):
         if equipment:journey.equipment(game_data)
         for cycle in range(2):
             expected=journey.menu_save(slot,'E2RTEST',expected_path)
+            if cycle==0:journey.cancel_previews(slot)
             journey.move();journey.menu_load(slot,expected);journey.move();journey.interact()
     else:
         expected=json.loads(Path(expected_path).read_text())

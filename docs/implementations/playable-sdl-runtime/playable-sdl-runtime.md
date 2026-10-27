@@ -7,7 +7,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-10-27
+Last Updated: 2026-10-28
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -47,6 +47,22 @@ resume. Installed save hashes remain intact; tests use private copies of free
 slot 5. Nonempty timers have original-code fixture evidence; corrupt-file fatal
 cleanup and arbitrary original progressions remain unqualified. Continue with
 game sounds, then music.
+
+The user accepted functional persistence, then requested three menu refinements.
+[Task 04](steps/step-10/tasks/task-04-refine-save-load-menu-presentation.md) and the
+[refinement journal](../../journal/entries/save-load-menu-refinements-2026-10-27.md)
+record exact saved-thumbnail pixels in both displayed menu buffers, unchanged
+physical gameplay pages after cancelled previews, and automatic dismissal after
+successful same/fresh-process Load. Fresh Debug/ASan evidence qualifies these
+refinements; broader persistence/gameplay limits above remain.
+
+The screenshot follow-up is verified within recorded bounds:
+[Task 05](steps/step-10/tasks/task-05-recover-menu-layout-and-font.md) restores original
+main/slot geometry, initial/repaint title alignment and mixed-case font, with a
+160×120 preview display. Its [journal](../../journal/entries/menu-layout-and-font-2026-10-28.md)
+records 28/28 focused Debug/ASan checks, protected saves, native layout assertions,
+original edit-state/Save handoff repairs and a three-stage menu sweep with no
+failures and explicit skips. Broader visual/gameplay limits remain; sounds are next.
 
 ## Previous continuation — Tower actor eviction
 

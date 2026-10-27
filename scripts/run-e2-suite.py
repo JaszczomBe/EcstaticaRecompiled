@@ -96,6 +96,7 @@ def main():
                           ROOT/'scripts/e2_bundle.py',ROOT/'scripts/e2_inspection.py',ROOT/'scripts/scenarios/intro-menu.json',
                           ROOT/'scripts/check-e2-test-population.py',ROOT/'scripts/check-e2-npc-spawn.py',
                           ROOT/'scripts/check-e2-menu-contracts.py',
+                          ROOT/'scripts/check-e2-menu-layout.py',
                           ROOT/'scripts/check-e2-ddraw-surfaces.py',
                           ROOT/'scripts/check-e2-action-pose-events.py',
                           ROOT/'scripts/check-e2-bitmap-records.py',

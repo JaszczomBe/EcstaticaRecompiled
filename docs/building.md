@@ -20,7 +20,7 @@ continues to use the selected CMake target.
 
 - Linux, CMake 3.25 or newer, Ninja, Clang, and GDB. The current validated compiler is Clang 21.1.8; shared presets resolve `clang-21` from PATH and reject a compiler whose major version is not 21. Changing compiler versions needs a separate build directory and regression verification.
 - 32-bit C and C++ development libraries and the matching Clang AddressSanitizer runtime for ASan presets. Debian's usual prerequisites include `libc6-dev-i386` and `g++-multilib`. The logger needs C++20 and a standard library with `std::format`; configure checks compilation and linking. Where only the i386 C++ runtime is installed, CMake can discover the matching installed GCC headers and runtime without versioned paths in the presets. Configure reports any fallback it uses.
-- The SDL submodule and the full original Ecstatica II data directory, including root `OFFSETS` alongside `Files/ECSTATIC`; the recovered-action route uses its original visibility directory for placed objects.
+- The SDL submodule and the full original Ecstatica II data directory, including root `OFFSETS` alongside `Files/ECSTATIC`; the recovered-action route uses its original visibility directory for placed objects. Keep `E2WIN95.EXE` in that directory: the menu reads its original font data without executing it.
 - VS Code extensions CMake Tools and C/C++; workspace recommendations include both.
 
 ## Initial Configuration

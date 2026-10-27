@@ -591,6 +591,61 @@ static int e2r_resolve_known_data_path(const char *input, char *resolved, size_t
 
 static char e2r_save_directory[PATH_MAX];
 
+/* Original fonts remain installation assets. Read their file-backed PE data
+ * without mapping or executing the installed executable. The game-data cwd is
+ * established before the reconstructed runtime starts. */
+int E2R_ReadOriginalImageData(uint32_t address, void *buffer, size_t size)
+{
+    FILE *file = fopen("E2WIN95.EXE", "rb");
+    unsigned char dos[64], header[52], section[40];
+    long file_size;
+    uint32_t pe, base, raw, bytes, rva;
+    unsigned sections, optional;
+    int result = 0;
+
+    if (!file) return 0;
+    if (!buffer || !size || fseek(file, 0, SEEK_END) ||
+        (file_size = ftell(file)) < 64 || fseek(file, 0, SEEK_SET) ||
+        fread(dos, 1, sizeof(dos), file) != sizeof(dos) || memcmp(dos, "MZ", 2))
+        goto done;
+#define E2R_PE_U16(p) ((uint32_t)(p)[0] | (uint32_t)(p)[1] << 8)
+#define E2R_PE_U32(p) (E2R_PE_U16(p) | E2R_PE_U16((p) + 2) << 16)
+    pe = E2R_PE_U32(dos + 60);
+    if ((uint64_t)pe + sizeof(header) > (uint64_t)file_size ||
+        fseek(file, pe, SEEK_SET) || fread(header, 1, sizeof(header), file) != sizeof(header) ||
+        memcmp(header, "PE\0\0", 4) || E2R_PE_U16(header + 4) != 0x14c ||
+        E2R_PE_U16(header + 24) != 0x10b)
+        goto done;
+    sections = E2R_PE_U16(header + 6);
+    optional = E2R_PE_U16(header + 20);
+    /* ImageBase is optional-header +28; read separately from the fixed header. */
+    if (!sections || sections > 96 || optional < 32 ||
+        (uint64_t)pe + 24 + optional + sections * 40 > (uint64_t)file_size ||
+        fread(section, 1, 4, file) != 4)
+        goto done;
+    base = E2R_PE_U32(section);
+    if (address < base) goto done;
+    for (unsigned i = 0; i < sections; ++i) {
+        if (fseek(file, pe + 24 + optional + i * 40, SEEK_SET) ||
+            fread(section, 1, sizeof(section), file) != sizeof(section))
+            goto done;
+        rva = E2R_PE_U32(section + 12);
+        bytes = E2R_PE_U32(section + 16);
+        raw = E2R_PE_U32(section + 20);
+        if (!raw || (uint64_t)address < (uint64_t)base + rva) continue;
+        uint64_t offset = (uint64_t)address - base - rva;
+        if (offset + size > bytes || (uint64_t)raw + bytes > (uint64_t)file_size) continue;
+        if (!fseek(file, raw + offset, SEEK_SET) && fread(buffer, 1, size, file) == size)
+            result = 1;
+        break;
+    }
+#undef E2R_PE_U32
+#undef E2R_PE_U16
+done:
+    fclose(file);
+    return result;
+}
+
 int E2R_ConfigureSaveDirectory(const char *runtime_data, const char *game_data)
 {
     char candidate[PATH_MAX];

@@ -14,7 +14,7 @@ diagnostic object markers alongside recovered animated character bodies.
 | Build and editor | Clang 21 i386 Debug/ASan, SDL/X11 builds, selected-target F5 | Debug is the everyday choice; optimized runtime and 64-bit execution remain experimental/incomplete |
 | Gameplay | Recovered movement, camera crossings, NPC/object population and bounded workshop activation | Human swimming, sword pickup, four kills and two broken doors verified; animation-cache stall repaired; Debug/ASan door passage and actual menu Quit pass; human random-potion pickup verified and delayed effects repaired with live Debug/ASan poison dispatch; bottle removal and subsequent sword use confirmed in the latest human run; visible health/potion diagnostics added; fresh Debug healing 85→100, poison onset, invisibility dispatch and conditional no-op verified; final effect expiry/cure remains open; latest alternate-target crash repaired with isolated generated Debug/ASan prefix evidence; extended stability remains a follow-up; animation-name parity restored for potion cleanup; natural effect summaries are optional; wider pickups/rendering remain deferred |
 | Rendering and audio | Original animated player and enemy ellipsoid bodies, original backgrounds, palette/depth/page presentation; diagnostic shapes for objects and equipment | The user accepted the corrected player and enemy recovery direction; bounded live guard/attack evidence does not establish exhaustive species/actions or broader combat; equipment polygons, original HUD and audio remain incomplete |
-| Persistence | Original-format gameplay Save/Load, writable runtime slots and original read fallback | Debug/ASan repeated same-process and fresh-process loads restore active actors and sword ownership, then resume input/animation/attacks; installed saves remain intact; arbitrary original progressions and malformed-file recovery remain unqualified |
+| Persistence | Original-format gameplay Save/Load, writable runtime slots and original read fallback | Debug/ASan repeated same-process and fresh-process loads restore active actors and sword ownership, then resume input/animation/attacks; saved previews display at 160×120 without dirtying game pages, original menu geometry/font and title alignment are restored, successful Load dismisses the menu; installed saves remain intact; arbitrary original progressions and malformed-file recovery remain unqualified |
 | Investigation | Automatic F5 logging, replay, state timeline, rolling frames, pinned binary and debugger evidence | Capture limits, incomplete recordings and strict replay divergence remain explicit |
 | Recovery tools | Original-x86 fixtures, crash export, state/report queries, route expectations, dependency-aware Debug/ASan gameplay suite with concurrent configurations, shared checkpoints, three-stage menu coverage, one/two visible windows, unarmed combat and host allocation-fault checks, recovery/diagnostic index | Headless menu labels, three-stage restarts and Load/Save dialog checks pass after original-backed menu/surface repairs; broader persistence, audio and exhaustive rendering remain unqualified; sampled/fixture evidence does not establish complete game behavior; rr is optional and currently absent |
 
@@ -33,7 +33,10 @@ records recovered version-4 serialization, actual repeated menu round trips,
 fresh-process restoration and file-rejection limits. Saves write to
 `--data-dir/Saved` (normally `~/.ecstatica2/Saved`); installed saves are read-only
 fallbacks. Tests use private copies and originally empty slots only. Next in the
-selected order is game sounds, then music.
+selected order is game sounds, then music. The
+[menu layout/font follow-up](implementations/playable-sdl-runtime/steps/step-10/tasks/task-05-recover-menu-layout-and-font.md)
+passes 28 focused Debug/ASan checks and preserves the original saved-image format;
+its three-stage menu sweep retains explicit unsupported checks.
 
 F5 enables `E2R_PLAYER_MESH=1` and `E2R_NPC_MESH=1`: original
 character bodies use recovered bones, camera composition, ellipsoid shading and

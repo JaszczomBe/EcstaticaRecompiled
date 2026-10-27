@@ -73,8 +73,8 @@ records native consumption and the fixture/replay limits.
 python3 scripts/run-e2-suite.py --build --block persistence --configurations debug asan
 ```
 
-Regression **11** runs six source/host fixtures, two round-trip scenarios and a save-open failure
-scenario per configuration, plus the two build checks: **20** logical cases and
+Regression **11** runs seven source/host fixtures, two round-trip scenarios and a save-open failure
+scenario per configuration, plus the two build checks: **22** logical cases and
 **ten** native process executions. `Persistence.World` uses live opening actors;
 `Persistence.Attachment` uses the established noncombat-opening workshop route to
 pick up the sword before saving. `Persistence.SaveFailure` verifies the error
@@ -82,7 +82,10 @@ dialog while editing a label, dismissal, resumed movement and clean Quit. Both e
 same-process journey performs two Save/change/Load cycles, then a fresh process
 loads that file. Assertions compare serialized actor state at loader return,
 then verify movement, animation, original attack action and attached equipment
-following Joe. Native pending timers are not present in these opening saves;
+following Joe. They also compare saved thumbnails with both displayed menu pages,
+require the preview rectangle in physical gameplay pages to stay unchanged, switch
+between filled/empty/filled previews and cancel without any loader call, and
+verify successful Load dismisses both requesters without another Escape. Native pending timers are not present in these opening saves;
 `Original.SaveRestoreTimers` compares nonempty timer reconstruction against
 original code separately. Menu-only dialog probes retain `state_round_trip=False`.
 
@@ -92,7 +95,11 @@ before running the game if none of slots 0–8 is confirmed empty. A writer guar
 stops before any unowned write. Installed saves and unowned private slots are
 SHA-256 checked even on failure. Slot 9 is excluded from test writes.
 `probe/report.json`, `same.log`, `fresh.log`, `expected-state.json`, input/phase
-JSON and the six extracted fixture/provenance files retain evidence. Recording
+JSON and the six save-specific extracted fixture/provenance files retain evidence.
+`Original.Menus` supplies the original-x86 preview oracle and checks the display-only
+2× enlargement on both hosted pages. `Original.MenuLayout` compares original
+requester dimensions/title positions and ASCII font pixels. Native probes assert
+main/slot panel bounds and every slot hit rectangle and capture the menu pages. Recording
 is disabled; native execution has per-process timeouts and a progress watchdog.
 
 For a single bounded diagnostic:

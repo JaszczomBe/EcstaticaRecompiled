@@ -4,9 +4,9 @@
 [Project README](../../../../../README.md) · [Parent: Playable SDL Runtime](../../playable-sdl-runtime.md)
 <!-- /docs-tree:parent -->
 
-Status: implemented; bounded Debug/ASan menu round trips pass, compatibility limits retained
+Status: functional persistence accepted; menu refinements verified within recorded bounds
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-10-27
+Last Updated: 2026-10-28
 
 ## Goal
 
@@ -32,6 +32,30 @@ The user requires preserving occupied saves. Installed slots **0–4, 8, 9** are
 occupied; **5–7** are empty. Agent trials use private copies and originally free
 slots only; quick-save slot **9** must not be used by tests. All writes route
 through writable runtime storage under `--data-dir/Saved`.
+
+## Menu refinement follow-up
+
+The user accepted functional save/load and requested saved images, automatic
+menu dismissal after Load, and removal of a flickering preview-sized gameplay
+patch after cancelling. [Task 04](tasks/task-04-refine-save-load-menu-presentation.md)
+and its [journal](../../../../journal/entries/save-load-menu-refinements-2026-10-27.md)
+own the original-backed presentation repair and fresh Debug/ASan evidence.
+Previews now use both hosted menu pages without changing physical game pages;
+successful Load resumes play automatically. Cancellation keeps its parent-menu
+route. The focused probe compares pixels and observes automatic dismissal as
+well as its existing state/attachment/input checks.
+
+## Original menu layout follow-up
+
+The supplied original/recompiled screenshots exposed a wrong slot-panel size,
+misplaced title and provisional uppercase font. [Task 05](tasks/task-05-recover-menu-layout-and-font.md)
+and its [journal](../../../../journal/entries/menu-layout-and-font-2026-10-28.md)
+own the original geometry/font recovery and the requested 160×120 preview display.
+The saved image format remains 80×60. The final focused suite passes 28/28
+Debug/ASan checks, including original geometry/font/edit-state comparisons,
+same/fresh-process restoration, enlarged previews and preserved installed saves.
+The three-stage menu sweep has no failures, with its existing skips explicit.
+Retain broader gameplay/rendering limits; sounds remain next in the selected order.
 
 ## Next Context Handoff
 

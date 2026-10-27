@@ -1787,6 +1787,7 @@ static void E2R_UseHostedCdPath(char *path)
 
 
 static int E2R_requester_continue_after_action;
+static int E2R_requester_load_succeeded;
 static void E2R_RedrawActiveRequesterItem(void);
 
 static void E2R_SelectRequesterSlot(int save,int slot,int confirmed)
@@ -1829,7 +1830,9 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
   if (action == (uintptr_t)&LAB_0043c594) {
     if (requester_id == 0x29 || requester_id == 0x2a) {
       if ((int)_DAT_0064353c >= 0) {
-        if (requester_id == 0x29) FUN_004544a4(_DAT_0064353c,0);
+        if (requester_id == 0x29) {
+          if ((uint)FUN_004544a4(_DAT_0064353c,0) == 0) E2R_requester_load_succeeded = 1;
+        }
         else FUN_00453920(_DAT_0064353c,(char *)0x643434 + _DAT_0064353c * 26);
       }
       _DAT_006443d0 = 1;
@@ -1879,6 +1882,7 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
   if (action == (uintptr_t)&LAB_0043d47c) {
     if (DAT_0047a76c == 0 && _DAT_0073cc3c != 0 &&
         E2R_IsReadableCurrentPointer(DAT_0047a470)) {
+      _DAT_006443d0 = 1;
       _DAT_00643650 = E2R_TraceRequesterState("action.save",3);
     }
     else {
@@ -1890,6 +1894,7 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
   if (action == (uintptr_t)&LAB_0043d490) {
     if (requester_id == 0x28) {
       _DAT_00643650 = E2R_TraceRequesterState("action.load",4);
+      E2R_requester_load_succeeded = 0;
       _DAT_0064353c = -1;
       do {
         FUN_0043ce58(0x29,5);
@@ -1899,6 +1904,16 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
           FUN_0043cac0((uint)(uintptr_t)message,0);
         }
       } while ((int)_DAT_0064353c < 0);
+      if (E2R_requester_load_succeeded) {
+        E2R_requester_continue_after_action = 0;
+        _DAT_006443d0 = 1;
+        _DAT_0064342c = 0;
+        E2R_WORD_AT(DAT_0047a45e,2) = 0;
+        _DAT_00643650 = E2R_TraceRequesterState("action.load_complete",5);
+        DAT_00636844 = 0;
+        DAT_0047a788 = 1;
+        return 1;
+      }
       E2R_WORD_AT(DAT_0047a45e,2) = 0x28;
       _DAT_00643650 = E2R_TraceRequesterState("action.load_return",5);
       _DAT_006443d0 = 0;
@@ -2098,6 +2113,79 @@ static int *E2R_ResolveMenuStringList(undefined4 first,undefined4 second,undefin
   return (int *)0x0;
 }
 
+
+static const byte *E2R_OriginalMenuGlyph(byte ch)
+{
+  static byte font[0x2c42];
+  static int loaded;
+  uint address = 0x00477068;
+
+  if (loaded == 0)
+    loaded = E2R_ReadOriginalImageData(0x00477068,font,sizeof(font)) ? 1 : -1;
+  if (loaded < 0) return (const byte *)0x0;
+  if ('0' <= ch && ch <= '9') address += (ch + 99) * 22;
+  else if ('a' <= ch && ch <= 'z') address += (ch + 0x56) * 22;
+  else if ('A' <= ch && ch <= 'Z') address += (ch + 0x5c) * 22;
+  else {
+    switch (ch) {
+    case 0x2e: address = 0x004770c0; break;
+    case 0x28: address = 0x004773ee; break;
+    case 0x5b: address = 0x00477446; break;
+    case 0x5d: address = 0x0047745c; break;
+    case 0x5f: address = 0x004771de; break;
+    case 0x21: address = 0x0047712e; break;
+    case 0x3f: address = 0x00477118; break;
+    case 0x22: address = 0x0047719c; break;
+    case 0x2b: address = 0x0047757a; break;
+    case 0x2d: address = 0x00477590; break;
+    case 0x2c: address = 0x004770aa; break;
+    case 0x2f: address = 0x004772fc; break;
+    case 0x5c: address = 0x00477312; break;
+    case 0x3a: address = 0x004770ec; break;
+    case 0x27: address = 0x004773ac; break;
+    case 0x2a: address = 0x004777b6; break;
+    case 0xdf: address = 0x0047930a; break;
+    case 0xc4: address = 0x004799a8; break;
+    case 0xd6: address = 0x004799be; break;
+    case 0xdc: address = 0x004799d4; break;
+    case 0xe4: address = 0x004799ea; break;
+    case 0xf6: address = 0x00479a00; break;
+    case 0xfc: address = 0x00479a16; break;
+    case 0x83: address = 0x00479a42; break;
+    case 0x8c: address = 0x00479a9a; break;
+    case 0x97: address = 0x00479ac6; break;
+    case 0x96: address = 0x00479adc; break;
+    case 0x87: address = 0x00479af2; break;
+    case 0x8b: address = 0x00479b08; break;
+    case 0x80: address = 0x00479b1e; break;
+    case 0xbf: address = 0x00479b34; break;
+    case 0xfa: address = 0x00479b4a; break;
+    case 0xed: address = 0x00479b60; break;
+    case 0xa1: address = 0x00479b76; break;
+    case 0xf3: address = 0x00479b8c; break;
+    case 0xec: address = 0x00479ba2; break;
+    case 0xe1: address = 0x00479bb8; break;
+    case 0x86: address = 0x00479bce; break;
+    case 0x8d: address = 0x00479be4; break;
+    case 0x91: address = 0x00479bfa; break;
+    case 0x92: address = 0x00479c10; break;
+    case 0xa4: address = 0x00479c26; break;
+    case 0x9e: address = 0x00479c3c; break;
+    case 0xa7: address = 0x00479c52; break;
+    case 0xa6: address = 0x00479c68; break;
+    case 0x9c: address = 0x00479c7e; break;
+    case 0x98: address = 0x00479c94; break;
+    case 0x29: address = 0x00477404; break;
+    case 0x85: case 0xe0: address = 0x00479a2c; break;
+    case 0x82: case 0xe9: address = 0x00479a58; break;
+    case 0x8a: case 0xe8: address = 0x00479a6e; break;
+    case 0x88: case 0xea: address = 0x00479a84; break;
+    case 0x93: case 0xf4: address = 0x00479ab0; break;
+    default: break;
+    }
+  }
+  return font + address - 0x00477068;
+}
 
 static const byte *E2R_HostedGlyphRows(byte ch)
 {
@@ -2360,7 +2448,7 @@ static void E2R_FillHostedRect(int left,int top,int right,int bottom)
   }
 }
 
-static void E2R_DrawHostedRectBorder(int left,int top,int right,int bottom)
+static void E2R_DrawHostedRectBorder(int left,int top,int right,int bottom,int inset)
 {
   int base;
   int count;
@@ -2397,12 +2485,12 @@ static void E2R_DrawHostedRectBorder(int left,int top,int right,int bottom)
     if (_DAT_006401ec <= right) right = _DAT_006401ec - 1;
     if (_DAT_006401d4 <= bottom) bottom = _DAT_006401d4 - 1;
     for (x = left; x <= right; x = x + 1) {
-      *(byte *)(base + top * pitch + x) = 8;
-      *(byte *)(base + bottom * pitch + x) = 0xe;
+      *(byte *)(base + top * pitch + x) = inset ? 0xe : 8;
+      *(byte *)(base + bottom * pitch + x) = inset ? 8 : 0xe;
     }
     for (y = top; y <= bottom; y = y + 1) {
-      *(byte *)(base + y * pitch + right) = 8;
-      *(byte *)(base + y * pitch + left) = 0xe;
+      *(byte *)(base + y * pitch + right) = inset ? 8 : 0xe;
+      *(byte *)(base + y * pitch + left) = inset ? 0xe : 8;
     }
   }
 }
@@ -2411,6 +2499,7 @@ static void E2R_DrawHostedText(byte *text)
 {
   byte ch;
   const byte *rows;
+  const byte *glyph;
   int advance;
   int base;
   int base2;
@@ -2458,9 +2547,6 @@ static void E2R_DrawHostedText(byte *text)
   x = (short)*(undefined2 *)(0x006366c4 + surface * 2);
   y = (short)*(undefined2 *)(0x006366d0 + surface * 2);
   color = ((byte *)0x006366dc)[style_surface * 2];
-  if (color == 0) {
-    color = 0xf;
-  }
   advance = DAT_0047a408 == 0 ? 12 : DAT_0047a408;
   scale = DAT_0047a43c == 0 ? 1 : 2;
   for (i = 0; i < 10000 && !IsBadReadPtr(text + i,1); i = i + 1) {
@@ -2468,9 +2554,28 @@ static void E2R_DrawHostedText(byte *text)
     if (ch == 0) {
       break;
     }
-    if ('a' <= ch && ch <= 'z') {
-      ch = ch - ('a' - 'A');
+    glyph = DAT_0047a43c != 0 ? E2R_OriginalMenuGlyph(ch) : (const byte *)0x0;
+    if (glyph != (const byte *)0x0) {
+      /* Original 0x41a97a..0x41aac2: 11 byte-swapped bit rows,
+       * 12-pixel advance, transparent background except text mode 2. */
+      for (row = 0; row < 12; ++row) {
+        uint bits = row < 11 ? glyph[row * 2] | (uint)glyph[row * 2 + 1] << 8 : 0;
+        for (col = 0; col < 12; ++col) {
+          int px = x + (int)col;
+          int py = y + (int)row;
+          int ink = col < 11 && (bits & (1u << (col < 8 ? 7 - col : 23 - col)));
+          if ((ink || *(short *)(0x006366a8 + style_surface * 2) == 2) &&
+              0 <= px && px < _DAT_006401ec && 0 <= py && py < _DAT_006401d4) {
+            byte pixel = ink ? color : ((byte *)0x006366e8)[style_surface * 2];
+            *(byte *)(base + py * pitch + px) = pixel;
+            if (base2 != 0) *(byte *)(base2 + py * pitch2 + px) = pixel;
+          }
+        }
+      }
+      x += advance;
+      continue;
     }
+    if ('a' <= ch && ch <= 'z') ch -= 'a' - 'A';
     rows = E2R_HostedGlyphRows(ch);
     for (row = 0; row < 7; row = row + 1) {
       for (col = 0; col < 5; col = col + 1) {
@@ -2498,49 +2603,6 @@ static void E2R_DrawHostedText(byte *text)
 
 static byte *E2R_RequesterTextOrFallback(byte *text);
 
-static void E2R_DrawHostedRequesterLabels(short *record)
-{
-  byte *text;
-  byte color;
-  int item_width;
-  int text_width;
-  int x;
-  short *item;
-  uint guard;
-  uint len;
-  int style_surface;
-
-  if (DAT_0047a43c == 0 || record == (short *)0x0 || IsBadReadPtr(record,0x10)) {
-    return;
-  }
-  style_surface = DAT_0047a279 >> 0x18;
-  item = *(short **)(record + 6);
-  for (guard = 0; item != (short *)0x0 && guard < 0x40; guard = guard + 1) {
-    if ((uintptr_t)item >= 0x70000000u || IsBadReadPtr(item,0x20)) {
-      break;
-    }
-    text = E2R_RequesterTextOrFallback(*(byte **)(item + 4));
-    if (text != (byte *)0x0 && !IsBadReadPtr(text,1) && text[0] != 0) {
-      len = 0;
-      while (len < 0x100 && !IsBadReadPtr(text + len,1) && text[len] != 0) {
-        len = len + 1;
-      }
-      text_width = (DAT_0047a408 == 0 ? 12 : DAT_0047a408) * (int)len;
-      item_width = (int)item[2];
-      if ((*(byte *)((int)item + 0x11) & 0x40) == 0) {
-        x = item[0xb] + (item_width - text_width) / 2;
-      }
-      else {
-        x = item[0xb] + 4;
-      }
-      color = item == _DAT_00643430 ? 0xe : 8;
-      *(undefined2 *)((undefined1 *)0x006366dc + style_surface * 2) = color;
-      FUN_0041b078(x,(short)(item[0xd] + 1));
-      E2R_DrawHostedText(text);
-    }
-    item = *(short **)(item + 9);
-  }
-}
 
 static byte *E2R_RequesterTextOrFallback(byte *text)
 {
@@ -2566,7 +2628,6 @@ static void E2R_RedrawActiveRequesterItem(void)
     return;
   }
   FUN_0043b9bc(0,item);
-  E2R_DrawHostedRequesterLabels(record);
   DAT_0047a788 = 1;
 }
 
@@ -31666,7 +31727,7 @@ void FUN_0043af98(void)
   *(undefined2 *)((DAT_0047a279 >> 0x18) * 2 + 0x6366a8) = 1;
   E2R_DrawHostedRectBorder(*(int *)(puVar3 + 7) >> 0x10,*(int *)(puVar3 + 9) >> 0x10,
                            (*(int *)(puVar3 + 8) >> 0x10) + -1,
-                           (*(int *)(puVar3 + 10) >> 0x10) + -1);
+                           (*(int *)(puVar3 + 10) >> 0x10) + -1,0);
   uVar7 = extraout_ECX_05;
   if (*(char **)(puVar3 + 4) != (char *)0x0) {
     uVar6 = 0xffffffff;
@@ -31678,9 +31739,8 @@ void FUN_0043af98(void)
       pcVar8 = pcVar8 + 1;
     } while (cVar1 != '\0');
     sVar5 = (short)(~uVar6 - 1) * DAT_0047a408;
-    FUN_0041b078(CONCAT22((short)(~uVar6 - 1 >> 0x10),sVar5),
-                 (short)((uint)*(undefined4 *)(puVar3 + 7) >> 0x10) +
-                 (short)(((*(int *)(puVar3 + 0xb) >> 0x10) - (int)sVar5) / 2));
+    FUN_0041b078(puVar3[8] + (puVar3[12] - sVar5) / 2,
+                 puVar3[10] + DAT_0047a40c + 2);
     iVar4 = DAT_0047a279 >> 0x18;
     *(undefined2 *)((undefined1 *)0x006366dc + iVar4 * 2) = 8;
     *(undefined2 *)(iVar4 * 2 + 0x6366e8) = 0xf;
@@ -31796,7 +31856,7 @@ undefined8 __fastcall FUN_0043b384(undefined4 param_1,undefined4 param_2)
   *(undefined2 *)((DAT_0047a279 >> 0x18) * 2 + 0x6366a8) = 1;
   E2R_DrawHostedRectBorder(*(int *)(in_EAX + 7) >> 0x10,*(int *)(in_EAX + 9) >> 0x10,
                            (*(int *)(in_EAX + 8) >> 0x10) + -1,
-                           (*(int *)(in_EAX + 10) >> 0x10) + -1);
+                           (*(int *)(in_EAX + 10) >> 0x10) + -1,0);
   uVar4 = extraout_ECX_06;
   uVar7 = extraout_EDX;
   uVar5 = extraout_var;
@@ -31810,9 +31870,8 @@ undefined8 __fastcall FUN_0043b384(undefined4 param_1,undefined4 param_2)
       pcVar9 = pcVar9 + 1;
     } while (cVar1 != '\0');
     sVar6 = (short)(~uVar7 - 1) * DAT_0047a408;
-    FUN_0041b078(CONCAT22((short)(~uVar7 - 1 >> 0x10),sVar6),
-                 (short)((uint)*(undefined4 *)(in_EAX + 7) >> 0x10) +
-                 (short)(((*(int *)(in_EAX + 0xb) >> 0x10) - (int)sVar6) / 2));
+    FUN_0041b078(in_EAX[8] + (in_EAX[12] - sVar6) / 2,
+                 in_EAX[10] + DAT_0047a40c + 2);
     iVar2 = DAT_0047a279 >> 0x18;
     *(undefined2 *)((undefined1 *)0x006366dc + iVar2 * 2) = 8;
     *(undefined2 *)(iVar2 * 2 + 0x6366e8) = 0xf;
@@ -31827,11 +31886,10 @@ undefined8 __fastcall FUN_0043b384(undefined4 param_1,undefined4 param_2)
     uVar7 = extraout_EDX_01;
     uVar5 = extraout_var_01;
   }
-  E2R_DrawHostedRequesterLabels(in_EAX);
   uVar11 = CONCAT44(uVar7,CONCAT22(uVar5,E2R_WORD_AT(DAT_0047a45e,2)));
   if ((0x28 < E2R_WORD_AT(DAT_0047a45e,2)) &&
      (uVar11 = CONCAT44(uVar7,CONCAT22(uVar5,E2R_WORD_AT(DAT_0047a45e,2))), E2R_WORD_AT(DAT_0047a45e,2) < 0x2b)) {
-    uVar11 = FUN_0043c1b8(uVar4,uVar7);
+    uVar11 = FUN_0043c1b8(_DAT_0064353c,0);
   }
   _DAT_0064342c = 0;
   _DAT_006443d0 = (ushort)(in_EAX == (short *)(undefined1 *)0x0047a684);
@@ -31859,26 +31917,26 @@ undefined8 __fastcall FUN_0043b384(undefined4 param_1,undefined4 param_2)
         uVar11 = FUN_0041ba7c(iVar2,(int)(uVar11 >> 0x20));
         mouse_state = (int)uVar11;
         if ((uVar11 & 2) != 0) break;
-        if (mouse_state == _DAT_0064342c) {
+        if (_DAT_0064342c == 0) {
           uVar11 = FUN_0041cfc0();
-          iVar2 = mouse_state;
+          iVar2 = 0;
         }
         else {
-          uVar11 = FUN_0043bd4c(mouse_state,_DAT_00643430);
-          iVar2 = mouse_state;
+          uVar11 = FUN_0043bd4c((uintptr_t)in_EAX,_DAT_00643430);
+          iVar2 = 0;
         }
       }
-      iVar2 = mouse_state;
-      if (mouse_state != _DAT_0064342c) {
-        _DAT_0064342c = mouse_state;
-        uVar11 = FUN_0043b9bc(mouse_state,_DAT_00643430);
-        iVar2 = mouse_state;
+      iVar2 = 0;
+      if (_DAT_0064342c != 0) {
+        _DAT_0064342c = 0;
+        uVar11 = FUN_0043b9bc((uintptr_t)in_EAX,_DAT_00643430);
+        iVar2 = 0;
       }
       psVar8 = *(short **)(in_EAX + 6);
     } while (psVar8 == (short *)0x0);
     do {
-      iVar3 = FUN_0043b708(iVar2,psVar8);
-      iVar2 = mouse_state;
+      iVar3 = FUN_0043b708((uintptr_t)in_EAX,psVar8);
+      iVar2 = 0;
       uVar11 = CONCAT44(extraout_EDX_02,iVar3);
       if (E2R_requester_continue_after_action != 0) {
         E2R_requester_continue_after_action = 0;
@@ -32082,6 +32140,7 @@ undefined4 __fastcall FUN_0043b9bc(undefined4 param_1,short *param_2)
       param_2 == (short *)0x0 || (uintptr_t)param_2 >= 0x70000000u || IsBadReadPtr(param_2,0x20)) {
     return param_1;
   }
+  *(byte **)(param_2 + 4) = E2R_RequesterTextOrFallback(*(byte **)(param_2 + 4));
   sVar8 = 0;
   if (*(int *)(param_2 + 4) != 0) {
     iVar3 = -1;
@@ -32124,7 +32183,8 @@ undefined4 __fastcall FUN_0043b9bc(undefined4 param_1,short *param_2)
     else {
       *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xe;
     }
-    E2R_DrawHostedRectBorder(param_2[0xb],param_2[0xd],param_2[0xc] + -1,param_2[0xe] + -1);
+    E2R_DrawHostedRectBorder(param_2[0xb],param_2[0xd],param_2[0xc] + -1,
+                             param_2[0xe] + -1,(param_2[8] & 0x100) != 0);
     uVar4 = extraout_ECX_02;
     if ((*(byte *)((int)param_2 + 0x11) & 1) == 0) {
       *(undefined2 *)((undefined1 *)0x006366dc + (DAT_0047a279 >> 0x18) * 2) = 0xe;
@@ -32540,8 +32600,8 @@ longlong __fastcall FUN_0043c1b8(undefined4 param_1,uint param_2)
 {
   int slot = (int)param_1;
   int surface = DAT_0047a279 >> 0x18;
-  int x = DAT_0047a43c == 0 ? 0x23 : 0x74;
-  int y = DAT_0047a43c == 0 ? 0x2c : 0xa2;
+  int x = DAT_0047a43c == 0 ? 0x23 : 72;
+  int y = DAT_0047a43c == 0 ? 0x2c : 162;
   int *stream = (int *)0x0;
   char filename[15];
   int digit = slot;
@@ -32562,14 +32622,20 @@ longlong __fastcall FUN_0043c1b8(undefined4 param_1,uint param_2)
       first = E2R_ReadFanTextByte(stream);
       if (first != '\r') {
         for (index = 1; index < 0x1a; index = index + 1) E2R_ReadFanTextByte(stream);
-        FUN_004173c8((uintptr_t)stream,0);
+        E2R_ReadFanTextByte(stream);
+        E2R_ReadFanTextByte(stream);
         if (DAT_0047a43c != 0) {
-          int pitch;
-          int base = FUN_00418a04(surface,&pitch);
-          for (int column = 0; column < 0x50; column = column + 1)
-            for (int row = 0; row < 0x3c; row = row + 1)
-              *(byte *)(base + (y + row) * pitch + x + column) = (byte)E2R_ReadFanTextByte(stream);
-          FUN_00418b00(surface,base);
+          byte thumbnail[80 * 60];
+          for (int i = 0; i < 80 * 60; ++i)
+            thumbnail[i] = (byte)E2R_ReadFanTextByte(stream);
+          for (int target = 2; target < 4; ++target) {
+            int pitch;
+            int base = FUN_00418a04(target,&pitch);
+            for (int column = 0; column < 160; ++column)
+              for (int row = 0; row < 120; ++row)
+                *(byte *)(base + (y + row) * pitch + x + column) = thumbnail[(column / 2) * 60 + row / 2];
+            FUN_00418b00(target,base);
+          }
         }
         else {
           /* Original planar byte addressing and sequencer plane mask. */
@@ -32588,7 +32654,8 @@ longlong __fastcall FUN_0043c1b8(undefined4 param_1,uint param_2)
     }
   }
   *(short *)(0x006366dc + surface * 2) = 0;
-  E2R_FillHostedRect(x,y,x + 0x4f,y + 0x3b);
+  E2R_FillHostedRect(x,y,x + (DAT_0047a43c == 0 ? 79 : 159),
+                     y + (DAT_0047a43c == 0 ? 59 : 119));
   return (ulonglong)param_2 << 0x20;
 }
 
@@ -33091,7 +33158,7 @@ undefined8 __fastcall FUN_0043ce58(undefined4 param_1,undefined4 param_2)
         E2R_InitRequesterItem(0x00643de4,0x38,10,-0x14,0xc,
                                DAT_00479e00 == 0 ? (uintptr_t)"OK" : _DAT_0060ae70,
                                (uintptr_t)&LAB_0043c594,0x2000,0);
-        E2R_InitRequesterRecord(0x0047a5a4,-1,-1,0xf0,0xb4,
+        E2R_InitRequesterRecord(0x0047a5a4,-1,-1,0x10e,0xaf,
                                (uintptr_t)_DAT_006438a0,_DAT_0047a5b0);
         uVar13 = FUN_0043b384(0x0047a5a4,0);
         return CONCAT44(param_2,(int)uVar13);
