@@ -38,6 +38,35 @@ Reports distinguish this watchdog interruption from a spontaneous native fault;
 completed checkpoints retain their results while interrupted journeys fail.
 See the [Regression 08 investigation](journal/entries/regression-08-freeze-and-event-callback-2026-10-26.md).
 
+## Character rendering coverage
+
+Gameplay journeys pass `--player-mesh --npc-mesh`, matching F5's character flags.
+Original character ellipsoid bodies and bone animations replace their diagnostic
+shapes; objects/equipment retain diagnostic rendering. Per-phase JSON includes local-pose
+hashes, node positions and physical-page pixel differences against the background.
+The probe requires actual pixels and changing poses when sampled updates differ;
+modal snapshots are excluded from that evidence. With NPC meshes enabled, pixel
+differences describe all original actors in the physical frame; Joe's local-pose
+hash remains player-specific. `probe-enemy-mesh.json` separately records each
+selected enemy's node positions, local-pose hashes, health and state. Inspection supplies startup
+heartbeat progress even for direct natural-intro player probes. Recording stays off.
+
+The checks block includes `Original.PlayerMesh`, `Original.EllipsoidPixels`,
+`Original.InterpolatedNodeEvents` and `Original.RenderCopies` for both Debug and
+ASan. These execute bounded original x86 comparisons for pose/camera/shading,
+pixels/depth/materials, node event ownership and redraw copies. See the
+[player recovery journal](journal/entries/player-model-and-animation-2026-10-27.md)
+and [enemy journal](journal/entries/enemy-model-and-animation-2026-10-27.md)
+for qualified routes and retained combat failures. A changed pose hash or completed route alone does
+not establish visual fidelity or exhaustive player action coverage.
+`Original.WaterEntry` also verifies every action offset against the installed
+original `OFFSETS` directory, including absent slots. `Original.AnimationNames`
+now compares all 488 representation names and cache ownership as well as all
+1800 animation names; this covers dropped-potion representation `w_pot` beyond
+the former 1000-byte bound. The [human-play follow-up](journal/entries/enemy-play-crash-and-dropped-potion-2026-10-27.md)
+records native consumption and the fixture/replay limits.
+
+
 ## Controlled population and startup logos
 
 Noncombat journeys use the explicit **noncombat-opening** test fixture. It

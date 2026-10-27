@@ -886,9 +886,17 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
         SDL_SetWindowTitle(e2r_sdl_backend.window,"Ecstatica II - RECORDING INCOMPLETE");
         e2r_cue_text(surface,10,surface->h-12,"RECORDING INCOMPLETE",amber);
     }
+    const char *player_mesh = getenv("E2R_PLAYER_MESH");
+    int player_mesh_enabled = player_mesh && *player_mesh && *player_mesh != '0';
+    const char *npc_mesh = getenv("E2R_NPC_MESH");
+    int npc_mesh_enabled = npc_mesh && *npc_mesh && *npc_mesh != '0';
     if (state.camera_ready && state.view_width == surface->w && state.view_height == surface->h) {
         for (unsigned i = 0; i < state.count; ++i) {
             const E2R_ActorCue *actor = &state.actors[i];
+            if ((actor->is_joe && player_mesh_enabled) ||
+                (npc_mesh_enabled && (actor->marker_kind == E2R_MARKER_CREATURE ||
+                                      actor->marker_kind == E2R_MARKER_CORPSE)))
+                continue;
             objects += actor->is_object;
             generated += actor->generated;
             if (!actor->visible_in_view) { ++hidden; continue; }
@@ -961,7 +969,9 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
             e2r_cue_player_status(surface,joe);
             break;
         }
-        e2r_cue_text(surface,10,59,bypass && *bypass && *bypass != '0' ?
+        e2r_cue_text(surface,10,59,npc_mesh_enabled ?
+                     "ORIGINAL CHARACTERS / OBJECTS USE DIAGNOSTIC SHAPES" : player_mesh_enabled ?
+                     "PLAYER MESH / OTHER ACTORS USE DIAGNOSTIC SHAPES" : bypass && *bypass && *bypass != '0' ?
                      (state.background_spawns_deferred ? "PROXY / MESH, HUD AND BACKGROUND SPAWNS OMITTED" :
                       "PROXY DRAW / MESH AND HUD GRAPHICS OMITTED") :
                      "PRESENTATION ONLY / ORIGINAL RENDER WORK ACTIVE",amber);

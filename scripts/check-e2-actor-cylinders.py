@@ -184,6 +184,10 @@ int main(int argc,char **argv) {
     *(short*)0x692000=0;*(uint32_t*)(object+0x11e)=0x692000;*(short*)(object+2)=0x1049;
     *(short*)(object+0x82)=7;E2R_GetActorCues(&state);
     assert(state.actors[1].marker_kind==E2R_MARKER_DOOR);
+    memcpy(before,(void*)0x470000,0x240000);
+    assert(!E2R_IsCharacterActor((uintptr_t)joe));
+    assert(!E2R_IsCharacterActor((uintptr_t)object));
+    assert(!memcmp(before,(void*)0x470000,0x240000));
     // Workshop door 980's observed first-node shape: thin X, broad Z,
     // centre (0,-406,-194). Opposite headings put the leaf on opposite sides
     // of its actor/hinge; a centred or X-wide slab fails these checks.
@@ -216,6 +220,9 @@ int main(int argc,char **argv) {
     *(short*)(object+0x82)=7;*(uint32_t*)(object+0x11e)=0x692000;
     strcpy((char*)_DAT_0063668c,"korc");E2R_GetActorCues(&state);
     assert(state.actors[1].marker_kind==E2R_MARKER_CREATURE);
+    memcpy(before,(void*)0x470000,0x240000);
+    assert(E2R_IsCharacterActor((uintptr_t)object));
+    assert(!memcmp(before,(void*)0x470000,0x240000));
     // Living creatures retain the projected local +Z direction line after
     // replacing their cylinders. Verify both headings beyond the body outline.
     for(int yaw=-16384;yaw<=16384;yaw+=32768) {
@@ -234,10 +241,12 @@ int main(int argc,char **argv) {
     }
     *(short*)(object+0x82)=11;*(uint32_t*)(object+0x11e)=0;E2R_GetActorCues(&state);
     assert(state.actors[1].marker_kind==E2R_MARKER_CORPSE);
+    assert(E2R_IsCharacterActor((uintptr_t)object));
     *(short*)(object+0x82)=7;*(uint32_t*)(object+0x11e)=0x692000;
     strcpy((char*)_DAT_0063668c,"potion");strcpy((char*)_DAT_006366b4+1960,"mhpot7");
     *(short*)(object+2)=0x829;E2R_GetActorCues(&state);
     assert(state.actors[1].marker_kind==E2R_MARKER_POTION);
+    assert(!E2R_IsCharacterActor((uintptr_t)object));
     SDL_Surface *shapes=SDL_CreateSurface(640,480,SDL_PIXELFORMAT_ARGB8888);assert(shapes);
     for(int kind=E2R_MARKER_OBJECT;kind<=E2R_MARKER_ITEM;kind++) {
         E2R_ActorCue marker=state.actors[1];marker.marker_kind=kind;
@@ -344,5 +353,7 @@ with tempfile.TemporaryDirectory(prefix='e2-cylinder-check-') as tmp:
                     *[f'-I{p}' for p in includes], str(source), str(library),
                     '-lm', '-ldl', '-lpthread', '-o', str(exe)], check=True)
     env = os.environ.copy()
+    env.pop('E2R_PLAYER_MESH',None)
+    env.pop('E2R_NPC_MESH',None)
     env.update(SDL_VIDEODRIVER='dummy', E2R_PROXY_MESH_BYPASS='0')
     subprocess.run([str(exe), str(args.output.resolve())], env=env, check=True, timeout=20)

@@ -36,8 +36,8 @@ def original(start, end):
 source = (Path(__file__).resolve().parent.parent /
           'E2Recomp/reconstructed/E2Recomp_recon.c').read_text()
 functions = []
-for name in ('FUN_00433d30', 'FUN_00424e44', 'FUN_00425018'):
-    match = re.search(r'void (?:__fastcall )?' + name + r'\([^\n]*\)\s*\{.*?\n\}', source, re.S)
+for name in ('E2R_UseProxyMesh', 'FUN_00433d30', 'FUN_00424e44', 'FUN_00425018'):
+    match = re.search(r'(?:static )?(?:void|int) (?:__fastcall )?' + name + r'\([^\n]*\)\s*\{.*?\n\}', source, re.S)
     if not match:
         raise ValueError(f'Missing function {name}')
     functions.append(match.group())
@@ -52,6 +52,7 @@ typedef uint8_t byte, undefined1;
 typedef uint64_t undefined8, ulonglong;
 typedef uint16_t ushort, undefined2;
 typedef uint32_t uint, undefined4;
+int E2R_IsCharacterActor(uintptr_t actor){return 0;}
 #define __fastcall
 #define DAT_0047a279 (*(uint32_t*)0x47a279)
 #define DAT_0047a3e0 (*(uint32_t*)0x47a3e0)

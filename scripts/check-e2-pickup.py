@@ -30,6 +30,7 @@ typedef uint16_t ushort,undefined2;
 typedef uint32_t uint,undefined4;
 typedef uint64_t ulonglong;
 typedef int64_t longlong;
+int E2R_IsCharacterActor(uintptr_t actor){return 0;}
 #define __fastcall
 #define CONCAT22(a,b) (((uint)(ushort)(a)<<16)|(ushort)(b))
 #define CONCAT44(a,b) (((uint64_t)(uint32_t)(a)<<32)|(uint32_t)(b))
@@ -38,9 +39,10 @@ typedef int64_t longlong;
 for name in ('E2R_TransformVector14', 'E2R_PolygonAngle16', 'E2R_NpcPolar16', 'FUN_0042dc9c'):
     harness += function(source, name)+'\n'
 pose = function(source, 'FUN_00423858')
-start = pose.index('  const char *proxy_bones')
-end = pose.index('  if ((short)local_18 == 0)', start)
-harness += 'static void model_origin_native(int local_3c,int local_18) {\n'+pose[start:end]+'}\n'
+start = pose.index('  int node = *(int *)(parent + 0x1e);')
+end = pose.index('    if (proxy) return;', start) + len('    if (proxy) return;')
+harness += function(source, 'E2R_UseProxyMesh') + '\n'
+harness += 'static void model_origin_native(int parent,int param_2) {\n' + pose[start:end] + '\n}\n}\n'
 for label, start, end in [('model', 0x423858, 0x423a64), ('vector', 0x45de8b, 0x45df0e), ('query', 0x42dc9c, 0x42deb8), ('polar', 0x427160, 0x427214),
                            ('angle', 0x432c64, 0x432de4), ('caller', 0x4290c4, 0x4290cc)]:
     code = image.code(start, end)

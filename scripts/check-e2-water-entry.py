@@ -19,6 +19,8 @@ a = p.parse_args()
 image = OriginalImage(a.exe)
 source = Path('E2Recomp/reconstructed/E2Recomp_recon.c').read_text()
 data = a.archive.read_bytes()
+offsets = (a.archive.parent.parent / 'OFFSETS').read_bytes()
+action_offsets = struct.unpack_from('>2000I', offsets, (2500 + 5000) * 4)
 headers = {}
 start = 0
 while True:
@@ -148,6 +150,10 @@ int main(int argc,char **argv) {
 # production index is checked exhaustively; the fallback lookup is sampled.
 checks = '\n'.join(f'assert(*(int*)({0x653840 + i*4})=={offset});' for i, offset in headers.items())
 checks += f'\nassert(E2R_FindActorArchiveOffset(0)=={joe});'
+checks += '\n' + '\n'.join(
+    f'assert(*(uint*)({0x64f060 + identity*4})=={offset}u);'
+    for identity, offset in enumerate(action_offsets))
+checks += '\nputs("PASS: all 2000 original OFFSETS action entries, including 1333 resources and missing slots; sound payload cannot alias actions");'
 harness = harness.replace('EXPECTED_HEADERS', checks).replace('HEADERS', str(len(headers)))
 # run_fixture has no runtime argv; retain a wrapper entry with the asset path.
 assert 'int main(int argc,char **argv)' in harness

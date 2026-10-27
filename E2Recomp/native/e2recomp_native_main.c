@@ -43,6 +43,30 @@ static void e2r_cue_name(char *out, size_t capacity, uintptr_t pool, size_t byte
     }
 }
 
+/* Select the same original-resource character category as the diagnostic
+ * overlay. This controls the optional render bypass only, never AI/game state. */
+int E2R_IsCharacterActor(uintptr_t actor)
+{
+    static uintptr_t previous_actor[5000];
+    static int previous_kind[5000];
+    if (!actor || IsBadReadPtr((void *)actor,0x18c)) return 0;
+    int16_t id = *(int16_t *)actor;
+    if (id <= 0 || id >= 5000 || *(uint32_t *)(0x630b60u + id * 4u) != actor) return 0;
+    char name[48], rep_name[48];
+    uintptr_t rep = *(uint32_t *)(actor + 0x11e);
+    int16_t rep_id = rep && !IsBadReadPtr((void *)rep,2) ? *(int16_t *)rep : -1;
+    int16_t state = *(int16_t *)(actor + 0x82);
+    e2r_cue_name(name,sizeof(name),(uintptr_t)_DAT_006366b4,40000,id);
+    e2r_cue_name(rep_name,sizeof(rep_name),(uintptr_t)_DAT_0063668c,4000,rep_id);
+    int prior = previous_actor[id] == actor && (state == 5 || state == 11) ?
+                previous_kind[id] : E2R_MARKER_OBJECT;
+    int kind = e2r_marker_kind(name,rep_name,*(uint16_t *)(actor + 2),
+                             (*(uint16_t *)(0x64a178u + id * 2u) & 8u) != 0,prior);
+    previous_actor[id] = actor;
+    previous_kind[id] = kind;
+    return kind == E2R_MARKER_CREATURE || kind == E2R_MARKER_CORPSE;
+}
+
 static void e2r_cue_potion_status(E2R_ActorCue *cue, uintptr_t actor)
 {
     uint32_t action, timer;
@@ -401,8 +425,25 @@ extern uintptr_t E2R_active_palette_update_count;
 static int e2r_write_surface_set(const char *prefix);
 static int e2r_write_visibility_packet(HWND hwnd, const char *prefix);
 
+static int e2r_original_mesh_enabled(void)
+{
+    const char *value = getenv("E2R_PLAYER_MESH");
+    const char *npc = getenv("E2R_NPC_MESH");
+    return ((value && *value && *value != '0') || (npc && *npc && *npc != '0')) &&
+           DAT_0047a43c != 0 && _DAT_00643650 == 0;
+}
+
 static uintptr_t e2r_surface_framebuffer(unsigned surface)
 {
+    if (surface < 2 && e2r_original_mesh_enabled()) {
+        const unsigned char *pixels;
+        unsigned width, height, pitch;
+        uintptr_t object = surface == ((unsigned)(DAT_0047a279 >> 24) & 1u) ?
+                           DAT_0047d0cc : DAT_0047d0d0;
+        if (E2R_GetDirectDrawPixels(object, &pixels, &width, &height, &pitch) &&
+            width == _DAT_006401ec && height == _DAT_006401d4 && pitch == width)
+            return (uintptr_t)pixels;
+    }
     switch (surface & 3u) {
     case 0: return _DAT_00636150;
     case 1: return _DAT_00636154;
@@ -472,6 +513,7 @@ static unsigned e2r_recovered_front_surface(void)
 {
     unsigned visible = (unsigned)(DAT_0047a279 >> 24) & 3u;
 
+    if (e2r_original_mesh_enabled()) return visible & 1u;
     if (DAT_0047a43c != 0) {
         return (visible & 1u) + 2u;
     }

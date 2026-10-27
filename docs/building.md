@@ -4,7 +4,7 @@
 [Project README](../README.md) · [Parent: Project documentation](README.md)
 <!-- /docs-tree:parent -->
 
-The everyday configuration is **Debug · Clang 21 · i386 · SDL**, selected through CMake presets. The gameplay launch **Ecstatica Recompiled** follows the selected CMake executable and enables the experimental cylinder/action route. The runtime remains experimental; a successful build or static capture does not prove playable behavior.
+The everyday configuration is **Debug · Clang 21 · i386 · SDL**, selected through CMake presets. The gameplay launch **Ecstatica Recompiled** follows the selected CMake executable and enables the recovered player model/animations and diagnostic shapes for other actors. The runtime remains experimental; a successful build or static capture does not prove playable behavior.
 
 The separate **starred full regression suite** builds and runs all registered
 Debug/ASan cases in two concurrent configuration processes, each in dependency
@@ -34,7 +34,7 @@ printf '%s\n' /path/to/Ecstatica2 > ~/.ecstatica2/game-data-dir
 cmake --preset linux-clang32-sdl-debug
 cmake --build --preset linux-clang32-sdl-debug
 E2R_ACTOR_CYLINDERS=1 E2R_ACTION_INDEX_PROBE=1 E2R_PROXY_MESH_BYPASS=1 \
-  E2R_DEFER_BACKGROUND_SPAWNS=0 \
+  E2R_PLAYER_MESH=1 E2R_NPC_MESH=1 E2R_DEFER_BACKGROUND_SPAWNS=0 \
   ./build/Debug/clang21-i386-sdl/e2recomp --run-recon
 ```
 
@@ -42,9 +42,18 @@ There is no committed personal data path. Save the full original-data path on on
 
 An explicit/nonempty `ECSTATICA2_DATA_DIR` cache value takes precedence. When that value is absent or empty, CMake tries the `ECSTATICA2_DATA_DIR` environment variable, then the saved file. This also repairs a cache left empty by an earlier failed configure. `-DECSTATICA2_DATA_DIR=...` remains a per-build override; `ECSTATICA2_DATA_CONFIG` can select a different local text file. To change a populated cache to the saved setting, remove its data-path entry with `cmake --preset NAME -U ECSTATICA2_DATA_DIR`.
 
-F5 supplies projected cylinders, recovered action indexing/expanded script names, diagnostic mesh/HUD omission and enabled background population (`E2R_DEFER_BACKGROUND_SPAWNS=0`). Original preloaded objects also activate through their placement and visibility records; the sword beside the blacksmith workbench has [bounded Debug/ASan evidence](journal/entries/blacksmith-sword-activation-2026-10-20.md). Movement and courtyard round trips are verified, while pickup, combat, original models and full experimental ASan acceptance remain open. `E2R_ACTOR_CUES=1` retains the earlier crosses for baseline investigation.
+F5 enables original player and enemy ellipsoid bodies/bone animations
+(`E2R_PLAYER_MESH=1`, `E2R_NPC_MESH=1`), recovered action indexing and background
+population (`E2R_DEFER_BACKGROUND_SPAWNS=0`). Character cylinders are hidden;
+original pixels use recovered camera, palette, depth and physical DirectDraw
+pages. Objects/equipment retain diagnostic shapes, NPC polygon/box leaves remain
+bypassed, and the existing health/potion panel replaces original HUD graphics.
+The [enemy recovery record](journal/entries/enemy-model-and-animation-2026-10-27.md)
+owns current evidence and limits. Set `E2R_NPC_MESH=0` for enemy diagnostic
+comparison or `E2R_PLAYER_MESH=0` for Joe's earlier cylinder.
+`E2R_ACTOR_CUES=1` retains the earlier crosses for baseline investigation.
 
-Cylinder labels describe runtime state: cyan `JOE`, amber `SPAWN` for terrain-generated actors, amber `ACTOR` for other represented/scripted actors, and neutral green-grey `OBJECT` for actors without an installed representation or owning script scene. They do not classify hostility. The overlay respects the original actor visibility flag; `ACTIVE` includes objects and hidden actors, while `GENERATED` separately counts terrain-generated actors. Wall occlusion and real mesh bounds remain absent. The [workshop crash/visibility continuation](journal/entries/workshop-initialization-and-actor-visibility-2026-10-20.md) records the matching initialization crash repair and original four-generated-actor cap audit.
+Cylinder labels describe runtime state: cyan `JOE`, amber `SPAWN` for terrain-generated actors, amber `ACTOR` for other represented/scripted actors, and neutral green-grey `OBJECT` for actors without an installed representation or owning script scene. They do not classify hostility. The overlay respects the original actor visibility flag; `ACTIVE` includes objects and hidden actors, while `GENERATED` separately counts terrain-generated actors. Diagnostic shapes have no wall occlusion or real mesh bounds; Joe's recovered pixels use original depth testing. The [workshop crash/visibility continuation](journal/entries/workshop-initialization-and-actor-visibility-2026-10-20.md) records the matching initialization crash repair and original four-generated-actor cap audit.
 
 For persistent personal overrides, use the ignored `CMakeUserPresets.json`, for example:
 

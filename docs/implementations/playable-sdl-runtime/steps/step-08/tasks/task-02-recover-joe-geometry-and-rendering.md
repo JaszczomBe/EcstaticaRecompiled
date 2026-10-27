@@ -4,10 +4,10 @@
 [Project README](../../../../../../README.md) · [Parent: Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 <!-- /docs-tree:parent -->
 
-Status: active
+Status: corrected player model/animation accepted by the user; recorded follow-ups remain
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-10-14
+Last Updated: 2026-10-27
 
 ## Goal
 
@@ -24,7 +24,84 @@ Initialize Joe’s geometry through the recovered update path and draw the livin
 1. Replacing original geometry/rendering as this task's final result. The user-authorized diagnostic cylinders in [Step 09](../../step-09/step-09-enable-diagnostic-gameplay.md) have separate acceptance and may precede this task's completion.
 2. Full camera/combat behavior or assuming rep slots are model pointers without source confirmation.
 
-## Implementation Notes
+## User acceptance — 2026-10-27
+
+After reviewing the corrected F5 build, the user confirms “perfection, works as
+a charm” and requests enemy animations next. This closes the current player
+model/animation milestone. [Task 03](task-03-activate-scene-backed-children.md)
+owns enemy recovery, now ahead of save/load; equipment polygons, HUD and broader
+video/action coverage remain follow-ups.
+
+## Previous correction — Malformed ellipsoid projection
+
+The user confirms proper input/animation response but rejects the rendered body:
+Joe's ellipsoids have grossly wrong size, placement and shape. This failed visual acceptance required the correction below before the later
+user acceptance.
+
+An actual Joe pelvis node with radii **52/60/43** projects to **53/57**, slope **−1**
+in original x86, versus **56/3**, slope **54** in the prior reconstruction.
+`FUN_00432ecc` swapped X/Y components while selecting the projection frame and
+combining saved basis vectors (`0x433202..0x43331e`). Five component corrections
+restore original results, mirrored in the generator. New before/after captures
+show a coherent human silhouette rather than flattened, separated body fragments.
+
+The earlier projected-basis and camera/draw tests accidentally passed **zero
+matrices**: their angle arrays lived on the high host stack, which the production
+helper rejects. They did not establish general projection correctness. The tests
+now keep angles in mapped game memory, assert nonzero matrices, and retain the
+captured pelvis regression against original x86. Corrected **8192** basis and
+**4096** camera/draw cases pass normally and under ASan. See the
+[correction record](../../../../../journal/entries/player-model-and-animation-2026-10-27.md#visual-rejection-and-projection-correction)
+for evidence and current limits. Original footage remains the visual target;
+passing control journeys alone cannot close this task. Current Debug/ASan
+movement/courtyard regressions pass **8/8**; the corrected ASan sword route passes
+pickup, all four attacks, equipped movement and actual menu exit 0. The user subsequently accepted the corrected F5 build, as recorded above.
+
+## Previous implementation — 2026-10-27
+
+The user has returned original player model/animation to first priority, followed
+by game save/load, other enemy animation, sounds and music. Session saving,
+session replay and the gameplay suite are closed milestones with minor follow-ups.
+The earlier cylinder-first priority and failures below remain historical evidence.
+
+`E2R_PLAYER_MESH=1` restores Joe's original ellipsoid body while preserving the
+accepted diagnostic path for NPCs and other objects/equipment. F5 and gameplay
+suite journeys enable it; Joe's cylinder/label is hidden and the existing health
+panel remains. Set the flag to `0` for the earlier cylinder comparison.
+
+The repair recovers full forward skeletal poses and endpoint solving, scoped
+node-event/reset destinations, node allocation identities, camera-space origins,
+per-axis camera composition, projected ellipsoid bases, original shade tables,
+high-resolution material/depth rasterization, background/depth restoration and
+physical-page presentation. Original model/action resources are reused. No new
+artwork, replacement animation timing or actor-coordinate assignments are used.
+Reconstructed C is mirrored in `GenerateRecon.js`; compatibility pixel access
+stays below the host boundary. The [journal](../../../../../journal/entries/player-model-and-animation-2026-10-27.md)
+records original addresses and reproducible evidence.
+
+Original-x86 comparisons pass in normal/ASan modes: **6144** forward poses,
+**6144** camera origins, **8192** projected bases, **4096** camera/draw dispatches,
+**262144** shade entries, **3072** raster cases, **8192** interpolated node events,
+**4096** reset cases, **1536** pixel copies, **1152** depth copies and **256**
+dirty-depth list cases per mode. The checks block passes **47/47**, including
+independent four-artifact parity. SDL and X11 Debug/ASan builds pass.
+
+Current captured gameplay includes Joe's **70-node** body, changing local bone
+poses and actual physical game pixels. Debug/ASan movement/courtyard, unarmed
+basic/advanced attacks and swimming/water attacks pass **26/26** logical cases
+across six normally exiting native journeys. Bounded natural-intro ASan and
+workshop/sword Debug/ASan probes also pass. The ASan sword route exits normally
+through Cancel/resume/Quit with ten changing pose/pixel samples. Detailed counts and any later evidence
+belong in the journal; these are headless SDL checks, not human acceptance.
+
+Remaining limits: equipped-object polygon geometry, broader actor coverage, original HUD,
+low-resolution and arbitrary video-mode rendering, exhaustive actions and longer
+play. These do not reopen the closed tooling milestones. The full regression
+suite has not been rerun with meshes; preserve historical full-suite limits.
+The latest user request moves enemy animations next, followed by functional
+**game save/load** and a real serialization/restore menu round trip.
+
+## Historical implementation notes
 
 The user's 2026-10-14 priority is Step 09 diagnostic gameplay. This task remains the original-rendering owner; its full mesh recovery need not block real action/movement proofs if a narrowly audited visual bypass supports them. Preserve any root-motion/logical-pose inputs required by gameplay.
 
@@ -74,8 +151,8 @@ Capture synchronized before/after packets with `--auto-scene175-visibility` and 
 ## Review State
 
 1. Planning state: agreed
-2. Implementation state: matrix destinations, polygon/lighting and copy inputs repaired; Task 12 DirectDraw Lock storage next
-3. Notes: Next source task; keep action indexing gated and split independent later render failures.
+2. Implementation state: player ellipsoid body/animation restored and projection corrected; user accepted the corrected F5 output.
+3. Notes: enemy recovery now follows in Task 03; retain equipment/video limits and then proceed to game save/load.
 
 ## Change Log
 

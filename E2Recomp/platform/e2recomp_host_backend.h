@@ -25,6 +25,8 @@ static inline int E2R_HostDumpInspectionFrame(E2R_HostWindow *window, const char
 { (void)window; (void)prefix; return -1; }
 #endif
 
+int E2R_IsCharacterActor(uintptr_t actor);
+
 /* Read-only runtime snapshot for optional host-side actor diagnostics. */
 #define E2R_ACTOR_CUE_CAPACITY 64
 #define E2R_CYLINDER_RING_POINTS 8
@@ -64,3 +66,5 @@ typedef struct E2R_ActorCueSnapshot {
     E2R_ActorCue actors[E2R_ACTOR_CUE_CAPACITY];
 } E2R_ActorCueSnapshot;
 void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot);
+int E2R_GetDirectDrawPixels(uintptr_t object, const unsigned char **pixels,
+                          unsigned *width, unsigned *height, unsigned *pitch);

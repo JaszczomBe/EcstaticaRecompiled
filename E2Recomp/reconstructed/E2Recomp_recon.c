@@ -75,6 +75,23 @@ static uint E2R_script_scene_diag_count;
 static const char *E2R_current_actor_last_site;
 static uintptr_t E2R_current_actor_last_value;
 static int E2R_actor_calc_context;
+static int E2R_UseProxyMesh(int actor,int ellipsoids)
+{
+  const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");
+  const char *player_mesh = getenv("E2R_PLAYER_MESH");
+  if (proxy == NULL || proxy[0] == '\0' || proxy[0] == '0') return 0;
+  if (player_mesh != NULL && player_mesh[0] != '\0' && player_mesh[0] != '0') {
+    int player = *(int *)0x00630b60;
+    if (player != 0 && (actor == player || *(int *)(actor + 0x22) == player)) return 0;
+  }
+  const char *npc_mesh = getenv("E2R_NPC_MESH");
+  if (ellipsoids && npc_mesh != NULL && npc_mesh[0] != '\0' && npc_mesh[0] != '0') {
+    extern int E2R_IsCharacterActor(uintptr_t actor);
+    int owner = *(int *)(actor + 0x22);
+    if (E2R_IsCharacterActor(owner != 0 ? owner : actor)) return 0;
+  }
+  return 1;
+}
 static int E2R_action_event_context;
 static uintptr_t E2R_hosted_streams[1024];
 
@@ -9467,6 +9484,28 @@ undefined4 FUN_00414e68(void)
 /* WARNING: Removing unreachable block (ram,0x00415046) */
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
+static void E2R_InitActorShadeTable(void)
+{
+  /* Original 0x415167..0x41535b and its sixteen-entry 0x414f00 dispatch. */
+  static const byte palette[16] = {0,1,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+  static const byte contrast[16] = {0,2,1,0,1,0,1,0,1,0,1,0,1,0,1,0};
+  for (int mode = 0; mode < 16; ++mode) {
+    for (int y = 0; y < 128; ++y) {
+      for (int x = 0; x < 128; ++x) {
+        int value = (x * y) >> 7;
+        if (contrast[mode] == 1) value -= (y * 3) / 8;
+        if (contrast[mode] == 2) value -= (y * 5) / 8;
+        byte color = 0;
+        if (value > 0 && mode != 0) {
+          if (value > 127) value = 127;
+          color = (value >> 2) + palette[mode] * 32;
+        }
+        *(byte *)(0x507590 + mode * 0x4000 + y * 128 + x) = color;
+      }
+    }
+  }
+}
+
 void FUN_00414f40(void)
 
 {
@@ -9510,16 +9549,7 @@ void FUN_00414f40(void)
     *(short *)(0x0060c4b8 + x * 2) = E2R_clamp_short(E2R_round_to_int(sin(phase) * 32767.0));
   }
 
-  for (mode = 0; mode < 16; mode = mode + 1) {
-    int base = 0x00507590 + mode * 0x4000;
-    int bias = mode * 32;
-    for (y = 0; y < 128; y = y + 1) {
-      for (x = 0; x < 128; x = x + 1) {
-        int shade = ((x * y) >> 7) + bias;
-        *(byte *)(base + y * 128 + x) = E2R_clamp_byte(shade);
-      }
-    }
-  }
+  E2R_InitActorShadeTable();
 
   for (y = 0; y < 128; y = y + 1) {
     for (x = 0; x < 128; x = x + 1) {
@@ -15983,6 +16013,36 @@ void __fastcall FUN_00421074(undefined4 param_1,undefined4 param_2)
 
 
 
+static void E2R_CopyGameRect(int source,int destination,int sx,int sy,int dx,int dy,int width,int height)
+{
+  /* Original high-resolution 0x417c38..0x417ceb with retained EAX source,
+   * EDX source X, EBX source Y, ECX destination and the four stack dimensions. */
+  uint source_pitch, destination_pitch;
+  byte *input = (byte *)(uintptr_t)FUN_00418a04(source,&source_pitch);
+  byte *output;
+  if (source == destination) {
+    output = input;destination_pitch = source_pitch;
+  } else output = (byte *)(uintptr_t)FUN_00418a04(destination,&destination_pitch);
+  for (int row = 0; row < height; ++row)
+    for (int col = 0; col < width; ++col)
+      output[(dy + row) * destination_pitch + dx + col] = input[(sy + row) * source_pitch + sx + col];
+  FUN_00418b00(source,(uint)(uintptr_t)input);
+  if (source != destination) FUN_00418b00(destination,(uint)(uintptr_t)output);
+}
+
+static void E2R_CopyDepthRect(int source,int destination,int x,int y,int width,int height)
+{
+  /* Original 0x41868c copies rounded DWORD spans at the same X/Y. Hosted
+   * global aliases are separate objects, not a contiguous pointer table. */
+  uint buffers[3] = {_DAT_00636668,_DAT_0063666c,_DAT_00636670};
+  byte *input = (byte *)(uintptr_t)buffers[source];
+  byte *output = (byte *)(uintptr_t)buffers[destination];
+  int pitch = _DAT_006401ec * 2;
+  for (int row = 0; row < height; ++row)
+    for (int col = 0; col < ((width + 1) >> 1) * 4; ++col)
+      output[(y + row) * pitch + x * 2 + col] = input[(y + row) * pitch + x * 2 + col];
+}
+
 /* 004211c8 */
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
@@ -16127,7 +16187,7 @@ void __fastcall FUN_004211c8(int param_1,undefined4 param_2)
   const char *proxy_pixels = getenv("E2R_PROXY_MESH_BYPASS");
   int omit_actor_pixels = proxy_pixels && *proxy_pixels && *proxy_pixels != '0';
   for (; iVar5 != 0; iVar5 = *(int *)(iVar5 + 0x4c)) {
-    if (!omit_actor_pixels && ((*(byte *)(iVar5 + 3) & 4) == 0) &&
+    if ((!omit_actor_pixels || !E2R_UseProxyMesh(iVar5,1)) && ((*(byte *)(iVar5 + 3) & 4) == 0) &&
        (iVar1 = _DAT_0063726c, (*(byte *)(iVar5 + 3) & 8) != 0)) {
       for (; iVar1 != 0; iVar1 = *(int *)(iVar1 + 0x4c)) {
         if ((((iVar1 != iVar5) && (psVar2 = *(short **)(iVar1 + 0xe4), psVar2 != (short *)0x0)) &&
@@ -16171,7 +16231,7 @@ void __fastcall FUN_004211c8(int param_1,undefined4 param_2)
         }
         sVar4 = sVar4 + 1;
       } while (sVar4 < 0x19);
-      FUN_00421684();
+      FUN_00421684(iVar5);
       if (0x10000u <= (uint)iVar5 && (uint)iVar5 < 0x70000000u &&
           !IsBadReadPtr((void *)(uintptr_t)iVar5,0x50)) {
         *(byte *)(iVar5 + 3) = *(byte *)(iVar5 + 3) & 0xf7;
@@ -16196,7 +16256,7 @@ void __fastcall FUN_004211c8(int param_1,undefined4 param_2)
     else {
       DAT_0047a2a8 = (uint)(DAT_0047a298 == 2);
       DAT_0047a298 = DAT_0047a298 + -1;
-      FUN_0041760c(1 - (DAT_0047a279 >> 0x18),0,0,0,_DAT_006401ec,_DAT_006401d4);
+      E2R_CopyGameRect(2,1 - (DAT_0047a279 >> 0x18),0,0,0,0,_DAT_006401ec,_DAT_006401d4);
     }
     if (DAT_0047a3b4 == 0) {
       FUN_00424b48();
@@ -16210,12 +16270,12 @@ void __fastcall FUN_004211c8(int param_1,undefined4 param_2)
 
 /* 00421684 */
 
-void FUN_00421684(void)
+void FUN_00421684(int actor)
 
 {
   int iVar1;
   short sVar2;
-  int in_EAX;
+  int in_EAX = actor;
   int *piVar3;
   int iVar4;
   undefined1 *puVar5;
@@ -16242,10 +16302,10 @@ void FUN_00421684(void)
     uVar7 = (uint)*(short *)piVar3;
     puVar5 = (undefined1 *)(((*piVar3 >> 0x10) + 1) - uVar7);
   }
-  FUN_0041760c(2,uVar7,uVar7,iVar8,puVar5,iVar4);
+  E2R_CopyGameRect(3,2,uVar7,iVar8,uVar7,iVar8,(int)puVar5,iVar4);
   piVar3 = *(int **)(in_EAX + 0xe4);
   iVar4 = *(int *)((int)piVar3 + 2) >> 0x10;
-  FUN_0041868c(iVar4,1,((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,
+  E2R_CopyDepthRect(2,1,(short)*piVar3,iVar4,((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,
                ((piVar3[1] >> 0x10) + 1) - iVar4);
   iVar6 = DAT_0047a279 >> 0x18;
   iVar4 = iVar6 * 4;
@@ -17401,402 +17461,162 @@ void FUN_00423674(int node)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
+static short E2R_PolygonAngle16(short x,short z);
+static void E2R_RotatePolygonNormal(short normal[3],short angle,int axis);
+static short E2R_PoseAsin14(short ratio);
+
 void __fastcall FUN_00423858(undefined4 param_1,undefined4 param_2)
-
 {
-  short sVar1;
-  int in_EAX;
-  undefined4 uVar2;
-  short sVar3;
-  int iVar4;
-  uint uVar5;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 extraout_ECX_02;
-  undefined4 extraout_ECX_03;
-  undefined4 extraout_ECX_04;
-  undefined4 extraout_ECX_05;
-  undefined4 extraout_ECX_06;
-  undefined4 extraout_ECX_07;
-  uint extraout_ECX_08;
-  uint extraout_ECX_09;
-  undefined2 extraout_var;
-  undefined4 extraout_ECX_10;
-  undefined4 extraout_ECX_11;
-  undefined4 extraout_ECX_12;
-  undefined4 extraout_ECX_13;
-  undefined4 extraout_ECX_14;
-  int extraout_ECX_15;
-  int extraout_ECX_16;
-  int extraout_ECX_17;
-  int extraout_ECX_18;
-  undefined4 extraout_ECX_19;
-  undefined4 extraout_ECX_20;
-  undefined4 extraout_ECX_21;
-  undefined4 extraout_ECX_22;
-  undefined4 extraout_ECX_23;
-  undefined4 extraout_ECX_24;
-  undefined4 extraout_ECX_25;
-  undefined2 extraout_DX;
-  short extraout_DX_00;
-  short extraout_DX_01;
-  short extraout_DX_02;
-  int extraout_EDX;
-  int extraout_EDX_00;
-  short sVar6;
-  short sVar7;
-  int iVar8;
-  short *psVar9;
-  int iVar10;
-  ushort *puVar11;
-  ushort *puVar12;
-  short sStack_74;
-  short local_70 [4];
-  short local_68 [5];
-  short local_5e;
-  short sStack_5c;
-  short *local_58;
-  int local_54;
-  int local_50;
-  short *local_4c;
-  short *local_48;
-  int local_44;
-  int local_40;
-  int local_3c;
-  ushort *local_38;
-  short *local_34;
-  int local_30;
-  short local_2c;
-  short local_28;
-  short local_24;
-  short local_20;
-  undefined2 uStack_1c;
-  undefined4 local_18;
-
-  in_EAX = (short *)(uintptr_t)param_1;
-  if (in_EAX == (short *)0x0 || (uintptr_t)in_EAX < 0x10000u ||
-      0x1000000u <= (uintptr_t)in_EAX || IsBadReadPtr(in_EAX,0x17c)) {
-    return;
-  }
-  local_3c = in_EAX;
-  local_18 = param_2;
-  if (*(short *)(in_EAX + 4) != 7) {
-    *(byte *)(in_EAX + 3) = *(byte *)(in_EAX + 3) | 0x80;
-    local_54 = *(int *)(in_EAX + 0x11e);
-    if (local_54 != 0) {
-      local_40 = in_EAX + 6;
-      local_58 = (short *)(in_EAX + 0x80);
-      do {
-        if ((uintptr_t)local_54 < 0x10000u || 0x70000000u <= (uintptr_t)local_54 ||
-            IsBadReadPtr((void *)(uintptr_t)local_54,0x2a)) {
-          break;
-        }
-        iVar10 = local_54;
-        psVar9 = (short *)(local_54 + 0x10);
-        /* Original 0x4238a3..0x4238b7 retains reference input/matrix/output. */
-        E2R_TransformVector14(psVar9,(short *)(uintptr_t)(local_54 + 4),
-                              (short *)(uintptr_t)local_40);
-        *psVar9 = *psVar9 + *local_58;
-        *(short *)(iVar10 + 0x12) = *(short *)(iVar10 + 0x12) + local_58[1];
-        *(short *)(iVar10 + 0x14) = *(short *)(iVar10 + 0x14) + local_58[2];
-        local_54 = *(int *)(local_54 + 0x26);
-      } while (local_54 != 0);
+  /* Original 0x423858..0x424162: EAX parent, EDX sibling-only flag.
+   * Keep vectors contiguous and retain each node across register-only helpers. */
+  int parent = param_1;
+  if (parent == 0 || (uint)parent < 0x10000u || 0x1000000u <= (uint)parent ||
+      IsBadReadPtr((void *)(uintptr_t)parent,0x17c)) return;
+  if (*(short *)(parent + 4) != 7) {
+    *(byte *)(parent + 3) |= 0x80;
+    for (int vertex = *(int *)(parent + 0x11e); vertex != 0;
+         vertex = *(int *)(vertex + 0x26)) {
+      short *world = (short *)(vertex + 0x10);
+      E2R_TransformVector14(world,(short *)(vertex + 4),(short *)(parent + 6));
+      for (int i = 0; i < 3; ++i) world[i] += ((short *)(parent + 0x80))[i];
     }
   }
-  /* Pickup selection reads the first model node's world height. Retain
-   * original 0x42391b..0x423a64 before bypassing mesh articulation. */
-  const char *proxy_bones = getenv("E2R_PROXY_MESH_BYPASS");
-  if (proxy_bones && *proxy_bones && *proxy_bones != '0') {
-    int node = *(int *)(local_3c + 0x1e);
-    if (node != 0 && (short)local_18 != 0) node = *(int *)(node + 0xca);
-    if (node != 0) {
-      short relative[3];
-      for (int i = 0; i < 3; ++i) {
-        relative[i] = *(short *)(node + 0x2c + i * 2);
-        if (*(short *)(local_3c + 4) != 7)
-          relative[i] += *(short *)(local_3c + 0x6e + i * 2);
-      }
-      E2R_TransformVector14((short *)(node + 0x50),relative,(short *)(local_3c + 6));
-      for (int i = 0; i < 3; ++i)
-        *(short *)(node + 0x18 + i * 2) = *(short *)(local_3c + 0x18 + i * 2) +
-                                        *(short *)(node + 0x50 + i * 2);
-      memcpy((void *)(node + 6),(void *)((*(byte *)(node + 2) & 0x10) ?
-                                       node + 0xec : local_3c + 6),18);
+  int node = *(int *)(parent + 0x1e);
+  if ((short)param_2 != 0 && node != 0) node = *(int *)(node + 0xca);
+  int proxy = E2R_UseProxyMesh(parent,1);
+  for (; node != 0; node = *(int *)(node + 0xca)) {
+    short relative[3];
+    for (int i = 0; i < 3; ++i) {
+      relative[i] = ((short *)(node + 0x2c))[i];
+      if (*(short *)(parent + 4) != 7) relative[i] += ((short *)(parent + 0x6e))[i];
     }
-    return;
-  }
-  if ((short)local_18 == 0) {
-    iVar10 = *(int *)(local_3c + 0x1e);
-  }
-  else {
-    iVar10 = *(int *)(local_3c + 0x1e);
-    if (iVar10 == 0 || (uintptr_t)iVar10 < 0x10000u || 0x70000000u <= (uintptr_t)iVar10 ||
-        IsBadReadPtr((void *)(uintptr_t)iVar10,0xce)) {
-      return;
-    }
-    iVar10 = *(int *)(iVar10 + 0xca);
-  }
-  local_38 = (ushort *)(local_3c + 6);
-  local_34 = (short *)(local_3c + 0x18);
-  local_30 = local_3c + 0x6e;
-  if (iVar10 == 0) {
-    return;
-  }
-  do {
-    if ((uintptr_t)iVar10 < 0x10000u || 0x70000000u <= (uintptr_t)iVar10 ||
-        IsBadReadPtr((void *)(uintptr_t)iVar10,0x136)) {
-      return;
-    }
-    local_4c = (short *)(iVar10 + 0x50);
-    FUN_0045de8b();
-    psVar9 = (short *)(iVar10 + 0x18);
-    *psVar9 = *local_34;
-    *(short *)(iVar10 + 0x1a) = local_34[1];
-    *(short *)(iVar10 + 0x1c) = local_34[2];
-    *psVar9 = *psVar9 + *local_4c;
-    *(short *)(iVar10 + 0x1a) = *(short *)(iVar10 + 0x1a) + local_4c[1];
-    *(short *)(iVar10 + 0x1c) = *(short *)(iVar10 + 0x1c) + local_4c[2];
-    puVar11 = local_38;
-    if ((*(byte *)(iVar10 + 2) & 0x10) != 0) {
-      puVar11 = (ushort *)(iVar10 + 0xec);
-    }
-    puVar12 = (ushort *)(iVar10 + 6);
-    for (iVar4 = 4; iVar4 != 0; iVar4 = iVar4 + -1) {
-      *(undefined4 *)puVar12 = *(undefined4 *)puVar11;
-      puVar11 = puVar11 + 2;
-      puVar12 = puVar12 + 2;
-    }
-    uVar5 = (uint)*puVar11;
-    *puVar12 = *puVar11;
-    iVar4 = _DAT_00637240;
-    if ((*(byte *)(iVar10 + 2) & 0x20) == 0) {
-      if (*(int *)(iVar10 + 0x12e) == 0) {
-        if (*(short *)(iVar10 + 0x28) != 0) {
-          FUN_00422460((undefined4)(uintptr_t)(iVar10 + 6),(int)*(short *)(iVar10 + 0x28));
-          uVar5 = extraout_ECX_08;
+    E2R_TransformVector14((short *)(node + 0x50),relative,(short *)(parent + 6));
+    for (int i = 0; i < 3; ++i)
+      ((short *)(node + 0x18))[i] = ((short *)(parent + 0x18))[i] + ((short *)(node + 0x50))[i];
+    memcpy((void *)(node + 6),(void *)((*(byte *)(node + 2) & 0x10) ? node + 0xec : parent + 6),18);
+    /* Preserve the accepted diagnostic root-only pose while recovering meshes. */
+    if (proxy) return;
+    if ((*(byte *)(node + 2) & 0x20) == 0) {
+      int reference = *(int *)(node + 0x12e);
+      if (reference == 0) {
+        if (*(short *)(node + 0x28)) FUN_00422460(node + 6,*(short *)(node + 0x28));
+        if (*(short *)(node + 0x26)) FUN_00422368(node + 6,*(short *)(node + 0x26));
+        if (*(short *)(node + 0x2a)) FUN_00422538(node + 6,*(short *)(node + 0x2a));
+      } else {
+        if ((*(byte *)(*(int *)(reference + 0x22) + 3) & 0x80) == 0) {
+          *(int *)(node + 0x132) = *(int *)(0x6368d8 + _DAT_00637240 * 4);
+          *(int *)(0x6368d8 + _DAT_00637240 * 4) = node;
+          continue;
         }
-        if (*(short *)(iVar10 + 0x26) != 0) {
-          FUN_00422368((undefined4)(uintptr_t)(iVar10 + 6),(int)*(short *)(iVar10 + 0x26));
-          uVar5 = extraout_ECX_09;
+        short difference[3], target[3], transpose[9];
+        for (int i = 0; i < 3; ++i) {
+          difference[i] = ((short *)(reference + 0x10))[i] - ((short *)(node + 0x18))[i];
+          for (int j = 0; j < 3; ++j) transpose[i * 3 + j] = ((short *)(node + 6))[j * 3 + i];
         }
-        if (*(short *)(iVar10 + 0x2a) != 0) {
-          FUN_00422538((undefined4)(uintptr_t)(iVar10 + 6),(int)*(short *)(iVar10 + 0x2a));
-        }
-        local_4c = (short *)(iVar10 + 0x80);
-        FUN_0045de8b();
-        *local_4c = *local_4c + *(short *)(iVar10 + 0x18);
-        sVar3 = local_4c[1] + *(short *)(iVar10 + 0x1a);
-        uVar2 = (undefined4)iVar10;
-        local_4c[1] = sVar3;
-        local_4c[2] = local_4c[2] + *(short *)(iVar10 + 0x1c);
-        goto LAB_00424144;
-      }
-      if ((*(byte *)(*(int *)(*(int *)(iVar10 + 0x12e) + 0x22) + 3) & 0x80) != 0) {
-        sVar3 = 0;
-        do {
-          iVar8 = (int)sVar3;
-          iVar4 = *(int *)(iVar10 + 0x12e);
-          sVar3 = sVar3 + 1;
-          local_70[iVar8] =
-               *(short *)(iVar4 + 0x10 + iVar8 * 2) - *(short *)(iVar10 + 0x18 + iVar8 * 2);
-        } while (sVar3 < 3);
-        FUN_00422628(iVar4,(undefined2 *)(iVar10 + 6));
-        FUN_0045de8b();
-        iVar4 = FUN_00432c64(extraout_ECX,sStack_74);
-        *(short *)(iVar10 + 0x28) = (short)iVar4;
-        uVar2 = extraout_ECX_00;
-        if ((short)iVar4 != 0) {
-          FUN_004226bc();
-          uVar2 = extraout_ECX_01;
-        }
-        iVar4 = FUN_00432c64(uVar2,sStack_74);
-        sVar3 = (short)iVar4;
-        *(short *)(iVar10 + 0x26) = sVar3;
-        if (sVar3 != 0) {
-          FUN_00422674(extraout_ECX_02,-sVar3);
-        }
-        *(short *)(iVar10 + 0x6c) = sStack_74 / 2;
-        *(short *)(iVar10 + 0xb4) = sStack_74 / 2;
+        E2R_TransformVector14(target,difference,transpose);
+        short yaw = E2R_PolygonAngle16(target[0],target[2]);
+        *(short *)(node + 0x28) = yaw;
+        if (yaw) E2R_RotatePolygonNormal(target,(short)-yaw,1);
+        short pitch = E2R_PolygonAngle16((short)-target[1],target[2]);
+        *(short *)(node + 0x26) = pitch;
+        if (pitch) E2R_RotatePolygonNormal(target,(short)-pitch,0);
+        *(short *)(node + 0x6c) = *(short *)(node + 0xb4) = target[2] / 2;
+        int previous = E2R_actor_calc_context;
+        E2R_actor_calc_context = node;
         FUN_00432e08();
-        *(undefined2 *)(iVar10 + 0x72) = extraout_DX;
-        *(undefined2 *)(iVar10 + 0x6e) = 0;
-        *(undefined2 *)(iVar10 + 0x70) = 0;
-        *(undefined2 *)(iVar10 + 0xb6) = *(undefined2 *)(iVar10 + 0x6e);
-        *(undefined2 *)(iVar10 + 0xb8) = *(undefined2 *)(iVar10 + 0x70);
-        *(undefined2 *)(iVar10 + 0xba) = *(undefined2 *)(iVar10 + 0x72);
-        uVar2 = extraout_ECX_03;
-        if (*(short *)(iVar10 + 0x28) != 0) {
-          FUN_00422460(extraout_ECX_03,(int)*(short *)(iVar10 + 0x28));
-          uVar2 = extraout_ECX_04;
-        }
-        if (*(short *)(iVar10 + 0x26) != 0) {
-          FUN_00422368(uVar2,(int)*(short *)(iVar10 + 0x26));
-          uVar2 = extraout_ECX_05;
-        }
-        iVar4 = FUN_00432c64(uVar2,(short)((uint)*(undefined4 *)(iVar10 + 0xc) >> 0x10));
-        sVar3 = (short)iVar4;
-        *(short *)(iVar10 + 0x2a) = sVar3;
-        if (sVar3 != 0) {
-          FUN_00422538(extraout_ECX_06,(int)sVar3);
-        }
-        local_4c = (short *)(iVar10 + 0x80);
-        FUN_0045de8b();
-        *local_4c = *local_4c + *(short *)(iVar10 + 0x18);
-        local_4c[1] = local_4c[1] + *(short *)(iVar10 + 0x1a);
-        local_4c[2] = local_4c[2] + *(short *)(iVar10 + 0x1c);
-        uVar2 = (undefined4)iVar10;
-        goto LAB_00424144;
+        E2R_actor_calc_context = previous;
+        *(short *)(node + 0x72) = *(short *)(node + 0xba) = target[2] / 2;
+        *(short *)(node + 0x6e) = *(short *)(node + 0xb6) = 0;
+        *(short *)(node + 0x70) = *(short *)(node + 0xb8) = 0;
+        if (yaw) FUN_00422460(node + 6,yaw);
+        if (pitch) FUN_00422368(node + 6,pitch);
+        short roll = E2R_PolygonAngle16(*(short *)(node + 8),*(short *)(node + 0xe));
+        *(short *)(node + 0x2a) = roll;
+        if (roll) FUN_00422538(node + 6,roll);
       }
-      *(undefined4 *)(iVar10 + 0x132) = *(undefined4 *)(&DAT_006368d8 + _DAT_00637240 * 4);
-      *(int *)(&DAT_006368d8 + iVar4 * 4) = iVar10;
+      E2R_TransformVector14((short *)(node + 0x80),(short *)(node + 0x6e),(short *)(node + 6));
+      for (int i = 0; i < 3; ++i) ((short *)(node + 0x80))[i] += ((short *)(node + 0x18))[i];
+      FUN_00423858(node,0);
+    } else {
+      int middle = *(int *)(node + 0x1e);
+      if (middle == 0) FUN_00426f84();
+      int endpoint = *(int *)(middle + 0x1e);
+      if (endpoint == 0) FUN_00426f84();
+      FUN_00423674(endpoint);
+      short difference[3], target[3], transpose[9];
+      for (int i = 0; i < 3; ++i) {
+        difference[i] = ((short *)(endpoint + 0x18))[i] - ((short *)(node + 0x18))[i];
+        for (int j = 0; j < 3; ++j) transpose[i * 3 + j] = ((short *)(node + 6))[j * 3 + i];
+      }
+      E2R_TransformVector14(target,difference,transpose);
+      short yaw = E2R_PolygonAngle16(target[0],target[2]);
+      if (yaw) E2R_RotatePolygonNormal(target,(short)-yaw,1);
+      short pitch = E2R_PolygonAngle16((short)-target[1],target[2]);
+      if (pitch) E2R_RotatePolygonNormal(target,(short)-pitch,0);
+      short length_a = *(short *)(middle + 0xa8) + *(short *)(node + 0xba);
+      short length_b = *(short *)(middle + 0xba) + *(short *)(endpoint + 0xa8);
+      short bend_a = 0, bend_b = 0;
+      int previous = E2R_actor_calc_context;
+      if (target[2] < (int)length_a + length_b) {
+        if (*(short *)(node + 0x6c) != *(short *)(node + 0xb4)) {
+          *(short *)(node + 0x6c) = *(short *)(node + 0xb4);
+          E2R_actor_calc_context = node;
+          FUN_00432e08();
+        }
+        *(short *)(node + 0x72) = *(short *)(node + 0xba);
+        *(short *)(middle + 0x30) = *(short *)(middle + 0xa8);
+        if (*(short *)(middle + 0x6c) != *(short *)(middle + 0xb4)) {
+          *(short *)(middle + 0x6c) = *(short *)(middle + 0xb4);
+          E2R_actor_calc_context = middle;
+          FUN_00432e08();
+        }
+        *(short *)(middle + 0x72) = *(short *)(middle + 0xba);
+        *(short *)(endpoint + 0x30) = *(short *)(endpoint + 0xa8);
+        if (target[2] == 0) bend_a = bend_b = 0x4000;
+        else if (length_a != 0 && length_b != 0) {
+          short half_difference = (short)(((length_a * length_a - length_b * length_b) / target[2]) >> 1);
+          short projected_a = (target[2] >> 1) + half_difference;
+          short projected_b = (target[2] >> 1) - half_difference;
+          bend_a = 0x4000 - E2R_PoseAsin14((short)((projected_a * 16384) / length_a));
+          bend_b = 0x4000 - E2R_PoseAsin14((short)((projected_b * 16384) / length_b));
+        }
+      } else if ((int)length_a + length_b != 0) {
+        int scale = (target[2] * 8192) / ((int)length_a + length_b);
+        *(short *)(node + 0x6c) = (*(short *)(node + 0xb4) * scale) >> 13;
+        E2R_actor_calc_context = node;
+        FUN_00432e08();
+        *(short *)(node + 0x72) = (*(short *)(node + 0xba) * scale) >> 13;
+        *(short *)(middle + 0x30) = (*(short *)(middle + 0xa8) * scale) >> 13;
+        *(short *)(middle + 0x6c) = (*(short *)(middle + 0xb4) * scale) >> 13;
+        E2R_actor_calc_context = middle;
+        FUN_00432e08();
+        *(short *)(middle + 0x72) = (*(short *)(middle + 0xba) * scale) >> 13;
+        *(short *)(endpoint + 0x30) = (*(short *)(endpoint + 0xa8) * scale) >> 13;
+      }
+      E2R_actor_calc_context = previous;
+      *(short *)(middle + 0x28) = *(short *)(middle + 0x2a) = 0;
+      *(short *)(middle + 0x26) = -(bend_a + bend_b);
+      if (yaw) FUN_00422460(node + 6,yaw);
+      if (pitch) FUN_00422368(node + 6,pitch);
+      short roll = *(short *)(node + 0x2a);
+      if ((*(byte *)(node + 2) & 0x80) != 0) {
+        for (int i = 0; i < 3; ++i) {
+          difference[i] = ((short *)(endpoint + 6))[i * 3 + 2] - ((short *)(endpoint + 6))[i * 3 + 1];
+          for (int j = 0; j < 3; ++j) transpose[i * 3 + j] = ((short *)(node + 6))[j * 3 + i];
+        }
+        E2R_TransformVector14(target,difference,transpose);
+        roll += E2R_PolygonAngle16(target[0],(short)-target[1]);
+      }
+      if (roll) FUN_00422538(node + 6,roll);
+      if (bend_a) FUN_00422368(node + 6,bend_a);
+      E2R_TransformVector14((short *)(node + 0x80),(short *)(node + 0x6e),(short *)(node + 6));
+      for (int i = 0; i < 3; ++i) ((short *)(node + 0x80))[i] += ((short *)(node + 0x18))[i];
+      FUN_00424164(node,middle);
+      FUN_00423858(node,1);
+      FUN_00423858(middle,1);
+      FUN_00423858(endpoint,0);
     }
-    else {
-      local_44 = *(int *)(iVar10 + 0x1e);
-      if (local_44 == 0) {
-        FUN_00426f84();
-      }
-      local_50 = *(int *)(local_44 + 0x1e);
-      if (local_50 == 0) {
-        FUN_00426f84();
-      }
-      FUN_00423674(local_50);
-      sVar3 = 0;
-      do {
-        iVar4 = (int)sVar3;
-        sVar3 = sVar3 + 1;
-        local_68[iVar4] =
-             *(short *)(local_50 + 0x18 + iVar4 * 2) - *(short *)(iVar10 + 0x18 + iVar4 * 2);
-      } while (sVar3 < 3);
-      FUN_00422628(extraout_ECX_10,(undefined2 *)(iVar10 + 6));
-      FUN_0045de8b();
-      iVar4 = FUN_00432c64(extraout_ECX_11,sStack_5c);
-      sVar3 = (short)iVar4;
-      uVar2 = extraout_ECX_12;
-      if (sVar3 != 0) {
-        FUN_004226bc();
-        uVar2 = extraout_ECX_13;
-      }
-      iVar4 = FUN_00432c64(uVar2,sStack_5c);
-      sVar1 = (short)iVar4;
-      if (sVar1 != 0) {
-        FUN_00422674(extraout_ECX_14,-sVar1);
-      }
-      sVar6 = *(short *)(local_44 + 0xa8) + *(short *)(iVar10 + 0xba);
-      local_28 = sStack_5c;
-      sVar7 = *(short *)(local_44 + 0xba) + *(short *)(local_50 + 0xa8);
-      iVar4 = (int)sVar7 + (int)sVar6;
-      if (sStack_5c < iVar4) {
-        if (*(short *)(iVar10 + 0x6c) != *(short *)(iVar10 + 0xb4)) {
-          *(short *)(iVar10 + 0x6c) = *(short *)(iVar10 + 0xb4);
-          FUN_00432e08();
-          sVar7 = extraout_DX_00;
-        }
-        *(undefined2 *)(iVar10 + 0x72) = *(undefined2 *)(iVar10 + 0xba);
-        *(undefined2 *)(local_44 + 0x30) = *(undefined2 *)(local_44 + 0xa8);
-        if (*(short *)(local_44 + 0x6c) != *(short *)(local_44 + 0xb4)) {
-          *(undefined2 *)(local_44 + 0x6c) = *(undefined2 *)(local_44 + 0xb4);
-          FUN_00432e08();
-          sVar7 = extraout_DX_01;
-        }
-        *(undefined2 *)(local_44 + 0x72) = *(undefined2 *)(local_44 + 0xba);
-        *(undefined2 *)(local_50 + 0x30) = *(undefined2 *)(local_50 + 0xa8);
-        iVar8 = local_50;
-        if (local_28 == 0) {
-          sVar7 = 0x4000;
-          local_24 = 0x4000;
-        }
-        else if ((sVar6 == 0) || (sVar7 == 0)) {
-          sVar7 = 0;
-          local_24 = 0;
-        }
-        else {
-          local_4c = (short *)((int)local_28 >> 1);
-          local_20 = (short)(((int)sVar6 * (int)sVar6 - (int)sVar7 * (int)sVar7) / (int)local_28 >>
-                            1);
-          local_48 = (short *)((int)local_4c + (int)local_20);
-          uStack_1c = SUB42(local_48,0);
-          local_20 = (short)local_4c - local_20;
-          uVar2 = FUN_00432de4();
-          local_24 = extraout_DX_02 - (short)uVar2;
-          uVar2 = FUN_00432de4();
-          sVar7 = 0x4000 - (short)uVar2;
-          iVar8 = extraout_ECX_15;
-        }
-      }
-      else {
-        sVar7 = 0;
-        local_24 = 0;
-        iVar8 = 0;
-        if (iVar4 != 0) {
-          *(short *)(iVar10 + 0x6c) =
-               (short)((*(int *)(iVar10 + 0xb2) >> 0x10) * (((int)sStack_5c << 0xd) / iVar4) >> 0xd)
-          ;
-          FUN_00432e08();
-          *(short *)(iVar10 + 0x72) =
-               (short)((*(int *)(iVar10 + 0xb8) >> 0x10) * extraout_EDX >> 0xd);
-          *(short *)(local_44 + 0x30) =
-               (short)((*(int *)(local_44 + 0xa6) >> 0x10) * extraout_EDX >> 0xd);
-          local_48 = (short *)((*(int *)(local_44 + 0xb2) >> 0x10) * extraout_EDX >> 0xd);
-          *(short *)(local_44 + 0x6c) = (short)local_48;
-          FUN_00432e08();
-          local_4c = (short *)((*(int *)(extraout_ECX_16 + 0xb8) >> 0x10) * extraout_EDX_00 >> 0xd);
-          *(short *)(extraout_ECX_16 + 0x72) = (short)local_4c;
-          *(short *)(local_50 + 0x30) =
-               (short)(extraout_EDX_00 * (*(int *)(local_50 + 0xa6) >> 0x10) >> 0xd);
-          iVar8 = extraout_ECX_16;
-        }
-      }
-      *(undefined2 *)(local_44 + 0x28) = 0;
-      *(undefined2 *)(local_44 + 0x2a) = 0;
-      *(short *)(local_44 + 0x26) = sVar7 + local_24;
-      *(short *)(local_44 + 0x26) = -(sVar7 + local_24);
-      if (sVar3 != 0) {
-        FUN_00422460(iVar8,(int)sVar3);
-        iVar8 = extraout_ECX_17;
-      }
-      if (sVar1 != 0) {
-        FUN_00422368(iVar8,(int)sVar1);
-        iVar8 = extraout_ECX_18;
-      }
-      local_2c = *(short *)(iVar10 + 0x2a);
-      uVar2 = CONCAT31((int3)((uint)iVar8 >> 8),*(byte *)(iVar10 + 2));
-      if ((*(byte *)(iVar10 + 2) & 0x80) != 0) {
-        local_68[0] = *(short *)(local_50 + 10) - *(short *)(local_50 + 8);
-        local_68[1] = *(short *)(local_50 + 0x10) - *(short *)(local_50 + 0xe);
-        local_68[2] = *(short *)(local_50 + 0x16) - *(short *)(local_50 + 0x14);
-        FUN_00422628(CONCAT22((short)((uint)iVar8 >> 0x10),*(short *)(local_50 + 0xe)),
-                     (undefined2 *)(iVar10 + 6));
-        FUN_0045de8b();
-        sVar3 = local_2c;
-        iVar4 = FUN_00432c64(extraout_ECX_19,-local_5e);
-        local_2c = sVar3 + (short)iVar4;
-        uVar2 = extraout_ECX_20;
-      }
-      if (local_2c != 0) {
-        FUN_00422538(uVar2,(int)local_2c);
-        uVar2 = extraout_ECX_21;
-      }
-      if (local_24 != 0) {
-        FUN_00422368(uVar2,(int)local_24);
-      }
-      local_48 = (short *)(iVar10 + 0x80);
-      FUN_0045de8b();
-      *local_48 = *local_48 + *(short *)(iVar10 + 0x18);
-      local_48[1] = local_48[1] + *(short *)(iVar10 + 0x1a);
-      local_48[2] = local_48[2] + *(short *)(iVar10 + 0x1c);
-      FUN_00424164(iVar10,local_44);
-      FUN_00423858((undefined4)iVar10,1);
-      FUN_00423858((undefined4)local_44,1);
-      uVar2 = (undefined4)local_50;
-LAB_00424144:
-      FUN_00423858(uVar2,0);
-    }
-    iVar10 = *(int *)(iVar10 + 0xca);
-    if (iVar10 == 0) {
-      return;
-    }
-  } while( true );
+  }
 }
 
 
@@ -18114,27 +17934,13 @@ void FUN_004249f4(undefined4 param_1)
 /* 00424b48 */
 
 void FUN_00424b48(void)
-
 {
-  int iVar1;
-  int iVar2;
-  int iVar3;
-  int iVar4;
-
-  iVar4 = 0;
-  for (iVar3 = 0; iVar2 = 1 - (DAT_0047a279 >> 0x18), iVar3 < *(int *)((undefined1 *)0x0047a29c + iVar2 * 4);
-      iVar3 = iVar3 + 1) {
-    iVar2 = iVar2 * 0x4b0 + iVar4;
-    if ((*(short *)(iVar2 + 0x6368e0) <= *(short *)(iVar2 + 0x6368e2)) &&
-       (*(short *)(iVar2 + 0x6368e4) <= *(short *)(iVar2 + 0x6368e6))) {
-      iVar1 = *(int *)(iVar2 + 0x6368e2) >> 0x10;
-      FUN_0041868c(iVar1,0,((*(int *)(iVar2 + 0x6368e0) >> 0x10) + 1) -
-                           (*(int *)(iVar2 + 0x6368de) >> 0x10),
-                   ((*(int *)(iVar2 + 0x6368e4) >> 0x10) + 1) - iVar1);
-    }
-    iVar4 = iVar4 + 8;
+  int page = 1 - (DAT_0047a279 >> 24);
+  for (int i = 0; i < *(int *)(0x47a29c + page * 4); ++i) {
+    const short *rect = (short *)(0x6368e0 + page * 0x4b0 + i * 8);
+    if (rect[0] <= rect[1] && rect[2] <= rect[3])
+      E2R_CopyDepthRect(1,0,rect[0],rect[2],rect[1] + 1 - rect[0],rect[3] + 1 - rect[2]);
   }
-  return;
 }
 
 
@@ -18358,7 +18164,7 @@ void __fastcall FUN_00424e44(int param_1,int node)
    * polygon/mode/reference and calls the raster dispatcher. Actor updates,
    * logical poses, camera selection and dirty/HUD copies remain active. */
   const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");
-  if (proxy != NULL && proxy[0] != '\0' && proxy[0] != '0') return;
+  if (E2R_UseProxyMesh(*(int *)(node + 0x22),0)) return;
 
   int in_EAX;
   int iVar1;
@@ -18392,45 +18198,22 @@ void __fastcall FUN_00424e44(int param_1,int node)
 /* 00424ed0 */
 
 void FUN_00424ed0(void)
-
 {
-  int in_EAX;
-  int iVar1;
-  int iVar2;
-  short sVar3;
-  short local_20 [4];
-
-  in_EAX = E2R_actor_calc_context;
-  if (in_EAX == 0 || (uintptr_t)in_EAX < 0x10000u ||
-      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x12c)) {
-    return;
+  /* Original 0x424ed0: node origin -> camera space, without perspective. */
+  int node = E2R_actor_calc_context;
+  short *output = (short *)(node + 0x92);
+  short relative[3];
+  const short *camera = (short *)0x6372c2;
+  if (DAT_0047a34a == 0 || DAT_0047a366 != 0) {
+    for (int i = 0; i < 3; ++i) relative[i] = ((short *)(node + 0x80))[i] - camera[i];
+    E2R_TransformVector14(output,relative,(short *)0x6372aa);
+  } else {
+    E2R_TransformVector14(output,(short *)(node + 0x80),(short *)0x6372aa);
+    for (int i = 0; i < 3; ++i) output[i] += camera[i];
   }
-  if ((DAT_0047a34a == 0) || (DAT_0047a366 != 0)) {
-    sVar3 = 0;
-    do {
-      iVar2 = (int)sVar3;
-      sVar3 = sVar3 + 1;
-      local_20[iVar2] =
-           *(short *)(in_EAX + 0x80 + iVar2 * 2) - *(short *)((undefined1 *)0x006372c2 + iVar2 * 2);
-    } while (sVar3 < 3);
-    FUN_0045de8b();
-  }
-  else {
-    FUN_0045de8b();
-    sVar3 = 0;
-    do {
-      iVar1 = (int)sVar3;
-      iVar2 = iVar1 * 2 + in_EAX;
-      sVar3 = sVar3 + 1;
-      *(short *)(iVar2 + 0x92) = *(short *)(iVar2 + 0x92) + *(short *)((undefined1 *)0x006372c2 + iVar1 * 2);
-    } while (sVar3 < 3);
-  }
-  if (*(short *)(in_EAX + 0x96) < 0x80) {
-    *(undefined2 *)(in_EAX + 0x96) = 0;
-  }
-  *(undefined2 *)(in_EAX + 0x128) = *(undefined2 *)(in_EAX + 0x92);
-  *(undefined2 *)(in_EAX + 0x12a) = *(undefined2 *)(in_EAX + 0x94);
-  return;
+  if (output[2] < 0x80) output[2] = 0;
+  *(short *)(node + 0x128) = output[0];
+  *(short *)(node + 0x12a) = output[1];
 }
 
 
@@ -18445,7 +18228,7 @@ void FUN_00425018(int actor)
   /* Alternate box/rounded mesh raster paths selected by 0x424cbc..0x424dd8.
    * Cylinder presentation replaces their projected vertices and triangles. */
   const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");
-  if (proxy && *proxy && *proxy != '0') return;
+  if (E2R_UseProxyMesh(*(int *)(actor + 0x22),0)) return;
 
   int in_EAX;
   int iVar1;
@@ -18600,138 +18383,35 @@ void FUN_00425018(int actor)
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
 void FUN_00425538(int actor)
-
 {
-  /* Alternate box/rounded mesh raster paths selected by 0x424cbc..0x424dd8.
-   * Cylinder presentation replaces their projected vertices and triangles. */
-  const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");
-  if (proxy && *proxy && *proxy != '0') return;
-
-  int in_EAX;
-  int iVar1;
-  undefined4 extraout_ECX;
-  undefined4 *puVar2;
-  undefined4 *puVar3;
-  undefined4 auStack_114 [10];
-  undefined4 local_ec [10];
-  undefined4 local_c4 [10];
-  undefined4 local_9c [10];
-  undefined4 local_74 [5];
-  undefined4 local_60 [15];
-  undefined4 *local_24;
-  undefined4 *local_20;
-  undefined4 *local_1c;
-
-  in_EAX = actor;
-  if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
-      IsBadReadPtr((void *)(uintptr_t)in_EAX,0x9a)) {
-    return;
-  }
-  if (*(short *)(in_EAX + 0x96) != 0) {
-    FUN_00423070((int *)(uintptr_t)(in_EAX + 0x92));
-  }
-  if (*(short *)(in_EAX + 0x96) == 0) {
-    return;
-  }
-  if ((DAT_0047a34a == 0) || (DAT_0047a366 == 1)) {
-    local_1c = (undefined4 *)(in_EAX + 0x32);
-    puVar2 = (undefined4 *)(in_EAX + 6);
-    puVar3 = local_1c;
-    for (iVar1 = 4; iVar1 != 0; iVar1 = iVar1 + -1) {
-      *puVar3 = *puVar2;
-      puVar2 = puVar2 + 1;
-      puVar3 = puVar3 + 1;
-    }
-    *(undefined2 *)puVar3 = *(undefined2 *)puVar2;
-    if (_DAT_006372be != 0) {
-      FUN_004228b8(0,0);
-      FUN_0045dd04();
-      puVar2 = local_ec;
-      puVar3 = local_1c;
-      for (iVar1 = 4; iVar1 != 0; iVar1 = iVar1 + -1) {
-        *puVar3 = *puVar2;
-        puVar2 = puVar2 + 1;
-        puVar3 = puVar3 + 1;
+  int node = actor;
+  if (E2R_UseProxyMesh(*(int *)(node + 0x22),1)) return;
+  if (*(short *)(node + 0x96) != 0) FUN_00423070((int *)(node + 0x92));
+  if (*(short *)(node + 0x96) == 0) return;
+  short *matrix = (short *)(node + 0x32);
+  memcpy(matrix,(void *)(node + 6),18);
+  /* Original 0x425580..0x425799 composes each camera axis separately;
+   * retain its per-axis fixed-point rounding rather than precombining them. */
+  int normal = DAT_0047a34a == 0 || DAT_0047a366 == 1;
+  const short *angles = (short *)0x6372bc;
+  for (int pass = 0; pass < 3; ++pass) {
+    int axis = pass == 1 ? 0 : ((pass == 0) == normal ? 1 : 2);
+    short angle = angles[axis];
+    if (angle != 0) {
+      for (int col = 0; col < 3; ++col) {
+        short vector[3] = {matrix[col],matrix[col + 3],matrix[col + 6]};
+        E2R_RotatePolygonNormal(vector,angle,axis);
+        for (int row = 0; row < 3; ++row) matrix[row * 3 + col] = vector[row];
       }
-      *(undefined2 *)puVar3 = *(undefined2 *)puVar2;
     }
-    if (_DAT_006372bc != 0) {
-      local_24 = (undefined4 *)(in_EAX + 0x32);
-      FUN_004228b8(0,(int)_DAT_006372bc);
-      FUN_0045dd04();
-      puVar2 = local_9c;
-      puVar3 = local_24;
-      for (iVar1 = 4; iVar1 != 0; iVar1 = iVar1 + -1) {
-        *puVar3 = *puVar2;
-        puVar2 = puVar2 + 1;
-        puVar3 = puVar3 + 1;
-      }
-      *(undefined2 *)puVar3 = *(undefined2 *)puVar2;
-    }
-    if (_DAT_006372c0 == 0) goto LAB_00425799;
-    local_24 = (undefined4 *)(in_EAX + 0x32);
-    FUN_004228b8((int)_DAT_006372c0,0);
-    FUN_0045dd04();
-    puVar2 = local_74;
   }
-  else {
-    local_20 = (undefined4 *)(in_EAX + 0x32);
-    puVar2 = (undefined4 *)(in_EAX + 6);
-    puVar3 = local_20;
-    for (iVar1 = 4; iVar1 != 0; iVar1 = iVar1 + -1) {
-      *puVar3 = *puVar2;
-      puVar2 = puVar2 + 1;
-      puVar3 = puVar3 + 1;
-    }
-    *(undefined2 *)puVar3 = *(undefined2 *)puVar2;
-    if (_DAT_006372c0 != 0) {
-      FUN_004228b8((int)_DAT_006372c0,0);
-      FUN_0045dd04();
-      puVar2 = local_60;
-      puVar3 = local_20;
-      for (iVar1 = 4; iVar1 != 0; iVar1 = iVar1 + -1) {
-        *puVar3 = *puVar2;
-        puVar2 = puVar2 + 1;
-        puVar3 = puVar3 + 1;
-      }
-      *(undefined2 *)puVar3 = *(undefined2 *)puVar2;
-    }
-    if (_DAT_006372bc != 0) {
-      local_24 = (undefined4 *)(in_EAX + 0x32);
-      FUN_004228b8(0,(int)_DAT_006372bc);
-      FUN_0045dd04();
-      puVar2 = auStack_114;
-      puVar3 = local_24;
-      for (iVar1 = 4; iVar1 != 0; iVar1 = iVar1 + -1) {
-        *puVar3 = *puVar2;
-        puVar2 = puVar2 + 1;
-        puVar3 = puVar3 + 1;
-      }
-      *(undefined2 *)puVar3 = *(undefined2 *)puVar2;
-    }
-    if (_DAT_006372be == 0) goto LAB_00425799;
-    local_24 = (undefined4 *)(in_EAX + 0x32);
-    FUN_004228b8(0,0);
-    FUN_0045dd04();
-    puVar2 = local_c4;
-  }
-  puVar3 = local_24;
-  for (iVar1 = 4; iVar1 != 0; iVar1 = iVar1 + -1) {
-    *puVar3 = *puVar2;
-    puVar2 = puVar2 + 1;
-    puVar3 = puVar3 + 1;
-  }
-  *(undefined2 *)puVar3 = *(undefined2 *)puVar2;
-LAB_00425799:
+  int previous = E2R_actor_calc_context;
+  E2R_actor_calc_context = node;
   FUN_00432ecc();
-  if (((*(byte *)(*(int *)(in_EAX + 0x22) + 3) & 4) == 0) || (DAT_0047a34a != 0)) {
-    iVar1 = 1 - (DAT_0047a279 >> 0x18);
-  }
-  else {
-    iVar1 = 2;
-  }
-  FUN_004307d0(extraout_ECX,iVar1);
-  return;
+  E2R_actor_calc_context = previous;
+  int surface = ((*(byte *)(*(int *)(node + 0x22) + 3) & 4) == 0 || DAT_0047a34a != 0)
+    ? 1 - (DAT_0047a279 >> 24) : 2;
+  FUN_004307d0(node,surface);
 }
 
 
@@ -19045,8 +18725,8 @@ undefined8 __fastcall FUN_00426478(int param_1,undefined4 param_2)
   *(undefined2 *)(iVar1 + 2) = 1;
   *(undefined4 *)(iVar1 + 0x11a) = _DAT_00636588;
   *(undefined2 *)(iVar1 + 4) = 7;
-  FUN_00422330();
-  FUN_00422330();
+  E2R_SetIdentityMatrix((undefined2 *)(iVar1 + 6));
+  E2R_SetIdentityMatrix((undefined2 *)(iVar1 + 0xc6));
   *(undefined2 *)(iVar1 + 0x1c) = 0;
   *(undefined4 *)(iVar1 + 0x1e) = 0;
   *(undefined4 *)(iVar1 + 0x44) = 0;
@@ -23280,8 +22960,12 @@ void __fastcall FUN_0042b490(undefined4 param_1,int param_2)
                        param_2 >> 0xe);
           iVar3 = iVar2;
         } while (iVar2 != iVar1 + 6);
-        FUN_00442954();
-        param_2 = extraout_EDX;
+        {
+          int previous = E2R_actor_calc_context;
+          E2R_actor_calc_context = iVar1;
+          FUN_00442954();
+          E2R_actor_calc_context = previous;
+        }
       }
       if ((uVar4 & 8) != 0) {
         iVar3 = iVar1;
@@ -23293,8 +22977,12 @@ void __fastcall FUN_0042b490(undefined4 param_1,int param_2)
                        param_2 >> 0xe);
           iVar3 = iVar2;
         } while (iVar2 != iVar1 + 6);
-        FUN_004429e0();
-        param_2 = extraout_EDX_00;
+        {
+          int previous = E2R_actor_calc_context;
+          E2R_actor_calc_context = iVar1;
+          FUN_004429e0();
+          E2R_actor_calc_context = previous;
+        }
       }
       if ((uVar4 & 0x10) != 0) {
         iVar3 = iVar1;
@@ -23313,7 +23001,6 @@ void __fastcall FUN_0042b490(undefined4 param_1,int param_2)
           E2R_actor_calc_context = entry_context;
         }
         FUN_0042ce70(iVar1);
-        param_2 = extraout_EDX_01;
       }
     }
   }
@@ -23360,7 +23047,12 @@ void FUN_0042b5fc(int actor)
           *(undefined2 *)(iVar3 + 0x2c) = *(undefined2 *)(iVar3 + 0xa4);
           iVar3 = iVar2;
         } while (iVar2 != iVar1 + 6);
-        FUN_00442954();
+        {
+          int previous = E2R_actor_calc_context;
+          E2R_actor_calc_context = iVar1;
+          FUN_00442954();
+          E2R_actor_calc_context = previous;
+        }
       }
       if ((uVar4 & 8) != 0) {
         iVar3 = iVar1;
@@ -23369,7 +23061,12 @@ void FUN_0042b5fc(int actor)
           *(undefined2 *)(iVar3 + 0x6e) = *(undefined2 *)(iVar3 + 0xb6);
           iVar3 = iVar2;
         } while (iVar2 != iVar1 + 6);
-        FUN_004429e0();
+        {
+          int previous = E2R_actor_calc_context;
+          E2R_actor_calc_context = iVar1;
+          FUN_004429e0();
+          E2R_actor_calc_context = previous;
+        }
       }
       if ((uVar4 & 0x10) != 0) {
         iVar3 = iVar1;
@@ -24366,7 +24063,12 @@ LAB_0042c8d9:
                      (short)((uint)iVar3 >> 0x10) +
                      (short)(((int)sStack_14 - (iVar3 >> 0x10)) * param_2 >> 0xe);
               } while (sVar5 < 3);
-              FUN_00442954();
+              {
+                int previous = E2R_actor_calc_context;
+                E2R_actor_calc_context = unaff_EDI;
+                FUN_00442954();
+                E2R_actor_calc_context = previous;
+              }
               *(byte *)(unaff_EDI + 0x136) = *(byte *)(unaff_EDI + 0x136) | 4;
               return;
             }
@@ -24424,7 +24126,12 @@ LAB_0042cb9f:
               sVar5 = sVar5 + 1;
               *(short *)(iVar6 + 0x6e) = (short)local_1c;
             } while (sVar5 < 3);
-            FUN_004429e0();
+            {
+                int previous = E2R_actor_calc_context;
+                E2R_actor_calc_context = unaff_EDI;
+                FUN_004429e0();
+                E2R_actor_calc_context = previous;
+              }
             *(byte *)(unaff_EDI + 0x136) = *(byte *)(unaff_EDI + 0x136) | 8;
             return;
           }
@@ -26916,7 +26623,7 @@ undefined4 __fastcall FUN_004307d0(undefined4 param_1,int param_2)
   short sVar2;
   int *piVar3;
   undefined4 uVar4;
-  int in_EAX;
+  int in_EAX = param_1;
   int iVar5;
   int iVar6;
   int iVar7;
@@ -27149,7 +26856,7 @@ undefined4 __fastcall FUN_004307d0(undefined4 param_1,int param_2)
     *(short *)(*(int *)(iVar14 + 0xe4) + 6) = (short)local_80;
   }
   else {
-    FUN_00430fd8(extraout_ECX,param_2);
+    FUN_00430fd8(param_1,param_2);
   }
   return 0;
 }
@@ -27161,249 +26868,98 @@ undefined4 __fastcall FUN_004307d0(undefined4 param_1,int param_2)
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
 undefined4 __fastcall FUN_00430fd8(undefined4 param_1,int param_2)
-
 {
-  short sVar1;
-  int *piVar2;
-  int in_EAX;
-  int iVar3;
-  int iVar4;
-  short sVar5;
-  undefined2 extraout_var;
-  int iVar6;
-  int iVar7;
-  undefined4 local_7c;
-  undefined4 local_78;
-  int local_74;
-  int local_70;
-  int local_6c;
-  int local_68;
-  int local_64;
-  int local_60;
-  int local_5c;
-  int local_58;
-  int local_54;
-  int local_50;
-  int local_4c;
-  int local_48;
-  int local_44;
-  int local_40;
-  int local_3c;
-  int local_38;
-  int local_34;
-  int local_30;
-  undefined2 local_2c;
-  undefined2 uStack_2a;
-  ushort local_28;
-  short sStack_24;
-  short sStack_20;
-  short sStack_1c;
-  short sStack_18;
-
-  local_48 = 0x280;
-  if (*(short *)(in_EAX + 0x96) != 0) {
-    local_58 = param_2;
-    local_78 = FUN_00418a04(param_1,&local_7c);
-                    /* WARNING: Read-only address (ram,0x0045d15e) is written */
-    uRam0045d15e = local_7c;
-    local_28 = (ushort)(byte)((char)*(undefined2 *)(in_EAX + 0xce) << 4);
-    local_68 = *(int *)(in_EAX + 0x124) >> 0x10;
-    iVar3 = (DAT_0047a2a4 >> 4) / (*(int *)(in_EAX + 0x94) >> 0x10);
-    iVar7 = iVar3 - (iVar3 >> 3);
-    iVar4 = iVar3 * (*(int *)(in_EAX + 0xd8) >> 0x10) * 2 >> 6;
-    sVar5 = *(short *)(in_EAX + 0x92);
-    sVar1 = *(short *)(in_EAX + 0x94);
-    local_3c = (((*(int *)(in_EAX + 0xda) >> 0x10) * 0xc) / 5) * iVar7 >> 6;
-    iVar7 = (((*(int *)(in_EAX + 0xdc) >> 0x10) * 0xc) / 5) * iVar7 >> 6;
-    iVar3 = CONCAT22(extraout_var,sVar1);
-    local_70 = iVar4;
-    if ((3 < local_3c) && (3 < iVar4)) {
-      local_30 = (_DAT_00640114 * 0x10 + ((sVar1 - iVar7) - local_3c)) * 0x10000;
-      local_54 = (iVar7 << 0x14) / iVar4;
-      local_2c = (undefined2)(0x4000000 / (longlong)local_3c);
-      uStack_2a = (undefined2)((ulonglong)(0x4000000 / (longlong)local_3c) >> 0x10);
-      local_50 = (int)(0x4000000 / (longlong)iVar4);
-      sStack_24 = (sVar5 - (short)iVar4) + _DAT_00640118 * 0x10;
-      local_4c = ((*(int *)(in_EAX + 0x120) >> 0x10) << 0x14) / iVar4;
-      local_74 = ((*(int *)(in_EAX + 0x122) >> 0x10) << 0x14) / local_3c;
-      if (iVar7 < 1) {
-        iVar7 = -iVar7;
+  /* Original 0x430fd8..0x431775 and 0x45d10e/0x45d2cc/0x45d482/0x45d5f8.
+   * Explicit C replaces their self-modified immediates and register-only leaves. */
+  int node = param_1, surface = param_2;
+  int distance = *(short *)(node + 0x96);
+  if (distance == 0) return 0;
+  uint pitch;
+  byte *pixels = (byte *)(uintptr_t)FUN_00418a04(surface,&pitch);
+  int perspective = (DAT_0047a2a4 >> 4) / distance;
+  int reduced = perspective - (perspective >> 3);
+  int rx = (perspective * *(short *)(node + 0xda) * 2) >> 6;
+  int ry = (((*(short *)(node + 0xdc) * 12) / 5) * reduced) >> 6;
+  int slope = (((*(short *)(node + 0xde) * 12) / 5) * reduced) >> 6;
+  int x = *(short *)(node + 0x92), y = *(short *)(node + 0x94);
+  if (ry > 3 && rx > 3) {
+    int top = (int)((uint)(_DAT_00640114 * 16 + y - slope - ry) * 65536u);
+    int slope_step = (int32_t)((uint)slope * 1048576u) / rx;
+    int y_step = 0x4000000 / ry, x_step = 0x4000000 / rx;
+    short left = x - rx + _DAT_00640118 * 16;
+    int x_depth_step = (int32_t)((uint)(int)*(short *)(node + 0x122) * 1048576u) / rx;
+    int y_depth_step = (int32_t)((uint)(int)*(short *)(node + 0x124) * 1048576u) / ry;
+    int bottom_slope = slope < 1 ? -slope : slope;
+    if ((short)((x - rx >> 4) + _DAT_00640118) < (int)_DAT_00640144 &&
+        (int)_DAT_00640124 <= (short)((x + rx >> 4) + _DAT_00640118 + 1) &&
+        (short)((y - ry - bottom_slope >> 4) + _DAT_00640114) < (int)_DAT_00640120 &&
+        (int)_DAT_0064012c <= (short)((y + ry + bottom_slope >> 4) + _DAT_00640114 + 1)) {
+      int owner = *(int *)(node + 0x22);
+      short *rectangle = *(short **)(owner + 0xe4);
+      int min_y = rectangle[2], max_y = rectangle[3];
+      int min_x = rectangle[0] < (left >> 4) ? rectangle[0] : left >> 4;
+      int right = ((int)left + rx * 2 >> 4) + 1;
+      int max_x = rectangle[1] > right ? rectangle[1] : right;
+      int flags = *(byte *)(node + 2) & 0x42;
+      int material = *(short *)(node + 0xce);
+      int attenuation = DAT_0047a3b4 == 0 ? 191 - (distance >> 7) : 159 - (distance >> 5);
+      if (attenuation < 0) attenuation = 0;
+      if (attenuation > 127) attenuation = 127;
+      const byte *shade = (byte *)(0x507590 + ((attenuation * *(short *)(node + 0xd0)) >> 14) * 128 + material * 0x4000);
+      short *depths = (short *)(uintptr_t)(surface == 2 ? _DAT_0063666c : _DAT_00636668);
+      int frac = 15 - (left & 15);
+      int across = (x_step * frac) >> 4;
+      int depth = (int)((uint)(distance - *(short *)(node + 0x122) - *(short *)(node + 0x124)) * 65536u);
+      depth += (frac * x_depth_step) >> 4;
+      for (int col = left >> 4; col < ((int)left + rx * 2 >> 4) && col < (int)_DAT_00640144; ++col) {
+        if ((int)_DAT_00640124 <= col) {
+          int row = top >> 20;
+          int y_frac = 15 - ((top >> 16) & 15);
+          int sample = (int32_t)((uint)(across >> 16) << 23) + ((y_step * y_frac) >> 4);
+          int z = depth + ((y_frac * y_depth_step) >> 4);
+          if (row < (int)_DAT_0064012c) {
+            int clipped = (int)_DAT_0064012c - row;
+            sample += clipped * y_step;z += clipped * y_depth_step;
+            row = _DAT_0064012c;
+          }
+          int end = (short)(((top >> 16) + ry * 2) >> 4);
+          if ((int)_DAT_00640120 < end) end = _DAT_00640120;
+          if (row < end) {
+            if (row < min_y) min_y = row;
+            if (max_y < end) max_y = end;
+            for (; row < end; ++row) {
+              int index = sample >> 16;
+              byte level = *(byte *)(0x61d030 + index);
+              if ((level & 0x80) == 0) {
+                int curve = (int)((uint)(int)*(short *)(0x621630 + index * 2) *
+                                  (uint)(*(short *)(node + 0x126) * 2));
+                short front = (int32_t)((uint)curve + (uint)z) >> 16;
+                short *occlusion = depths + row * 640 + col;
+                if (front <= *occlusion) {
+                  byte *pixel = pixels + row * pitch + col;
+                  if (flags == 0) {
+                    *occlusion = front;*pixel = shade[level];
+                  } else {
+                    short back = (int32_t)((uint)z - (uint)curve) >> 16;
+                    if (flags == 0x40) *pixel = *(byte *)(0x5bb590 + material * 256 + *pixel);
+                    else if (flags == 2) {
+                      if (back >= *occlusion) *pixel = *(byte *)(0x5bc590 + material * 256 + *pixel);
+                    } else {
+                      *pixel = *(byte *)((back >= *occlusion ? 0x5bd590 : 0x5bb590) + material * 256 + *pixel);
+                    }
+                  }
+                }
+              }
+              sample += y_step;z += y_depth_step;
+            }
+          }
+        }
+        top += slope_step;across += x_step;depth += x_depth_step;
       }
-      sStack_20 = (short)((sVar1 - local_3c) - iVar7 >> 4) + (short)_DAT_00640114;
-      iVar6 = *(int *)(in_EAX + 0x94) >> 0x10;
-      iVar3 = *(int *)(in_EAX + 0x122) >> 0x10;
-      local_34 = ((iVar6 - (*(int *)(in_EAX + 0x120) >> 0x10)) - iVar3) * 0x10000;
-      if (((((short)((short)(sVar5 - iVar4 >> 4) + _DAT_00640118) < _DAT_00640144) &&
-           (iVar3 = _DAT_00640124,
-           _DAT_00640124 <= (short)((short)(sVar5 + iVar4 >> 4) + _DAT_00640118 + 1))) &&
-          (sStack_20 < _DAT_00640120)) &&
-         (_DAT_0064012c <=
-          (short)((short)(sVar1 + local_3c + iVar7 >> 4) + (short)_DAT_00640114 + 1))) {
-        local_5c = *(int *)(in_EAX + 0x22);
-        piVar2 = *(int **)(local_5c + 0xe4);
-        local_44 = piVar2[1] >> 0x10;
-        local_40 = *(int *)((int)piVar2 + 2) >> 0x10;
-        if ((*(byte *)(in_EAX + 2) & 0x42) == 0) {
-          if (DAT_0047a3b4 == 0) {
-            iVar7 = 0xbf;
-            iVar3 = 7;
-          }
-          else {
-            iVar7 = 0x9f;
-            iVar3 = 5;
-          }
-          iVar7 = iVar7 - (iVar6 >> iVar3);
-          if (iVar7 < 0) {
-            iVar7 = 0;
-          }
-          if (0x7f < iVar7) {
-            iVar7 = 0x7f;
-          }
-          puRam0045d156 =
-               &DAT_00507590 +
-               (iVar7 * (*(int *)(in_EAX + 0xce) >> 0x10) >> 0xe) * 0x80 +
-               (*(int *)(in_EAX + 0xcc) >> 0x10) * 0x4000;
-          iRam0045d12d = local_68 * 2;
-                    /* WARNING: Read-only address (ram,0x0045d156) is written */
-                    /* WARNING: Read-only address (ram,0x0045d12d) is written */
-          uRam0045d13a = _DAT_00636668;
-          uRam0045d148 = _DAT_00636668;
-          if (local_58 == 2) {
-            uRam0045d13a = _DAT_0063666c;
-            uRam0045d148 = _DAT_0063666c;
-          }
-        }
-        else {
-          iVar3 = local_68 * 2;
-          if ((*(ushort *)(in_EAX + 2) & 0x42) == 0x42) {
-                    /* WARNING: Read-only address (ram,0x0045d2eb) is written */
-            uRam0045d2f9 = _DAT_00636668;
-            if (local_58 == 2) {
-              uRam0045d2f9 = _DAT_0063666c;
-            }
-                    /* WARNING: Read-only address (ram,0x0045d30f) is written */
-                    /* WARNING: Read-only address (ram,0x0045d2f9) is written */
-            iRam0045d31e = (*(int *)(in_EAX + 0xcc) >> 0x10) * 0x100;
-            iRam0045d32c = iRam0045d31e + 0x5bb590;
-                    /* WARNING: Read-only address (ram,0x0045d32c) is written */
-            iRam0045d31e = iRam0045d31e + 0x5bd590;
-                    /* WARNING: Read-only address (ram,0x0045d31e) is written */
-                    /* WARNING: Read-only address (ram,0x0045d334) is written */
-            uRam0045d334 = local_7c;
-            iRam0045d2eb = iVar3;
-            uRam0045d30f = uRam0045d2f9;
-          }
-          else if ((*(byte *)(in_EAX + 2) & 2) == 0) {
-                    /* WARNING: Read-only address (ram,0x0045d617) is written */
-            uRam0045d624 = _DAT_00636668;
-            if (local_58 == 2) {
-              uRam0045d624 = _DAT_0063666c;
-            }
-                    /* WARNING: Read-only address (ram,0x0045d624) is written */
-            iRam0045d633 = (*(int *)(in_EAX + 0xcc) >> 0x10) * 0x100 + 0x5bb590;
-                    /* WARNING: Read-only address (ram,0x0045d633) is written */
-                    /* WARNING: Read-only address (ram,0x0045d63b) is written */
-            uRam0045d63b = local_7c;
-            iRam0045d617 = iVar3;
-          }
-          else {
-                    /* WARNING: Read-only address (ram,0x0045d4a1) is written */
-            uRam0045d4af = _DAT_00636668;
-            if (local_58 == 2) {
-              uRam0045d4af = _DAT_0063666c;
-            }
-                    /* WARNING: Read-only address (ram,0x0045d4c5) is written */
-                    /* WARNING: Read-only address (ram,0x0045d4af) is written */
-            iRam0045d4d4 = (*(int *)(in_EAX + 0xcc) >> 0x10) * 0x100 + 0x5bc590;
-                    /* WARNING: Read-only address (ram,0x0045d4d4) is written */
-                    /* WARNING: Read-only address (ram,0x0045d4dc) is written */
-            uRam0045d4dc = local_7c;
-            iRam0045d4a1 = iVar3;
-            uRam0045d4c5 = uRam0045d4af;
-          }
-        }
-                    /* WARNING: Read-only address (ram,0x0045d15e) is written */
-        iVar3 = 0xf - (short)(ushort)((byte)sStack_24 & 0xf);
-        local_38 = local_50 * iVar3 >> 4;
-        local_64 = (int)(short)*piVar2;
-        if ((int)sStack_24 >> 4 < (int)(short)*piVar2) {
-          local_64 = (int)sStack_24 >> 4;
-        }
-        iVar7 = ((int)sStack_24 + iVar4 * 2 >> 4) + 1;
-        local_60 = *piVar2 >> 0x10;
-        if (*piVar2 >> 0x10 < iVar7) {
-          local_60 = iVar7;
-        }
-        local_34 = local_34 + (iVar3 * local_4c >> 4);
-        for (sStack_1c = sStack_24 >> 4;
-            (iVar3 = (int)sStack_1c, iVar3 < (int)sStack_24 + local_70 * 2 >> 4 &&
-            (iVar3 < _DAT_00640144)); sStack_1c = sStack_1c + 1) {
-          if (_DAT_00640124 <= iVar3) {
-            iVar3 = local_48 * (local_30 >> 0x14) + iVar3;
-            sStack_18 = (short)(local_30 >> 0x14);
-            if (0 < _DAT_0064012c - sStack_18) {
-              iVar3 = iVar3 + (_DAT_0064012c - sStack_18) * local_48;
-              sStack_18 = _DAT_0064012c;
-            }
-            sVar5 = (short)((local_30 >> 0x10) + local_3c * 2 >> 4);
-            if (_DAT_00640120 < sVar5) {
-              sVar5 = _DAT_00640120;
-            }
-            if (sStack_18 < sVar5) {
-              if (sStack_18 < local_40) {
-                local_40 = (int)sStack_18;
-              }
-              if (local_44 < sVar5) {
-                local_44 = (int)sVar5;
-              }
-              if ((*(byte *)(in_EAX + 2) & 0x42) == 0) {
-                local_6c = (int)sVar5;
-                uRam0045d16a = CONCAT22(uStack_2a,local_2c);
-                    /* WARNING: Read-only address (ram,0x0045d16a) is written */
-                    /* WARNING: Read-only address (ram,0x0045d170) is written */
-                iRam0045d170 = local_74;
-                func_0x0045d10e();
-              }
-              else if ((*(ushort *)(in_EAX + 2) & 0x42) == 0x42) {
-                local_6c = (int)sVar5;
-                uRam0045d340 = CONCAT22(uStack_2a,local_2c);
-                    /* WARNING: Read-only address (ram,0x0045d340) is written */
-                    /* WARNING: Read-only address (ram,0x0045d346) is written */
-                iRam0045d346 = local_74;
-                FUN_0045d2cc((int)(short)local_28 | (local_6c - sStack_18) * 0x100 - 0x100U,iVar3);
-              }
-              else if ((*(byte *)(in_EAX + 2) & 2) == 0) {
-                local_6c = (int)sVar5;
-                uRam0045d647 = CONCAT22(uStack_2a,local_2c);
-                    /* WARNING: Read-only address (ram,0x0045d647) is written */
-                    /* WARNING: Read-only address (ram,0x0045d64d) is written */
-                iRam0045d64d = local_74;
-                func_0x0045d5f8();
-              }
-              else {
-                local_6c = (int)sVar5;
-                uRam0045d4e8 = CONCAT22(uStack_2a,local_2c);
-                    /* WARNING: Read-only address (ram,0x0045d4e8) is written */
-                    /* WARNING: Read-only address (ram,0x0045d4ee) is written */
-                iRam0045d4ee = local_74;
-                func_0x0045d482();
-              }
-            }
-          }
-          local_30 = local_30 + local_54;
-          local_38 = local_38 + local_50;
-          iVar4 = local_34 + local_4c;
-          local_34 = iVar4;
-        }
-        **(undefined2 **)(local_5c + 0xe4) = (short)local_64;
-        *(short *)(*(int *)(local_5c + 0xe4) + 2) = (short)local_60;
-        *(short *)(*(int *)(local_5c + 0xe4) + 4) = (short)local_40;
-        *(short *)(*(int *)(local_5c + 0xe4) + 6) = (short)local_44;
-        iVar3 = iVar4;
-      }
+      rectangle[0] = min_x;rectangle[1] = max_x;rectangle[2] = min_y;rectangle[3] = max_y;
     }
-    FUN_00418b00(iVar3,local_78);
   }
+  FUN_00418b00(surface,(uint)(uintptr_t)pixels);
   return 0;
 }
 
@@ -28194,176 +27750,88 @@ void FUN_00432e08(void)
 
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
-void FUN_00432ecc(void)
-
+static int E2R_Product14(int a,int b)
 {
-  short sVar1;
-  int in_EAX;
-  int iVar2;
-  char cVar6;
-  int iVar3;
-  uint uVar4;
-  int iVar5;
-  int extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 extraout_ECX_02;
-  undefined4 extraout_ECX_03;
-  undefined4 extraout_ECX_04;
-  undefined4 extraout_ECX_05;
-  undefined2 extraout_var;
-  int extraout_ECX_06;
-  ushort uVar7;
-  int iVar8;
-  int iVar9;
-  int iVar10;
-  int iVar11;
-  short sStack_84;
-  short sStack_82;
-  short sStack_7c;
-  short local_7a;
-  short sStack_78;
-  short sStack_74;
-  short sStack_72;
-  short sStack_6c;
-  short local_6a;
-  short sStack_68;
-  short local_64;
-  short sStack_62;
-  undefined4 uStack_5e;
-  int local_50;
-  int local_4c;
-  int local_48;
-  int local_44;
-  short local_40;
-  short sStack_3e;
-  short local_3c;
-  ushort uStack_38;
-  short sStack_34;
-  short sStack_30;
-  undefined4 local_2e;
-  short sStack_28;
-  int iStack_24;
-  short sStack_20;
-  undefined4 local_1e;
+  return (int32_t)((uint32_t)a * (uint32_t)b) >> 14;
+}
 
-  local_1e = CONCAT22(*(short *)(in_EAX + 0xd4),(undefined2)local_1e);
-  sStack_20 = *(short *)(in_EAX + 0xd6);
-  sStack_28 = *(short *)(in_EAX + 0xd8);
-  local_4c = (int)sStack_20;
-  local_50 = (int)*(short *)(in_EAX + 0xd4);
-  iVar2 = FUN_00432c64(local_50,(short)((*(int *)(in_EAX + 0x3e) >> 0x10) * local_4c >> 0xe));
-  uStack_38 = -(short)iVar2;
-  FUN_0045de8b();
-  iVar10 = (int)sStack_28;
-  iVar2 = FUN_00432c64(local_4c,(short)((*(int *)(in_EAX + 0x40) >> 0x10) * iVar10 >> 0xe));
-  iVar10 = FUN_00432c64(iVar2,(short)(iVar10 * (*(int *)(in_EAX + 0x40) >> 0x10) >> 0xe));
-  iVar2 = local_1e;
-  cVar6 = (char)(uStack_38 >> 8);
-  if (((int)(short)uStack_38 + 0x2000U & 0x7fff) < 0x4000) {
-    cVar6 = cVar6 + '@';
-    uVar7 = (ushort)extraout_ECX;
+static int E2R_Sine16(short angle)
+{
+  return *(short *)(0x59b590 + (uint)(ushort)angle * 2);
+}
+
+static int E2R_Cosine16(short angle)
+{
+  return *(short *)(0x5de590 + (uint)(ushort)angle * 2);
+}
+
+void FUN_00432ecc(void)
+{
+  /* Original 0x432ecc..0x433688. Keep all three ellipsoid basis vectors
+   * and their pre-rotation copies, including the original Q14 truncations. */
+  int node = E2R_actor_calc_context;
+  short *matrix = (short *)(node + 0x32);
+  int sx = *(short *)(node + 0xd4), sy = *(short *)(node + 0xd6);
+  int sz = *(short *)(node + 0xd8), radius = *(short *)(node + 0xd2);
+  short a = -E2R_PolygonAngle16((short)E2R_Product14(matrix[6],sx),(short)E2R_Product14(matrix[7],sy));
+  short input[3] = {E2R_Product14(E2R_Cosine16(a),sx),E2R_Product14(E2R_Sine16(a),sy),0};
+  short first[3], second[3], third[3], saved_first[3], saved_second[3], saved_third[3];
+  E2R_TransformVector14(first,input,matrix);
+  short b = E2R_PolygonAngle16((short)E2R_Product14(matrix[7],sy),(short)E2R_Product14(matrix[8],sz));
+  short c = E2R_PolygonAngle16((short)E2R_Product14(matrix[6],sx),(short)E2R_Product14(matrix[8],sz));
+  short adjusted = (((a + 0x2000) & 0x7fff) < 0x4000) ? a + 0x4000 : a - 0x8000;
+  short chosen = (((a + 0x2000) & 0x7fff) < 0x4000) ? b : c;
+  short d = -E2R_PolygonAngle16(E2R_Sine16(chosen),(short)E2R_Product14(E2R_Cosine16(chosen),E2R_Sine16(adjusted)));
+  for (int j = 0; j < 2; ++j) {
+    short angle = d + j * 0x4000;
+    input[0] = -E2R_Product14(E2R_Sine16(a),E2R_Product14(sx,E2R_Cosine16(angle)));
+    input[1] = E2R_Product14(E2R_Cosine16(a),E2R_Product14(sy,E2R_Cosine16(angle)));
+    input[2] = E2R_Product14(E2R_Sine16(angle),sz);
+    E2R_TransformVector14(j == 0 ? second : third,input,matrix);
   }
-  else {
-    uVar7 = (ushort)iVar10;
-    cVar6 = cVar6 + -0x80;
+  third[0] -= (*(short *)(node + 0x128) * (int)third[2]) / *(short *)(node + 0x96);
+  third[1] -= (*(short *)(node + 0x12a) * (int)third[2]) / *(short *)(node + 0x96);
+  memcpy(saved_first,first,6);memcpy(saved_second,second,6);memcpy(saved_third,third,6);
+  short rotation = -E2R_PolygonAngle16(third[1],third[0]);
+  E2R_RotatePolygonNormal(third,rotation,2);
+  E2R_RotatePolygonNormal(first,rotation,2);
+  E2R_RotatePolygonNormal(second,rotation,2);
+  short e = E2R_PolygonAngle16(second[1],first[1]) + 0x4000;
+  int g = E2R_Product14(first[0],E2R_Cosine16(e)) + E2R_Product14(second[0],E2R_Sine16(e));
+  input[0] = E2R_Product14(E2R_Cosine16(rotation),g);
+  input[1] = E2R_Product14(-E2R_Sine16(rotation),g);
+  input[2] = 0;
+  short t = e - 0x4000;
+  short length = E2R_Product14(saved_second[0],E2R_Sine16(t)) + E2R_Product14(saved_first[0],E2R_Cosine16(t));
+  short horizontal = E2R_Product14(saved_first[1],E2R_Cosine16(t)) + E2R_Product14(saved_second[1],E2R_Sine16(t));
+  short h = E2R_PolygonAngle16(third[0],(short)g);
+  short vertical = E2R_Product14(input[1],E2R_Cosine16(h)) + E2R_Product14(saved_third[1],E2R_Sine16(h));
+  short x = E2R_Product14(input[0],E2R_Cosine16(h)) + E2R_Product14(saved_third[0],E2R_Sine16(h));
+  short z = E2R_Product14(saved_third[2],E2R_Sine16(h));
+  short depth = E2R_Product14(saved_third[2],E2R_Cosine16(h));
+  short k = E2R_PolygonAngle16(x,length);
+  *(short *)(node + 0xde) = E2R_Product14(E2R_Product14(horizontal,E2R_Cosine16(k)) + E2R_Product14(vertical,E2R_Sine16(k)),radius);
+  *(short *)(node + 0xda) = E2R_Product14(E2R_Product14(x,E2R_Sine16(k)) + E2R_Product14(length,E2R_Cosine16(k)),radius);
+  *(short *)(node + 0xdc) = E2R_Product14(E2R_Product14(horizontal,E2R_Cosine16(k + 0x4000)) + E2R_Product14(vertical,E2R_Sine16(k + 0x4000)),radius);
+  *(short *)(node + 0x122) = E2R_Product14(E2R_Product14(z,E2R_Sine16(k)),radius);
+  *(short *)(node + 0x124) = E2R_Product14(E2R_Product14(z,E2R_Sine16(k + 0x4000)),radius);
+  if (*(short *)(node + 0xdc) < 0) {
+    *(short *)(node + 0xdc) = -*(short *)(node + 0xdc);
+    *(short *)(node + 0x124) = -*(short *)(node + 0x124);
   }
-  iStack_24 = FUN_00432c64(-extraout_ECX,
-                           (short)((*(int *)((uint)uVar7 * 2 + 0x5de58e) >> 0x10) *
-                                   (*(int *)((uint)CONCAT11(cVar6,(char)uStack_38) * 2 + 0x59b58e)
-                                   >> 0x10) >> 0xe));
-  iStack_24 = -iStack_24;
-  local_50 = iVar2 >> 0x10;
-  local_48 = (uint)uStack_38 * 2;
-  local_4c = (int)sStack_20;
-  local_44 = in_EAX + 0x32;
-  local_40 = sStack_28;
-  sStack_3e = sStack_28 >> 0xf;
-  FUN_0045de8b();
-  FUN_0045de8b();
-  iVar2 = *(int *)(in_EAX + 0x94) >> 0x10;
-  sStack_7c = sStack_7c - (short)(((*(int *)(in_EAX + 0x126) >> 0x10) * (int)sStack_78) / iVar2);
-  local_7a = local_7a -
-             (short)(((*(int *)(in_EAX + 0x128) >> 0x10) * (int)sStack_78) /
-                    (*(int *)(in_EAX + 0x94) >> 0x10));
-  FUN_00422aa0(iVar2,&sStack_7c);
-  FUN_00422aa0(extraout_ECX_00,&local_64);
-  FUN_00422aa0(extraout_ECX_01,(undefined2 *)((int)&uStack_5e + 2));
-  iVar2 = FUN_00432c64(extraout_ECX_02,sStack_7c);
-  uVar7 = -(short)iVar2;
-  FUN_00422704(extraout_ECX_03,uVar7);
-  FUN_00422704(extraout_ECX_04,uVar7);
-  FUN_00422704(extraout_ECX_05,uVar7);
-  iVar2 = FUN_00432c64(0,sStack_62);
-  sVar1 = CONCAT11((char)((uint)iVar2 >> 8) + '@',(char)iVar2);
-  iVar2 = CONCAT22(extraout_var,sVar1);
-  iVar3 = ((int)local_64 * (*(int *)(iVar2 * 2 + 0x5de58e) >> 0x10) >> 0xe) +
-          ((*(int *)(iVar2 * 2 + 0x59b58e) >> 0x10) * (uStack_5e >> 0x10) >> 0xe);
-  iVar2 = *(int *)((uint)uVar7 * 2 + 0x5de58e);
-  iVar10 = *(int *)((uint)uVar7 * 2 + 0x59b58e);
-  uVar4 = (uint)(ushort)(sVar1 + 0xc000);
-  iVar8 = (int)*(short *)(uVar4 * 2 + 0x59b590);
-  iVar11 = (int)*(short *)(uVar4 * 2 + 0x5de590);
-  sStack_30 = (short)(sStack_84 * iVar8 >> 0xe) + (short)(sStack_74 * iVar11 >> 0xe);
-  uVar4 = FUN_00432c64((int)sStack_82,(short)iVar3);
-  iVar5 = (int)*(short *)((uVar4 & 0xffff) * 2 + 0x5de590);
-  iVar9 = (int)*(short *)((uVar4 & 0xffff) * 2 + 0x59b590);
-  local_4c = (short)(-(iVar10 >> 0x10) * iVar3 >> 0xe) * iVar5 >> 0xe;
-  sStack_34 = (short)(local_6a * iVar9 >> 0xe) + (short)local_4c;
-  local_3c = (short)(iVar9 * sStack_68 >> 0xe);
-  iVar10 = (int)sStack_30;
-  local_2e = CONCAT22((short)(iVar5 * sStack_68 >> 0xe),(undefined2)local_2e);
-  uVar4 = FUN_00432c64((int)(short)((short)((short)((iVar2 >> 0x10) * iVar3 >> 0xe) * iVar5 >> 0xe)
-                                   + (short)(sStack_6c * iVar9 >> 0xe)),sStack_30);
-  iVar3 = (int)(short)((short)(iVar8 * sStack_82 >> 0xe) + (short)(iVar11 * sStack_72 >> 0xe));
-  iVar2 = (int)*(short *)((uVar4 & 0xffff) * 2 + 0x5de590);
-  iVar5 = (int)*(short *)((uVar4 & 0xffff) * 2 + 0x59b590);
-  *(short *)(in_EAX + 0xde) =
-       (short)(((iVar3 * iVar2 >> 0xe) + (sStack_34 * iVar5 >> 0xe)) *
-               (*(int *)(in_EAX + 0xd0) >> 0x10) >> 0xe);
-  *(short *)(in_EAX + 0xda) =
-       (short)(((extraout_ECX_06 * iVar5 >> 0xe) + (iVar10 * iVar2 >> 0xe)) *
-               (*(int *)(in_EAX + 0xd0) >> 0x10) >> 0xe);
-  iVar2 = (uint)CONCAT11((char)(uVar4 >> 8) + '@',(char)uVar4) * 2;
-  *(short *)(in_EAX + 0xdc) =
-       (short)((*(int *)(in_EAX + 0xd0) >> 0x10) *
-               ((iVar3 * (*(int *)(iVar2 + 0x5de58e) >> 0x10) >> 0xe) +
-               ((*(int *)(iVar2 + 0x59b58e) >> 0x10) * (int)sStack_34 >> 0xe)) >> 0xe);
-  *(short *)(in_EAX + 0x122) =
-       (short)((local_3c * iVar5 >> 0xe) * (*(int *)(in_EAX + 0xd0) >> 0x10) >> 0xe);
-  *(short *)(in_EAX + 0x124) =
-       (short)(((int)local_3c * (*(int *)(iVar2 + 0x59b58e) >> 0x10) >> 0xe) *
-               (*(int *)(in_EAX + 0xd0) >> 0x10) >> 0xe);
-  if (*(short *)(in_EAX + 0xdc) < 0) {
-    *(short *)(in_EAX + 0xdc) = -*(short *)(in_EAX + 0xdc);
-    *(short *)(in_EAX + 0x124) = -*(short *)(in_EAX + 0x124);
-  }
-  sVar1 = (short)((*(int *)(in_EAX + 0xd0) >> 0x10) * (local_2e >> 0x10) >> 0xe);
-  *(short *)(in_EAX + 0x126) = sVar1;
-  if (sVar1 < 0) {
-    *(short *)(in_EAX + 0x126) = -sVar1;
-  }
-  iVar2 = _DAT_006401fc;
-  if ((DAT_0047a34a != 0) && (DAT_0047a366 != 0)) {
+  short extent = E2R_Product14(radius,depth);
+  *(short *)(node + 0x126) = extent < 0 ? -extent : extent;
+  if (DAT_0047a34a != 0 && DAT_0047a366 != 0) {
     if (DAT_0047a34c == 0) {
-      *(short *)(in_EAX + 0x92) =
-           (short)((uint)*(undefined4 *)(in_EAX + 0x90) >> 0x10) +
-           (((E2R_READ2(DAT_0047a37c,2) - (short)_DAT_006401c8) +
-            (short)((_DAT_006401c8 + _DAT_0064020c) / 2)) - (short)(_DAT_006401ec / 2)) * -0x10;
-      *(short *)(in_EAX + 0x94) =
-           (short)((uint)*(undefined4 *)(in_EAX + 0x92) >> 0x10) +
-           (((sRam0047a380 - (short)_DAT_006401cc) + (short)((_DAT_006401cc + iVar2) / 2)) -
-           (short)(_DAT_006401d4 / 2)) * -0x10;
-    }
-    else {
-      *(short *)(in_EAX + 0x92) = *(short *)(in_EAX + 0x92) >> 1;
-      *(short *)(in_EAX + 0x94) = *(short *)(in_EAX + 0x94) >> 1;
-      *(short *)(in_EAX + 0xda) = *(short *)(in_EAX + 0xda) >> 1;
-      *(short *)(in_EAX + 0xdc) = *(short *)(in_EAX + 0xdc) >> 1;
-      *(short *)(in_EAX + 0xde) = *(short *)(in_EAX + 0xde) >> 1;
+      *(short *)(node + 0x92) -= ((*(int *)0x47a37c >> 16) - (int)_DAT_006401c8 +
+        ((int)_DAT_006401c8 + (int)_DAT_0064020c) / 2 - (int)_DAT_006401ec / 2) * 16;
+      *(short *)(node + 0x94) -= ((*(int *)0x47a37e >> 16) - (int)_DAT_006401cc +
+        ((int)_DAT_006401cc + (int)_DAT_006401fc) / 2 - (int)_DAT_006401d4 / 2) * 16;
+    } else {
+      *(short *)(node + 0x92) >>= 1;*(short *)(node + 0x94) >>= 1;
+      *(short *)(node + 0xda) >>= 1;*(short *)(node + 0xdc) >>= 1;*(short *)(node + 0xde) >>= 1;
     }
   }
-  return;
 }
 
 
@@ -31479,8 +30947,8 @@ undefined8 __fastcall FUN_0043a800(undefined4 param_1,int param_2)
     *(undefined2 *)(iVar4 + 2) = 0x8000;
     iVar4 = extraout_EDX_00;
   }
-  *(undefined2 *)(in_EAX + 4) = 0x8000;
-  uVar3 = 0;
+  *(undefined2 *)(in_EAX + 2) = 0x8000;
+  uVar3 = (undefined4)in_EAX;
 LAB_0043a8f0:
   return CONCAT44(param_2,uVar3);
 }
@@ -36191,7 +35659,7 @@ undefined8 __fastcall FUN_00441a10(undefined4 param_1,undefined4 param_2)
 
 {
   return CONCAT44(param_2,(int)E2R_FindPackedNameIndex((char *)(uintptr_t)param_1,
-                                                       _DAT_0063668c,1000,500));
+                                                       _DAT_0063668c,4000,500));
 }
 
 
@@ -40463,8 +39931,11 @@ undefined8 __fastcall FUN_00446a24(undefined4 param_1,undefined4 param_2)
   short local_1c;
   undefined2 uStack_1a;
 
-  return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
-                                                       _DAT_0063668c,1000,500));
+  char *name = (char *)(uintptr_t)param_1;
+  short previous = E2R_FindPackedNameIndex(name,_DAT_0063668c,4000,500);
+  short index = E2R_InternPackedName(name,_DAT_0063668c,4000,500);
+  if (previous < 0 && index >= 0) *(uint *)(0x00635980 + (uint)(ushort)index * 4) = 0;
+  return CONCAT44(param_2,(ushort)index);
 
   local_1c = 0;
   puVar5 = _DAT_0063668c;
@@ -42051,7 +41522,9 @@ undefined8 __fastcall FUN_00447d94(undefined4 param_1,undefined4 param_2)
           *(int *)(0x650fa0 + id * 4) = (int)resource_offset;
           break;
         }
-        if (E2R_ActionIndexProbeEnabled() && type == 0x0b && id < 2000) {
+        if (E2R_ActionIndexProbeEnabled() && rec == scan + 0x22 && type == 0x0b && id < 2000) {
+          /* Version-55 action headers follow the 34-byte FANT prefix.
+           * Sound payload words must never replace an action's directory entry. */
           if (*(int *)(0x64f060 + id * 4) < 0) {
             action_count = action_count + 1;
           }
@@ -44220,12 +43693,12 @@ void FUN_0044be20(undefined4 param_1)
     }
   }
 LAB_0044bfdd:
-  FUN_0041868c(0,1,(int)_DAT_006401ec,_DAT_006401d4);
+  E2R_CopyDepthRect(2,1,0,0,_DAT_006401ec,_DAT_006401d4);
   if (DAT_0047a34a == 0) {
     DAT_0047a298 = 2;
-    FUN_0041760c(2,0,0,0,_DAT_006401ec,_DAT_006401d4);
-    FUN_0041868c(0,1,(int)_DAT_006401ec,_DAT_006401d4);
-    FUN_0041868c(0,0,(int)_DAT_006401ec,_DAT_006401d4);
+    E2R_CopyGameRect(3,2,0,0,0,0,_DAT_006401ec,_DAT_006401d4);
+    E2R_CopyDepthRect(2,1,0,0,_DAT_006401ec,_DAT_006401d4);
+    E2R_CopyDepthRect(2,0,0,0,_DAT_006401ec,_DAT_006401d4);
   }
   iVar1 = _DAT_0063726c;
   if (DAT_0047a34a == 0) {
@@ -44461,9 +43934,9 @@ void __fastcall FUN_0044c224(undefined4 param_1)
     }
   }
 LAB_0044c35b:
-  FUN_0041760c(2,0,0,0,_DAT_006401ec,_DAT_006401d4);
-  FUN_0041868c(0,1,(int)_DAT_006401ec,_DAT_006401d4);
-  FUN_0041868c(0,0,(int)_DAT_006401ec,_DAT_006401d4);
+  E2R_CopyGameRect(3,2,0,0,0,0,_DAT_006401ec,_DAT_006401d4);
+  E2R_CopyDepthRect(2,1,0,0,_DAT_006401ec,_DAT_006401d4);
+  E2R_CopyDepthRect(2,0,0,0,_DAT_006401ec,_DAT_006401d4);
   DAT_0047a298 = 2;
   iVar4 = _DAT_0063726c;
   if (DAT_0047a34a == 0) {
@@ -44609,8 +44082,8 @@ void FUN_0044c4e4(void)
     puVar10 = puVar10 + 1;
     puVar12 = puVar12 + 1;
   }
-  FUN_0041868c(0,1,_DAT_006401ec,_DAT_006401d4);
-  FUN_0041868c(0,2,_DAT_006401ec,_DAT_006401d4);
+  E2R_CopyDepthRect(0,1,0,0,_DAT_006401ec,_DAT_006401d4);
+  E2R_CopyDepthRect(0,2,0,0,_DAT_006401ec,_DAT_006401d4);
   return;
 }
 
@@ -49031,90 +48504,72 @@ void __fastcall FUN_00452738(undefined4 param_1,undefined4 param_2)
 undefined8 __fastcall FUN_0045282c(undefined4 param_1,undefined4 param_2)
 
 {
-  short *psVar1;
-  int iVar2;
-  short *psVar3;
-  undefined4 in_EAX;
-  short *extraout_ECX;
-  short *extraout_ECX_00;
-  short *extraout_ECX_01;
-  short *extraout_ECX_02;
-  short *extraout_ECX_03;
-  short *extraout_ECX_04;
-  short *extraout_ECX_05;
-  short *extraout_ECX_06;
-  short *psVar4;
-  int extraout_EDX;
-  int extraout_EDX_00;
-  int extraout_EDX_01;
-  int extraout_EDX_02;
-  int extraout_EDX_03;
-  int extraout_EDX_04;
-  int iVar5;
-  undefined8 uVar6;
-  undefined1 local_4c [52];
+  int actor;
+  int cursor;
+  int previous;
+  int attached;
+  char label[52];
+  const char *error;
+  undefined4 lines[3];
 
-  FUN_00441890(in_EAX,param_2);
-  FUN_0045f0a1((int)local_4c,(byte *)s_Actor___s__00475748);
-  psVar4 = extraout_ECX;
-  iVar5 = extraout_EDX;
-  for (psVar1 = _DAT_0063726c; psVar1 != (short *)0x0; psVar1 = *(short **)(psVar1 + 0x26)) {
-    if (psVar1 == psVar4) {
-      FUN_00414e5c(psVar4);
-      psVar4 = extraout_ECX_00;
-      iVar5 = extraout_EDX_00;
+  /* Original 0x452835 retains the actor in ECX across names and recursion. */
+  actor = (int)(uintptr_t)param_1;
+  snprintf(label,sizeof(label),"Actor '%s'",
+           (char *)(uintptr_t)(uint)FUN_00441890(0,*(short *)actor * 4));
+  error = (const char *)0x0;
+  for (cursor = _DAT_0063726c; cursor != 0; cursor = *(int *)(cursor + 0x4c)) {
+    if (cursor == actor) {
+      error = "Can't remove Actor in active list";
+      break;
     }
   }
-  if (*psVar4 < 0) {
-    FUN_00414e5c(psVar4);
-    psVar4 = extraout_ECX_01;
-    iVar5 = extraout_EDX_01;
-  }
-  if (psVar4 == DAT_0047a470) {
-    FUN_00414e5c(psVar4);
-    psVar4 = extraout_ECX_02;
-    iVar5 = extraout_EDX_02;
-  }
-  if (psVar4 != *(short **)((undefined1 *)0x00630b60 + *psVar4 * 4)) {
-    FUN_00414e5c(psVar4);
-    psVar4 = extraout_ECX_03;
-    iVar5 = extraout_EDX_03;
-  }
-  if (_DAT_00636588 == *(int *)(psVar4 + 0x8d)) {
-    FUN_00414e5c(psVar4);
-    psVar4 = extraout_ECX_04;
-    iVar5 = extraout_EDX_04;
-  }
-  for (iVar2 = *(int *)(psVar4 + 0xf); iVar2 != 0; iVar2 = *(int *)(iVar2 + 0x4c)) {
-    if (*(int *)(iVar2 + 0x13a) != 0) {
-      *(undefined4 *)(*(int *)(iVar2 + 0x13a) + 0xf2) = 0;
-      uVar6 = FUN_0045282c(psVar4,iVar5);
-      iVar5 = (int)((ulonglong)uVar6 >> 0x20);
-      psVar4 = extraout_ECX_05;
+  if (error == (const char *)0x0) {
+    if (*(short *)actor < 0) {
+      error = "Can't remove Actor without name";
+    }
+    else if (actor == (int)(uintptr_t)DAT_0047a470) {
+      error = "Can't remove main Actor";
+    }
+    else if (actor != *(int *)(0x630b60 + *(short *)actor * 4)) {
+      error = "Can't remove Actor not in ThingTab";
+    }
+    else if (_DAT_00636588 == *(int *)(actor + 0x11a)) {
+      error = "Can't remove Actor with current Time";
     }
   }
-  if (*(int *)(psVar4 + 0x79) != 0) {
-    *(undefined4 *)(*(int *)(psVar4 + 0x79) + 0x13a) = 0;
-    uVar6 = FUN_0045282c(psVar4,iVar5);
-    iVar5 = (int)((ulonglong)uVar6 >> 0x20);
-    psVar4 = extraout_ECX_06;
+  if (error != (const char *)0x0) {
+    /* Original fatal entry receives the error and formatted actor as two lines. */
+    lines[0] = (undefined4)(uintptr_t)error;
+    lines[1] = (undefined4)(uintptr_t)label;
+    lines[2] = 0;
+    FUN_00414e5c((undefined4)(uintptr_t)lines);
+    return CONCAT44(param_2,0);
   }
-  if (psVar4 == _DAT_00637248) {
-    _DAT_00637248 = *(short **)(_DAT_00637248 + 0x28);
+  for (cursor = *(int *)(actor + 0x1e); cursor != 0;
+       cursor = *(int *)(cursor + 0x4c)) {
+    attached = *(int *)(cursor + 0x13a);
+    if (attached != 0) {
+      *(undefined4 *)(attached + 0xf2) = 0;
+      FUN_0045282c(attached,param_2);
+    }
+  }
+  attached = *(int *)(actor + 0xf2);
+  if (attached != 0) {
+    *(undefined4 *)(attached + 0x13a) = 0;
+    FUN_0045282c(*(int *)(attached + 0x22),param_2);
+  }
+  if (actor == _DAT_00637248) {
+    _DAT_00637248 = *(int *)(actor + 0x50);
   }
   else {
-    psVar1 = *(short **)(_DAT_00637248 + 0x28);
-    psVar3 = _DAT_00637248;
-    while (psVar4 != psVar1) {
-      psVar3 = *(short **)(psVar3 + 0x28);
-      psVar1 = *(short **)(psVar3 + 0x28);
+    previous = _DAT_00637248;
+    while (*(int *)(previous + 0x50) != actor) {
+      previous = *(int *)(previous + 0x50);
     }
-    iVar5 = *(int *)(psVar4 + 0x28);
-    *(int *)(psVar3 + 0x28) = iVar5;
+    *(undefined4 *)(previous + 0x50) = *(undefined4 *)(actor + 0x50);
   }
-  *(undefined4 *)((undefined1 *)0x00630b60 + *psVar4 * 4) = 0;
-  uVar6 = FUN_0043a800(psVar4,iVar5);
-  return CONCAT44(param_2,(int)uVar6);
+  *(undefined4 *)(0x630b60 + *(short *)actor * 4) = 0;
+  return CONCAT44(param_2,(uint)FUN_0043a800(actor,param_2));
 }
 
 

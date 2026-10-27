@@ -856,6 +856,17 @@ static E2R_DDSurface *E2R_DDS_Find(void *self) {
     return NULL;
 }
 
+int E2R_GetDirectDrawPixels(uintptr_t object, const unsigned char **pixels,
+                          unsigned *width, unsigned *height, unsigned *pitch) {
+    E2R_DDSurface *surface = E2R_DDS_Find((void *)object);
+    if (surface == NULL || surface->locked) return 0;
+    *pixels = surface->pixels;
+    *width = surface->width;
+    *height = surface->height;
+    *pitch = surface->pitch;
+    return 1;
+}
+
 static E2R_DDSurface *E2R_DDS_Allocate(unsigned width, unsigned height, unsigned caps) {
     if (width == 0 || height == 0 || width > 4096 || height > 4096) return NULL;
     for (unsigned i = 0; i < 16; ++i) {

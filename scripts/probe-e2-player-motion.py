@@ -20,6 +20,10 @@ parser.add_argument('--game-data', type=Path)
 parser.add_argument('--suite-scenario', choices=('menu-matrix','shared','startup','movement','courtyard','workshop','sword','attacks','unarmed','unarmed-contact','enemy','damage','door','potion','potion-damaged','potion-sword','swimming','water-traversal','water-combat','armed-swimming','armed-water-traversal','armed-water-combat','menus','stability'))
 parser.add_argument('--suite-options', type=json.loads, default={})
 parser.add_argument('--output', type=Path, default=Path('/tmp/e2-player-motion'))
+parser.add_argument('--npc-mesh', action='store_true',
+                    help='Enable original character bodies and bone poses alongside Joe, retaining diagnostic objects')
+parser.add_argument('--player-mesh', action='store_true',
+                    help='Enable Joe through original bones/rasterization; capture player poses and physical-frame pixel evidence')
 parser.add_argument('--intro-skip-action', type=int, default=None,
                     help='Send SDL Space at the Nth observed horseback action (default: first; --natural-intro sends none)')
 parser.add_argument('--intro-skip-progress', type=int, default=0,
@@ -146,6 +150,11 @@ env.update(SDL_VIDEODRIVER=args.video_driver, E2R_STARTUP_LOGO_DELAY_MS=str(args
            E2R_PROXY_MESH_BYPASS='1', E2R_DEFER_BACKGROUND_SPAWNS='1')
 # Preserve the existing intro resources; recovery is enabled at the checkpoint.
 env['E2R_POPULATION_PROBE'] = '0'
+env.pop('E2R_NPC_MESH', None)
+if args.npc_mesh:env['E2R_NPC_MESH']='1'
+env.pop('E2R_PLAYER_MESH', None)
+if args.player_mesh:
+    env.update(E2R_PLAYER_MESH='1',E2R_INSPECT='1',E2R_INSPECT_MAX_FRAMES='8')
 if args.background_spawns:env['E2R_DEFER_BACKGROUND_SPAWNS'] = '0'
 if args.population_profile=='noncombat-opening':env['E2R_TEST_POPULATION']='noncombat-opening'
 else:env.pop('E2R_TEST_POPULATION',None)
@@ -154,7 +163,7 @@ commands = r'''
 set pagination off
 set confirm off
 python
-import gdb,json,time,re,sys
+import gdb,json,time,re,sys,hashlib
 sys.path.insert(0,SCRIPT_DIRECTORY)
 prefix=PREFIX
 from e2_probe_diagnostics import install
@@ -275,6 +284,35 @@ def key(vk,pressed):
     table=0x4c3a90 if extended else 0x4c3b90
     require(value(f'*(unsigned char*)({table}+{scan})')==int(pressed),
             'WndProc did not update the requested held-key byte')
+enemy_mesh_samples=[]
+def enemy_mesh_snapshot(label):
+    if not NPC_MESH:return
+    import struct
+    inferior=gdb.selected_inferior()
+    enemies=[];seen=set();root=value('_DAT_0063726c')
+    while root:
+        require(root not in seen and len(seen)<256,'Invalid active actor chain')
+        seen.add(root)
+        data=bytes(inferior.read_memory(root,0x188))
+        h=lambda offset:struct.unpack_from('<h',data,offset)[0]
+        u=lambda offset:struct.unpack_from('<I',data,offset)[0]
+        if value(f'E2R_IsCharacterActor({root})'):
+            nodes=[];pose=bytearray();node=u(0x1e)
+            while node:
+                require(len(nodes)<256 and node not in [n['node'] for n in nodes],'Invalid enemy node chain')
+                body=bytes(inferior.read_memory(node,0xfe))
+                pose.extend(body[0x26:0x32]+body[0x68:0x74]+body[0xec:0xfe])
+                nodes.append(dict(node=node,kind=struct.unpack_from('<h',body,4)[0],
+                    camera=list(struct.unpack_from('<3h',body,0x92)),
+                    position=list(struct.unpack_from('<3h',body,0x80))))
+                node=struct.unpack_from('<I',body,0x4c)[0]
+            enemies.append(dict(id=h(0),state=h(0x82),health=h(0xec),
+                action=u(0xa6),progress=struct.unpack_from('<H',data,0xac)[0],
+                position=[h(0x84+i*2) for i in range(3)],nodes=nodes,
+                pose_hash=hashlib.sha256(pose).hexdigest()))
+        root=u(0x4c)
+    enemy_mesh_samples.append(dict(phase=label,ticks=value('_DAT_00636588'),enemies=enemies))
+    with open(prefix+'-enemy-mesh.json','w') as out:json.dump(enemy_mesh_samples,out,indent=2)
 guard_checkpoints=[]
 def guard_checkpoint(label):
     active=[];node=value('_DAT_0063726c')
@@ -307,6 +345,7 @@ def guard_checkpoint(label):
             require(visible,'Guard cylinder is outside the pedestal view')
             guard['projected_on_screen']=visible
     guard_checkpoints.append(dict(phase=label,wait=value('DAT_0047a76c'),guards=guards))
+    enemy_mesh_snapshot('guards-'+label)
     with open(prefix+'-guards.json','w') as out:json.dump(guard_checkpoints,out,indent=2)
 if check_guards:
     # Let the real renderer present frames after the first loaded-guard checkpoint.
@@ -380,6 +419,7 @@ def advance(count):
 def field(offset,kind='short'):
     return value(f'*({kind}*)({actor}+{offset})')
 def snapshot(label):
+    enemy_mesh_snapshot(label)
     rep=field(0x11e,'unsigned int');action=field(0xa6,'unsigned int')
     position=[field(0x84+i*2) for i in range(3)]
     cell_address=0x684d68+((position[0]>>9)+64)*2+((position[2]>>9)+64)*256
@@ -406,9 +446,32 @@ def snapshot(label):
                          [('shift','DAT_00636846'),('ctrl','DAT_00636852'),('alt','DAT_0063684a')]},
               held_keys={name:value(f'*(unsigned char*)({0x4c3a90}+{scan})')
                          for name,scan in [('up',0x48),('down',0x50),('left',0x4b),('right',0x4d)]})
+    if PLAYER_MESH and data['modal']==0:
+        inferior=gdb.selected_inferior()
+        nodes=[];node=field(0x1e,'unsigned int');pose=bytearray()
+        while node:
+            require(len(nodes)<256 and node not in [n['node'] for n in nodes],'Invalid player node chain')
+            read=lambda offset,count:bytes(inferior.read_memory(node+offset,count))
+            pose.extend(read(0x26,12)+read(0x68,12)+read(0xec,18))
+            nodes.append(dict(node=node,kind=value(f'*(short*)({node}+4)'),
+                camera=[value(f'*(short*)({node}+0x92+{i*2})') for i in range(3)],
+                position=[value(f'*(short*)({node}+0x80+{i*2})') for i in range(3)]))
+            node=value(f'*(unsigned int*)({node}+0x4c)')
+        # The visible physical page is read after the game's own Flip. Diagnostic
+        # cylinders are drawn only in SDL, so these bytes prove recovered pixels.
+        surface='((E2R_DDSurface*)DAT_0047d0cc)'
+        width=value(surface+'->width');height=value(surface+'->height');pitch=value(surface+'->pitch')
+        raw=bytes(inferior.read_memory(value('(unsigned int)'+surface+'->pixels'),pitch*height))
+        background=value('_DAT_0063615c')
+        back=bytes(inferior.read_memory(background,width*height))
+        changed=[(x,y) for y in range(height) for x in range(width) if raw[y*pitch+x]!=back[y*width+x]]
+        data['player_mesh']=dict(nodes=nodes,pose_hash=hashlib.sha256(pose).hexdigest(),
+            pixel_scope='all-original-actors' if NPC_MESH else 'player',
+            pixels_changed=len(changed),pixels_hash=hashlib.sha256(raw).hexdigest(),
+            bounds=[min(x for x,y in changed),min(y for x,y in changed),max(x for x,y in changed),max(y for x,y in changed)] if changed else None)
     packet=prefix+'-'+label
     expression='e2r_write_visibility_packet((HWND)_DAT_00ac4dac,'+json.dumps(packet)+')'
-    if not SUITE_SCENARIO:
+    if not SUITE_SCENARIO or (NPC_MESH and label.startswith('combat.')):
         require(value(expression)==1,'Visibility packet failed')
     return data
 states=[]
@@ -917,7 +980,29 @@ if GAMEPLAY_MENU_EXIT:
         require(gdb.selected_inferior().pid==0,'Confirmed Quit did not terminate the game')
         if SUITE_SCENARIO:require(exit_status and exit_status[-1]==0,'Game exited with a nonzero/unknown native status')
         print('MENU EXIT COMPLETE',flush=True)
-report=dict(probe_complete=True,native_exit_code=exit_status[-1] if exit_status else None,suite_result=suite_result,frames_per_phase=frames,states=states,sword_pickup=pickup_result,workshop_door=door_result,gameplay_menu_exit=GAMEPLAY_MENU_EXIT,
+mesh_result=None
+if PLAYER_MESH:
+    samples=[s['player_mesh'] for s in states if 'player_mesh' in s]
+    mesh_result=dict(sample_count=len(samples),node_counts=sorted(set(len(s['nodes']) for s in samples)),
+        pixel_scope='all-original-actors' if NPC_MESH else 'player',
+        distinct_poses=len(set(s['pose_hash'] for s in samples)),
+        drawn_samples=sum(s['pixels_changed']>0 for s in samples))
+    require(mesh_result['drawn_samples']>0,'Recovered characters produced no physical game pixels')
+    if len({s['ticks'] for s in states if 'player_mesh' in s})>1:
+        require(mesh_result['distinct_poses']>1,'Player route did not change the skeletal pose')
+enemy_mesh_result=None
+if NPC_MESH:
+    identifiers=sorted({e['id'] for s in enemy_mesh_samples for e in s['enemies']})
+    enemy_mesh_result=[dict(id=identifier,
+        node_counts=sorted({len(e['nodes']) for s in enemy_mesh_samples for e in s['enemies'] if e['id']==identifier}),
+        distinct_poses=len({e['pose_hash'] for s in enemy_mesh_samples for e in s['enemies'] if e['id']==identifier}),
+        states=sorted({e['state'] for s in enemy_mesh_samples for e in s['enemies'] if e['id']==identifier}))
+        for identifier in identifiers]
+    if check_guards and observed_seconds:
+        for identifier in (284,293):
+            require(any(e['id']==identifier and e['distinct_poses']>1 and min(e['node_counts'])>0 for e in enemy_mesh_result),
+                    'Live guard did not produce changing original skeletal poses')
+report=dict(probe_complete=True,player_mesh=mesh_result,enemy_mesh=enemy_mesh_result,native_exit_code=exit_status[-1] if exit_status else None,suite_result=suite_result,frames_per_phase=frames,states=states,sword_pickup=pickup_result,workshop_door=door_result,gameplay_menu_exit=GAMEPLAY_MENU_EXIT,
             watch=WATCH_MODE,window_title=WINDOW_TITLE,
             object_view_sample=object_view_sample,
             combined_turn=TURN_FORWARD,move_key=MOVE_KEY,turn_calls=turn_calls,
@@ -939,7 +1024,7 @@ print('PROBE COMPLETE: position_changed='+str(report['position_changed'])+
       ' facing_changed='+str(report['facing_changed'])+'; gameplay acceptance remains open')
 end
 quit
-'''.replace('WATCH_MODE',repr(args.watch)).replace('WINDOW_TITLE',repr(args.window_title)).replace('SUITE_SCENARIO',repr(args.suite_scenario)).replace('SUITE_OPTIONS',repr(args.suite_options)).replace('SCRIPT_DIRECTORY',repr(str(Path(__file__).resolve().parent))).replace('GAMEPLAY_MENU_EXIT',repr(args.gameplay_menu_exit)).replace('BASH_WORKSHOP_DOOR',repr(args.bash_workshop_door)).replace('SWORD_ATTACKS',repr(args.sword_attacks)).replace('SWORD_PICKUP',repr(args.sword_pickup)).replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('GAME_DATA_ROOT',repr(str(args.game_data.resolve()) if args.game_data else None)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
+'''.replace('NPC_MESH',repr(args.npc_mesh)).replace('PLAYER_MESH',repr(args.player_mesh)).replace('WATCH_MODE',repr(args.watch)).replace('WINDOW_TITLE',repr(args.window_title)).replace('SUITE_SCENARIO',repr(args.suite_scenario)).replace('SUITE_OPTIONS',repr(args.suite_options)).replace('SCRIPT_DIRECTORY',repr(str(Path(__file__).resolve().parent))).replace('GAMEPLAY_MENU_EXIT',repr(args.gameplay_menu_exit)).replace('BASH_WORKSHOP_DOOR',repr(args.bash_workshop_door)).replace('SWORD_ATTACKS',repr(args.sword_attacks)).replace('SWORD_PICKUP',repr(args.sword_pickup)).replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('GAME_DATA_ROOT',repr(str(args.game_data.resolve()) if args.game_data else None)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
     'PROCESS_SECONDS', str(args.timeout + 10)).replace('LOGO_DELAY',str(args.startup_logo_delay_ms)).replace('LOGO_SKIP',repr(args.logo_policy=='skip')).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
     'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip or args.sword_pickup or args.gameplay_menu_exit or args.suite_scenario or bool(args.tap_modifiers))).replace('TAP_MODIFIERS',repr(args.tap_modifiers)).replace(
     'RELEASE_TURN',repr(args.release_turn_first)).replace('SIMULTANEOUS_TURN',repr(args.simultaneous_turn)).replace('HOLD_THROUGH_RELEASE',repr(args.hold_through_release)).replace('VIDEO_DRIVER',repr(args.video_driver)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(

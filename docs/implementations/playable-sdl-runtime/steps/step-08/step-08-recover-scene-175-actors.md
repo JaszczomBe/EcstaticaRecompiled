@@ -22,9 +22,16 @@ Step 03's input investigation exposed independent action-context, geometry, and 
 2. Initialize Joe's rep/model geometry and prove visible movement.
 3. Recover scene-backed child instantiation and drawing.
 
-## Execution Priority — 2026-10-14
+## Execution Priority — 2026-10-27
 
-The user prioritizes controllable gameplay with cylindrical actors over original meshes and visible animation. [Step 09](../step-09/step-09-enable-diagnostic-gameplay.md) now implements cylinder presentation and a partial polygon bypass. Node removal and required action/script inputs now advance Debug to the wait-ending script; post-intro placement and motion-query recovery are next before real movement and camera traversal. Full geometry and all scene children need not finish first. This step's original-render acceptance remains open. Task 12 is a known full-render blocker; the proxy-render audit must establish whether it also blocks that route.
+The user accepted the corrected player model/animation on 2026-10-27 and moved
+enemy recovery ahead of save/load. Diagnostic gameplay, session saving/replay and
+the regression suite remain closed milestones with minor follow-ups deferred.
+[Task 02](tasks/task-02-recover-joe-geometry-and-rendering.md) owns the accepted
+player recovery. [Task 03](tasks/task-03-activate-scene-backed-children.md) now
+enables original enemy ellipsoid bodies and bone poses in F5. Objects/equipment
+retain diagnostic shapes; broad combat and enemy visual acceptance remain scoped
+by the current task/journal. Game save/load follows, then sounds and music.
 
 ## Out Of Scope
 
@@ -48,8 +55,8 @@ One task per failure family. Recover only the helper signatures/data layouts nee
 2. [Recover Missing-Scene Message Inputs](tasks/task-04-recover-missing-scene-message-inputs.md) — completed; missing-scene string inputs repaired, scene 40 identified.
 3. [Recover Post-Intro Scene Selection](tasks/task-05-recover-post-intro-scene-selection.md) — active; corrupt events traced to aliased keyframe allocation; corrected scan gated.
 4. [Recover Scene-Activation Pose Inputs](tasks/task-06-recover-scene-activation-pose-inputs.md) — active; actor/state and output destinations implemented, full-route/manual validation incomplete.
-5. [Recover Joe Geometry And Rendering](tasks/task-02-recover-joe-geometry-and-rendering.md) — active; matrix, polygon/lighting and rectangle-copy inputs repaired; compatibility Lock storage blocks the next runtime proof.
-6. [Activate Scene-Backed Children](tasks/task-03-activate-scene-backed-children.md) — planned; validate after the player path is stable.
+5. [Recover Joe Geometry And Rendering](tasks/task-02-recover-joe-geometry-and-rendering.md) — player body/animation restored with original-x86 and bounded Debug/ASan evidence; user accepted the corrected model; equipment rendering remains separate.
+6. [Activate Scene-Backed Children](tasks/task-03-activate-scene-backed-children.md) — enemy ellipsoid bodies/poses enabled; current validation and limits recorded.
 7. [Project Actor Cues Into The Scene](tasks/task-07-project-actor-cues-into-scene.md) — completed for cue projection; video confirms grid replacement, default Joe remains behind camera.
 8. [Recover Packed Event Metadata](tasks/task-08-recover-packed-event-metadata.md) — completed for the table; full action route remains gated.
 
@@ -61,7 +68,11 @@ One task per failure family. Recover only the helper signatures/data layouts nee
 
 12. [Recover DirectDraw Surface Lock](tasks/task-12-recover-directdraw-surface-lock.md) — provider implemented with bounded headless menu/runtime qualification; distinct storage/pitch and ownership fixtures pass; original-render full-route acceptance remains open.
 
-Task numbers remain stable. The full-render route resumes **12 compatibility Lock / 02 geometry → 05/01 placement and action validation → 03 child activation**, with Task 11 full-route, Task 06 full-route and Task 09 manual Escape checks pending. Pose inputs, trigonometry/projection, two corrupting matrix destinations, packed event metadata, polygon/lighting and copy contracts are recovered. The 2026-10-14 continuation verifies copy arguments and bytes, then identifies generic DirectDraw Lock returning destination base/pitch 0/0 as the current provider failure in `FUN_00418514`. The first proven lighting normal is degenerate, so valid geometry remains unproven. Action indexing and pool/event-metadata repairs remain opt-in; the default route exposes the action-384 error after the intro; clicking OK resumes updates at camera 87. Camera 175 must not be treated as script scene-resource 175.
+Task numbers remain stable. The old full-render route and its failures below
+are historical. Task 12 now provides physical surfaces and Task 02 qualifies the
+player body through actual rendered frames. Continue from Task 02's current
+acceptance/limits, preserving the original-model target and the user's milestone
+order.
 
 ## Acceptance Criteria
 

@@ -7,7 +7,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-10-14
+Last Updated: 2026-10-27
 
 ## Goal
 
@@ -19,16 +19,27 @@ The [Linux reconstruction record](../implementations/linux-e2-reconstructed-runt
 
 ## Recommended Order
 
-The [active implementation](../implementations/playable-sdl-runtime/playable-sdl-runtime.md) owns changing statuses and commands. Existing step numbers remain stable; execute prerequisites before the remaining control/timing/audio work.
+The user's 2026-10-27 order supersedes the earlier cylinder-first plan. Session
+saving, session replay and the gameplay regression suite are closed milestones;
+their recorded minor gaps remain follow-ups. Session saving means investigation
+recording, not game-state persistence. Existing step/task numbers stay stable.
+The [active implementation](../implementations/playable-sdl-runtime/playable-sdl-runtime.md)
+owns current evidence and acceptance.
 
-1. Preserve reproducible generated diagnostics and canonical-control regression checks (Step 07, completed).
-2. Enable diagnostic gameplay with cylinder actors against original backgrounds (Step 09): narrow visual-render bypass, genuine action/control handoff, real movement and floor queries, then an adjacent-view crossing and return. Reuse required Step 08 logic repairs and bring basic Step 03 movement/camera proofs forward.
-3. Expand NPC activation, interaction and broader controls; recover original meshes and visible animation as a separate fidelity track (remaining Steps 08/03). Full original rendering and every NPC are not prerequisites for initial cylinder gameplay.
-4. Recover timing and frame-pacing ownership (Step 04).
-5. Map DirectSound/music behavior and implement the smallest justified audio boundary (Step 05).
-6. Consolidate bootstrap, developer validation, and release criteria (Step 06).
+1. Original player model/animation (Step 08, Task 02): accepted by the user after
+   the projection correction on 2026-10-27; retain recorded equipment/video limits.
+2. Recover other enemies' bodies and animations (Step 08, Task 03), moved ahead
+   of persistence by the user's latest request. Reuse recovered player rendering
+   contracts with original AI/actions. Equipment polygons remain a separate gap.
+3. Implement functional game save/load: recover original state serialization and
+   restoration, then validate actual save → continue/change state → load through
+   the menus. Existing slot labels/thumbnails and session recording do not prove it.
+4. Recover game sounds and their original event, volume and channel ownership.
+5. Recover music and its original track selection, looping and transitions.
 
-Full animated intro fidelity, requester polish, and functional save/load require focused follow-up tasks before implementation. Their order may change when evidence shows they block a preceding milestone. Diagnostic cylinders must follow actual game state; preserve action events, root motion and queries needed by gameplay even when their visual animation is omitted. Cylinder presentation, mesh/HUD omission and F5 action/script routing are implemented. Palette fades, experimental unsigned ceiling selection and hosted floor-byte decoding are repaired. The F5 prototype explicitly defers background spawning and keeps Joe in the courtyard after release. Motion/control and terminal ASan event ownership still block gameplay/traversal. NPC spawn input contracts have bounded original-x86 coverage; full activation follows the Joe-first milestone. See the [current evidence](../journal/entries/courtyard-floor-decoder-2026-10-14.md).
+Timing, remaining gameplay defects and portability remain tracked follow-ups.
+Take one up sooner when it blocks the active milestone. Preserve the completed
+regression suite as verification throughout this sequence.
 
 ## Architecture Direction
 

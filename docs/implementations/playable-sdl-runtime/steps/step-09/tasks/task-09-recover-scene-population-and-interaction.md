@@ -12,7 +12,42 @@ Last Updated: 2026-10-27
 
 Restore original scene objects and NPCs needed for exploration and basic interaction while retaining cylinder presentation and Joe's working movement/camera transitions. Begin with one verified original resource and behavior; original models and full combat remain later work.
 
-## Current work — Door approach reliability regression
+## Current continuation — Tower actor eviction
+
+The user accepts the preceding repairs, then reports a fatal error at the top
+of the tower. Session **20261027_214425_922** loads actor **264/key3** and exhausts
+the **4000-slot** child-node pool. Original eviction selects **3030/trelim10**,
+but unrecovered register aliases make `FUN_0045282c` inspect host mutex memory.
+The repair explicitly retains its actor, restores both attachment-recursion
+arguments and clears the proper list/table entries. Original root cleanup marks
+**+2**, preserves kind **+4**, and returns its actor pointer.
+
+Normal/ASan fixtures each pass **163** original-x86 cases, including full-pool
+allocation after real eviction. Both new suite cases pass. Final Debug replay
+matches **1088 checkpoints**, verifies root freeing, then diverges where the
+recording opens the fatal requester; it is not a complete replay pass. The
+[tower journal](../../../../../journal/entries/tower-actor-eviction-crash-2026-10-27.md)
+retains the stack, original addresses, comparisons, exact replay limits and
+remaining human tower acceptance. The closed tooling milestones remain closed.
+
+## Previous continuation — Human crash and dropped potion
+
+The latest short F5 play confirms the recovered enemy presentation but fails
+while disposing a bitmap and leaves dropped actor **3820/w_pot1** attached without
+healing. The bitmap failure is secondary to a false action-index match inside
+sound data: action **1256** must resolve to its real header at archive offset
+**11315890**, rather than sound resource **19120049**. Production indexing now
+matches all **2000** original `OFFSETS` action entries. The dropped item's script
+**1518** is invoked, but its representation guard had been remapped from
+**0x81a8** to **0x8fff** by a truncated name pool. Original representation bounds
+are **4000 bytes**, not 1000; corrected interning/lookup and new-slot cache clearing
+pass all **488** installed names against original x86. The
+[follow-up journal](../../../../../journal/entries/enemy-play-crash-and-dropped-potion-2026-10-27.md)
+owns current native results and limits, including the bounded original drop-event
+fixture and incomplete human replay. Historical unrelated bitmap failures below
+remain retained; this does not claim every bitmap path is repaired.
+
+## Previous work — Door approach reliability regression
 
 The user's full visible-Debug/two-worker run fails door approach and blocks
 Debug stability on exactly the same sources and binaries as the earlier green

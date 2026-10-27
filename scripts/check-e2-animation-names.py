@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare animation-name byte bounds, lookup and slot ownership with original x86.
+"""Compare animation/representation names, byte bounds and slot ownership with x86.
 
 The installed name directory stays external. Original strcmp is intercepted with
 libc while preserving the original register contract. Scene/script execution is
@@ -18,7 +18,7 @@ args = parser.parse_args()
 image = OriginalImage(args.exe)
 data = args.names.read_bytes()
 cursor = 34
-for group in range(3):
+for group in range(8):
     begin = cursor
     names = []
     while data[cursor]:
@@ -26,8 +26,12 @@ for group in range(3):
         names.append(data[cursor:end])
         cursor = end + 1
     cursor += 1
-animation_pool = data[begin:cursor]
-assert names[0] == b'BulletC' and len(names) == 1800
+    if group == 2:
+        animation_pool = data[begin:cursor]
+        assert names[0] == b'BulletC' and len(names) == 1800
+representation_pool = data[begin:cursor]
+assert names[424] == b'w_pot' and len(names) == 488
+assert 1000 < len(representation_pool) < 4000
 assert 0x1117 < len(animation_pool) < 0x445c
 source = Path('E2Recomp/reconstructed/E2Recomp_recon.c').read_text()
 harness = r'''
@@ -43,7 +47,7 @@ typedef uint32_t uint,undefined4;
 typedef uint64_t undefined8;
 #define __fastcall
 #define CONCAT44(a,b) (((uint64_t)(uint32_t)(a)<<32)|(uint32_t)(b))
-static char *_DAT_006366b4,*_DAT_00636698,*_DAT_006366b8;
+static char *_DAT_006366b4,*_DAT_00636698,*_DAT_006366b8,*_DAT_0063668c;
 static int IsBadReadPtr(const void *p,unsigned n) { return !p || !n; }
 __attribute__((naked)) static void compare_hook(void) {
     __asm__("pushal; push %edx; push %eax; call strcmp; add $8,%esp; mov %eax,28(%esp); popal; ret");
@@ -54,10 +58,14 @@ for name in ('E2R_InternPackedName', 'E2R_FindPackedNameIndex', 'FUN_00441ac8'):
 # The generated helper retains unreachable historical decompilation below its return.
 entry = function(source, 'FUN_0044679c')
 harness += entry.split('\n  local_1c = 0;', 1)[0]+'\n}\n'
-for label, start, end in [('intern', 0x44679c, 0x446874), ('lookup', 0x441ac8, 0x441b24)]:
+harness += function(source, 'FUN_00441a10')+'\n'
+entry = function(source, 'FUN_00446a24')
+harness += entry.split('\n  local_1c = 0;', 1)[0]+'\n}\n'
+for label, start, end in [('rep_intern', 0x446a24, 0x446afc), ('rep_lookup', 0x441a10, 0x441a69), ('intern', 0x44679c, 0x446874), ('lookup', 0x441ac8, 0x441b24)]:
     code = image.code(start, end)
     harness += f'static const byte {label}_code[]={{'+','.join(map(str, code))+'};\n'
 harness += 'static const char names[]={' + ','.join(str(v) for v in animation_pool) + '};\n'
+harness += 'static const char rep_names[]={' + ','.join(str(v) for v in representation_pool) + '};\n'
 harness += r'''
 static void map(uint address,unsigned size) {
     assert(mmap((void*)address,size,7,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)address);
@@ -103,7 +111,34 @@ int main(void) {
     assert(original(0x441ac8,"absent-animation")==-1);
     assert((short)FUN_00441ac8((uint)"absent-animation",0)==-1);
     printf("PASS: %u installed original-x86 animation-name append/lookup/reuse cases (%u beyond byte 0x1117), pool memory and animation-slot ownership\n",count,late);
+
+    _DAT_0063668c=(char*)0x905000;*(uint*)0x63668c=(uint)_DAT_0063668c;
+    memcpy((void*)0x446a24,rep_intern_code,sizeof rep_intern_code);
+    memcpy((void*)0x441a10,rep_lookup_code,sizeof rep_lookup_code);
+    count=late=0;
+    for(const char *name=rep_names;*name;name+=strlen(name)+1) {
+        memcpy(before,_DAT_0063668c,4000);
+        *(uint*)(0x635980+count*4)=0x12345678;
+        short result=original(0x446a24,name);
+        assert(result==count && *(uint*)(0x635980+count*4)==0);
+        memcpy(expected,_DAT_0063668c,4000);memcpy(_DAT_0063668c,before,4000);
+        *(uint*)(0x635980+count*4)=0x12345678;
+        short actual=(short)FUN_00446a24((uint)name,0);
+        if(actual!=result) { fprintf(stderr,"Representation %u (%s): native %d, original %d\n",count,name,actual,result);return 1; }
+        assert(!memcmp(expected,_DAT_0063668c,4000));
+        assert(*(uint*)(0x635980+count*4)==0);
+        *(uint*)(0x635980+count*4)=0x12345678;
+        assert((short)FUN_00446a24((uint)name,0)==count);
+        assert(*(uint*)(0x635980+count*4)==0x12345678);
+        assert(!memcmp(expected,_DAT_0063668c,4000));
+        assert(original(0x441a10,name)==(short)FUN_00441a10((uint)name,0));
+        if(name-rep_names>=1000)late++;
+        count++;
+    }
+    assert(count==488 && (short)FUN_00441a10((uint)"w_pot",0)==424);
+    printf("PASS: %u installed original-x86 representation-name append/lookup/reuse cases (%u beyond byte 1000), including dropped w_pot and slot ownership\n",count,late);
+
 }
 '''
 run_fixture(harness, asan=args.asan, keep=args.keep_harness, image=image,
-            dependencies=('strcmp register bridge', 'external installed animation-name directory'))
+            dependencies=('strcmp register bridge', 'external installed animation/representation-name directories'))

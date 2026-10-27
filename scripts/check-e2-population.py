@@ -160,9 +160,9 @@ assert match
 harness+=match.group().replace('__fastcall','')+'\n'
 
 harness+=function('E2R_TransformVector14')+'\n'
-at=source.index('  if (*(short *)(in_EAX + 4) != 7)',source.index('void __fastcall FUN_00423858('))
-end=source.index('  /* Pickup selection reads',at)
-harness+='static void root_native(int in_EAX) { int local_54,local_40,iVar10; short *local_58,*psVar9;\n'+source[at:end]+'}\n'
+at=source.index('  if (*(short *)(parent + 4) != 7)',source.index('void __fastcall FUN_00423858('))
+end=source.index('  int node = *(int *)(parent + 0x1e);',at)
+harness+='static void root_native(int parent) {\n'+source[at:end]+'}\n'
 
 match=re.search(r'undefined4 FUN_0042ce70\([^)]*\)\s*\{.*?\n\}',source,re.S)
 assert match

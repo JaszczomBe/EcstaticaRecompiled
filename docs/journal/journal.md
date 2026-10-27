@@ -8,6 +8,12 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Enemy-play crash and dropped potion — 2026-10-27](entries/enemy-play-crash-and-dropped-potion-2026-10-27.md): reproduces the human bitmap failure, repairs false action-index entries inside sound data and restores the original representation-name pool for dropped-potion healing/removal.
+
+- [Enemy bodies and animation recovery — 2026-10-27](entries/enemy-model-and-animation-2026-10-27.md): enables original character ellipsoids and bone poses in F5, verifies live guard/attack evidence and retains broader combat and polygon limits.
+
+- [Player model and animation recovery — 2026-10-27](entries/player-model-and-animation-2026-10-27.md): restores original Joe bones, ellipsoid shading/pixels and depth/page redraws; enables player meshes in F5 and records original-x86 plus bounded Debug/ASan gameplay evidence and visual limits.
+
 - [Door approach regression and acceptance reliability — 2026-10-27](entries/regression-door-approach-reliability-2026-10-27.md): preserves the matching-source visible-run counterexample, reopens full-suite reliability, and adds scene-planned approach plus a required distant-start regression.
 
 - [Sequential invisible regression sweep handoff — 2026-10-26](entries/headless-regression-sweep-handoff-2026-10-26.md): authorizes the next context to run numbered blocks 01–10 sequentially with SDL dummy, diagnose and repair failures, and finish with an integrated headless sweep; records current evidence and open coverage limits.
@@ -153,6 +159,7 @@ Use [journal.template.md](../templates/journal.template.md) for new journal entr
 - [Pedestal intro restart after early skip — 2026-10-24](entries/pedestal-intro-restart-2026-10-24.md)
 - [Shared gameplay checkpoint journeys — 2026-10-24](entries/shared-gameplay-journeys-2026-10-24.md)
 - [Swimming route navigation — 2026-10-26](entries/swimming-route-navigation-2026-10-26.md)
+- [Tower actor eviction crash — 2026-10-27](entries/tower-actor-eviction-crash-2026-10-27.md)
 - [Water goals and scene navigation — 2026-10-26](entries/water-goals-and-scene-navigation-2026-10-26.md)
 - [Workshop door passage navigation — 2026-10-26](entries/workshop-door-passage-navigation-2026-10-26.md)
 <!-- /docs-tree:children -->

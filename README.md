@@ -1,16 +1,16 @@
 # Ecstatica Recompiled
 
 Ecstatica II is being reconstructed from original x86 behavior into a Linux/i386
-runtime using original game data. The current developer game uses SDL backgrounds
-and diagnostic actor cylinders for gameplay recovery. Original meshes, audio,
-save/load, broad gameplay fidelity and the 64-bit runtime remain incomplete.
+runtime using original game data. The current developer game renders original animated character bodies against SDL
+backgrounds, with diagnostic shapes for objects and equipment. Audio,
+save/load, remaining models, broad gameplay fidelity and the 64-bit runtime remain incomplete.
 
 ## Start here
 
 1. Read [project state and capabilities](docs/capabilities.md).
 2. Follow the [handoff and working rules](docs/HANDOFF.md).
 3. Open the [active runtime implementation](docs/implementations/playable-sdl-runtime/playable-sdl-runtime.md)
-   and its [current population and interaction task](docs/implementations/playable-sdl-runtime/steps/step-09/tasks/task-09-recover-scene-population-and-interaction.md).
+   and its [current enemy animation task](docs/implementations/playable-sdl-runtime/steps/step-08/tasks/task-03-activate-scene-backed-children.md).
 4. Use [build and VS Code setup](docs/building.md), then press F5 with
    **Ecstatica Recompiled** and the **Debug · Clang 21 · i386 · SDL** preset.
 

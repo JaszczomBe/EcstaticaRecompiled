@@ -4,7 +4,7 @@
 [Project README](../../../../../../README.md) · [Parent: Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 <!-- /docs-tree:parent -->
 
-Status: provider implemented and bounded menu/runtime callers verified; original-render acceptance remains open
+Status: provider, menu callers and bounded player raster/presentation paths verified; broader visual/mode acceptance remains open
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
 Last Updated: 2026-10-27
@@ -13,7 +13,19 @@ Last Updated: 2026-10-27
 
 Supply real surface storage and pitch through the compatibility DirectDraw Lock/Unlock contract so the recovered rectangle-copy path can execute in the runtime.
 
-## Current continuation — Headless menu sweep
+## Current qualification — Player rendering
+
+[Task 02](task-02-recover-joe-geometry-and-rendering.md) now exercises the provider
+through Joe's real rasterization, redraws and physical-page presentation. A
+read-only accessor exposes an unlocked owned surface's actual pixels, dimensions
+and pitch to the host; lifecycle tests cover locked rejection and Flip ownership.
+The player recovery uses that page for presentation and visibility packets,
+keeping auxiliary backgrounds distinct. Debug/ASan player gameplay evidence and
+limits are recorded in the [player journal](../../../../../journal/entries/player-model-and-animation-2026-10-27.md).
+This supersedes the old assumption that Lock storage still blocks player drawing;
+arbitrary mode/presentation and human visual acceptance remain separate.
+
+## Previous continuation — Headless menu sweep
 
 The [2026-10-27 sweep](../../../../../journal/entries/headless-regression-sweep-2026-10-27.md)
 reaches this provider through Load previews. The original installed saves expose

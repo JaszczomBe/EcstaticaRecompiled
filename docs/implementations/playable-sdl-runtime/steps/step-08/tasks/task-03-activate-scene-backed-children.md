@@ -1,13 +1,13 @@
-# Activate Scene-Backed Children
+# Activate Scene-Backed Children and Recover Enemy Animation
 
 <!-- docs-tree:parent -->
 [Project README](../../../../../../README.md) · [Parent: Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 <!-- /docs-tree:parent -->
 
-Status: planned
+Status: original enemy ellipsoid bodies/poses enabled; bounded validation and visual follow-ups
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-10-14
+Last Updated: 2026-10-27
 
 ## Goal
 
@@ -23,6 +23,46 @@ Instantiate and render scene 175’s dynamic children using their original resou
 
 1. Manufacturing ordinary actor archive entries for scene-backed resources.
 2. Full enemy AI/combat, broad archive scanning, or unsupported object substitutions.
+
+## Current enemy recovery — 2026-10-27
+
+The user accepted the corrected player and requested enemy animation next,
+ahead of save/load. Existing original actors now render through the recovered
+player bone/camera/ellipsoid path with `E2R_NPC_MESH=1` in F5 and suite journeys.
+The selector resolves node ownership at `+0x22`, reuses the existing original
+name/representation/flag presentation category, and retains character identity
+through death. This is host presentation selection, not a replacement AI or a
+complete resource taxonomy. Original actions, timing, movement and damage remain
+unchanged. Full poses run for selected character trees; their rounded primitives
+are rasterized into the physical game pages and their diagnostic shapes hidden.
+Objects/equipment remain diagnostic; NPC polygon/box leaves and the original HUD
+remain bypassed. Enabling NPC polygons exposed an unfinished flat-polygon surface
+input, so that independent raster family is deferred rather than guarded with a
+guessed surface pointer.
+
+Current live ASan evidence includes pedestal actors **284/293**, their **52/53**
+nodes and **12** distinct poses each, restrained/released presentation and a
+five-second input-release observation. Guard 284's actual attack reduces Joe's
+health **100 → 95**, followed by a normal menu exit. Workshop samples contain
+smith 602's **56-node** body, changing poses, actual health loss and final corpse.
+Broader combat attempts retain navigation, attack, bitmap-pool and kill-attribution
+failures; they do not establish passing whole-game combat. The
+[journal](../../../../../journal/entries/enemy-model-and-animation-2026-10-27.md)
+owns exact routes, final checks, original-code evidence and retained failures.
+
+Original scene identities/activation established below remain valid; this pass
+restores presentation of those existing actors. It does not manufacture missing
+children or resolve the historical 319/322/318 association. Human enemy visual
+review, exhaustive species/actions, equipment and polygon/box recovery remain
+separate. Game save/load follows this enemy milestone, then sounds and music.
+
+## Subsequent human play
+
+The user likes the recovered enemies and reports two gameplay failures during a
+short run. [Task 09](../../step-09/tasks/task-09-recover-scene-population-and-interaction.md)
+and the [follow-up journal](../../../../../journal/entries/enemy-play-crash-and-dropped-potion-2026-10-27.md)
+own the false action-index/bitmap crash and dropped-potion name/consumption repair.
+These do not require reverting character animation recovery.
 
 ## Implementation Notes
 
@@ -51,7 +91,7 @@ The actual pair is established by original `St_gobsc` resource 101, view 175: `g
 
 The [recording/contact sheet](../../../../../journal/entries/original-game-reference-2026-10-14.md) shows **two green creatures** on opposite sides of the pedestal while Joe is restrained. They change pose and move at the stairs/foreground, continue through release, and remain present after HUD entry. This establishes expected visible non-player instances for the recorded sequence; their exact species, resource IDs, scripted/AI ownership and instantiation triggers remain unproven. Do not equate them with 319/322/318 or with the currently traced `Start_sc` child IDs without source evidence.
 
-Trace both instances before and after the cinematic handoff, rather than only checking whether children appear after gameplay starts. Use their side/foreground positions and movement as visual targets once Joe/action/placement prerequisites are stable. This reference does not change the task's planned status.
+Trace both instances before and after the cinematic handoff, rather than only checking whether children appear after gameplay starts. Use their side/foreground positions and movement as visual targets once Joe/action/placement prerequisites are stable. This historical reference predates the current enemy rendering pass.
 
 ## Verification
 
@@ -60,8 +100,8 @@ Compare actor census, scene-child resources, draw state, and synchronized game/S
 ## Review State
 
 1. Planning state: agreed
-2. Implementation state: not_started
-3. Notes: Start after the dependency described above is satisfied.
+2. Implementation state: original character ellipsoid bodies and bone poses enabled; original guard/attack and workshop evidence recorded.
+3. Notes: player prerequisite accepted by the user; retain broad combat, polygon/equipment and human visual limits.
 
 ## Change Log
 

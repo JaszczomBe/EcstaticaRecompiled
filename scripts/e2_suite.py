@@ -522,7 +522,10 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
         for label,script,extra in [
             ('ActorNames','actor-names',[names]),('AnimationNames','animation-names',[names]),
             ('ScriptNames','script-names',[]),('Menus','menu-contracts',[]),
-            ('PoseEvents','action-pose-events',[]),('BitmapRecords','bitmap-records',[]),('KeyRelease','key-release',None),
+            ('PlayerMesh','player-mesh',[]),('EllipsoidPixels','ellipsoid-pixels',[]),
+            ('InterpolatedNodeEvents','interpolated-node-events',[]),('RenderCopies','render-copies',[]),
+            ('PoseEvents','action-pose-events',[]),('BitmapRecords','bitmap-records',[]),
+            ('ActorEviction','actor-eviction',[]),('KeyRelease','key-release',None),
             ('AttackTarget','attack-target',[]),('Pickup','pickup',[]),
             ('Attachment','pickup-attachment',[]),('Detach','attachment-detach',[]),
             ('Timers','potion-timers',[]),('CacheReclamation','action-reclamation',[]),
@@ -682,7 +685,7 @@ def executor(game_data, video_driver='dummy'):
             profile=journey_population(case)
             command=[sys.executable,str(ROOT/'scripts/probe-e2-player-motion.py'),str(binary),
                 '--game-data',str(game_data),'--suite-scenario',case.scenario,'--suite-options',json.dumps(options),'--population-profile',profile,
-                '--burst-frames','--gameplay-menu-exit','--timeout',str(int(timeout)-10),
+                '--player-mesh','--npc-mesh','--burst-frames','--gameplay-menu-exit','--timeout',str(int(timeout)-10),
                 '--video-driver',video_driver,'--window-title',case.name,
                 '--output',str(directory/'probe')]
             if profile=='live':command+=['--background-spawns']

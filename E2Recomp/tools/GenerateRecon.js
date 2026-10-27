@@ -3259,7 +3259,9 @@ source = source.replace(
           *(int *)(0x650fa0 + id * 4) = (int)resource_offset;
           break;
         }
-        if (E2R_ActionIndexProbeEnabled() && type == 0x0b && id < 2000) {
+        if (E2R_ActionIndexProbeEnabled() && rec == scan + 0x22 && type == 0x0b && id < 2000) {
+          /* Version-55 action headers follow the 34-byte FANT prefix.
+           * Sound payload words must never replace an action's directory entry. */
           if (*(int *)(0x64f060 + id * 4) < 0) {
             action_count = action_count + 1;
           }
@@ -3838,7 +3840,7 @@ source = source.replace(
 );
 source = source.replace(
   "  for (iVar4 = *(int *)(in_EAX + 0x1e); iVar4 != 0; iVar4 = *(int *)(iVar4 + 0x4c)) {\n    iVar2 = *(int *)(iVar4 + 0x11e);\n    while (iVar2 != 0) {\n      FUN_0045366c();\n      iVar2 = *(int *)(extraout_EDX + 0x26);\n    }\n    FUN_00453508();\n    in_EAX = extraout_ECX;\n  }\n  iVar4 = *(int *)(in_EAX + 0xd8);\n  while (iVar4 != 0) {\n    FUN_00453264();\n    iVar4 = *(int *)(extraout_EDX_00 + 0x1e);\n  }\n  uVar3 = FUN_00453264();",
-  "  for (iVar4 = *(int *)(in_EAX + 0x1e); iVar4 != 0; iVar4 = iVar1) {\n    if ((uint)iVar4 < 0x10000u || 0x70000000u <= (uint)iVar4 ||\n        IsBadReadPtr((void *)(uintptr_t)iVar4,0x122)) break;\n    iVar1 = *(int *)(iVar4 + 0x4c);\n    iVar2 = *(int *)(iVar4 + 0x11e);\n    while (iVar2 != 0) {\n      if ((uint)iVar2 < 0x10000u || 0x70000000u <= (uint)iVar2 ||\n          IsBadReadPtr((void *)(uintptr_t)iVar2,0x2a)) break;\n      extraout_EDX = *(int *)(iVar2 + 0x26);\n      *(undefined2 *)(iVar2 + 2) = 1;\n      iVar2 = extraout_EDX;\n    }\n    *(undefined2 *)(iVar4 + 4) = 0x8000;\n  }\n  iVar4 = *(int *)(in_EAX + 0xd8);\n  while (iVar4 != 0) {\n    if ((uint)iVar4 < 0x10000u || 0x70000000u <= (uint)iVar4 ||\n        IsBadReadPtr((void *)(uintptr_t)iVar4,0x44)) break;\n    extraout_EDX_00 = *(int *)(iVar4 + 0x1e);\n    *(undefined2 *)(iVar4 + 2) = 0x8000;\n    iVar4 = extraout_EDX_00;\n  }\n  *(undefined2 *)(in_EAX + 4) = 0x8000;\n  uVar3 = 0;"
+  "  for (iVar4 = *(int *)(in_EAX + 0x1e); iVar4 != 0; iVar4 = iVar1) {\n    if ((uint)iVar4 < 0x10000u || 0x70000000u <= (uint)iVar4 ||\n        IsBadReadPtr((void *)(uintptr_t)iVar4,0x122)) break;\n    iVar1 = *(int *)(iVar4 + 0x4c);\n    iVar2 = *(int *)(iVar4 + 0x11e);\n    while (iVar2 != 0) {\n      if ((uint)iVar2 < 0x10000u || 0x70000000u <= (uint)iVar2 ||\n          IsBadReadPtr((void *)(uintptr_t)iVar2,0x2a)) break;\n      extraout_EDX = *(int *)(iVar2 + 0x26);\n      *(undefined2 *)(iVar2 + 2) = 1;\n      iVar2 = extraout_EDX;\n    }\n    *(undefined2 *)(iVar4 + 4) = 0x8000;\n  }\n  iVar4 = *(int *)(in_EAX + 0xd8);\n  while (iVar4 != 0) {\n    if ((uint)iVar4 < 0x10000u || 0x70000000u <= (uint)iVar4 ||\n        IsBadReadPtr((void *)(uintptr_t)iVar4,0x44)) break;\n    extraout_EDX_00 = *(int *)(iVar4 + 0x1e);\n    *(undefined2 *)(iVar4 + 2) = 0x8000;\n    iVar4 = extraout_EDX_00;\n  }\n  *(undefined2 *)(in_EAX + 2) = 0x8000;\n  uVar3 = (undefined4)in_EAX;"
 );
 source = source.replace(
   "            FUN_0043a800(extraout_ECX_32,iVar12);",
@@ -4198,6 +4200,11 @@ source = source.replace(
   "  }\n  \n  local_1c = 0;\n  puVar6 = _DAT_006366a4;",
   "  }\n  return CONCAT44(param_2,(ushort)E2R_InternPackedName(in_EAX,(char *)_DAT_006366a4,\n                                                       4000,0x22b));\n  \n  local_1c = 0;\n  puVar6 = _DAT_006366a4;"
 );
+// Recover actor eviction when the original fixed node pool fills.
+source = source.replace(
+  /undefined8 __fastcall FUN_0045282c\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}/,
+  "undefined8 __fastcall FUN_0045282c(undefined4 param_1,undefined4 param_2)\n\n{\n  int actor;\n  int cursor;\n  int previous;\n  int attached;\n  char label[52];\n  const char *error;\n  undefined4 lines[3];\n\n  /* Original 0x452835 retains the actor in ECX across names and recursion. */\n  actor = (int)(uintptr_t)param_1;\n  snprintf(label,sizeof(label),\"Actor '%s'\",\n           (char *)(uintptr_t)(uint)FUN_00441890(0,*(short *)actor * 4));\n  error = (const char *)0x0;\n  for (cursor = _DAT_0063726c; cursor != 0; cursor = *(int *)(cursor + 0x4c)) {\n    if (cursor == actor) {\n      error = \"Can't remove Actor in active list\";\n      break;\n    }\n  }\n  if (error == (const char *)0x0) {\n    if (*(short *)actor < 0) {\n      error = \"Can't remove Actor without name\";\n    }\n    else if (actor == (int)(uintptr_t)DAT_0047a470) {\n      error = \"Can't remove main Actor\";\n    }\n    else if (actor != *(int *)(0x630b60 + *(short *)actor * 4)) {\n      error = \"Can't remove Actor not in ThingTab\";\n    }\n    else if (_DAT_00636588 == *(int *)(actor + 0x11a)) {\n      error = \"Can't remove Actor with current Time\";\n    }\n  }\n  if (error != (const char *)0x0) {\n    /* Original fatal entry receives the error and formatted actor as two lines. */\n    lines[0] = (undefined4)(uintptr_t)error;\n    lines[1] = (undefined4)(uintptr_t)label;\n    lines[2] = 0;\n    FUN_00414e5c((undefined4)(uintptr_t)lines);\n    return CONCAT44(param_2,0);\n  }\n  for (cursor = *(int *)(actor + 0x1e); cursor != 0;\n       cursor = *(int *)(cursor + 0x4c)) {\n    attached = *(int *)(cursor + 0x13a);\n    if (attached != 0) {\n      *(undefined4 *)(attached + 0xf2) = 0;\n      FUN_0045282c(attached,param_2);\n    }\n  }\n  attached = *(int *)(actor + 0xf2);\n  if (attached != 0) {\n    *(undefined4 *)(attached + 0x13a) = 0;\n    FUN_0045282c(*(int *)(attached + 0x22),param_2);\n  }\n  if (actor == _DAT_00637248) {\n    _DAT_00637248 = *(int *)(actor + 0x50);\n  }\n  else {\n    previous = _DAT_00637248;\n    while (*(int *)(previous + 0x50) != actor) {\n      previous = *(int *)(previous + 0x50);\n    }\n    *(undefined4 *)(previous + 0x50) = *(undefined4 *)(actor + 0x50);\n  }\n  *(undefined4 *)(0x630b60 + *(short *)actor * 4) = 0;\n  return CONCAT44(param_2,(uint)FUN_0043a800(actor,param_2));\n}"
+);
 const fanNameInternSpecs = [
   ["004466c4", "_DAT_006366b4", "40000", "5000",
    "FUN_004466c4(iVar12,(int)(short)iVar12)",
@@ -4211,7 +4218,7 @@ const fanNameInternSpecs = [
   ["0044694c", "_DAT_00636698", "24000", "2000",
    "FUN_0044694c(iVar12,uVar11 & 0xffffff00)",
    "FUN_0044694c((undefined4)(uintptr_t)(acStack_81 + 1),e2r_table_indices[5])"],
-  ["00446a24", "_DAT_0063668c", "1000", "500",
+  ["00446a24", "_DAT_0063668c", "4000", "500",
    "FUN_00446a24(iVar12,(int)(short)iVar12)",
    "FUN_00446a24((undefined4)(uintptr_t)(acStack_81 + 1),e2r_table_indices[6])"],
   ["00446afc", "(char *)_DAT_00636678", "5000", "700",
@@ -4240,7 +4247,7 @@ for (const [name, table, capacity, maxNames, oldCall, newCall] of fanNameInternS
 const fanNameLookupSpecs = [
   ["004418fc", "_DAT_006366b4", "40000", "5000"],
   ["00441958", "(char *)_DAT_00636694", "0x177", "100"],
-  ["00441a10", "_DAT_0063668c", "1000", "500"],
+  ["00441a10", "_DAT_0063668c", "4000", "500"],
   ["00441ac8", "_DAT_006366b8", "0x445c", "2000"],
   ["00441ea4", "_DAT_006366bc", "20000", "0x9c4"],
   ["00441f00", "_DAT_00636698", "24000", "2000"],
@@ -9111,6 +9118,597 @@ patchRectangleFunction("FUN_004451a8", body => body.replace(
   "        FUN_00452a94();",
   "        int previous = E2R_cleanup_context;\n        E2R_cleanup_context = *(int *)(sVar4 * 4 + 0x62b700);\n        FUN_00452a94();\n        E2R_cleanup_context = previous;"
 ));
+
+// Original 0x446a9c bounds representation names by 4000 bytes, matching the
+// allocation; 0x446ae8 clears only a newly interned representation's slot.
+patchRectangleFunction("FUN_00446a24", body => replaceRectangleInput(body,
+  `  return CONCAT44(param_2,(ushort)E2R_InternPackedName((char *)(uintptr_t)param_1,
+                                                       _DAT_0063668c,4000,500));`,
+  `  char *name = (char *)(uintptr_t)param_1;
+  short previous = E2R_FindPackedNameIndex(name,_DAT_0063668c,4000,500);
+  short index = E2R_InternPackedName(name,_DAT_0063668c,4000,500);
+  if (previous < 0 && index >= 0) *(uint *)(0x00635980 + (uint)(ushort)index * 4) = 0;
+  return CONCAT44(param_2,(ushort)index);`));
+
+// Original character bodies and poses; retain NPC polygon/box and HUD bypasses.
+source = replaceRectangleInput(source,"static int E2R_actor_calc_context;",
+  "static int E2R_actor_calc_context;\n" + `static int E2R_UseProxyMesh(int actor,int ellipsoids)
+{
+  const char *proxy = getenv("E2R_PROXY_MESH_BYPASS");
+  const char *player_mesh = getenv("E2R_PLAYER_MESH");
+  if (proxy == NULL || proxy[0] == '\\0' || proxy[0] == '0') return 0;
+  if (player_mesh != NULL && player_mesh[0] != '\\0' && player_mesh[0] != '0') {
+    int player = *(int *)0x00630b60;
+    if (player != 0 && (actor == player || *(int *)(actor + 0x22) == player)) return 0;
+  }
+  const char *npc_mesh = getenv("E2R_NPC_MESH");
+  if (ellipsoids && npc_mesh != NULL && npc_mesh[0] != '\\0' && npc_mesh[0] != '0') {
+    extern int E2R_IsCharacterActor(uintptr_t actor);
+    int owner = *(int *)(actor + 0x22);
+    if (E2R_IsCharacterActor(owner != 0 ? owner : actor)) return 0;
+  }
+  return 1;
+}`);
+patchRectangleFunction("FUN_00423858", () => `static short E2R_PolygonAngle16(short x,short z);
+static void E2R_RotatePolygonNormal(short normal[3],short angle,int axis);
+static short E2R_PoseAsin14(short ratio);
+
+void __fastcall FUN_00423858(undefined4 param_1,undefined4 param_2)
+{
+  /* Original 0x423858..0x424162: EAX parent, EDX sibling-only flag.
+   * Keep vectors contiguous and retain each node across register-only helpers. */
+  int parent = param_1;
+  if (parent == 0 || (uint)parent < 0x10000u || 0x1000000u <= (uint)parent ||
+      IsBadReadPtr((void *)(uintptr_t)parent,0x17c)) return;
+  if (*(short *)(parent + 4) != 7) {
+    *(byte *)(parent + 3) |= 0x80;
+    for (int vertex = *(int *)(parent + 0x11e); vertex != 0;
+         vertex = *(int *)(vertex + 0x26)) {
+      short *world = (short *)(vertex + 0x10);
+      E2R_TransformVector14(world,(short *)(vertex + 4),(short *)(parent + 6));
+      for (int i = 0; i < 3; ++i) world[i] += ((short *)(parent + 0x80))[i];
+    }
+  }
+  int node = *(int *)(parent + 0x1e);
+  if ((short)param_2 != 0 && node != 0) node = *(int *)(node + 0xca);
+  int proxy = E2R_UseProxyMesh(parent,1);
+  for (; node != 0; node = *(int *)(node + 0xca)) {
+    short relative[3];
+    for (int i = 0; i < 3; ++i) {
+      relative[i] = ((short *)(node + 0x2c))[i];
+      if (*(short *)(parent + 4) != 7) relative[i] += ((short *)(parent + 0x6e))[i];
+    }
+    E2R_TransformVector14((short *)(node + 0x50),relative,(short *)(parent + 6));
+    for (int i = 0; i < 3; ++i)
+      ((short *)(node + 0x18))[i] = ((short *)(parent + 0x18))[i] + ((short *)(node + 0x50))[i];
+    memcpy((void *)(node + 6),(void *)((*(byte *)(node + 2) & 0x10) ? node + 0xec : parent + 6),18);
+    /* Preserve the accepted diagnostic root-only pose while recovering meshes. */
+    if (proxy) return;
+    if ((*(byte *)(node + 2) & 0x20) == 0) {
+      int reference = *(int *)(node + 0x12e);
+      if (reference == 0) {
+        if (*(short *)(node + 0x28)) FUN_00422460(node + 6,*(short *)(node + 0x28));
+        if (*(short *)(node + 0x26)) FUN_00422368(node + 6,*(short *)(node + 0x26));
+        if (*(short *)(node + 0x2a)) FUN_00422538(node + 6,*(short *)(node + 0x2a));
+      } else {
+        if ((*(byte *)(*(int *)(reference + 0x22) + 3) & 0x80) == 0) {
+          *(int *)(node + 0x132) = *(int *)(0x6368d8 + _DAT_00637240 * 4);
+          *(int *)(0x6368d8 + _DAT_00637240 * 4) = node;
+          continue;
+        }
+        short difference[3], target[3], transpose[9];
+        for (int i = 0; i < 3; ++i) {
+          difference[i] = ((short *)(reference + 0x10))[i] - ((short *)(node + 0x18))[i];
+          for (int j = 0; j < 3; ++j) transpose[i * 3 + j] = ((short *)(node + 6))[j * 3 + i];
+        }
+        E2R_TransformVector14(target,difference,transpose);
+        short yaw = E2R_PolygonAngle16(target[0],target[2]);
+        *(short *)(node + 0x28) = yaw;
+        if (yaw) E2R_RotatePolygonNormal(target,(short)-yaw,1);
+        short pitch = E2R_PolygonAngle16((short)-target[1],target[2]);
+        *(short *)(node + 0x26) = pitch;
+        if (pitch) E2R_RotatePolygonNormal(target,(short)-pitch,0);
+        *(short *)(node + 0x6c) = *(short *)(node + 0xb4) = target[2] / 2;
+        int previous = E2R_actor_calc_context;
+        E2R_actor_calc_context = node;
+        FUN_00432e08();
+        E2R_actor_calc_context = previous;
+        *(short *)(node + 0x72) = *(short *)(node + 0xba) = target[2] / 2;
+        *(short *)(node + 0x6e) = *(short *)(node + 0xb6) = 0;
+        *(short *)(node + 0x70) = *(short *)(node + 0xb8) = 0;
+        if (yaw) FUN_00422460(node + 6,yaw);
+        if (pitch) FUN_00422368(node + 6,pitch);
+        short roll = E2R_PolygonAngle16(*(short *)(node + 8),*(short *)(node + 0xe));
+        *(short *)(node + 0x2a) = roll;
+        if (roll) FUN_00422538(node + 6,roll);
+      }
+      E2R_TransformVector14((short *)(node + 0x80),(short *)(node + 0x6e),(short *)(node + 6));
+      for (int i = 0; i < 3; ++i) ((short *)(node + 0x80))[i] += ((short *)(node + 0x18))[i];
+      FUN_00423858(node,0);
+    } else {
+      int middle = *(int *)(node + 0x1e);
+      if (middle == 0) FUN_00426f84();
+      int endpoint = *(int *)(middle + 0x1e);
+      if (endpoint == 0) FUN_00426f84();
+      FUN_00423674(endpoint);
+      short difference[3], target[3], transpose[9];
+      for (int i = 0; i < 3; ++i) {
+        difference[i] = ((short *)(endpoint + 0x18))[i] - ((short *)(node + 0x18))[i];
+        for (int j = 0; j < 3; ++j) transpose[i * 3 + j] = ((short *)(node + 6))[j * 3 + i];
+      }
+      E2R_TransformVector14(target,difference,transpose);
+      short yaw = E2R_PolygonAngle16(target[0],target[2]);
+      if (yaw) E2R_RotatePolygonNormal(target,(short)-yaw,1);
+      short pitch = E2R_PolygonAngle16((short)-target[1],target[2]);
+      if (pitch) E2R_RotatePolygonNormal(target,(short)-pitch,0);
+      short length_a = *(short *)(middle + 0xa8) + *(short *)(node + 0xba);
+      short length_b = *(short *)(middle + 0xba) + *(short *)(endpoint + 0xa8);
+      short bend_a = 0, bend_b = 0;
+      int previous = E2R_actor_calc_context;
+      if (target[2] < (int)length_a + length_b) {
+        if (*(short *)(node + 0x6c) != *(short *)(node + 0xb4)) {
+          *(short *)(node + 0x6c) = *(short *)(node + 0xb4);
+          E2R_actor_calc_context = node;
+          FUN_00432e08();
+        }
+        *(short *)(node + 0x72) = *(short *)(node + 0xba);
+        *(short *)(middle + 0x30) = *(short *)(middle + 0xa8);
+        if (*(short *)(middle + 0x6c) != *(short *)(middle + 0xb4)) {
+          *(short *)(middle + 0x6c) = *(short *)(middle + 0xb4);
+          E2R_actor_calc_context = middle;
+          FUN_00432e08();
+        }
+        *(short *)(middle + 0x72) = *(short *)(middle + 0xba);
+        *(short *)(endpoint + 0x30) = *(short *)(endpoint + 0xa8);
+        if (target[2] == 0) bend_a = bend_b = 0x4000;
+        else if (length_a != 0 && length_b != 0) {
+          short half_difference = (short)(((length_a * length_a - length_b * length_b) / target[2]) >> 1);
+          short projected_a = (target[2] >> 1) + half_difference;
+          short projected_b = (target[2] >> 1) - half_difference;
+          bend_a = 0x4000 - E2R_PoseAsin14((short)((projected_a * 16384) / length_a));
+          bend_b = 0x4000 - E2R_PoseAsin14((short)((projected_b * 16384) / length_b));
+        }
+      } else if ((int)length_a + length_b != 0) {
+        int scale = (target[2] * 8192) / ((int)length_a + length_b);
+        *(short *)(node + 0x6c) = (*(short *)(node + 0xb4) * scale) >> 13;
+        E2R_actor_calc_context = node;
+        FUN_00432e08();
+        *(short *)(node + 0x72) = (*(short *)(node + 0xba) * scale) >> 13;
+        *(short *)(middle + 0x30) = (*(short *)(middle + 0xa8) * scale) >> 13;
+        *(short *)(middle + 0x6c) = (*(short *)(middle + 0xb4) * scale) >> 13;
+        E2R_actor_calc_context = middle;
+        FUN_00432e08();
+        *(short *)(middle + 0x72) = (*(short *)(middle + 0xba) * scale) >> 13;
+        *(short *)(endpoint + 0x30) = (*(short *)(endpoint + 0xa8) * scale) >> 13;
+      }
+      E2R_actor_calc_context = previous;
+      *(short *)(middle + 0x28) = *(short *)(middle + 0x2a) = 0;
+      *(short *)(middle + 0x26) = -(bend_a + bend_b);
+      if (yaw) FUN_00422460(node + 6,yaw);
+      if (pitch) FUN_00422368(node + 6,pitch);
+      short roll = *(short *)(node + 0x2a);
+      if ((*(byte *)(node + 2) & 0x80) != 0) {
+        for (int i = 0; i < 3; ++i) {
+          difference[i] = ((short *)(endpoint + 6))[i * 3 + 2] - ((short *)(endpoint + 6))[i * 3 + 1];
+          for (int j = 0; j < 3; ++j) transpose[i * 3 + j] = ((short *)(node + 6))[j * 3 + i];
+        }
+        E2R_TransformVector14(target,difference,transpose);
+        roll += E2R_PolygonAngle16(target[0],(short)-target[1]);
+      }
+      if (roll) FUN_00422538(node + 6,roll);
+      if (bend_a) FUN_00422368(node + 6,bend_a);
+      E2R_TransformVector14((short *)(node + 0x80),(short *)(node + 0x6e),(short *)(node + 6));
+      for (int i = 0; i < 3; ++i) ((short *)(node + 0x80))[i] += ((short *)(node + 0x18))[i];
+      FUN_00424164(node,middle);
+      FUN_00423858(node,1);
+      FUN_00423858(middle,1);
+      FUN_00423858(endpoint,0);
+    }
+  }
+}`);
+patchRectangleFunction("FUN_00424ed0", () => `void FUN_00424ed0(void)
+{
+  /* Original 0x424ed0: node origin -> camera space, without perspective. */
+  int node = E2R_actor_calc_context;
+  short *output = (short *)(node + 0x92);
+  short relative[3];
+  const short *camera = (short *)0x6372c2;
+  if (DAT_0047a34a == 0 || DAT_0047a366 != 0) {
+    for (int i = 0; i < 3; ++i) relative[i] = ((short *)(node + 0x80))[i] - camera[i];
+    E2R_TransformVector14(output,relative,(short *)0x6372aa);
+  } else {
+    E2R_TransformVector14(output,(short *)(node + 0x80),(short *)0x6372aa);
+    for (int i = 0; i < 3; ++i) output[i] += camera[i];
+  }
+  if (output[2] < 0x80) output[2] = 0;
+  *(short *)(node + 0x128) = output[0];
+  *(short *)(node + 0x12a) = output[1];
+}`);
+patchRectangleFunction("FUN_00424e44", body => replaceRectangleInput(body,
+  "if (proxy != NULL && proxy[0] != '\\0' && proxy[0] != '0') return;", "if (E2R_UseProxyMesh(*(int *)(node + 0x22),0)) return;"));
+patchRectangleFunction("FUN_00425018", body => replaceRectangleInput(body,
+  "if (proxy && *proxy && *proxy != '0') return;", "if (E2R_UseProxyMesh(*(int *)(actor + 0x22),0)) return;"));
+patchRectangleFunction("FUN_00425538", body => replaceRectangleInput(body,
+  "if (proxy && *proxy && *proxy != '0') return;", "if (E2R_UseProxyMesh(*(int *)(actor + 0x22),1)) return;"));
+
+
+patchRectangleFunction("FUN_004211c8", body => replaceRectangleInput(body,
+  "if (!omit_actor_pixels &&", "if ((!omit_actor_pixels || !E2R_UseProxyMesh(iVar5,1)) &&"));
+
+// Original ellipsoid camera composition and projected basis.
+patchRectangleFunction("FUN_00432ecc", () => `static int E2R_Product14(int a,int b)
+{
+  return (int32_t)((uint32_t)a * (uint32_t)b) >> 14;
+}
+
+static int E2R_Sine16(short angle)
+{
+  return *(short *)(0x59b590 + (uint)(ushort)angle * 2);
+}
+
+static int E2R_Cosine16(short angle)
+{
+  return *(short *)(0x5de590 + (uint)(ushort)angle * 2);
+}
+
+void FUN_00432ecc(void)
+{
+  /* Original 0x432ecc..0x433688. Keep all three ellipsoid basis vectors
+   * and their pre-rotation copies, including the original Q14 truncations. */
+  int node = E2R_actor_calc_context;
+  short *matrix = (short *)(node + 0x32);
+  int sx = *(short *)(node + 0xd4), sy = *(short *)(node + 0xd6);
+  int sz = *(short *)(node + 0xd8), radius = *(short *)(node + 0xd2);
+  short a = -E2R_PolygonAngle16((short)E2R_Product14(matrix[6],sx),(short)E2R_Product14(matrix[7],sy));
+  short input[3] = {E2R_Product14(E2R_Cosine16(a),sx),E2R_Product14(E2R_Sine16(a),sy),0};
+  short first[3], second[3], third[3], saved_first[3], saved_second[3], saved_third[3];
+  E2R_TransformVector14(first,input,matrix);
+  short b = E2R_PolygonAngle16((short)E2R_Product14(matrix[7],sy),(short)E2R_Product14(matrix[8],sz));
+  short c = E2R_PolygonAngle16((short)E2R_Product14(matrix[6],sx),(short)E2R_Product14(matrix[8],sz));
+  short adjusted = (((a + 0x2000) & 0x7fff) < 0x4000) ? a + 0x4000 : a - 0x8000;
+  short chosen = (((a + 0x2000) & 0x7fff) < 0x4000) ? b : c;
+  short d = -E2R_PolygonAngle16(E2R_Sine16(chosen),(short)E2R_Product14(E2R_Cosine16(chosen),E2R_Sine16(adjusted)));
+  for (int j = 0; j < 2; ++j) {
+    short angle = d + j * 0x4000;
+    input[0] = -E2R_Product14(E2R_Sine16(a),E2R_Product14(sx,E2R_Cosine16(angle)));
+    input[1] = E2R_Product14(E2R_Cosine16(a),E2R_Product14(sy,E2R_Cosine16(angle)));
+    input[2] = E2R_Product14(E2R_Sine16(angle),sz);
+    E2R_TransformVector14(j == 0 ? second : third,input,matrix);
+  }
+  third[0] -= (*(short *)(node + 0x128) * (int)third[2]) / *(short *)(node + 0x96);
+  third[1] -= (*(short *)(node + 0x12a) * (int)third[2]) / *(short *)(node + 0x96);
+  memcpy(saved_first,first,6);memcpy(saved_second,second,6);memcpy(saved_third,third,6);
+  short rotation = -E2R_PolygonAngle16(third[1],third[0]);
+  E2R_RotatePolygonNormal(third,rotation,2);
+  E2R_RotatePolygonNormal(first,rotation,2);
+  E2R_RotatePolygonNormal(second,rotation,2);
+  short e = E2R_PolygonAngle16(second[1],first[1]) + 0x4000;
+  int g = E2R_Product14(first[0],E2R_Cosine16(e)) + E2R_Product14(second[0],E2R_Sine16(e));
+  input[0] = E2R_Product14(E2R_Cosine16(rotation),g);
+  input[1] = E2R_Product14(-E2R_Sine16(rotation),g);
+  input[2] = 0;
+  short t = e - 0x4000;
+  short length = E2R_Product14(saved_second[0],E2R_Sine16(t)) + E2R_Product14(saved_first[0],E2R_Cosine16(t));
+  short horizontal = E2R_Product14(saved_first[1],E2R_Cosine16(t)) + E2R_Product14(saved_second[1],E2R_Sine16(t));
+  short h = E2R_PolygonAngle16(third[0],(short)g);
+  short vertical = E2R_Product14(input[1],E2R_Cosine16(h)) + E2R_Product14(saved_third[1],E2R_Sine16(h));
+  short x = E2R_Product14(input[0],E2R_Cosine16(h)) + E2R_Product14(saved_third[0],E2R_Sine16(h));
+  short z = E2R_Product14(saved_third[2],E2R_Sine16(h));
+  short depth = E2R_Product14(saved_third[2],E2R_Cosine16(h));
+  short k = E2R_PolygonAngle16(x,length);
+  *(short *)(node + 0xde) = E2R_Product14(E2R_Product14(horizontal,E2R_Cosine16(k)) + E2R_Product14(vertical,E2R_Sine16(k)),radius);
+  *(short *)(node + 0xda) = E2R_Product14(E2R_Product14(x,E2R_Sine16(k)) + E2R_Product14(length,E2R_Cosine16(k)),radius);
+  *(short *)(node + 0xdc) = E2R_Product14(E2R_Product14(horizontal,E2R_Cosine16(k + 0x4000)) + E2R_Product14(vertical,E2R_Sine16(k + 0x4000)),radius);
+  *(short *)(node + 0x122) = E2R_Product14(E2R_Product14(z,E2R_Sine16(k)),radius);
+  *(short *)(node + 0x124) = E2R_Product14(E2R_Product14(z,E2R_Sine16(k + 0x4000)),radius);
+  if (*(short *)(node + 0xdc) < 0) {
+    *(short *)(node + 0xdc) = -*(short *)(node + 0xdc);
+    *(short *)(node + 0x124) = -*(short *)(node + 0x124);
+  }
+  short extent = E2R_Product14(radius,depth);
+  *(short *)(node + 0x126) = extent < 0 ? -extent : extent;
+  if (DAT_0047a34a != 0 && DAT_0047a366 != 0) {
+    if (DAT_0047a34c == 0) {
+      *(short *)(node + 0x92) -= ((*(int *)0x47a37c >> 16) - (int)_DAT_006401c8 +
+        ((int)_DAT_006401c8 + (int)_DAT_0064020c) / 2 - (int)_DAT_006401ec / 2) * 16;
+      *(short *)(node + 0x94) -= ((*(int *)0x47a37e >> 16) - (int)_DAT_006401cc +
+        ((int)_DAT_006401cc + (int)_DAT_006401fc) / 2 - (int)_DAT_006401d4 / 2) * 16;
+    } else {
+      *(short *)(node + 0x92) >>= 1;*(short *)(node + 0x94) >>= 1;
+      *(short *)(node + 0xda) >>= 1;*(short *)(node + 0xdc) >>= 1;*(short *)(node + 0xde) >>= 1;
+    }
+  }
+}`);
+patchRectangleFunction("FUN_00425538", () => `void FUN_00425538(int actor)
+{
+  int node = actor;
+  if (E2R_UseProxyMesh(*(int *)(node + 0x22),1)) return;
+  if (*(short *)(node + 0x96) != 0) FUN_00423070((int *)(node + 0x92));
+  if (*(short *)(node + 0x96) == 0) return;
+  short *matrix = (short *)(node + 0x32);
+  memcpy(matrix,(void *)(node + 6),18);
+  /* Original 0x425580..0x425799 composes each camera axis separately;
+   * retain its per-axis fixed-point rounding rather than precombining them. */
+  int normal = DAT_0047a34a == 0 || DAT_0047a366 == 1;
+  const short *angles = (short *)0x6372bc;
+  for (int pass = 0; pass < 3; ++pass) {
+    int axis = pass == 1 ? 0 : ((pass == 0) == normal ? 1 : 2);
+    short angle = angles[axis];
+    if (angle != 0) {
+      for (int col = 0; col < 3; ++col) {
+        short vector[3] = {matrix[col],matrix[col + 3],matrix[col + 6]};
+        E2R_RotatePolygonNormal(vector,angle,axis);
+        for (int row = 0; row < 3; ++row) matrix[row * 3 + col] = vector[row];
+      }
+    }
+  }
+  int previous = E2R_actor_calc_context;
+  E2R_actor_calc_context = node;
+  FUN_00432ecc();
+  E2R_actor_calc_context = previous;
+  int surface = ((*(byte *)(*(int *)(node + 0x22) + 3) & 4) == 0 || DAT_0047a34a != 0)
+    ? 1 - (DAT_0047a279 >> 24) : 2;
+  FUN_004307d0(node,surface);
+}`);
+
+patchRectangleFunction("FUN_004307d0", body => {
+  body = replaceRectangleInput(body,"  int in_EAX;", "  int in_EAX = param_1;");
+  return replaceRectangleInput(body,"FUN_00430fd8(extraout_ECX,param_2);", "FUN_00430fd8(param_1,param_2);");
+});
+patchRectangleFunction("FUN_00430fd8", () => `undefined4 __fastcall FUN_00430fd8(undefined4 param_1,int param_2)
+{
+  /* Original 0x430fd8..0x431775 and 0x45d10e/0x45d2cc/0x45d482/0x45d5f8.
+   * Explicit C replaces their self-modified immediates and register-only leaves. */
+  int node = param_1, surface = param_2;
+  int distance = *(short *)(node + 0x96);
+  if (distance == 0) return 0;
+  uint pitch;
+  byte *pixels = (byte *)(uintptr_t)FUN_00418a04(surface,&pitch);
+  int perspective = (DAT_0047a2a4 >> 4) / distance;
+  int reduced = perspective - (perspective >> 3);
+  int rx = (perspective * *(short *)(node + 0xda) * 2) >> 6;
+  int ry = (((*(short *)(node + 0xdc) * 12) / 5) * reduced) >> 6;
+  int slope = (((*(short *)(node + 0xde) * 12) / 5) * reduced) >> 6;
+  int x = *(short *)(node + 0x92), y = *(short *)(node + 0x94);
+  if (ry > 3 && rx > 3) {
+    int top = (int)((uint)(_DAT_00640114 * 16 + y - slope - ry) * 65536u);
+    int slope_step = (int32_t)((uint)slope * 1048576u) / rx;
+    int y_step = 0x4000000 / ry, x_step = 0x4000000 / rx;
+    short left = x - rx + _DAT_00640118 * 16;
+    int x_depth_step = (int32_t)((uint)(int)*(short *)(node + 0x122) * 1048576u) / rx;
+    int y_depth_step = (int32_t)((uint)(int)*(short *)(node + 0x124) * 1048576u) / ry;
+    int bottom_slope = slope < 1 ? -slope : slope;
+    if ((short)((x - rx >> 4) + _DAT_00640118) < (int)_DAT_00640144 &&
+        (int)_DAT_00640124 <= (short)((x + rx >> 4) + _DAT_00640118 + 1) &&
+        (short)((y - ry - bottom_slope >> 4) + _DAT_00640114) < (int)_DAT_00640120 &&
+        (int)_DAT_0064012c <= (short)((y + ry + bottom_slope >> 4) + _DAT_00640114 + 1)) {
+      int owner = *(int *)(node + 0x22);
+      short *rectangle = *(short **)(owner + 0xe4);
+      int min_y = rectangle[2], max_y = rectangle[3];
+      int min_x = rectangle[0] < (left >> 4) ? rectangle[0] : left >> 4;
+      int right = ((int)left + rx * 2 >> 4) + 1;
+      int max_x = rectangle[1] > right ? rectangle[1] : right;
+      int flags = *(byte *)(node + 2) & 0x42;
+      int material = *(short *)(node + 0xce);
+      int attenuation = DAT_0047a3b4 == 0 ? 191 - (distance >> 7) : 159 - (distance >> 5);
+      if (attenuation < 0) attenuation = 0;
+      if (attenuation > 127) attenuation = 127;
+      const byte *shade = (byte *)(0x507590 + ((attenuation * *(short *)(node + 0xd0)) >> 14) * 128 + material * 0x4000);
+      short *depths = (short *)(uintptr_t)(surface == 2 ? _DAT_0063666c : _DAT_00636668);
+      int frac = 15 - (left & 15);
+      int across = (x_step * frac) >> 4;
+      int depth = (int)((uint)(distance - *(short *)(node + 0x122) - *(short *)(node + 0x124)) * 65536u);
+      depth += (frac * x_depth_step) >> 4;
+      for (int col = left >> 4; col < ((int)left + rx * 2 >> 4) && col < (int)_DAT_00640144; ++col) {
+        if ((int)_DAT_00640124 <= col) {
+          int row = top >> 20;
+          int y_frac = 15 - ((top >> 16) & 15);
+          int sample = (int32_t)((uint)(across >> 16) << 23) + ((y_step * y_frac) >> 4);
+          int z = depth + ((y_frac * y_depth_step) >> 4);
+          if (row < (int)_DAT_0064012c) {
+            int clipped = (int)_DAT_0064012c - row;
+            sample += clipped * y_step;z += clipped * y_depth_step;
+            row = _DAT_0064012c;
+          }
+          int end = (short)(((top >> 16) + ry * 2) >> 4);
+          if ((int)_DAT_00640120 < end) end = _DAT_00640120;
+          if (row < end) {
+            if (row < min_y) min_y = row;
+            if (max_y < end) max_y = end;
+            for (; row < end; ++row) {
+              int index = sample >> 16;
+              byte level = *(byte *)(0x61d030 + index);
+              if ((level & 0x80) == 0) {
+                int curve = (int)((uint)(int)*(short *)(0x621630 + index * 2) *
+                                  (uint)(*(short *)(node + 0x126) * 2));
+                short front = (int32_t)((uint)curve + (uint)z) >> 16;
+                short *occlusion = depths + row * 640 + col;
+                if (front <= *occlusion) {
+                  byte *pixel = pixels + row * pitch + col;
+                  if (flags == 0) {
+                    *occlusion = front;*pixel = shade[level];
+                  } else {
+                    short back = (int32_t)((uint)z - (uint)curve) >> 16;
+                    if (flags == 0x40) *pixel = *(byte *)(0x5bb590 + material * 256 + *pixel);
+                    else if (flags == 2) {
+                      if (back >= *occlusion) *pixel = *(byte *)(0x5bc590 + material * 256 + *pixel);
+                    } else {
+                      *pixel = *(byte *)((back >= *occlusion ? 0x5bd590 : 0x5bb590) + material * 256 + *pixel);
+                    }
+                  }
+                }
+              }
+              sample += y_step;z += y_depth_step;
+            }
+          }
+        }
+        top += slope_step;across += x_step;depth += x_depth_step;
+      }
+      rectangle[0] = min_x;rectangle[1] = max_x;rectangle[2] = min_y;rectangle[3] = max_y;
+    }
+  }
+  FUN_00418b00(surface,(uint)(uintptr_t)pixels);
+  return 0;
+}`);
+
+// Original 0x4215bd retains the actor across pixel invalidation.
+patchRectangleFunction("FUN_00421684", body => {
+  body = replaceRectangleInput(body,"void FUN_00421684(void)","void FUN_00421684(int actor)");
+  return replaceRectangleInput(body,"  int in_EAX;", "  int in_EAX = actor;");
+});
+source = replaceRectangleInput(source,"      FUN_00421684();", "      FUN_00421684(iVar5);");
+{
+  const at = prototypes.indexOf("void FUN_00421684(void);");
+  if (at < 0) throw new Error("Missing actor redraw prototype");
+  prototypes[at] = "void FUN_00421684(int actor);";
+}
+
+// Original interpolated node events retain EDI across dependent metadata updates.
+patchRectangleFunction("FUN_0042c790", body => {
+  for (const name of ["FUN_00442954", "FUN_004429e0"]) {
+    const call = `${name}();`;
+    body = replaceRectangleInput(body,call,
+      `{
+                int previous = E2R_actor_calc_context;
+                E2R_actor_calc_context = unaff_EDI;
+                ${call}
+                E2R_actor_calc_context = previous;
+              }`);
+  }
+  return body;
+});
+
+// Original 0x42b56b/0x42b5a3 and terminal 0x42b695/0x42b6ba
+// retain the selected node and the interpolation factor across metadata helpers.
+for (const owner of ["FUN_0042b490", "FUN_0042b5fc"]) {
+  patchRectangleFunction(owner, body => {
+    for (const name of ["FUN_00442954", "FUN_004429e0"]) {
+      body = replaceRectangleInput(body,`${name}();`,
+        `{
+          int previous = E2R_actor_calc_context;
+          E2R_actor_calc_context = iVar1;
+          ${name}();
+          E2R_actor_calc_context = previous;
+        }`);
+    }
+    return body.replace(/        param_2 = extraout_EDX(?:_0[01])?;\n/g, "");
+  });
+}
+
+// Original node allocation initializes two node-local matrices, not camera state.
+patchRectangleFunction("FUN_00426478", body => replaceRectangleInput(body,
+  "  FUN_00422330();\n  FUN_00422330();",
+  "  E2R_SetIdentityMatrix((undefined2 *)(iVar1 + 6));\n  E2R_SetIdentityMatrix((undefined2 *)(iVar1 + 0xc6));"));
+
+// Recover the background/actor redraw copy chain without changing legacy callers.
+source = replaceRectangleInput(source,"/* 004211c8 */", `static void E2R_CopyGameRect(int source,int destination,int sx,int sy,int dx,int dy,int width,int height)
+{
+  /* Original high-resolution 0x417c38..0x417ceb with retained EAX source,
+   * EDX source X, EBX source Y, ECX destination and the four stack dimensions. */
+  uint source_pitch, destination_pitch;
+  byte *input = (byte *)(uintptr_t)FUN_00418a04(source,&source_pitch);
+  byte *output;
+  if (source == destination) {
+    output = input;destination_pitch = source_pitch;
+  } else output = (byte *)(uintptr_t)FUN_00418a04(destination,&destination_pitch);
+  for (int row = 0; row < height; ++row)
+    for (int col = 0; col < width; ++col)
+      output[(dy + row) * destination_pitch + dx + col] = input[(sy + row) * source_pitch + sx + col];
+  FUN_00418b00(source,(uint)(uintptr_t)input);
+  if (source != destination) FUN_00418b00(destination,(uint)(uintptr_t)output);
+}
+
+static void E2R_CopyDepthRect(int source,int destination,int x,int y,int width,int height)
+{
+  /* Original 0x41868c copies rounded DWORD spans at the same X/Y. Hosted
+   * global aliases are separate objects, not a contiguous pointer table. */
+  uint buffers[3] = {_DAT_00636668,_DAT_0063666c,_DAT_00636670};
+  byte *input = (byte *)(uintptr_t)buffers[source];
+  byte *output = (byte *)(uintptr_t)buffers[destination];
+  int pitch = _DAT_006401ec * 2;
+  for (int row = 0; row < height; ++row)
+    for (int col = 0; col < ((width + 1) >> 1) * 4; ++col)
+      output[(y + row) * pitch + x * 2 + col] = input[(y + row) * pitch + x * 2 + col];
+}
+
+/* 004211c8 */`);
+for (const name of ["FUN_0044c224", "FUN_0044be20"]) patchRectangleFunction(name, body => {
+  body = replaceRectangleInput(body,
+    "FUN_0041760c(2,0,0,0,_DAT_006401ec,_DAT_006401d4);",
+    "E2R_CopyGameRect(3,2,0,0,0,0,_DAT_006401ec,_DAT_006401d4);");
+  const depth = "FUN_0041868c(0,1,(int)_DAT_006401ec,_DAT_006401d4);";
+  if (body.split(depth).length !== (name === "FUN_0044be20" ? 3 : 2))
+    throw new Error("Missing camera depth copies " + name);
+  body = body.replaceAll(depth, "E2R_CopyDepthRect(2,1,0,0,_DAT_006401ec,_DAT_006401d4);");
+  return replaceRectangleInput(body,"FUN_0041868c(0,0,(int)_DAT_006401ec,_DAT_006401d4);",
+    "E2R_CopyDepthRect(2,0,0,0,_DAT_006401ec,_DAT_006401d4);");
+});
+patchRectangleFunction("FUN_004211c8", body => replaceRectangleInput(body,
+  "      FUN_0041760c(1 - (DAT_0047a279 >> 0x18),0,0,0,_DAT_006401ec,_DAT_006401d4);",
+  "      E2R_CopyGameRect(2,1 - (DAT_0047a279 >> 0x18),0,0,0,0,_DAT_006401ec,_DAT_006401d4);"));
+patchRectangleFunction("FUN_00421684", body => {
+  body = replaceRectangleInput(body,"  FUN_0041760c(2,uVar7,uVar7,iVar8,puVar5,iVar4);",
+    "  E2R_CopyGameRect(3,2,uVar7,iVar8,uVar7,iVar8,(int)puVar5,iVar4);");
+  return replaceRectangleInput(body,
+    "  FUN_0041868c(iVar4,1,((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,",
+    "  E2R_CopyDepthRect(2,1,(short)*piVar3,iVar4,((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,");
+});
+
+patchRectangleFunction("FUN_0044c4e4", body => {
+  body = replaceRectangleInput(body,"FUN_0041868c(0,1,_DAT_006401ec,_DAT_006401d4);",
+    "E2R_CopyDepthRect(0,1,0,0,_DAT_006401ec,_DAT_006401d4);");
+  return replaceRectangleInput(body,"FUN_0041868c(0,2,_DAT_006401ec,_DAT_006401d4);",
+    "E2R_CopyDepthRect(0,2,0,0,_DAT_006401ec,_DAT_006401d4);");
+});
+
+patchRectangleFunction("FUN_00414f40", body => {
+  const start = body.indexOf("  for (mode = 0; mode < 16;");
+  const end = body.indexOf("  for (y = 0; y < 128;",start + 20);
+  // The first y loop is inside the mode loop; retain the later 0x80 sentinel table.
+  const sentinel = body.indexOf("  for (y = 0; y < 128;",end + 1);
+  if (start < 0 || sentinel < 0) throw new Error("Missing actor shade initializer");
+  body = body.slice(0,start) + "  E2R_InitActorShadeTable();\n\n" + body.slice(sentinel);
+  return `static void E2R_InitActorShadeTable(void)
+{
+  /* Original 0x415167..0x41535b and its sixteen-entry 0x414f00 dispatch. */
+  static const byte palette[16] = {0,1,1,1,2,2,3,3,4,4,5,5,6,6,7,7};
+  static const byte contrast[16] = {0,2,1,0,1,0,1,0,1,0,1,0,1,0,1,0};
+  for (int mode = 0; mode < 16; ++mode) {
+    for (int y = 0; y < 128; ++y) {
+      for (int x = 0; x < 128; ++x) {
+        int value = (x * y) >> 7;
+        if (contrast[mode] == 1) value -= (y * 3) / 8;
+        if (contrast[mode] == 2) value -= (y * 5) / 8;
+        byte color = 0;
+        if (value > 0 && mode != 0) {
+          if (value > 127) value = 127;
+          color = (value >> 2) + palette[mode] * 32;
+        }
+        *(byte *)(0x507590 + mode * 0x4000 + y * 128 + x) = color;
+      }
+    }
+  }
+}
+
+` + body;
+});
+
+// Original 0x424b48..0x424bd7 restores the drawing depth page (1 -> 0)
+// over each dirty rectangle. Both hidden coordinates and the source selector
+// were lost at its old no-register-argument FUN_0041868c call.
+source = source.replace(/void FUN_00424b48\(void\)\s*\{[\s\S]*?(?=\n\/\* 00424bd8 \*\/)/,
+`void FUN_00424b48(void)
+{
+  int page = 1 - (DAT_0047a279 >> 24);
+  for (int i = 0; i < *(int *)(0x47a29c + page * 4); ++i) {
+    const short *rect = (short *)(0x6368e0 + page * 0x4b0 + i * 8);
+    if (rect[0] <= rect[1] && rect[2] <= rect[3])
+      E2R_CopyDepthRect(1,0,rect[0],rect[2],rect[1] + 1 - rect[0],rect[3] + 1 - rect[2]);
+  }
+}
+
+
+`);
 
 fs.writeFileSync(outSrc, source);
 

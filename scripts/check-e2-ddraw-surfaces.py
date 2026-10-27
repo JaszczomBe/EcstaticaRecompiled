@@ -60,7 +60,11 @@ int main(void) {
         DAT_0047d0cc=(uintptr_t)primary;DAT_0047d0d0=(uintptr_t)offscreen;DAT_0047a279=1u<<24;
         uint32_t pitch=0;unsigned base=FUN_00418a04(1,&pitch);
         assert(base && pitch==640 && base!=(unsigned)auxiliary);
+        const unsigned char *view;unsigned view_width,view_height,view_pitch;
+        assert(!E2R_GetDirectDrawPixels((uintptr_t)primary,&view,&view_width,&view_height,&view_pitch));
         memset((void *)base,0x31,640*480);FUN_00418b00(1,base);
+        assert(E2R_GetDirectDrawPixels((uintptr_t)primary,&view,&view_width,&view_height,&view_pitch));
+        assert((unsigned)view==base && view_width==640 && view_height==480 && view_pitch==640);
         unsigned primary_base=base;
         base=FUN_00418a04(0,&pitch);
         assert(base && pitch==644 && base!=primary_base);
@@ -86,6 +90,8 @@ int main(void) {
         unsigned back_base=lock_desc[9];assert(back_base!=primary_base && back_base!=base);
         memset((void *)back_base,0x54,640*480);assert(!back_unlock(back,(void *)back_base));
         int (*flip)(void *,void *,unsigned)=pv[11];assert(!flip(primary,NULL,0));
+        assert(E2R_GetDirectDrawPixels((uintptr_t)primary,&view,&view_width,&view_height,&view_pitch));
+        assert((unsigned)view==back_base && view[0]==0x54);
         base=FUN_00418a04(1,&pitch);assert(base==back_base && *(unsigned char *)base==0x54);FUN_00418b00(1,base);
         assert(release(back)==1 && release(primary)==0);
         DAT_0047d0c8=(uintptr_t)dd;DAT_0047d0cc=0;

@@ -27,7 +27,76 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 2. Replacing recovered logic with speculative shortcuts or direct SDL calls.
 3. Broad generated-file changes unrelated to a source-backed repair.
 
-## Current work — Door approach reliability regression
+## Current continuation — Tower actor eviction
+
+The user accepts the preceding enemy-play/potion repairs and reaches the top of
+the tower in a longer F5 session. The new failure occurs while loading
+**264/key3**: the fixed node pool fills and eviction loses its selected actor
+pointer. `FUN_0045282c` now retains that actor and recovers original attachment
+recursion, list/table removal and error arguments. Root cleanup marks the
+original **+2** free field and preserves its return pointer. No pool enlargement
+or eviction bypass is added.
+
+[Step 09 Task 09](steps/step-09/tasks/task-09-recover-scene-population-and-interaction.md)
+and the [tower journal](../../journal/entries/tower-actor-eviction-crash-2026-10-27.md)
+own this repair. Normal/ASan original-code comparisons each pass **163 cases**,
+including actual allocation under full node-pool pressure. The captured Debug
+route matches **1088 checkpoints**, correctly evicts **3030/trelim10**, then
+strictly diverges from the recorded fatal requester. This is scoped recovery,
+not full replay or further tower gameplay acceptance. Restart F5 after rebuilding.
+
+## Previous continuation — Human crash and dropped potion
+
+The user likes the recovered enemies and reports a short-play bitmap-disposal
+crash plus a dropped yellow pickup that stays attached without healing.
+[Step 09 Task 09](steps/step-09/tasks/task-09-recover-scene-population-and-interaction.md)
+owns these gameplay repairs. The action index had accepted false headers inside
+sound payload, redirecting animation **1256** to a sound resource. Indexing now
+uses the actual version-55 action header and matches all **2000** original
+`OFFSETS` entries. Representation-name interning/lookup now uses the original
+**4000-byte** pool, restoring dropped `w_pot` **424** in script conditions instead
+of the invalid token **0x8fff**. New representation slots receive original cache
+clearing; existing slots remain intact.
+
+The [follow-up journal](../../journal/entries/enemy-play-crash-and-dropped-potion-2026-10-27.md)
+owns the captured reproduction, original instructions, fresh original-code/native
+checks and explicit replay/fixture limits. This is a continuation of accepted
+character rendering, not a restart of the closed investigation or suite milestones.
+
+## Previous continuation — Original enemy bodies and animations
+
+The user accepted the repaired player on 2026-10-27 (“perfection, works as a
+charm”) and requested enemy animations next. Current order is **enemy animation
+→ functional game save/load → game sounds → music**. Session saving, replay
+and the gameplay regression suite are closed milestones with minor follow-ups
+deferred.
+
+[Step 08 Task 03](steps/step-08/tasks/task-03-activate-scene-backed-children.md)
+owns this pass. F5 enables `E2R_NPC_MESH=1` alongside `E2R_PLAYER_MESH=1`.
+Original character ellipsoids and full bone poses now use the player's recovered
+camera, shading, depth and physical-page path. Character diagnostic shapes are
+hidden; objects and equipment keep diagnostic rendering. The original scheduler,
+actions, AI, damage and animation resources remain in control. NPC polygon/box
+leaves and original HUD graphics remain bypassed.
+
+Both original pedestal guards render articulated green bodies; ASan samples
+**52/53 nodes and 12 distinct poses each**, from restrained/released frames through
+movement and a five-second observation. A live attack route proves guard 284
+inflicts actual damage **100 → 95** and exits normally through the menu. Workshop
+captures also show smith 602's changing **56-node** body and final corpse. Broad
+combat journeys retain failures (navigation, missed attack/death, bitmap pool and
+another enemy landing the final blow); those are not passing kill regressions.
+The [enemy journal](../../journal/entries/enemy-model-and-animation-2026-10-27.md)
+owns commands, fresh validation and limits.
+
+The accepted [player task](steps/step-08/tasks/task-02-recover-joe-geometry-and-rendering.md)
+and [player journal](../../journal/entries/player-model-and-animation-2026-10-27.md)
+retain the projection correction, original-x86 fixtures and earlier bounded
+qualification. These remain separate from exhaustive enemy species/actions,
+human enemy visual review and a full regression sweep with NPC bodies enabled.
+Historical sections below retain their dated acceptance boundaries.
+
+## Previous milestone — Door approach reliability regression
 
 The user's full visible-Debug/two-worker run fails door approach and blocks
 Debug stability on exactly the same sources and binaries as the earlier green
@@ -235,21 +304,21 @@ The 2026-10-14 [documentation review](../../journal/entries/documentation-review
 
 ## Step Roadmap
 
-Step numbers are stable identifiers, not execution order. Step 07 is complete. The user's 2026-10-14 priority is **09 diagnostic gameplay, drawing on required 08 logic repairs and basic 03 movement/camera proofs → remaining 08/03 fidelity and controls → 04 → 05 → 06**. Original meshes, visible animation and all NPCs are no longer prerequisites for the first controllable milestone. Steps 01/02 and Step 03 Tasks 01/02 retain their bounded historical completions.
+Step numbers are stable identifiers, not execution order. The current order is **08 Task 02 player model/animation → game save/load → other enemy animation → sounds → music**. Step 09's accepted diagnostic gameplay and the completed regression tools supply verification; their minor gaps remain tracked. Steps 01/02/07 and Step 03 Tasks 01/02 retain their bounded historical completions.
 
 | Step | Status | Outcome / dependency |
 | --- | --- | --- |
 | [01 — Interactive SDL stability](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) | completed | Historical bounded startup/F5 investigation |
 | [02 — DirectDraw page and palette semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) | completed | Recovered front source, palette, aspect-fit presentation |
 | [07 — Restore reproducible baseline](steps/step-07/step-07-restore-reproducible-runtime-baseline.md) | completed | Automated checks pass; manual screenshot/log confirms scene-175 baseline |
-| [09 — Diagnostic gameplay with cylinders](steps/step-09/step-09-enable-diagnostic-gameplay.md) | active | Manual castle locomotion/collision confirmed; population/interaction next; Debug/ASan bounded round trips and 60-second released-input observations pass |
-| [08 — Recover scene-175 actors](steps/step-08/step-08-recover-scene-175-actors.md) | active | Logic repairs feed 09; full-render route needs DirectDraw Lock, then geometry/placement/action and children |
+| [09 — Diagnostic gameplay with cylinders](steps/step-09/step-09-enable-diagnostic-gameplay.md) | active | Diagnostic gameplay milestone accepted with recorded follow-ups; movement, population, interactions and the regression suite support player recovery |
+| [08 — Recover scene-175 actors](steps/step-08/step-08-recover-scene-175-actors.md) | active | Player body and bone animation restored with original-backed Debug/ASan evidence; human visual qualification and remaining actor/equipment rendering stay separate |
 | [03 — Gameplay control and camera proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) | partially deferred | Input mapping/matrix complete; basic locomotion/camera proofs join 09, broader controls follow readiness |
 | [04 — Timing and frame pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) | planned | Recover game timing ownership after visible control proofs |
 | [05 — DirectSound compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) | planned | Map sound calls before implementing an audio boundary |
 | [06 — Developer runtime packaging](steps/step-06/step-06-package-reproducible-developer-runtime.md) | planned | Consolidate existing setup docs, add unified validation, define release gate |
 
-## Active Frontier
+## Earlier gameplay frontier — historical evidence
 
 The [recorded courtyard route](../../journal/entries/recorded-courtyard-route-2026-10-26.md)
 replaces Regression **04**'s guessed crossing with the user's pedestal/central

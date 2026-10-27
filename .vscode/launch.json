@@ -57,6 +57,14 @@
           "value": "1"
         },
         {
+          "name": "E2R_PLAYER_MESH",
+          "value": "1"
+        },
+        {
+          "name": "E2R_NPC_MESH",
+          "value": "1"
+        },
+        {
           "name": "E2R_DEFER_BACKGROUND_SPAWNS",
           "value": "0"
         }
