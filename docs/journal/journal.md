@@ -8,6 +8,18 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Door approach regression and acceptance reliability — 2026-10-27](entries/regression-door-approach-reliability-2026-10-27.md): preserves the matching-source visible-run counterexample, reopens full-suite reliability, and adds scene-planned approach plus a required distant-start regression.
+
+- [Sequential invisible regression sweep handoff — 2026-10-26](entries/headless-regression-sweep-handoff-2026-10-26.md): authorizes the next context to run numbered blocks 01–10 sequentially with SDL dummy, diagnose and repair failures, and finish with an integrated headless sweep; records current evidence and open coverage limits.
+
+- [Receive-hit contact navigation — 2026-10-26](entries/receive-hit-contact-navigation-2026-10-26.md): diagnoses ASan potion Trial D's guard pursuit failure, aligns with original melee, validates eligible guards and uses live scene-floor joining while preserving real damage and fixed-target bounds.
+
+- [Regression 08 freeze and event callback — 2026-10-26](entries/regression-08-freeze-and-event-callback-2026-10-26.md): distinguishes the user's stopped freeze from a captured event-7 crash, restores original node ownership, and adds bounded automatic stopped-stack capture to agent probes.
+
+- [Natural potion consumption — 2026-10-26](entries/natural-potion-consumption-2026-10-26.md): accepts natural effects including no-op, makes branch summaries optional, restores the original animation-name repair for bottle removal and shares the height-aware workshop approach after damage.
+
+- [Regression 05 investigation and navigator handoff — 2026-10-26](entries/goal-driven-navigation-handoff-2026-10-26.md): inspects the latest passing unarmed contact and failing receive-damage journeys; tasks the next context with bounded state-aware navigation and honest blocker/failure reporting.
+
 - [Controlled opening population and startup logos — 2026-10-26](entries/noncombat-population-and-logos-2026-10-26.md): prevents audited enemy creation in noncombat journeys, preserves live combat failures, restores default F5 logo waits and measures shared versus isolated execution.
 
 - [Recorded pedestal–courtyard round trip — 2026-10-26](entries/recorded-courtyard-route-2026-10-26.md): replaces Regression 04's guessed crossing with the user's central-courtyard loop, preserves return assertions and separates incompatible startup/movement state.
@@ -135,7 +147,12 @@ Use [journal.template.md](../templates/journal.template.md) for new journal entr
 
 - [Courtyard Camera Traversal — 2026-10-19](entries/courtyard-camera-traversal-2026-10-19.md)
 - [Courtyard Steering Replay And Sustained Observation — 2026-10-19](entries/courtyard-steering-audit-2026-10-19.md)
+- [Goal-driven regression navigation — 2026-10-26](entries/goal-driven-navigation-2026-10-26.md)
+- [Sequential invisible regression sweep — 2026-10-27](entries/headless-regression-sweep-2026-10-27.md)
 - [Manual Castle Exploration And Population Frontier — 2026-10-19](entries/manual-castle-exploration-2026-10-19.md)
 - [Pedestal intro restart after early skip — 2026-10-24](entries/pedestal-intro-restart-2026-10-24.md)
 - [Shared gameplay checkpoint journeys — 2026-10-24](entries/shared-gameplay-journeys-2026-10-24.md)
+- [Swimming route navigation — 2026-10-26](entries/swimming-route-navigation-2026-10-26.md)
+- [Water goals and scene navigation — 2026-10-26](entries/water-goals-and-scene-navigation-2026-10-26.md)
+- [Workshop door passage navigation — 2026-10-26](entries/workshop-door-passage-navigation-2026-10-26.md)
 <!-- /docs-tree:children -->

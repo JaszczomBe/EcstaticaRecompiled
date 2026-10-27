@@ -24,6 +24,7 @@ run.add_argument('--timeout',type=float,default=120);run.add_argument('--stop-be
 run.add_argument('--stop-checkpoint',type=int);run.add_argument('--compatible',action='store_true')
 run.add_argument('--data-dir',type=Path);run.add_argument('--pause',action='store_true')
 run.add_argument('--inspect',action='store_true',help='Write a separate observational timeline and bounded frames')
+run.add_argument('--video-driver',choices=('dummy','x11','wayland'),help='Override the recorded SDL video driver')
 export=sub.add_parser('export');export.add_argument('source',type=Path);export.add_argument('destination',type=Path)
 inspect=sub.add_parser('inspect');inspect.add_argument('source',type=Path)
 a=parser.parse_args()
@@ -93,6 +94,7 @@ else:
         for key in list(env):
             if key.startswith('E2R_') or key in ('SDL_VIDEODRIVER','SDL_AUDIODRIVER','ASAN_OPTIONS','TZ'):env.pop(key)
         env.update({k[4:]:v for k,v in meta.items() if k.startswith('env.')})
+        if a.video_driver:env['SDL_VIDEODRIVER']=a.video_driver
         env['E2R_RECORD']='off'
         if a.inspect:env['E2R_INSPECT']='1'
         if a.pause:env['E2R_REPLAY_PAUSE']='1'

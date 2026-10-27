@@ -35,6 +35,7 @@ class SuiteContracts(unittest.TestCase):
                                ('Startup.DelayedSkip','live'),('Traversal.CourtyardReturn','noncombat-opening'),
                                ('Interaction.SwordPickup','noncombat-opening'),('Combat.UnarmedDirections','noncombat-opening'),
                                ('Combat.UnarmedContact','live'),('Combat.KillSmith','live'),
+                               ('Interaction.DoorPassageDisplaced','live'),
                                ('Combat.TakeDamage','live'),('Potion.TrialA','live'),('Stability.MixedJourney','live')]:
             unit=next(unit for unit in journey_plan(cases,['debug.'+check]) if 'debug.'+check in unit.checkpoints)
             self.assertEqual(journey_population(unit),expected,check)
@@ -219,6 +220,116 @@ class SuiteContracts(unittest.TestCase):
         result['status']='FAIL'
         self.assertEqual(perform(case,self.root,{'Trial':result})['status'],'BLOCKED')
 
+    def test_random_potion_outcomes_are_optional_and_do_not_require_rng_luck(self):
+        cases=self.shared_catalogue()
+        coverage=[case for case in cases if case.kind=='coverage']
+        self.assertEqual(len(coverage),4)
+        self.assertTrue(all(not case.required for case in coverage))
+        trial=dict(name='Trial',status='PASS',observations=dict(potion=dict(branch='noop',before_health=85)))
+        perform=executor(Path('/unneeded'))
+        checks=[Case('Observed.'+branch,kind='coverage',required=False,
+                     options=dict(branch=branch,trials=['Trial']))
+                for branch in ('healing','poison','invisibility','noop')]
+        report=self.run_suite(checks,lambda case,dest,_:perform(case,dest,{'Trial':trial}))
+        self.assertEqual(report['exit_code'],0)
+        self.assertEqual(report['counts']['PASS'],1)
+        self.assertEqual(report['counts']['SKIPPED'],3)
+
+    def potion_module(self):
+        import importlib.util
+        from types import SimpleNamespace
+        fake_gdb=SimpleNamespace(GdbError=RuntimeError,error=RuntimeError)
+        with patch.dict(sys.modules,{'gdb':fake_gdb}):
+            spec=importlib.util.spec_from_file_location('potion_contract',ROOT/'scripts/e2_gameplay_steps.py')
+            module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        return module
+
+    def test_consumption_accepts_each_natural_effect_including_no_change(self):
+        failure=self.potion_module().potion_failure
+        for branch,script,action,timers,after in (
+            ('healing',156,391,[],100),('poison',183,409,[5],85),
+            ('invisibility',157,383,[387],85),('noop',1803,369,[],85)):
+            row=dict(branch=branch,before_health=85,after_health=after,scripts=[189,script],
+                     actions=[369,action],timers=[dict(action=a) for a in timers],samples=[
+                         dict(attached_to_joe=True,attachment=1,representation=2),
+                         dict(attached_to_joe=False,attachment=0,representation=0)])
+            self.assertIsNone(failure(row),branch)
+            row['actions']=[0xf7370000 | action for action in row['actions']]
+            self.assertIsNone(failure(row),'Upper word is outside the original short action ID')
+            if branch=='healing':
+                row['before_health']=100
+                self.assertIsNone(failure(row),'Already healthy is valid consumption')
+            row['samples'][-1]['attachment']=1
+            self.assertIn('remains attached',failure(row))
+            row['samples'][-1]['attachment']=0
+            row['samples'][0]['attached_to_joe']=False
+            self.assertIn('pickup and drinking',failure(row))
+
+    def test_consumption_rejects_missing_or_contradictory_effect(self):
+        failure=self.potion_module().potion_failure
+        row=dict(branch='poison',before_health=85,after_health=85,scripts=[189,183],
+                 actions=[369,409],timers=[],samples=[
+                     dict(attached_to_joe=True,attachment=1,representation=2),
+                     dict(attached_to_joe=False,attachment=0,representation=0)])
+        self.assertIn('death timer missing',failure(row))
+        row.update(branch='healing',scripts=[189,156],actions=[369,391])
+        self.assertIn('maximum health',failure(row))
+        row.update(branch='noop',scripts=[189,1803],after_health=100)
+        self.assertIn('no-op changed',failure(row))
+        row.update(after_health=85,scripts=[189,1803,156])
+        self.assertIn('not uniquely observed',failure(row))
+
+    def test_potion_corridor_joins_actual_floor_after_a_hit(self):
+        from unittest.mock import Mock
+        module=self.potion_module();journey=module.Journey.__new__(module.Journey)
+        journey.details={};journey.save=lambda:None;journey.scene_map=lambda:'actual scene'
+        for start in ([8814,4096,-16965],[8566,4096,-17229],[10000,3328,-16910],[3611,4096,-17894]):
+            journey.position=lambda:list(start)
+            navigator=Mock()
+            journey.workshop_corridor(navigator)
+            path=navigator.follow_route.call_args.args[0]
+            if journey.details['workshop_entry']['distance']>=4000:
+                navigator.navigate.assert_called_once_with('actual scene',path[0])
+            else:navigator.navigate.assert_not_called()
+            self.assertLessEqual(abs(path[0][1]-start[1]),300)
+            self.assertEqual(path[-1],[2350,4096,-10889])
+            if start[1]==4096:self.assertNotEqual(path[0][0],9736)
+
+    def test_encounter_corridor_uses_live_scene_join_after_displaced_movement(self):
+        from unittest.mock import Mock
+        module=self.potion_module();journey=module.Journey.__new__(module.Journey)
+        journey.details={};journey.save=lambda:None;journey.scene_map=lambda:'actual scene'
+        for start in ([7854,3328,-18678],[9733,3328,-16943],[5729,4096,-16430]):
+            journey.position=lambda:list(start)
+            navigator=Mock();journey.encounter_corridor(navigator)
+            path=navigator.follow_route.call_args.args[0]
+            self.assertEqual(path[0][1],start[1])
+            if journey.details['encounter_entry']['distance']>=1800:
+                navigator.navigate.assert_called_once_with('actual scene',path[0])
+            else:navigator.navigate.assert_not_called()
+        journey.position=lambda:[7854,10000,-18678]
+        with self.assertRaisesRegex(RuntimeError,'No observed floor'):journey.encounter_corridor(Mock())
+
+    def test_potion_to_sword_keeps_consumed_bottle_removed(self):
+        from unittest.mock import Mock
+        module=self.potion_module();journey=module.Journey.__new__(module.Journey)
+        journey.name='potion-sword'
+        journey.phase=lambda _:__import__('contextlib').nullcontext()
+        navigator=Mock();journey.navigator=Mock(return_value=navigator)
+        journey.scene_map=Mock(return_value='observed workshop floors')
+        journey.sword=Mock();journey.attacks=Mock();journey.actor_by_id=lambda _:537
+        for condition in ('pass','attached','represented'):
+            journey.value=lambda expr:int(condition=='attached' and '+0xf2' in expr or
+                                          condition=='represented' and '+0x11e' in expr)
+            if condition=='pass':journey.potion_then_sword()
+            else:
+                with self.assertRaisesRegex(RuntimeError,'restored the consumed bottle'):journey.potion_then_sword()
+        self.assertEqual(navigator.navigate.call_args.args,('observed workshop floors',[-871,4096,-10006]))
+        self.assertEqual(navigator.navigate.call_args.kwargs,dict(avoid_actors=True))
+        navigator.follow_route.assert_not_called()
+        self.assertEqual(journey.sword.call_args.kwargs,dict(traverse=False))
+        self.assertEqual(journey.attacks.call_count,3)
+
     def test_fresh_setup_failure_blocks_unexercised_action(self):
         case=Case('Potion',scenario='potion-damaged')
         failure=dict(status='FAIL',reason='no hit',phases=[
@@ -291,6 +402,69 @@ class SuiteContracts(unittest.TestCase):
         self.assertEqual(environment['E2R_RECORD'],'off')
         self.assertEqual(environment['SDL_VIDEODRIVER'],'wayland')
 
+    def test_replay_display_is_explicit_for_each_configuration(self):
+        pinned=self.root/'debug.Build/e2recomp'
+        pinned.parent.mkdir();pinned.write_bytes(b'pinned executable')
+        case=Case('debug.Replay.1',kind='replay',configuration='debug',timeout=180,
+                  options=dict(source='/recording/replay',specification='/scenario.json'))
+        results={'debug.Build':dict(binary=dict(sha256=digest(pinned)))}
+        for driver in ('dummy','x11','wayland'):
+            with patch('e2_suite.execute',return_value=dict(status='FAIL',reason='contract stub')) as call:
+                executor(Path('/external'),driver)(case,self.root,results)
+            command=call.call_args.args[0]
+            self.assertEqual(command[command.index('--video-driver')+1],driver)
+            self.assertIn('--compatible',command)
+            self.assertEqual(call.call_args.args[3]['SDL_VIDEODRIVER'],driver)
+
+    def test_replay_launcher_preserves_recording_and_overrides_display(self):
+        import csv
+        # Incomplete synthetic input only tests launcher policy; this executable
+        # never runs the native parser or establishes gameplay replay acceptance.
+        source=self.root/'replay';source.mkdir()
+        with (source/'metadata.csv').open('w',newline='') as stream:
+            csv.writer(stream).writerows([['key','value'],['schema','e2replay.csv.1'],
+                ['game_data_path',str(self.root)],['env.SDL_VIDEODRIVER','x11'],['env.E2R_RECORD','1']])
+        (source/'events.csv').write_text('seq,kind\n')
+        (source/'checkpoints.csv').write_text('seq,kind\n')
+        (source/'recording.incomplete').write_text('launcher fixture; not a complete recording\n')
+        original={path.name:digest(path) for path in source.iterdir()}
+        executable=self.root/'launcher-fixture'
+        executable.write_text('''#!/usr/bin/env python3
+import hashlib,json,os,sys
+from pathlib import Path
+source=Path(sys.argv[sys.argv.index('--replay')+1])
+destination=Path(sys.argv[sys.argv.index('--data-dir')+1]);destination.mkdir(parents=True)
+(destination/'launch.json').write_text(json.dumps(dict(driver=os.environ.get('SDL_VIDEODRIVER'),
+    recording=os.environ.get('E2R_RECORD'),inspect=os.environ.get('E2R_INSPECT'),
+    hashes={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in source.iterdir()})))
+''')
+        executable.chmod(0o755)
+        for driver in (None,'dummy'):
+            destination=self.root/('default' if driver is None else driver)
+            command=[sys.executable,str(ROOT/'scripts/replay-e2.py'),'run',str(executable),str(source),
+                     '--inspect','--data-dir',str(destination),'--timeout','10']
+            if driver:command+=['--video-driver',driver]
+            result=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=15)
+            self.assertEqual(result.returncode,0,result.stdout)
+            launch=json.loads((destination/'launch.json').read_text())
+            self.assertEqual(launch,dict(driver=driver or 'x11',recording='off',inspect='1',hashes=original))
+            self.assertEqual({path.name:digest(path) for path in source.iterdir()},original)
+
+        specification=self.root/'scenario.json'
+        specification.write_text(json.dumps(dict(schema='e2debug.scenario.1',
+            assertions=[dict(scope='world',entity_id=0,field='camera',value=175)])))
+        destination=self.root/'scenario'
+        result=subprocess.run([sys.executable,str(ROOT/'scripts/e2-debug.py'),'scenario',str(executable),
+            str(source),str(specification),str(destination),'--video-driver','dummy','--timeout','10'],
+            stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=20)
+        self.assertEqual(result.returncode,1,result.stdout)
+        report=json.loads((destination/'result.json').read_text())
+        self.assertEqual(report['video_driver_override'],'dummy')
+        self.assertFalse(report['passed'])
+        self.assertFalse(report['inspection_complete'])
+        self.assertEqual(json.loads((destination/'runtime/launch.json').read_text())['driver'],'dummy')
+        self.assertEqual({path.name:digest(path) for path in source.iterdir()},original)
+
     def test_block_launches_share_default_headless_picker(self):
         config=json.loads((ROOT/'.vscode/launch.json').read_text())
         picker=next(item for item in config['inputs'] if item['id']=='e2SuiteDisplay')
@@ -335,21 +509,51 @@ class SuiteContracts(unittest.TestCase):
         units=journey_plan(cases)
         names=[name for unit in units for name in unit.checkpoints or (unit.name,)]
         self.assertEqual(set(names),{case.name for case in cases})
-        self.assertEqual(len(names),184)
-        self.assertEqual(sum(unit.kind=='journey' for unit in cases),96)
-        self.assertEqual(sum(unit.kind=='journey' for unit in units),20)
+        self.assertEqual(len(names),205)
+        self.assertEqual(sum(unit.kind=='journey' for unit in cases),108)
+        self.assertEqual(sum(unit.kind=='journey' for unit in units),26)
         for unit in units:
             if unit.checkpoints:
                 self.assertTrue(all(name.startswith(unit.configuration+'.') for name in unit.checkpoints))
+
+    def test_navigation_setup_failure_blocks_damage_and_fails_lifecycle(self):
+        cases=self.shared_catalogue()
+        units=journey_plan(cases,['debug.Combat.TakeDamage'])
+        unit=next(unit for unit in units if unit.kind=='journey')
+        def perform(active,*_):
+            if active.kind!='journey':return dict(status='PASS')
+            rows=[dict(name='Startup.DelayedSkip',status='PASS',phase_start=0,phase_end=1,details={}),
+                  dict(name='Movement.ControlsAndRelease',status='PASS',phase_start=1,phase_end=2,details={}),
+                  dict(name='Combat.TakeDamage',status='FAIL',parent=None),
+                  dict(name='setup.ReceiveHitEncounter',status='FAIL',parent='Combat.TakeDamage',
+                       reason='height mismatch; connected route required')]
+            return dict(status='FAIL',reason='height mismatch; connected route required',
+                        progress=dict(checkpoints=rows,details=dict(navigation=[dict(outcome='FAIL',
+                            reason='height mismatch',target=284,replans=0)])))
+        with redirect_stdout(io.StringIO()):
+            report=run_cases(cases,perform,self.root/'report',['debug.Combat.TakeDamage'],shared=True)
+        results={row['name']:row for row in report['results']}
+        self.assertEqual(results['debug.Movement.ControlsAndRelease']['status'],'PASS')
+        self.assertEqual(results['debug.Combat.TakeDamage']['status'],'BLOCKED')
+        self.assertEqual(results['debug.Combat.TakeDamage']['root_causes'],[unit.name+'::setup.ReceiveHitEncounter'])
+        self.assertEqual(report['journeys'][0]['status'],'FAIL')
+        self.assertEqual(report['journeys'][0]['progress']['details']['navigation'][0]['target'],284)
+        self.assertEqual(report['exit_code'],1)
+        self.assertIn('height mismatch',(self.root/'report/report.html').read_text())
+        self.assertIn('BLOCKED',(self.root/'report/report.xml').read_text())
 
     def test_shared_prerequisites_and_distinct_routes(self):
         cases=self.shared_catalogue()
         workshop=journey_plan(cases,block_patterns(cases,'workshop'))
         live=[unit for unit in workshop if unit.checkpoints]
-        self.assertEqual(len(live),1)
+        self.assertEqual(len(live),2)
         self.assertIn('debug.Movement.ControlsAndRelease',live[0].checkpoints)
         self.assertIn('debug.Combat.KillSmith',live[0].checkpoints)
         self.assertNotIn('debug.Combat.UnarmedDirections',live[0].checkpoints)
+        displaced=next(unit for unit in live if 'debug.Interaction.DoorPassageDisplaced' in unit.checkpoints)
+        self.assertNotIn('debug.Interaction.DoorPassage',displaced.checkpoints)
+        self.assertTrue(displaced.options['displaced_door_start'])
+        self.assertTrue(displaced.options['observe_door_health'])
         startup=[unit for unit in journey_plan(cases,block_patterns(cases,'startup')) if unit.checkpoints]
         self.assertEqual(len(startup),3)
         self.assertEqual({unit.options['intro'] for unit in startup},{'early','delayed','natural'})
@@ -361,6 +565,29 @@ class SuiteContracts(unittest.TestCase):
         self.assertIn('debug.Interaction.PotionThenSword',potion_a.checkpoints)
         water=next(unit for unit in full if 'debug.Movement.Swimming' in unit.checkpoints)
         self.assertNotIn('debug.Interaction.SwordPickup',water.checkpoints)
+
+    def test_live_unarmed_contact_cannot_consume_the_later_fresh_door_setup(self):
+        cases=self.shared_catalogue()
+        patterns=['debug.Combat.UnarmedContact','debug.Interaction.DoorPassage']
+        units=[unit for unit in journey_plan(cases,patterns) if unit.checkpoints]
+        unarmed=next(unit for unit in units if 'debug.Combat.UnarmedContact' in unit.checkpoints)
+        door=next(unit for unit in units if 'debug.Interaction.DoorPassage' in unit.checkpoints)
+        self.assertNotEqual(unarmed.name,door.name)
+        self.assertTrue(door.options['observe_door_health'])
+        self.assertIn('debug.Combat.FourDirections',door.checkpoints)
+        self.assertIn('debug.Interaction.SwordPickup',door.checkpoints)
+        def execute(unit,*_):
+            if not unit.checkpoints:return dict(status='PASS',reason='')
+            fresh_door=True
+            for name in unit.checkpoints:
+                if name.endswith('Combat.UnarmedContact'):fresh_door=False
+                if name.endswith('Interaction.DoorPassage') and not fresh_door:
+                    return self.checkpoint_outcome(unit,stop=name)
+            return self.checkpoint_outcome(unit)
+        with redirect_stdout(io.StringIO()):
+            report=run_cases(cases,execute,self.root/'report',patterns,shared=True)
+        self.assertEqual(report['exit_code'],0)
+        self.assertTrue(all(row['status']=='PASS' for row in report['results']))
 
     def test_all_single_and_block_selections_have_valid_plans(self):
         cases=self.shared_catalogue()
@@ -487,6 +714,348 @@ class SuiteContracts(unittest.TestCase):
         self.assertEqual([row['name'] for row in journey.checkpoints if not row['name'].startswith('setup.')],checks)
         # Menu is completed by the probe only after real native exit, not here.
         self.assertNotIn('Menus.CancelResumeQuit',journey.local)
+
+    def test_smith_kill_tracks_retreat_and_preserves_fixed_target_and_death_assertions(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        module=self.potion_module()
+        module.gdb.execute=lambda *_a,**_k:None
+        observer=patch('e2_population_profile.observe',return_value=dict(profile='live'))
+        observer.start();self.addCleanup(observer.stop)
+        for condition in ('pass','intact','still represented','replaced'):
+            state=dict(health=100,state=2,representation=1,player=[0,4096,0],
+                       target=[300,4096,0],faced=None,held=set(),updates=0,bouts=0)
+            def value(expression):
+                if expression=='DAT_0047a470':return 1
+                if expression=='_DAT_00643650':return 0
+                for offset,key in ((0xec,'health'),(0x82,'state'),(0x11e,'representation')):
+                    if expression in (f'*(short*)(602+{offset:#x})',f'*(unsigned int*)(602+{offset:#x})'):
+                        return state[key]
+                raise AssertionError(expression)
+            context=dict(value=value,field=lambda *_:100,actor=1,prefix=str(self.root/'smith'),
+                         set_phase_title=lambda _:None,checkpoint=lambda _:None)
+            journey=module.Journey(context,'enemy',{})
+            journey.actor_by_id=lambda identity:identity+int(condition=='replaced' and state['bouts']>0)
+            journey.position=lambda actor=None:list(state['player'] if actor is None else state['target'])
+            journey.walk=Mock()
+            def face(_):state['faced']=list(state['target'])
+            journey.face=face
+            def key(vk,down):
+                if down:state['held'].add(vk)
+                else:state['held'].discard(vk)
+            journey.key=key
+            journey.release=lambda:state['held'].clear()
+            def advance(count):
+                state['updates']+=count
+                if state['held']=={0x11,0x26}:
+                    self.assertEqual(count,60)
+                    state['bouts']+=1
+                    if condition!='intact' and state['player']==state['target'] and state['faced']==state['target']:
+                        state['health']-=40
+                        if state['health']<=0:
+                            state.update(state=11,representation=int(condition=='still represented'))
+                    state['target'][0]+=600
+            journey.advance=advance
+            navigator=SimpleNamespace(await_actor=Mock(),approach=Mock(
+                side_effect=lambda **_:state.update(player=list(state['target']))))
+            journey.navigator=Mock(return_value=navigator)
+            with self.subTest(condition=condition),redirect_stdout(io.StringIO()):
+                if condition=='pass':journey.strike(602,death=True)
+                else:
+                    with self.assertRaises(RuntimeError):journey.strike(602,death=True)
+            journey.navigator.assert_called_once_with('kill_enemy',(602,),fixed=602,reach=380)
+            self.assertLessEqual(state['updates'],1350)
+            self.assertLessEqual(state['bouts'],20)
+            if condition=='pass':
+                self.assertEqual(state['bouts'],3)
+                self.assertEqual(state['held'],set())
+                self.assertGreaterEqual(navigator.approach.call_count,3)
+                self.assertEqual(journey.details['target']['samples'][-1]['representation'],0)
+
+    def test_smith_prerequisite_kill_requires_observed_original_joe_melee_and_final_removal(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        module=self.potion_module()
+        observer=patch('e2_population_profile.observe',return_value=dict(profile='live'))
+        observer.start();self.addCleanup(observer.stop)
+        for condition in ('pass','other writer','other attacker','replaced','truncated','still represented','still dying'):
+            state=dict(health=100,state=2,representation=1)
+            watches=[]
+            class Breakpoint:
+                def __init__(self,*_a,**_k):watches.append(self)
+                def delete(self):pass
+            frame=SimpleNamespace(name=lambda:'other' if condition=='other writer' else 'FUN_0042efdc',
+                                  read_var=lambda _:900,older=lambda:None)
+            module.gdb=SimpleNamespace(Breakpoint=Breakpoint,BP_WATCHPOINT=1,WP_WRITE=2,
+                newest_frame=lambda:frame,GdbError=RuntimeError,error=RuntimeError,execute=lambda *_a,**_k:None)
+            def value(expression):
+                if expression=='DAT_0047a470':return 1
+                if expression=='_DAT_00643650':return 0
+                if expression=='*(unsigned int*)(900+0x22)':return 1000
+                if expression=='*(short*)1000':return 602 if condition=='other attacker' else 0
+                for offset,key in ((0xec,'health'),(0x82,'state'),(0x11e,'representation')):
+                    if expression in (f'*(short*)(602+{offset:#x})',f'*(unsigned int*)(602+{offset:#x})'):
+                        return state[key]
+                raise AssertionError(expression)
+            context=dict(value=value,field=lambda *_:100,actor=1,prefix=str(self.root/'early-smith'),
+                         set_phase_title=lambda _:None,checkpoint=lambda _:None)
+            journey=module.Journey(context,'enemy',{})
+            journey.actor_by_id=lambda identity:identity
+            journey.position=lambda *_:[0,4096,0]
+            journey.phases.append(dict(name='combat.attack-down'))
+            journey.observe_smith_health()
+            state.update(health=-20,state=5 if condition=='still dying' else 11,
+                         representation=int(condition=='still represented'))
+            self.assertFalse(watches[0].stop())
+            trace=journey.details['smith_melee']
+            if condition=='replaced':trace['pointer']=603
+            if condition=='truncated':trace['truncated']=True
+            journey.walk=Mock();journey.face=Mock();journey.key=Mock();journey.release=Mock()
+            journey.advance=Mock()
+            navigator=SimpleNamespace(await_actor=Mock(side_effect=RuntimeError('dead before encounter')),approach=Mock())
+            journey.navigator=Mock(return_value=navigator)
+            with self.subTest(condition=condition),redirect_stdout(io.StringIO()):
+                if condition=='pass':journey.strike(602,death=True)
+                else:
+                    with self.assertRaises(RuntimeError):journey.strike(602,death=True)
+            if condition=='pass':
+                navigator.await_actor.assert_not_called();navigator.approach.assert_not_called()
+                journey.walk.assert_not_called();journey.face.assert_not_called();journey.key.assert_not_called()
+                self.assertTrue(trace['satisfied_during_prerequisites'])
+                self.assertEqual(trace['hits'][0]['before'],100)
+                self.assertEqual(trace['hits'][0]['attacker'],0)
+                journey.release.assert_called()
+
+    def test_door_passage_requires_destruction_and_actual_released_crossing(self):
+        import importlib.util
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        fake_gdb=SimpleNamespace(GdbError=RuntimeError,error=RuntimeError,execute=lambda *_a,**_k:None)
+        with patch.dict(sys.modules,{'gdb':fake_gdb}):
+            spec=importlib.util.spec_from_file_location('door_contract',ROOT/'scripts/e2_gameplay_steps.py')
+            module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        observer=patch('e2_population_profile.observe',return_value=dict(profile='live'))
+        observer.start();self.addCleanup(observer.stop)
+        for condition in ('pass','intact','still represented','no passage','wrong floor'):
+            state=dict(health=100,state=7,representation=1,player=[0,4096,400])
+            def value(expression):
+                if expression=='DAT_0047a470':return 1
+                if expression=='_DAT_00643650':return 0
+                for offset,key in ((0xec,'health'),(0x82,'state'),(0x11e,'representation')):
+                    if expression in (f'*(short*)(980+{offset:#x})',f'*(unsigned int*)(980+{offset:#x})'):
+                        return state[key]
+                raise AssertionError(expression)
+            context=dict(value=value,field=lambda *_:100,actor=1,prefix=str(self.root/'door'),
+                         set_phase_title=lambda _:None,checkpoint=lambda _:None)
+            journey=module.Journey(context,'door',{})
+            journey.actor_by_id=lambda identity:identity
+            journey.position=lambda actor=None:list(state['player']) if actor is None else [0,4096,0]
+            journey.walk=Mock();journey.face=Mock();journey.key=Mock();journey.release=Mock()
+            journey.scene_map=Mock()
+            journey.camera=lambda:164
+            def advance(count):
+                if journey.phases[-1]['name']=='interaction.break-door':
+                    state.update(health=100 if condition=='intact' else -20,
+                                 state=7 if condition=='intact' else 11,
+                                 representation=1 if condition=='still represented' else 0)
+            journey.advance=advance
+            def cross(*_):
+                state['player']=[0,4864 if condition=='wrong floor' else 4096,
+                                 400 if condition=='no passage' else -640]
+                return dict(crossed=True)
+            navigator=SimpleNamespace(cross_opening=Mock(side_effect=cross),navigate=Mock())
+            journey.navigator=Mock(return_value=navigator)
+            with self.subTest(condition=condition),redirect_stdout(io.StringIO()):
+                if condition=='pass':journey.strike(980)
+                else:
+                    with self.assertRaises(RuntimeError):journey.strike(980)
+            if condition in ('intact','still represented'):
+                navigator.cross_opening.assert_not_called()
+            else:
+                navigator.cross_opening.assert_called_once_with(980,[0,4096,0],(0,-1))
+            if condition=='pass':
+                self.assertEqual(journey.details['door_passage']['distance_beyond_door'],640)
+
+    def test_displaced_door_case_requires_observed_start_before_attempting_destruction(self):
+        from contextlib import nullcontext
+        from unittest.mock import Mock
+        module=self.potion_module()
+        for position in ([4790,4096,-11985],[0,4096,-9800],[4790,4352,-11985]):
+            journey=module.Journey.__new__(module.Journey)
+            journey.details={};journey.c={}
+            journey.position=lambda:list(position)
+            journey.phase=lambda _:nullcontext()
+            journey.save=Mock();journey.release=Mock();journey.advance=Mock()
+            journey.scene_map=Mock()
+            navigators=[]
+            def navigator(*args,**kwargs):
+                result=module.Journey.navigator(journey,*args,**kwargs)
+                result.navigate=Mock();navigators.append(result)
+                return result
+            journey.navigator=navigator
+            if position==[4790,4096,-11985]:
+                journey.displaced_door_start()
+                self.assertEqual(journey.details['displaced_door_start']['actual'],position)
+            else:
+                with self.assertRaisesRegex(RuntimeError,'required displaced door start'):
+                    journey.displaced_door_start()
+            self.assertTrue(navigators[0].navigate.call_args.kwargs['avoid_actors'])
+            journey.advance.assert_not_called()
+
+    def test_navigation_watch_pacing_scales_only_the_host_budget(self):
+        import importlib.util
+        from types import SimpleNamespace
+        with patch.dict(sys.modules,{'gdb':SimpleNamespace()}):
+            spec=importlib.util.spec_from_file_location('watch_navigation_contract',ROOT/'scripts/e2_gameplay_steps.py')
+            module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        for watch,seconds in ((False,55),(True,165)):
+            context=SimpleNamespace(details={},c=dict(watch_mode=watch))
+            navigator=module.Journey.navigator(context,'reach_water',(0,))
+            self.assertEqual(navigator.limits.seconds,seconds)
+            self.assertEqual(navigator.limits.updates,2400)
+            self.assertEqual(navigator.limits.replans,6)
+
+    def test_navigation_streams_decisions_and_actual_inputs_before_progress_publication(self):
+        import importlib.util
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        fake_gdb=SimpleNamespace(GdbError=RuntimeError,error=RuntimeError)
+        with patch.dict(sys.modules,{'gdb':fake_gdb}):
+            spec=importlib.util.spec_from_file_location('navigation_stream_contract',ROOT/'scripts/e2_gameplay_steps.py')
+            module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        with patch('e2_population_profile.observe',return_value=dict(profile='noncombat-opening')):
+            context=dict(actor=1,value=lambda _:0,field=lambda *_:0,prefix=str(self.root/'stream'),
+                         key=Mock(),advance=Mock())
+            journey=module.Journey(context,'shared',dict(checks=['Movement.Swimming']))
+        journey.save=Mock()
+        bridge=journey.navigator('reach_water',(0,)).bridge
+        bridge.record(dict(goal='reach_water',action='steer',updates=0,keys=[0x26]))
+        bridge.apply([0x26],3)
+        bridge.record(dict(goal='reach_water',action='steer',updates=3,keys=[]))
+        self.assertEqual(journey.save.call_count,1)
+        events=[json.loads(line) for line in Path(journey.prefix+'-navigation.jsonl').read_text().splitlines()]
+        self.assertEqual([row['updates'] for row in events],[0,3])
+        self.assertEqual(json.loads(Path(journey.prefix+'-inputs.jsonl').read_text()),dict(update=0,key=0x26,down=True))
+        bridge.record(dict(goal='reach_water',outcome='FAIL',reason='blocked',updates=3))
+        self.assertEqual(journey.save.call_count,2)
+        bridge.release()
+        inputs=[json.loads(line) for line in Path(journey.prefix+'-inputs.jsonl').read_text().splitlines()]
+        self.assertEqual(inputs[-1],dict(update=3,key=0x26,down=False))
+        self.assertFalse(any(journey.held.values()))
+
+    def test_swimming_plans_from_live_scene_and_requires_real_swimming(self):
+        import importlib.util
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        fake_gdb=SimpleNamespace(GdbError=RuntimeError,error=RuntimeError,execute=lambda *_a,**_k:None)
+        with patch.dict(sys.modules,{'gdb':fake_gdb}):
+            spec=importlib.util.spec_from_file_location('swimming_contract',ROOT/'scripts/e2_gameplay_steps.py')
+            module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        observer=patch('e2_population_profile.observe',return_value=dict(profile='noncombat-opening'))
+        observer.start();self.addCleanup(observer.stop)
+        unit=next(unit for unit in journey_plan(self.shared_catalogue(),['debug.Movement.Swimming']) if unit.checkpoints)
+        for condition in ('pass','wrong camera','wrong representation','no displacement','blocked plan'):
+            state=dict(position=[8011,3328,-18581],camera=175,representation=12)
+            def value(expression):
+                if expression=='DAT_0047a470':return 1
+                if expression=='_DAT_00643650':return 0
+                if expression=='*(short*)1':return state['representation']
+                raise AssertionError(expression)
+            def field(offset,*_):return {0x11e:1,0xec:100,0x82:4}[offset]
+            context=dict(value=value,field=field,actor=1,prefix=str(self.root/'water'),
+                         set_phase_title=lambda _:None,checkpoint=lambda _:None)
+            journey=module.Journey(context,'shared',dict(checks=['Movement.Swimming']))
+            journey.position=lambda:list(state['position']);journey.camera=lambda:state['camera']
+            journey.walk=Mock(side_effect=AssertionError('Legacy waypoint controller used'))
+            def key(vk,down):journey.held[vk]=down
+            def advance(count):
+                journey.updates+=count
+                if journey.held.get(0x26) and condition!='no displacement':state['position'][2]+=60
+            journey.key=key;journey.advance=advance
+            scene=SimpleNamespace(region_goal=Mock(return_value=[-768,5120,-2304]))
+            journey.scene_map=Mock(return_value=scene)
+            def navigate(actual,goal,*,water):
+                self.assertIs(actual,scene);self.assertEqual(goal,[-768,5120,-2304]);self.assertTrue(water)
+                scene.region_goal.assert_called_once_with([8011,3328,-18581],543,7,5120,entry=True)
+                if condition=='blocked plan':raise RuntimeError('No connected scene-floor plan')
+                state.update(position=list(goal),camera=175 if condition=='wrong camera' else 543,
+                             representation=12 if condition=='wrong representation' else 13)
+            navigator=SimpleNamespace(navigate=Mock(side_effect=navigate))
+            journey.navigator=Mock(return_value=navigator)
+            with self.subTest(condition=condition),redirect_stdout(io.StringIO()):
+                with journey.checkpoint('Startup.DelayedSkip'):pass
+                with journey.checkpoint('Movement.ControlsAndRelease'):pass
+                if condition=='pass':
+                    with journey.checkpoint('Movement.Swimming'):journey.swimming()
+                else:
+                    with self.assertRaises(RuntimeError),journey.checkpoint('Movement.Swimming'):journey.swimming()
+            results=shared_results(unit,dict(status='FAIL' if condition!='pass' else 'PASS',
+                progress=dict(checkpoints=journey.checkpoints)),{case.name:case for case in self.shared_catalogue()})
+            status=next(row['status'] for row in results if row['name']=='debug.Movement.Swimming')
+            self.assertEqual(status,'PASS' if condition=='pass' else 'BLOCKED' if condition in
+                             ('wrong camera','blocked plan') else 'FAIL')
+            journey.navigator.assert_called_once_with('reach_water',(0,),updates=3200)
+            self.assertFalse(any(journey.held.values()))
+
+    def test_water_combat_requires_all_real_directional_actions_and_release(self):
+        import importlib.util
+        from types import SimpleNamespace
+        fake_gdb=SimpleNamespace(GdbError=RuntimeError,error=RuntimeError,execute=lambda *_a,**_k:None)
+        with patch.dict(sys.modules,{'gdb':fake_gdb}):
+            spec=importlib.util.spec_from_file_location('water_combat_contract',ROOT/'scripts/e2_gameplay_steps.py')
+            module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        observer=patch('e2_population_profile.observe',return_value=dict(profile='noncombat-opening'))
+        observer.start();self.addCleanup(observer.stop)
+        for condition in ('pass','armed pass','no attack','wrong action','left water','no movement'):
+            armed=condition=='armed pass'
+            state=dict(position=[0,5120,0],slot=1000,action=1521)
+            def value(expression):
+                if expression=='DAT_0047a470':return 1
+                if expression=='_DAT_00643650':return 0
+                if expression=='DAT_0047a7ec':return 7
+                if expression=='*(short*)1':return 12 if condition=='left water' else 10 if armed else 13
+                if expression=='*(short*)2':return -1 if condition=='wrong action' else state['action']
+                if expression.startswith('*(short*)(1+2+'):return state['action']
+                if expression=='*(unsigned int*)(3+0xf2)':return 4
+                if expression=='*(unsigned int*)(4+0x22)':return 1
+                if expression=='*(unsigned int*)(4+0x13a)':return 3
+                raise AssertionError(expression)
+            def field(offset,*_):return {0x11e:1,0xec:100,0x82:4,0x86:5120,0xf0:3 if armed else 0,0xa6:2,0x96:state['slot']}[offset]
+            context=dict(value=value,field=field,actor=1,prefix=str(self.root/'water-combat'),
+                         set_phase_title=lambda _:None,checkpoint=lambda _:None)
+            journey=module.Journey(context,'shared',dict(checks=['Combat.SwimmingDirections']))
+            journey.position=lambda:list(state['position'])
+            journey.actor_by_id=lambda _:3
+            journey.key=lambda vk,down:journey.held.update({vk:down})
+            def advance(count):
+                journey.updates+=count
+                if journey.held.get(0x11):
+                    index=next(i for i,vk in enumerate((0x26,0x25,0x27,0x28)) if journey.held.get(vk))
+                    if condition!='no attack':state.update(slot=184+index,action=((1479,1479,1479,1482) if armed else (1521,1521,1520,1522))[index])
+                elif journey.held.get(0x26) and condition!='no movement':state['position'][2]+=30
+            journey.advance=advance
+            with self.subTest(condition=condition),redirect_stdout(io.StringIO()):
+                if condition in ('pass','armed pass'):
+                    with journey.checkpoint('Combat.SwimmingDirections'):journey.water_combat(armed)
+                    self.assertEqual([r['direction'] for r in journey.details['water_combat']],['up','left','right','down'])
+                else:
+                    with self.assertRaises(RuntimeError),journey.checkpoint('Combat.SwimmingDirections'):journey.water_combat()
+            self.assertFalse(any(journey.held.values()))
+
+    def test_water_block_exercises_armed_and_unarmed_attacks_and_crossings(self):
+        cases=self.shared_catalogue();chosen=selection(cases,block_patterns(cases,'swimming'))
+        for check in ('Movement.Swimming','Combat.SwimmingDirections','Traversal.Water',
+                      'Movement.ArmedSwimming','Combat.ArmedSwimmingDirections','Traversal.ArmedWater'):
+            case=next(c for c in cases if c.name=='debug.'+check)
+            self.assertIn(case.name,chosen)
+            self.assertTrue(case.required);self.assertEqual(case.kind,'journey');self.assertIsNone(case.skip)
+        units=[unit for unit in journey_plan(cases,block_patterns(cases,'swimming')) if unit.checkpoints]
+        self.assertEqual(len(units),2)
+        armed=next(unit for unit in units if 'debug.Movement.ArmedSwimming' in unit.checkpoints)
+        unarmed=next(unit for unit in units if 'debug.Movement.Swimming' in unit.checkpoints)
+        self.assertIn('debug.Interaction.SwordPickup',armed.checkpoints)
+        self.assertNotIn('debug.Interaction.SwordPickup',unarmed.checkpoints)
+        self.assertEqual(armed.population_profile,'noncombat-opening')
 
     def test_courtyard_requires_central_destination_and_pedestal_floor(self):
         import importlib.util
@@ -845,7 +1414,8 @@ write_reports(destination,report)
                 ('Thread 1 received signal SIGSEGV, fault.\n0x123 in FUN_0043a39c (x=1) at recon.c:31219\n'
                  'Thread 2:\n#0 0x456 in __kernel_vsyscall ()\n','FUN_0043a39c'),
                 ('ERROR: AddressSanitizer: stack-buffer-overflow on address 0x123\nWRITE of size 1\n'
-                 '    #0 0x123 in FUN_0043ce58 recon.c:33786\n','FUN_0043ce58')):
+                 '    #0 0x123 in FUN_0043ce58 recon.c:33786\n','FUN_0043ce58'),
+                ('Program terminated with signal SIGKILL, Killed.\n',None)):
             def failure(command,directory,*_):
                 directory.mkdir(exist_ok=True)
                 (directory/'probe.log').write_text(log)
@@ -853,6 +1423,42 @@ write_reports(destination,report)
             with patch('e2_suite.execute',side_effect=failure):result=executor(Path('/external'))(case,self.root,results)
             self.assertEqual(result['native_failure']['function'],expected)
             self.assertEqual(result['status'],'FAIL')
+
+    def test_stalled_probe_interrupts_before_cleanup_and_keeps_capture(self):
+        from e2_probe_diagnostics import communicate
+        prefix=str(self.root/'stall')
+        child=('import pathlib,signal,time,sys\n'
+               'def capture(*_):\n'
+               ' pathlib.Path(sys.argv[1]+"-stopped.json").write_text("captured")\n'
+               ' print("stopped stack",flush=True)\n'
+               ' raise SystemExit(0)\n'
+               'signal.signal(signal.SIGINT,capture)\n'
+               'while True:time.sleep(.1)\n')
+        process=subprocess.Popen([sys.executable,'-c',child,prefix],stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT,text=True,start_new_session=True)
+        self.addCleanup(lambda:process.poll() is None and process.kill())
+        output,stalled=communicate(process,prefix,10,stall_timeout=1.5)
+        self.assertTrue(stalled)
+        self.assertEqual(process.returncode,0)
+        self.assertIn('stopped stack',output)
+        self.assertTrue(Path(prefix+'-stopped.json').is_file())
+        self.assertEqual(json.loads(Path(prefix+'-stall.json').read_text())['reason'],
+                         'no debugger or inspection progress')
+
+    def test_probe_heartbeat_prevents_false_stall_without_inspection(self):
+        from e2_probe_diagnostics import communicate
+        prefix=str(self.root/'progress')
+        child=('import pathlib,time,sys\n'
+               'for _ in range(25):\n'
+               ' pathlib.Path(sys.argv[1]+"-heartbeat").touch()\n'
+               ' time.sleep(.1)\n'
+               'print("complete")\n')
+        process=subprocess.Popen([sys.executable,'-c',child,prefix],stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT,text=True,start_new_session=True)
+        self.addCleanup(lambda:process.poll() is None and process.kill())
+        output,stalled=communicate(process,prefix,10,stall_timeout=1.5)
+        self.assertFalse(stalled)
+        self.assertIn('complete',output)
 
 
 if __name__=='__main__':

@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "e2recomp_log.h"
 
 #undef CreateWindowExA
@@ -828,6 +829,16 @@ INT_PTR E2R_DialogBoxParamA(HINSTANCE inst, LPCSTR tmpl, HWND parent, DLGPROC pr
 
 static void *E2R_dd_obj[64];
 static void *E2R_surf_obj[64];
+typedef struct E2R_DDSurface {
+    void **vtable;
+    unsigned references;
+    unsigned width, height, pitch, caps;
+    unsigned char *pixels;
+    int locked;
+    struct E2R_DDSurface *attached;
+} E2R_DDSurface;
+static E2R_DDSurface E2R_dd_surfaces[16];
+static unsigned E2R_dd_width = 640, E2R_dd_height = 480;
 static void *E2R_palette_obj[16];
 static void *E2R_ds_obj[64];
 static void *E2R_dsbuf_obj[64];
@@ -836,6 +847,127 @@ uintptr_t E2R_active_palette_valid;
 uintptr_t E2R_active_palette_update_count;
 
 static int E2R_DD_Generic(void) { return 0; }
+
+static E2R_DDSurface *E2R_DDS_Find(void *self) {
+    for (unsigned i = 0; i < 16; ++i) {
+        if (self == &E2R_dd_surfaces[i] && E2R_dd_surfaces[i].references != 0)
+            return &E2R_dd_surfaces[i];
+    }
+    return NULL;
+}
+
+static E2R_DDSurface *E2R_DDS_Allocate(unsigned width, unsigned height, unsigned caps) {
+    if (width == 0 || height == 0 || width > 4096 || height > 4096) return NULL;
+    for (unsigned i = 0; i < 16; ++i) {
+        E2R_DDSurface *surface = &E2R_dd_surfaces[i];
+        if (surface->references != 0) continue;
+        unsigned pitch = (width + 3u) & ~3u;
+        unsigned char *pixels = calloc(height, pitch);
+        if (pixels == NULL) return NULL;
+        *surface = (E2R_DDSurface){E2R_surf_obj, 1, width, height, pitch, caps, pixels, 0, NULL};
+        return surface;
+    }
+    return NULL;
+}
+
+static unsigned E2R_DDS_AddRef(void *self) {
+    E2R_DDSurface *surface = E2R_DDS_Find(self);
+    return surface == NULL ? 0 : ++surface->references;
+}
+
+static unsigned E2R_DDS_Release(void *self) {
+    E2R_DDSurface *surface = E2R_DDS_Find(self);
+    if (surface == NULL) return 0;
+    if (--surface->references != 0) return surface->references;
+    E2R_DDSurface *attached = surface->attached;
+    free(surface->pixels);
+    memset(surface, 0, sizeof(*surface));
+    if (attached != NULL) E2R_DDS_Release(attached);
+    return 0;
+}
+
+static unsigned E2R_DD_Release(void *self) {
+    (void)self;
+    for (unsigned i = 0; i < 16; ++i) {
+        free(E2R_dd_surfaces[i].pixels);
+        memset(&E2R_dd_surfaces[i], 0, sizeof(E2R_dd_surfaces[i]));
+    }
+    return 0;
+}
+
+static int E2R_DD_SetDisplayMode(void *self, unsigned width, unsigned height, unsigned bits) {
+    (void)self;
+    if (bits != 8 || width == 0 || height == 0 || width > 4096 || height > 4096)
+        return (int)0x80070057u;
+    E2R_dd_width = width;
+    E2R_dd_height = height;
+    return 0;
+}
+
+static int E2R_DDS_Describe(void *self, void *description) {
+    E2R_DDSurface *surface = E2R_DDS_Find(self);
+    uint32_t *desc = description;
+    if (surface == NULL || desc == NULL || desc[0] != 0x6c) return (int)0x80070057u;
+    memset(desc, 0, 0x6c);
+    desc[0] = 0x6c;
+    desc[1] = 0x80f;
+    desc[2] = surface->height;
+    desc[3] = surface->width;
+    desc[4] = surface->pitch;
+    desc[9] = (uint32_t)(uintptr_t)surface->pixels;
+    desc[26] = surface->caps;
+    return 0;
+}
+
+static int E2R_DDS_Lock(void *self, void *rectangle, void *description, unsigned flags, void *event) {
+    E2R_DDSurface *surface = E2R_DDS_Find(self);
+    (void)flags; (void)event;
+    if (surface == NULL || surface->locked || rectangle != NULL) return (int)0x80004005u;
+    int result = E2R_DDS_Describe(self, description);
+    if (result == 0) surface->locked = 1;
+    return result;
+}
+
+static int E2R_DDS_Unlock(void *self, void *base) {
+    E2R_DDSurface *surface = E2R_DDS_Find(self);
+    if (surface == NULL || !surface->locked || base != surface->pixels) return (int)0x80004005u;
+    surface->locked = 0;
+    return 0;
+}
+
+static int E2R_DDS_Restore(void *self) {
+    return E2R_DDS_Find(self) == NULL ? (int)0x80004005u : 0;
+}
+
+static int E2R_DDS_GetCaps(void *self, unsigned *caps) {
+    E2R_DDSurface *surface = E2R_DDS_Find(self);
+    if (surface == NULL || caps == NULL) return (int)0x80070057u;
+    *caps = surface->caps;
+    return 0;
+}
+
+static int E2R_DDS_GetAttached(void *self, unsigned *caps, void **out) {
+    E2R_DDSurface *surface = E2R_DDS_Find(self);
+    if (out == NULL) return (int)0x80070057u;
+    *out = NULL;
+    if (surface == NULL || caps == NULL || *caps != 4 || surface->attached == NULL)
+        return (int)0x80004005u;
+    E2R_DDS_AddRef(surface->attached);
+    *out = surface->attached;
+    return 0;
+}
+
+static int E2R_DDS_Flip(void *self, void *target, unsigned flags) {
+    E2R_DDSurface *surface = E2R_DDS_Find(self);
+    E2R_DDSurface *other = target == NULL && surface != NULL ? surface->attached : E2R_DDS_Find(target);
+    (void)flags;
+    if (surface == NULL || other == NULL || surface->locked || other->locked ||
+        surface->width != other->width || surface->height != other->height) return (int)0x80004005u;
+    unsigned char *pixels = surface->pixels;
+    surface->pixels = other->pixels;
+    other->pixels = pixels;
+    return 0;
+}
 
 static void E2R_DD_CopyPaletteEntries(const void *entries, unsigned start, unsigned count) {
     const unsigned char *src = (const unsigned char *)entries;
@@ -867,8 +999,22 @@ static int E2R_DD_CreatePalette(void *self, unsigned int flags, void *entries, v
     return 0;
 }
 static int E2R_DD_CreateSurface(void *self, void *desc, void **out, void *outer) {
-    (void)self; (void)desc; (void)outer;
-    if (out) *out = E2R_surf_obj;
+    const uint32_t *words = desc;
+    (void)self; (void)outer;
+    if (out == NULL) return (int)0x80070057u;
+    *out = NULL;
+    if (words == NULL || words[0] != 0x6c) return (int)0x80070057u;
+    unsigned width = (words[1] & 4) ? words[3] : E2R_dd_width;
+    unsigned height = (words[1] & 2) ? words[2] : E2R_dd_height;
+    E2R_DDSurface *surface = E2R_DDS_Allocate(width, height, words[26]);
+    if (surface == NULL) return (int)0x8007000eu;
+    if ((words[1] & 0x20) && words[5] != 0) {
+        if (words[5] != 1 || (surface->attached = E2R_DDS_Allocate(width, height, 4)) == NULL) {
+            E2R_DDS_Release(surface);
+            return (int)0x8007000eu;
+        }
+    }
+    *out = surface;
     return 0;
 }
 static int E2R_DDS_SetPalette(void *self, void *palette) {
@@ -905,7 +1051,18 @@ HRESULT DirectDrawCreate(void *guid, void **ddraw, void *outer) {
     E2R_palette_obj[0] = E2R_palette_obj;
     E2R_dd_obj[5] = (void *)E2R_DD_CreatePalette;
     E2R_dd_obj[6] = (void *)E2R_DD_CreateSurface;
+    E2R_dd_obj[2] = (void *)E2R_DD_Release;
+    E2R_dd_obj[21] = (void *)E2R_DD_SetDisplayMode;
+    E2R_surf_obj[1] = (void *)E2R_DDS_AddRef;
+    E2R_surf_obj[2] = (void *)E2R_DDS_Release;
+    E2R_surf_obj[11] = (void *)E2R_DDS_Flip;
+    E2R_surf_obj[12] = (void *)E2R_DDS_GetAttached;
+    E2R_surf_obj[14] = (void *)E2R_DDS_GetCaps;
+    E2R_surf_obj[22] = (void *)E2R_DDS_Describe;
+    E2R_surf_obj[25] = (void *)E2R_DDS_Lock;
+    E2R_surf_obj[27] = (void *)E2R_DDS_Restore;
     E2R_surf_obj[31] = (void *)E2R_DDS_SetPalette;
+    E2R_surf_obj[32] = (void *)E2R_DDS_Unlock;
     E2R_palette_obj[6] = (void *)E2R_DDP_SetEntries;
     if (ddraw) *ddraw = E2R_dd_obj;
     return 0;

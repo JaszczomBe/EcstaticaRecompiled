@@ -56,6 +56,7 @@ def main():
     scenario.add_argument('destination', type=Path)
     scenario.add_argument('--compatible', action='store_true')
     scenario.add_argument('--timeout', type=float, default=120)
+    scenario.add_argument('--video-driver', choices=('dummy','x11','wayland'), help='Override the recorded SDL video driver')
     recovery = sub.add_parser('recovery', help='Find original addresses, signatures, fixtures, journals and risk hints')
     recovery.add_argument('--function', help='Address or function name')
     recovery.add_argument('--limit', type=int, default=20)
@@ -73,7 +74,7 @@ def main():
             return
         if args.command == 'scenario':
             from e2_scenarios import run
-            result = run(args.executable, args.source, args.specification, args.destination, args.compatible, args.timeout)
+            result = run(args.executable, args.source, args.specification, args.destination, args.compatible, args.timeout, args.video_driver)
             print(json.dumps(result, indent=2))
             if not result['passed']:
                 raise SystemExit(1)

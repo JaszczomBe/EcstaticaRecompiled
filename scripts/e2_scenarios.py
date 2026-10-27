@@ -72,12 +72,14 @@ def evaluate(capture: Inspection, specification):
     return checks
 
 
-def run(executable: Path, source: Path, spec: Path, destination: Path, compatible=False, timeout=120):
+def run(executable: Path, source: Path, spec: Path, destination: Path, compatible=False, timeout=120, video_driver=None):
     if spec.stat().st_size > 1024*1024:
         raise ValueError('Scenario file exceeds 1 MiB')
     specification = json.loads(spec.read_text())
     # Validate the schema before launching any native program.
     validate(specification)
+    if video_driver not in (None,'dummy','x11','wayland'):
+        raise ValueError('Unsupported SDL video driver')
     destination = destination.absolute()
     destination.mkdir(parents=True, exist_ok=False)
     (destination/'scenario.json').write_text(json.dumps(specification, indent=2)+'\n')
@@ -86,6 +88,8 @@ def run(executable: Path, source: Path, spec: Path, destination: Path, compatibl
                '--inspect', '--timeout', str(timeout), '--data-dir', str(destination/'runtime')]
     if compatible:
         command += ['--compatible']
+    if video_driver:
+        command += ['--video-driver', video_driver]
     result = execute(command, os.environ.copy(), timeout+5, destination/'replay.log')
     captures = sorted((destination/'runtime/logs').glob('session_*/inspection'))
     if captures:
@@ -95,6 +99,7 @@ def run(executable: Path, source: Path, spec: Path, destination: Path, compatibl
     else:
         checks, complete = [], False
     report = dict(schema='e2debug.scenario-result.1', name=specification.get('name', spec.stem),
+                  video_driver_override=video_driver,
                   process=result, inspection_complete=complete, checks=checks,
                   passed=result['status'] == 'exited' and result['returncode'] == 0
                   and complete and bool(checks) and all(c['passed'] for c in checks),

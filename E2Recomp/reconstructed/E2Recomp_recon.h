@@ -313,7 +313,7 @@ int __fastcall FUN_0042ea00(undefined4 param_1,int param_2);
 void __fastcall FUN_0042ed6c(undefined4 param_1,int param_2,int max_distance);
 void FUN_0042efdc(int node);
 undefined8 __fastcall FUN_0042f49c(undefined4 param_1,undefined4 param_2);
-undefined8 __fastcall FUN_0042f85c(undefined4 param_1,undefined4 param_2);
+undefined4 FUN_0042f85c(int node);
 undefined4 __fastcall FUN_0042f9c0(int node,int actor_id,int action_id,int independent,int node_orientation);
 undefined4 FUN_0042faf8(int node);
 undefined8 __fastcall FUN_0042fc84(undefined4 param_1,undefined4 param_2);

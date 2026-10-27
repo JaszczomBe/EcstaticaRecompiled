@@ -17,7 +17,7 @@ import tempfile
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('exe', type=Path)
 parser.add_argument('--game-data', type=Path)
-parser.add_argument('--suite-scenario', choices=('menu-matrix','shared','startup','movement','courtyard','workshop','sword','attacks','unarmed','unarmed-contact','enemy','damage','door','potion','potion-damaged','potion-sword','swimming','menus','stability'))
+parser.add_argument('--suite-scenario', choices=('menu-matrix','shared','startup','movement','courtyard','workshop','sword','attacks','unarmed','unarmed-contact','enemy','damage','door','potion','potion-damaged','potion-sword','swimming','water-traversal','water-combat','armed-swimming','armed-water-traversal','armed-water-combat','menus','stability'))
 parser.add_argument('--suite-options', type=json.loads, default={})
 parser.add_argument('--output', type=Path, default=Path('/tmp/e2-player-motion'))
 parser.add_argument('--intro-skip-action', type=int, default=None,
@@ -157,6 +157,9 @@ python
 import gdb,json,time,re,sys
 sys.path.insert(0,SCRIPT_DIRECTORY)
 prefix=PREFIX
+from e2_probe_diagnostics import install
+install(prefix)
+game_data_root=GAME_DATA_ROOT
 frames=FRAMES
 use_sdl=SDL_EVENTS
 camera_route=CAMERA_ROUTE
@@ -575,6 +578,7 @@ if SUITE_SCENARIO:
     import sys
     sys.path.insert(0,SCRIPT_DIRECTORY)
     from e2_gameplay_steps import run as run_suite_journey
+    watch_mode=WATCH_MODE
     suite_result=run_suite_journey(globals(),SUITE_SCENARIO,SUITE_OPTIONS)
 elif population_only:
     pass
@@ -935,7 +939,7 @@ print('PROBE COMPLETE: position_changed='+str(report['position_changed'])+
       ' facing_changed='+str(report['facing_changed'])+'; gameplay acceptance remains open')
 end
 quit
-'''.replace('WATCH_MODE',repr(args.watch)).replace('WINDOW_TITLE',repr(args.window_title)).replace('SUITE_SCENARIO',repr(args.suite_scenario)).replace('SUITE_OPTIONS',repr(args.suite_options)).replace('SCRIPT_DIRECTORY',repr(str(Path(__file__).resolve().parent))).replace('GAMEPLAY_MENU_EXIT',repr(args.gameplay_menu_exit)).replace('BASH_WORKSHOP_DOOR',repr(args.bash_workshop_door)).replace('SWORD_ATTACKS',repr(args.sword_attacks)).replace('SWORD_PICKUP',repr(args.sword_pickup)).replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
+'''.replace('WATCH_MODE',repr(args.watch)).replace('WINDOW_TITLE',repr(args.window_title)).replace('SUITE_SCENARIO',repr(args.suite_scenario)).replace('SUITE_OPTIONS',repr(args.suite_options)).replace('SCRIPT_DIRECTORY',repr(str(Path(__file__).resolve().parent))).replace('GAMEPLAY_MENU_EXIT',repr(args.gameplay_menu_exit)).replace('BASH_WORKSHOP_DOOR',repr(args.bash_workshop_door)).replace('SWORD_ATTACKS',repr(args.sword_attacks)).replace('SWORD_PICKUP',repr(args.sword_pickup)).replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('GAME_DATA_ROOT',repr(str(args.game_data.resolve()) if args.game_data else None)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
     'PROCESS_SECONDS', str(args.timeout + 10)).replace('LOGO_DELAY',str(args.startup_logo_delay_ms)).replace('LOGO_SKIP',repr(args.logo_policy=='skip')).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
     'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip or args.sword_pickup or args.gameplay_menu_exit or args.suite_scenario or bool(args.tap_modifiers))).replace('TAP_MODIFIERS',repr(args.tap_modifiers)).replace(
     'RELEASE_TURN',repr(args.release_turn_first)).replace('SIMULTANEOUS_TURN',repr(args.simultaneous_turn)).replace('HOLD_THROUGH_RELEASE',repr(args.hold_through_release)).replace('VIDEO_DRIVER',repr(args.video_driver)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(
@@ -946,6 +950,7 @@ if args.game_data:
 if args.suite_scenario=='menu-matrix':
     commands='set pagination off\nset confirm off\npython\nimport sys\n'
     commands+='sys.path.insert(0,'+repr(str(Path(__file__).resolve().parent))+')\n'
+    commands+='from e2_probe_diagnostics import install\ninstall('+repr(prefix)+')\n'
     commands+='from e2_menu_steps import run\n'
     commands+='run('+repr(prefix)+','+repr(args.suite_options)+','+repr(args.watch)+','+repr(args.window_title)+','+repr(str(args.game_data.resolve()) if args.game_data else None)+','+repr(args.startup_logo_delay_ms)+','+repr(args.logo_policy=='skip')+')\nend\nquit\n'
 with tempfile.TemporaryDirectory(prefix='e2-player-motion-') as tmp:
@@ -963,12 +968,13 @@ with tempfile.TemporaryDirectory(prefix='e2-player-motion-') as tmp:
     # GDB can put its inferior in another process group. Stop descendants too
     # before GDB disappears, both on the local bound and suite interruption.
     from e2_suite import stop_process
+    from e2_probe_diagnostics import communicate
     process = subprocess.Popen(['gdb', '-q', '-batch', '-x', str(script),
                                 str(args.exe.resolve())], env=env,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                text=True, start_new_session=True)
     try:
-        stdout, _ = process.communicate(timeout=args.timeout)
+        stdout, stalled = communicate(process, prefix, args.timeout)
     except subprocess.TimeoutExpired:
         stop_process(process)
         stdout, _ = process.communicate(timeout=5)
@@ -979,6 +985,8 @@ with tempfile.TemporaryDirectory(prefix='e2-player-motion-') as tmp:
         raise
     result = subprocess.CompletedProcess(process.args, process.returncode, stdout)
     Path(prefix + '.log').write_text(result.stdout)
+    if stalled:
+        raise SystemExit(f'FAIL: probe stopped after missing progress; see {prefix}-stall.json and {prefix}-stopped.json')
     if (result.returncode or 'PROBE COMPLETE:' not in result.stdout or
             'ERROR: AddressSanitizer' in result.stdout or 'SUMMARY: AddressSanitizer' in result.stdout):
         raise SystemExit(f'FAIL: unexpected runtime/debugger stop; see {prefix}.log')

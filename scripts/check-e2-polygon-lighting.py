@@ -89,7 +89,8 @@ __attribute__((naked)) void original_rotate(short *normal,short angle,int axis) 
     __asm__("push %ebp; push %ebx; push %esi; push %edi;"
             "mov 20(%esp),%eax; mov 24(%esp),%edx; cmpl $0,28(%esp);"
             "jne 1f; mov $0x422674,%esi; jmp 2f;"
-            "1: mov $0x4226bc,%esi; 2: call *%esi;"
+            "1: cmpl $1,28(%esp); jne 3f; mov $0x4226bc,%esi; jmp 2f;"
+            "3: mov $0x422704,%esi; 2: call *%esi;"
             "pop %edi; pop %esi; pop %ebx; pop %ebp; ret");
 }
 static uint32_t rng=0x432c64;
@@ -97,7 +98,7 @@ static uint32_t next(void) { rng=rng*1664525u+1013904223u; return rng; }
 '''
 harness += '\n'.join(functions)
 ranges = [(0x414f5d, 0x414fde), (0x422330, 0x422366),
-          (0x422674, 0x422703), (0x4228b8, 0x422a47),
+          (0x422674, 0x42274c), (0x4228b8, 0x422a47),
           (0x431f2d, 0x432007), (0x432c64, 0x432de4),
           (0x45dd04, 0x45df0e), (0x45f556, 0x45f573),
           (0x471339, 0x4713b9)]
@@ -132,7 +133,7 @@ harness += r'''
             for(int k=0;k<3;k++) { n[k]=(t%3-1)*16384; t/=3; }
         }
         short angle=(short)next();
-        for(int axis=0;axis<2;axis++) {
+        for(int axis=0;axis<3;axis++) {
             memcpy(a,n,6); memcpy(b,n,6);
             E2R_RotatePolygonNormal(a,angle,axis); original_rotate(b,angle,axis);
             if(memcmp(a,b,6)) {
@@ -155,7 +156,7 @@ harness += r'''
     }
     puts("PASS: original x87 atan-table initializer used as lookup reference");
     printf("PASS: %u angle cases, %u axis rotations and %u flat-polygon lighting-index cases\n",
-           angle_cases,normal_cases*2,normal_cases);
+           angle_cases,normal_cases*3,normal_cases);
 }
 '''
 with tempfile.TemporaryDirectory(prefix='e2-polygon-lighting-') as tmp:

@@ -7,6 +7,7 @@ from contextlib import contextmanager, nullcontext
 import json
 import copy
 import math
+import struct
 from pathlib import Path
 import time
 
@@ -24,12 +25,47 @@ SWORD = [(2007,-10465),(1555,-10499),(833,-10493),(378,-10244),
 POTION = [(2000,-11100),(1350,-11250),(700,-11480),(300,-11580)]
 
 
+def potion_failure(potion):
+    """Judge the naturally selected outcome; branch coverage is informational."""
+    # FUN_00451880 consumes (short)param_2. Its upper word is not an action ID.
+    actions={action & 0xffff for action in potion['actions']}
+    branches={156:'healing',183:'poison',157:'invisibility',1803:'noop'}
+    selected={identity for identity in potion['scripts'] if identity in branches}
+    if 189 not in potion['scripts'] or len(selected)!=1:
+        return 'Potion branch not uniquely observed'
+    branch=branches[next(iter(selected))]
+    if branch!=potion['branch']:
+        return 'Potion observation disagrees with selected script'
+    if 369 not in actions or not any(row['attached_to_joe'] for row in potion['samples']):
+        return 'Potion pickup and drinking not observed'
+    last=potion['samples'][-1]
+    if last['attachment'] or last['representation']:
+        return 'Consumed bottle remains attached or represented'
+    timers={row['action'] for row in potion['timers']}
+    if branch=='healing':
+        if 391 not in actions or potion['after_health']!=100:
+            return 'Healing action/maximum health not observed'
+    elif branch=='poison':
+        if 409 not in actions or 5 not in timers:
+            return 'Poison action/death timer missing'
+    elif branch=='invisibility':
+        if 383 not in actions or 387 not in timers:
+            return 'Invisibility action/fade timer missing'
+    elif potion['before_health']!=potion['after_health'] or timers & {5,387}:
+        return 'Unafflicted conditional no-op changed health/effects'
+    return None
+
+
 class Journey:
     def __init__(self, context, name, options):
-        if not isinstance(options,dict) or any(key not in ('potion_wait','stability_batches','checks','observe_seconds','courtyard_stair_clearance') for key in options):
+        if not isinstance(options,dict) or any(key not in ('potion_wait','stability_batches','checks','observe_seconds','courtyard_stair_clearance','observe_door_health','displaced_door_start') for key in options):
             raise ValueError('Unsupported journey options')
         if type(options.get('courtyard_stair_clearance',False)) is not bool:
             raise ValueError('courtyard_stair_clearance must be a boolean input-path selector')
+        if type(options.get('observe_door_health',False)) is not bool:
+            raise ValueError('observe_door_health must be a boolean observer selector')
+        if type(options.get('displaced_door_start',False)) is not bool:
+            raise ValueError('displaced_door_start must be a boolean input-path selector')
         if name=='shared':
             from e2_suite import SHARED_ROUTES
             allowed={check for checks in SHARED_ROUTES.values() for check in checks}
@@ -49,6 +85,7 @@ class Journey:
         self.checkpoint_stack = []
         self.local = set()
         self.complete = False
+        self.health_watches = []
         self.save()
 
     def save(self):
@@ -127,7 +164,7 @@ class Journey:
         self.c['advance'](count)
         self.updates += count
 
-    def key(self, vk, down):
+    def key(self, vk, down, save=True):
         if self.held.get(vk, False) == down:
             return
         if vk == 32:
@@ -142,8 +179,10 @@ class Journey:
         else:
             self.c['key'](vk, down)
         self.held[vk] = down
-        self.inputs.append(dict(update=self.updates, key=vk, down=down))
-        self.save()
+        event=dict(update=self.updates,key=vk,down=down)
+        self.inputs.append(event)
+        with Path(self.prefix+'-inputs.jsonl').open('a') as stream:stream.write(json.dumps(event)+'\n')
+        if save:self.save()
 
     def release(self):
         for vk in list(self.held):
@@ -281,15 +320,53 @@ class Journey:
             self.require(math.hypot(position[0]-start[0],position[2]-start[2])<500,
                          'Return stopped outside the pedestal starting area')
 
+    def workshop_corridor(self,navigator):
+        points=[[x,3328 if i==0 else 3840 if i==1 else 4096,z]
+                for i,(x,z) in enumerate(WORKSHOP)]
+        position=self.position()
+        candidates=[i for i,p in enumerate(points) if abs(p[1]-position[1])<=300]
+        self.require(bool(candidates),'No observed floor connects to the workshop corridor')
+        start=min(candidates,key=lambda i:math.hypot(points[i][0]-position[0],points[i][2]-position[2]))
+        join_distance=math.hypot(points[start][0]-position[0],points[start][2]-position[2])
+        self.details['workshop_entry']=dict(position=position,node=start,distance=join_distance,
+            policy='bounded local corridor join; live scene-floor plan beyond local bound',
+            scene_join=join_distance>=4000)
+        self.save()
+        if join_distance>=4000:
+            navigator.navigate(self.scene_map(),points[start])
+        navigator.follow_route(points[start:],'session_20261024_115718_697 workshop samples')
+
     def workshop(self):
         with self.phase('traversal.workshop'):
-            self.walk(WORKSHOP)
-            # These are guidance points around props, not exact-position assertions.
-            # Allow one actor radius; pickup has its own tighter reach/attachment gate.
-            self.walk(SWORD,tolerance=260)
+            navigator=self.navigator('reach_workshop',(3717,),fixed=3717)
+            self.workshop_corridor(navigator)
+            # Prop clearance is guidance; actual pickup retains its tighter gate.
+            navigator.follow_route([[x,4096,z] for x,z in SWORD],
+                                   'session_20261024_115718_697 workshop prop corridor',tolerance=260)
             self.require(self.camera()==347, 'Workshop traversal did not reach camera 347')
             for identity in (3717,537,980):
                 self.actor_by_id(identity)
+            if self.options.get('observe_door_health') and not self.health_watches:
+                self.observe_door_health()
+
+    def observe_door_health(self):
+        journey=self
+        target=self.actor_by_id(980)
+        rows=self.details.setdefault('door_health_observations',[])
+        class Health(gdb.Breakpoint):
+            def stop(self):
+                if len(rows)<64:
+                    row=dict(identity=980,health=journey.value(f'*(short*)({target}+0xec)'),
+                        update=journey.updates,phase=journey.phases[-1]['name'],
+                        player=journey.position(),equipment=journey.field(0xf0),
+                        stack=gdb.execute('bt 16',to_string=True))
+                    rows.append(row)
+                    with Path(journey.prefix+'-door-health.jsonl').open('a') as stream:
+                        stream.write(json.dumps(row)+'\n')
+                    journey.save()
+                return False
+        self.health_watches.append(Health(f'*(short*)({target}+0xec)',type=gdb.BP_WATCHPOINT,
+                                         wp_class=gdb.WP_WRITE,internal=True))
 
     def sword(self, traverse=True):
         if traverse:
@@ -297,7 +374,16 @@ class Journey:
         with self.phase('interaction.sword-pickup'):
             sword = self.actor_by_id(3717)
             original = self.position(sword)
-            self.walk([(original[0],original[2])], tolerance=220)
+            # Original 0x42dc9c selects within Joe's radius of a point one
+            # radius ahead. Leave steering/rounding clearance inside 2R.
+            radius=self.field(0x9a)
+            self.require(radius>64,'Invalid original pickup radius')
+            reach=radius*2-64
+            navigator=self.navigator('reach_sword',(3717,),fixed=3717,reach=reach)
+            if not self.value(f'*(unsigned int*)({sword}+0x11e)'):
+                navigator.follow_route([original],'original sword scene position; pickup eligibility pending',tolerance=reach)
+            navigator.await_actor(3717)
+            navigator.approach()
             self.face(sword)
             self.advance(8); self.key(32,True); self.advance(12); self.key(32,False)
             self.advance(150)
@@ -318,6 +404,8 @@ class Journey:
             self.details['sword'] = dict(identity=3717, position=self.position(sword))
 
     def attacks(self):
+        if self.name=='enemy' or 'Combat.KillSmith' in self.options.get('checks',[]) or self.options.get('displaced_door_start'):
+            self.observe_smith_health()
         for index,(name,vk) in enumerate((('up',0x26),('left',0x25),('right',0x27),('down',0x28))):
             with self.phase('combat.attack-'+name):
                 self.key(0x11,True); self.key(vk,True)
@@ -378,10 +466,17 @@ class Journey:
 
     def unarmed_contact(self, traverse=True):
         if traverse:self.workshop()
-        with self.phase('traversal.unarmed-contact'):
-            self.require(self.field(0xf0)==0, 'Contact test must not equip a sword')
-            target=self.actor_by_id(602)
-            self.face(target)
+        navigator=self.navigator('damage_enemy_unarmed',(602,),fixed=602,reach=420)
+        with self.checkpoint('setup.UnarmedEncounter') if self.name=='shared' else nullcontext():
+            with self.phase('traversal.unarmed-contact'):
+                self.require(self.field(0xf0)==0, 'Contact test must not equip a sword')
+                scene_target=self.actor_by_id(602)
+                if not self.value(f'*(unsigned int*)({scene_target}+0x11e)'):
+                    navigator.follow_route([self.position(scene_target)],
+                        'original blaksmit child 602 scene position; opponent eligibility pending',tolerance=320)
+                navigator.await_actor(602)
+                navigator.approach()
+                target=self.actor_by_id(602)
         with self.phase('combat.unarmed-contact'):
             before=self.value(f'*(short*)({target}+0xec)')
             self.require(before>0, 'Unarmed target already dead')
@@ -390,11 +485,8 @@ class Journey:
             # The smith moves during combat. Follow live positions between bouts;
             # holding one heading for the whole encounter can punch empty space.
             for _ in range(12):
-                for _ in range(20):
-                    position,destination=self.position(),self.position(target)
-                    if math.hypot(position[0]-destination[0],position[2]-destination[2])<200:break
-                    self.face(target)
-                    self.key(0x26,True);self.advance(3);self.release()
+                navigator.approach()
+                self.require(self.actor_by_id(602)==target,'Unarmed target instance changed')
                 self.face(target)
                 self.key(0x11,True);self.key(0x26,True);self.advance(60)
                 self.release();self.advance(45)
@@ -407,35 +499,126 @@ class Journey:
             self.require(samples[-1]['health']<before and self.field(0xf0)==0,
                          'Unarmed strikes did not cause observed enemy damage')
 
+    def observe_smith_health(self):
+        if 'smith_melee' in self.details:return
+        journey=self
+        target=self.actor_by_id(602)
+        trace=dict(pointer=target,before=self.value(f'*(short*)({target}+0xec)'),hits=[],truncated=False)
+        self.details['smith_melee']=trace
+        previous=trace['before']
+        class Health(gdb.Breakpoint):
+            def stop(self):
+                nonlocal previous
+                health=journey.value(f'*(short*)({target}+0xec)')
+                attacker=None;frames=[];frame=gdb.newest_frame()
+                while frame and len(frames)<16:
+                    name=frame.name();frames.append(name)
+                    if name=='FUN_0042efdc':
+                        node=int(frame.read_var('node'))
+                        owner=journey.value(f'*(unsigned int*)({node}+0x22)')
+                        attacker=journey.value(f'*(short*){owner}')
+                    frame=frame.older()
+                if len(trace['hits'])<64:
+                    row=dict(before=previous,health=health,attacker=attacker,stack=frames,
+                        update=journey.updates,phase=journey.phases[-1]['name'])
+                    trace['hits'].append(row)
+                    with Path(journey.prefix+'-smith-health.jsonl').open('a') as stream:
+                        stream.write(json.dumps(row)+'\n')
+                else:trace['truncated']=True
+                previous=health
+                journey.save()
+                return False
+        self.health_watches.append(Health(f'*(short*)({target}+0xec)',type=gdb.BP_WATCHPOINT,
+                                         wp_class=gdb.WP_WRITE,internal=True))
+        self.save()
+
+    def displaced_door_start(self):
+        with self.phase('traversal.door-displaced-start'):
+            # Joe's observed post-smith position in run_20261027_160429_746159.
+            # Reach it with real input; never restore coordinates, RNG or actors.
+            goal=[4790,4096,-11985]
+            before=self.position()
+            navigator=self.navigator('reach_displaced_door_start',(980,))
+            navigator.navigate(self.scene_map(),goal,avoid_actors=True)
+            self.release()
+            actual=self.position()
+            self.details['displaced_door_start']=dict(before=before,goal=goal,actual=actual,
+                source='run_20261027_160429_746159 debug post-smith observation')
+            self.save()
+            self.require(actual[1]==goal[1] and math.hypot(actual[0]-goal[0],actual[2]-goal[2])<240,
+                         'Did not reach the required displaced door start')
+
     def strike(self, identity, death=False):
         target = self.actor_by_id(identity)
+        navigator = self.navigator('kill_enemy',(identity,),fixed=identity,reach=380) if death else None
+        trace=self.details.get('smith_melee',{}) if identity==602 and death else {}
+        def observed_kill():
+            return (trace.get('pointer')==target and trace.get('before',0)>0 and
+                    not trace.get('truncated',False) and any(
+                        hit['before']>0 and hit['health']<=0 and hit['attacker']==0 and
+                        'FUN_0042efdc' in hit['stack'] for hit in trace.get('hits',[])))
+        def completed(observation):
+            actor=observation['actors'].get(identity)
+            return actor and actor['pointer']==target and actor['health']<=0 and observed_kill()
+        def finished():
+            return observed_kill() and self.value(f'*(short*)({target}+0xec)')<=0
+        prior_kill=finished()
         samples = []
         def sample():
             row = dict(health=self.value(f'*(short*)({target}+0xec)'),
                        state=self.value(f'*(short*)({target}+0x82)'),
-                       representation=self.value(f'*(unsigned int*)({target}+0x11e)'))
+                       representation=self.value(f'*(unsigned int*)({target}+0x11e)'),
+                       player=self.position(),target=self.position(target),heading=self.field(0x92))
             samples.append(row)
             self.details['target'] = dict(identity=identity, samples=samples)
             self.save()
             return row
         with self.phase('traversal.strike-position'):
             if identity==980:
+                # A retreating smith can leave Joe across the workshop. Plan
+                # the connection before entering the audited local door route.
+                navigator=self.navigator('reach_door_strike',(identity,),fixed=identity)
+                entry=[-1800,self.position(target)[1],-9800]
+                self.details['door_approach']=dict(before=self.position(),entry=entry)
+                self.save()
+                navigator.navigate(self.scene_map(),entry,avoid_actors=True)
                 self.walk([(-1800,-9800),(-2200,-10100),(-2571,-10545)], tolerance=100)
-            else:
+                self.details['door_approach']['after']=self.position()
+            elif not prior_kill:
                 pos = self.position(target)
                 self.walk([(pos[0],pos[2])], tolerance=380)
-            self.face(target)
+                if not finished():
+                    navigator.await_actor(identity)
+                    navigator.approach(completed=completed)
+            if not finished():self.face(target)
         with self.phase('combat.kill-enemy' if death else 'interaction.break-door'):
             initial = sample()
-            self.require(initial['health']>0 and initial['representation']!=0, 'Target already inactive')
-            self.key(0x11,True); self.key(0x26,True)
-            for _ in range(40):
-                self.advance(30); self.alive()
-                if sample()['state']==11:
-                    break
+            starting_health=trace['before'] if finished() else initial['health']
+            self.require(starting_health>0 and (initial['representation']!=0 or finished()), 'Target already inactive')
+            if prior_kill:trace['satisfied_during_prerequisites']=True
+            if death:
+                # A live smith can retreat after a hit. Track the same actor
+                # between bouts rather than striking one stale heading.
+                current=initial
+                for _ in range(20):
+                    if current['state']==11:break
+                    if current['health']>0:
+                        navigator.approach(completed=completed)
+                        self.require(self.actor_by_id(identity)==target,'Strike target instance changed')
+                        if not finished():self.face(target)
+                        if not finished():
+                            self.key(0x11,True);self.key(0x26,True)
+                    self.advance(60);self.alive();self.release()
+                    current=sample()
+            else:
+                self.key(0x11,True); self.key(0x26,True)
+                for _ in range(40):
+                    self.advance(30); self.alive()
+                    if sample()['state']==11:
+                        break
             self.release(); self.advance(150)
             final = sample()
-            self.require(final['health']<initial['health'] and final['health']<=0 and
+            self.require(final['health']<starting_health and final['health']<=0 and
                          final['state']==11 and final['representation']==0,
                          'Strikes did not finish damage/death/deactivation')
         if not death:
@@ -443,50 +626,151 @@ class Journey:
                 target_pos, player = self.position(target), self.position()
                 dx,dz=target_pos[0]-player[0],target_pos[2]-player[2]
                 self.require(math.hypot(dx,dz)>0, 'Invalid door approach')
-                self.key(0x26,True); self.advance(60); self.key(0x26,False); self.advance(30)
-                pos = self.position()
+                self.require(identity==980,'No audited passage guidance for this door')
+                # Original cyd_dor8/kdorr placement; the retained native route
+                # crosses its opening toward negative Z (347 -> 164).
+                # A tight gate prevents a local detour from bypassing the door.
+                navigator=self.navigator('cross_destroyed_door',(identity,),fixed=identity)
+                result=navigator.cross_opening(identity,target_pos,(0,-1))
+                self.release();self.advance(30)
+                pos=self.position()
                 beyond=((pos[0]-target_pos[0])*dx+(pos[2]-target_pos[2])*dz)/math.hypot(dx,dz)
-                self.require(beyond>100, 'Joe did not pass through the broken door')
+                result.update(before=player,after=pos,distance_beyond_door=beyond,camera=self.camera())
+                self.details['door_passage']=result
+                self.save()
+                self.require(beyond>100,'Joe did not pass through the broken door')
+                self.require(pos[1]==target_pos[1],'Door passage finished on a different floor')
+
+    def navigator(self, goal, allowed, fixed=None, reach=240,updates=2400):
+        from e2_navigation import Navigator, Limits
+        journey=self
+        rows=self.details.setdefault('navigation',[])
+        class Bridge:
+            def __init__(self):self.last_saved=-30
+            def observe(self):
+                journey.alive()
+                inferior=gdb.selected_inferior()
+                def read(pointer,active):
+                    data=bytes(inferior.read_memory(pointer,0x194))
+                    short=lambda offset:struct.unpack_from('<h',data,offset)[0]
+                    word=lambda offset:struct.unpack_from('<I',data,offset)[0]
+                    identity=short(0)
+                    action=word(0xa6);rep=word(0x11e)
+                    return dict(identity=identity,pointer=pointer,active=active,
+                        action_id=struct.unpack('<h',inferior.read_memory(action,2))[0] if action else None,
+                        attack_slots=list(struct.unpack('<6h',inferior.read_memory(rep+2+109*2,12))) if rep else [],
+                        identity_valid=0<=identity<5000 and journey.value(f'*(unsigned int*)(0x630b60+{identity}*4)')==pointer,
+                        position=[short(offset) for offset in (0x84,0x86,0x88)],
+                        heading=short(0x92),health=short(0xec),state=short(0x82),
+                        motion_node=word(0x1e),ai_readiness=short(0xea),
+                        representation=word(0x11e),action=word(0xa6),progress=short(0xac),
+                        representation_id=struct.unpack('<h',inferior.read_memory(rep,2))[0] if rep else None,
+                        attachment=word(0xf2),flags=word(2),radius=short(0x9a))
+                actors={};cursor=journey.value('_DAT_0063726c');seen=set()
+                while cursor:
+                    journey.require(cursor not in seen and len(seen)<256,'Navigation actor-list cycle/bound')
+                    seen.add(cursor)
+                    row=read(cursor,True)
+                    actors[row['identity']]=row
+                    cursor=journey.value(f'*(unsigned int*)({cursor}+0x4c)')
+                return dict(player=read(journey.actor,journey.actor in seen),
+                            actors=actors,camera=journey.camera())
+            def apply(self, keys, updates):
+                for vk in (0x10,0x11,0x12,0x25,0x26,0x27,0x28,32):
+                    journey.key(vk,vk in keys,save=False)
+                journey.advance(updates)
+            def release(self):journey.release()
+            def record(self,row):
+                rows.append(row)
+                path=Path(journey.prefix+'-navigation.jsonl')
+                with path.open('a') as stream:stream.write(json.dumps(row)+'\n')
+                journey.details['navigation_evidence']=dict(events=path.name,
+                    inputs=Path(journey.prefix+'-inputs.jsonl').name,publication_updates=30)
+                if row.get('outcome') or row.get('action') not in ('steer','released observation') or row['updates']-self.last_saved>=30:
+                    journey.save();self.last_saved=row['updates']
+        host_allowance=3 if self.c.get('watch_mode',False) else 1
+        return Navigator(Bridge(),goal,allowed,fixed,Limits(updates=updates,reach=reach,seconds=55*host_allowance))
+
+    def encounter_corridor(self,navigator):
+        route=json.loads((Path(__file__).parent/'scenarios/courtyard-waypoints.json').read_text())
+        points=[row['position'] for row in route['outward'][:10]]
+        position=self.position()
+        candidates=[i for i,p in enumerate(points) if abs(p[1]-position[1])<=300]
+        self.require(bool(candidates),'No observed floor connects to the encounter corridor')
+        start=min(candidates,key=lambda i:(abs(points[i][1]-position[1]),
+            math.hypot(points[i][0]-position[0],points[i][2]-position[2])))
+        separation=math.hypot(points[start][0]-position[0],points[start][2]-position[2])
+        self.details['encounter_entry']=dict(position=position,node=start,distance=separation,
+                                             scene_join=separation>=1800)
+        self.save()
+        if separation>=1800:
+            navigator.navigate(self.scene_map(),points[start])
+        navigator.follow_route(points[start:],route['source'],stop_on_encounter=True)
 
     def damage(self):
-        with self.phase('combat.take-natural-damage'):
-            route=json.loads((Path(__file__).parent/'scenarios/potion-damage-inputs.json').read_text())['inputs']
-            for _ in range(1200):
-                action=self.field(0xa6,'unsigned int')
-                if action and self.value(f'*(short*){action}') in (11,12) and self.field(0x82)==4:
-                    break
-                self.advance(1)
-            else:
-                raise gdb.GdbError('Idle control not reached before damage route')
-            before=self.field(0xec)
-            previous=0
-            for due,vk,on in route:
-                self.advance(due-previous); previous=due
-                self.key(vk,on)
-                self.alive()
-            self.release(); self.advance(30)
-            # Live NPC timing can differ from the historical input schedule.
-            # Approach the two actual pedestal guards using their observed positions;
-            # stop as soon as a real hit lands, without assigning health or actor state.
-            encounters=[]
-            for identity in (284,293):
-                if self.field(0xec)<before:break
-                target=self.value(f'*(unsigned int*)(0x630b60+{identity}*4)')
-                if not target or self.value(f'*(short*)({target}+0xec)')<=0:continue
-                for _ in range(120):
-                    if self.field(0xec)<before:break
-                    destination,position=self.position(target),self.position()
-                    dx,dz=destination[0]-position[0],destination[2]-position[2]
-                    desired=int(math.atan2(dx,dz)*65536/(2*math.pi))
-                    difference=(desired-self.field(0x92)+32768)%65536-32768
-                    self.key(0x25,difference < -600);self.key(0x27,difference > 600)
-                    self.key(0x26,math.hypot(dx,dz)>180 and abs(difference)<5000)
-                    self.advance(3);self.alive()
-                self.release()
-                encounters.append(dict(actor=identity,health=self.field(0xec),position=self.position()))
-            self.details['damage_encounters']=encounters
-            self.require(0<self.field(0xec)<before, 'Bounded route/contact did not produce an observed enemy hit')
-            self.details['damage']=dict(before=before, after=self.field(0xec))
+        # Audited original St_gobsc actors (see check-e2-test-population.py).
+        # Terrain actors and presentation labels do not confer attack eligibility.
+        eligible=(284,293)
+        hits=[]
+        self.details['enemy_hits']=hits
+        melee=dict(attempts=0,samples=[],by_actor={})
+        self.details['enemy_melee']=melee
+        journey=self
+        class Melee(gdb.Breakpoint):
+            def stop(self):
+                node=journey.value('node')
+                owner=journey.value(f'*(unsigned int*)({node}+0x22)')
+                identity=journey.value(f'*(short*){owner}')
+                if identity in eligible:
+                    melee['attempts']+=1
+                    opponent=melee['by_actor'].setdefault(str(identity),dict(attempts=0,samples=[]))
+                    opponent['attempts']+=1
+                    strike=[journey.value(f'*(short*)({node}+{offset})') for offset in (0x18,0x1a,0x1c)]
+                    opponent['samples'].append(dict(strike=strike,player=journey.position(),
+                        opponent=journey.position(owner),update=journey.updates))
+                    if len(opponent['samples'])>32:opponent['samples'].pop(0)
+                    if len(melee['samples'])<64:
+                        strike=[journey.value(f'*(short*)({node}+{offset})') for offset in (0x18,0x1a,0x1c)]
+                        melee['samples'].append(dict(node=node,owner=owner,strike=strike,
+                            player=journey.position(),opponent=journey.position(owner),
+                            heading=journey.value(f'*(short*)({owner}+0x92)'),update=journey.updates))
+                return False
+        class Health(gdb.Breakpoint):
+            def stop(self):
+                frames=[];attacker=None;frame=gdb.newest_frame()
+                while frame and len(frames)<16:
+                    name=frame.name();frames.append(name)
+                    if name=='FUN_0042efdc':
+                        node=int(frame.read_var('node'))
+                        owner=journey.value(f'*(unsigned int*)({node}+0x22)')
+                        attacker=journey.value(f'*(short*){owner}')
+                    frame=frame.older()
+                hits.append(dict(health=journey.field(0xec),attacker=attacker,stack=frames,
+                                 position=journey.position(),update=journey.updates))
+                journey.save()
+                return False
+        watch=Health(f'*(short*)({self.actor}+0xec)',type=gdb.BP_WATCHPOINT,wp_class=gdb.WP_WRITE,internal=True)
+        contact=Melee('FUN_0042efdc',internal=True)
+        before=self.field(0xec)
+        navigator=self.navigator('receive_one_hit',eligible)
+        try:
+            with self.checkpoint('setup.ReceiveHitEncounter') if self.name=='shared' else nullcontext():
+                with self.phase('navigation.receive-hit-approach'):
+                    # Published courtyard samples connect the stairs to guard
+                    # the audited guards' encounter region. The navigator rejects
+                    # a guard on another ledge rather than guessing connectivity.
+                    self.encounter_corridor(navigator)
+                    navigator.approach(before,lambda identity:[hit for hit in hits
+                        if hit['attacker']==identity and 0<hit['health']<before])
+            with self.phase('combat.take-natural-damage'):
+                after=navigator.receive(before,lambda identity:[hit for hit in hits
+                    if hit['attacker']==identity and 0<hit['health']<before])
+                self.require(0<after<before,'Eligible enemy did not cause surviving health loss')
+                self.details['damage']=dict(before=before,after=after,target=navigator.target)
+        finally:
+            contact.delete()
+            watch.delete()
+            self.release()
 
     def potion(self, damaged=False):
         if damaged and 'Combat.TakeDamage' not in self.local:
@@ -494,11 +778,10 @@ class Journey:
                 self.damage()
                 self.local.add('Combat.TakeDamage')
         with self.phase('traversal.potion'):
-            position=self.position()
-            from_stairs=damaged and position[0]<8000 and position[2]>-16500
-            self.walk(WORKSHOP[4:] if from_stairs else WORKSHOP)
-            self.walk(POTION)
+            navigator=self.navigator('reach_potion',(537,),fixed=537)
+            self.workshop_corridor(navigator)
             potion=self.actor_by_id(537)
+            navigator.navigate(self.scene_map(),self.position(potion),avoid_actors=True)
             self.face(potion,500)
             self.advance(20+self.options.get('potion_wait',0))
         scripts, actions, observations = [], [], []
@@ -523,8 +806,11 @@ class Journey:
                 self.key(32,True); self.advance(12); self.key(32,False)
                 for _ in range(30):
                     self.advance(15)
+                    node=value(f'*(unsigned int*)({potion}+0xf2)')
                     observations.append(dict(health=self.field(0xec),
-                        attachment=value(f'*(unsigned int*)({potion}+0xf2)'),
+                        attachment=node,attached_to_joe=bool(node and
+                            value(f'*(unsigned int*)({node}+0x22)')==self.actor and
+                            value(f'*(unsigned int*)({node}+0x13a)')==potion),
                         representation=value(f'*(unsigned int*)({potion}+0x11e)')))
                 branches={156:'healing',183:'poison',157:'invisibility',1803:'noop'}
                 selected=[identity for identity in scripts if identity in branches]
@@ -538,43 +824,139 @@ class Journey:
                 branch=branches[selected[0]]
                 self.details['potion']=dict(branch=branch, before_health=before,
                     after_health=self.field(0xec), actions=actions, timers=timers,
-                    scripts=scripts, samples=observations)
+                    scripts=scripts, samples=observations,identity=537,
+                    selection='original live RNG; no required outcome')
                 self.save()
-                self.require(observations[-1]['attachment']==0 and observations[-1]['representation']==0,
-                             'Consumed bottle remains attached or represented')
-                if branch=='healing':
-                    self.require(391 in actions, 'Healing action not dispatched')
-                    self.require(self.field(0xec)==100, 'Healing did not restore maximum health')
-                elif branch=='poison':
-                    self.require(409 in actions and any(t['action']==5 for t in timers),
-                                 'Poison action/death timer missing')
-                elif branch=='invisibility':
-                    self.require(383 in actions and any(t['action']==387 for t in timers),
-                                 'Invisibility action/fade timer missing')
-                else:
-                    self.require(before==self.field(0xec) and not timers,
-                                 'Unafflicted conditional no-op changed health/timers')
+                failure=potion_failure(self.details['potion'])
+                self.require(failure is None,failure)
         finally:
             script.delete();action.delete()
-        self.release()
+            self.release()
 
-    def swimming(self):
-        with self.phase('traversal.water'):
-            points=json.loads((Path(__file__).parent/'scenarios/water-waypoints.json').read_text())['waypoints']
-            self.walk([(p['position'][0],p['position'][2]) for p in points[1:]], tolerance=180)
-            self.require(self.camera()==543, 'Water approach did not reach camera 543')
+    def potion_then_sword(self):
+        with self.checkpoint('setup.PotionSwordApproach') if self.name=='shared' else nullcontext():
+            with self.phase('traversal.potion-to-sword'):
+                navigator=self.navigator('reach_sword',(3717,),fixed=3717)
+                # The bottle action can release Joe on either side of the
+                # workshop props. Plan from that observed floor instead of
+                # forcing every historical corridor point to be occupied.
+                navigator.navigate(self.scene_map(),[SWORD[-1][0],4096,SWORD[-1][1]],avoid_actors=True)
+        self.sword(traverse=False);self.attacks()
+        with self.phase('interaction.bottle-remains-removed'):
+            bottle=self.actor_by_id(537)
+            self.require(self.value(f'*(unsigned int*)({bottle}+0xf2)')==0 and
+                         self.value(f'*(unsigned int*)({bottle}+0x11e)')==0,
+                         'Sword use restored the consumed bottle')
+
+    def swimming(self,armed=False):
+        with self.checkpoint('setup.WaterApproach') if self.name=='shared' else nullcontext():
+            with self.phase('traversal.water'):
+                scene=self.scene_map()
+                goal=scene.region_goal(self.position(),543,7,5120,entry=True)
+                self.details['water_approach']=dict(source='live scene-floor planner',before=self.position(),goal=goal)
+                self.save()
+                navigator=self.navigator('reach_water',(0,),updates=3200)
+                navigator.navigate(scene,goal,water=True)
+                self.require(self.camera()==543,'Water approach did not reach camera 543')
+                self.details['water_approach'].update(after=self.position(),camera=self.camera())
         with self.phase('movement.swimming'):
             before=self.position()
             self.key(0x26,True)
             for _ in range(30):
                 self.advance(15)
                 rep=self.field(0x11e,'unsigned int')
-                if rep and self.value(f'*(short*){rep}')==13 and self.position()!=before:
+                if rep and self.value(f'*(short*){rep}')==(10 if armed else 13) and self.position()!=before:
                     break
             self.release();self.advance(30)
             rep=self.field(0x11e,'unsigned int')
-            self.require(rep and self.value(f'*(short*){rep}')==13 and self.position()!=before,
+            self.require(rep and self.value(f'*(short*){rep}')==(10 if armed else 13) and self.position()!=before,
                          'Swimming representation and displacement not observed')
+
+    def require_swimming(self,armed=False):
+        self.alive()
+        rep=self.field(0x11e,'unsigned int')
+        self.require(rep and self.value(f'*(short*){rep}')==(10 if armed else 13) and
+                     self.value('DAT_0047a7ec')==7 and self.field(0x86)==5120,
+                     'Joe is not in the required swimming state')
+        self.require(self.field(0xf0)==(3 if armed else 0),'Water checkpoint has the wrong equipment state')
+        if armed:
+            sword=self.actor_by_id(3717)
+            node=self.value(f'*(unsigned int*)({sword}+0xf2)')
+            self.require(node and self.value(f'*(unsigned int*)({node}+0x22)')==self.actor and
+                         self.value(f'*(unsigned int*)({node}+0x13a)')==sword,'Swimming lost reciprocal sword attachment')
+        return rep
+
+    def ensure_water(self,armed=False):
+        check='Movement.ArmedSwimming' if armed else 'Movement.Swimming'
+        if check in self.local:return
+        if armed and 'Interaction.SwordPickup' not in self.local:
+            with self.checkpoint('setup.Interaction.SwordPickup'):
+                self.sword(traverse='Traversal.Workshop' not in self.local)
+        with self.checkpoint('setup.'+check):self.swimming(armed)
+        self.local.add(check)
+
+    def water_traversal(self,armed=False):
+        self.require_swimming(armed)
+        scene=self.scene_map();start=self.position();start_camera=self.camera()
+        self.require(start_camera>0,'Swimming traversal has no actual starting camera')
+        target_camera=543 if start_camera==545 else 545
+        goal=scene.region_goal(start,target_camera,7,5120,minimum_distance=1200)
+        return_goal=scene.region_goal(start,start_camera,7,5120)
+        navigator=self.navigator('traverse_water',(0,))
+        with self.phase('traversal.water-outward'):
+            navigator.navigate(scene,goal,water=True,swimming_representation=10 if armed else 13)
+            self.require_swimming(armed)
+            self.require(self.camera()==target_camera and math.hypot(self.position()[0]-start[0],self.position()[2]-start[2])>600,
+                         'Water traversal did not cross into the other water camera with displacement')
+        with self.phase('traversal.water-return'):
+            navigator.navigate(scene,return_goal,water=True,swimming_representation=10 if armed else 13)
+            self.release();self.advance(30);self.require_swimming(armed)
+            self.require(self.camera()==start_camera,'Water traversal did not return to its starting water camera')
+        self.details['water_traversal']=dict(start=start,goal=goal,return_goal=return_goal,after=self.position(),armed=armed,
+                                           start_camera=start_camera,target_camera=target_camera)
+
+    def water_combat(self,armed=False):
+        try:
+            samples=[]
+            for index,(name,vk) in enumerate((('up',0x26),('left',0x25),('right',0x27),('down',0x28))):
+                with self.phase('combat.swimming-'+name):
+                    rep=self.require_swimming(armed)
+                    self.key(0x11,True);self.key(vk,True)
+                    for _ in range(24):
+                        self.advance(15);slot=self.field(0x96)
+                        if 0xb8<=slot<=0xc3 and (slot-0xb8)%4==index:break
+                    else:raise gdb.GdbError('Swimming attack did not start: '+name)
+                    action=self.field(0xa6,'unsigned int')
+                    expected=self.value(f'*(short*)({rep}+2+{slot}*2)')
+                    self.require(action and self.value(f'*(short*){action}')==expected and expected>=0,
+                                 'Swimming attack did not use its original representation action')
+                    self.require_swimming(armed)
+                    samples.append(dict(direction=name,slot=slot,action=expected,position=self.position(),armed=armed))
+                    self.details['water_combat']=samples
+                    self.release();self.advance(120)
+                    self.require_swimming(armed)
+            with self.phase('combat.swimming-release-and-move'):
+                before=self.position();self.key(0x26,True);self.advance(30);self.release();self.advance(30)
+                self.require_swimming(armed)
+                self.require(self.position()!=before and not any(self.held.values()),'Swimming controls did not resume after attacks')
+        finally:
+            self.release()
+
+    def scene_map(self):
+        from e2_scene_navigation import SceneMap, navigation_scripts
+        inferior=gdb.selected_inferior()
+        count=self.value('DAT_0047a77c');shift=self.value('DAT_0047a738')
+        self.require(0<count<=65536 and 0<=shift<=7,'Invalid bounded scene grid')
+        blobs=dict(grid=bytes(inferior.read_memory(0x684d68,32768)),
+                   descriptors=bytes(inferior.read_memory(0x68cd68,count*12)),
+                   flags=bytes(inferior.read_memory(0x636624,256)))
+        policy=navigation_scripts((Path(self.c['game_data_root'])/'Code/ECSTATIC.FAN').read_bytes())
+        scene=SceneMap(**blobs,shift=shift,policy=policy)
+        folder=Path(self.prefix+'-scene-maps')/scene.identity;folder.mkdir(parents=True,exist_ok=True)
+        for name,data in blobs.items():(folder/(name+'.bin')).write_bytes(data)
+        (folder/'script-policy.json').write_text(json.dumps(policy,indent=2)+'\n')
+        (folder/'map.json').write_text(json.dumps(dict(shift=shift,count=count,sha256=scene.identity),indent=2)+'\n')
+        return scene
 
     def shared_step(self, name):
         def workshop():
@@ -603,18 +985,27 @@ class Journey:
             attacks();self.strike(602,death=True)
         elif name=='Interaction.DoorPassage':
             attacks();self.strike(980)
+        elif name=='Interaction.DoorPassageDisplaced':
+            if 'Movement.ControlsAndRelease' not in self.local:
+                with self.checkpoint('setup.Movement.ControlsAndRelease'):self.movement()
+            attacks()
+            if 'Combat.KillSmith' not in self.local:
+                with self.checkpoint('setup.Combat.KillSmith'):self.strike(602,death=True)
+            self.displaced_door_start();self.strike(980)
         elif name=='Combat.TakeDamage':self.damage()
         elif name.startswith('Potion.Trial'):
             self.potion(damaged=name[-1] in 'CD')
         elif name=='Interaction.PotionThenSword':
-            self.walk([(-125,-9845),(-789,-9781),(-1278,-9756),(-837,-10021)])
-            self.sword(traverse=False);self.attacks()
-            with self.phase('interaction.bottle-remains-removed'):
-                bottle=self.actor_by_id(537)
-                self.require(self.value(f'*(unsigned int*)({bottle}+0xf2)')==0 and
-                             self.value(f'*(unsigned int*)({bottle}+0x11e)')==0,
-                             'Sword use restored the consumed bottle')
-        elif name=='Movement.Swimming':self.swimming()
+            self.potion_then_sword()
+        elif name=='Movement.Swimming':self.swimming();self.local.add('Movement.Swimming')
+        elif name in ('Traversal.Water','Combat.SwimmingDirections'):
+            self.ensure_water()
+            if name=='Traversal.Water':self.water_traversal()
+            else:self.water_combat()
+        elif name in ('Movement.ArmedSwimming','Combat.ArmedSwimmingDirections','Traversal.ArmedWater'):
+            self.ensure_water(True)
+            if name=='Combat.ArmedSwimmingDirections':self.water_combat(True)
+            elif name=='Traversal.ArmedWater':self.water_traversal(True)
         elif name=='Stability.MixedJourney':
             attacks()
             if 'Interaction.DoorPassage' not in self.local:
@@ -670,10 +1061,13 @@ class Journey:
         elif name=='unarmed': self.unarmed()
         elif name=='unarmed-contact': self.unarmed_contact()
         elif name in ('workshop','sword','attacks','enemy','door','stability'):
+            if name=='door' and self.options.get('displaced_door_start'):self.movement()
             self.workshop()
             if name!='workshop': self.sword(traverse=False)
             if name in ('attacks','enemy','door','stability'): self.attacks()
             if name=='enemy': self.strike(602,death=True)
+            if name=='door' and self.options.get('displaced_door_start'):
+                self.strike(602,death=True);self.displaced_door_start()
             if name in ('door','stability'): self.strike(980)
             if name=='stability':
                 with self.phase('stability.active-input'):
@@ -685,13 +1079,16 @@ class Journey:
         elif name in ('potion','potion-damaged','potion-sword'):
             self.potion(damaged=name=='potion-damaged')
             if name=='potion-sword':
-                self.walk([(-125,-9845),(-789,-9781),(-1278,-9756),(-837,-10021)])
-                self.sword(traverse=False);self.attacks()
-                bottle=self.actor_by_id(537)
-                self.require(self.value(f'*(unsigned int*)({bottle}+0xf2)')==0 and
-                             self.value(f'*(unsigned int*)({bottle}+0x11e)')==0,
-                             'Sword use restored the consumed bottle')
+                self.potion_then_sword()
         elif name=='swimming': self.swimming()
+        elif name in ('water-traversal','water-combat'):
+            self.swimming()
+            if name=='water-traversal':self.water_traversal()
+            else:self.water_combat()
+        elif name in ('armed-swimming','armed-water-traversal','armed-water-combat'):
+            self.sword();self.swimming(True)
+            if name=='armed-water-traversal':self.water_traversal(True)
+            elif name=='armed-water-combat':self.water_combat(True)
         elif name not in ('startup','menus'): raise ValueError('Unknown journey '+name)
         self.release();self.advance(30)
         self.alive()
@@ -704,4 +1101,7 @@ class Journey:
 def run(context, name, options):
     journey=Journey(context,name,options)
     context['suite_journey']=journey
-    return journey.run()
+    try:
+        return journey.run()
+    finally:
+        for watch in journey.health_watches:watch.delete()

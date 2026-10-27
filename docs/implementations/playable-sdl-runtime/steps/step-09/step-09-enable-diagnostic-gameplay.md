@@ -6,18 +6,76 @@
 
 Status: active; Task 09 alternate-target crash repaired with bounded evidence; extended gameplay stability open
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-10-26
+Last Updated: 2026-10-27
 
-Current work is [Task 09's recorded courtyard route](tasks/task-09-recover-scene-population-and-interaction.md#current-continuation--recorded-courtyard-regression-route),
-following the user's pedestal/central-courtyard round trip with live guard clearance.
-Regression 04 passes startup, movement and return assertions in shared Debug/ASan
-journeys. The preceding menu and parallel suite continuation remains relevant.
+The [door approach reliability regression](../../../../journal/entries/regression-door-approach-reliability-2026-10-27.md)
+reopens full-suite acceptance after the user's matching-source visible-Debug run
+fails approach and blocks stability. A single headless pass does not prove
+repeatability; Task 10 owns the bounded driver repair and displaced-start case.
+The correction passes its old-code failing control, paced Debug/ASan probes and
+a concurrent headless integration: **148 PASS / 57 optional SKIPPED**, all **143
+required**, **26** clean native journeys, **113** contracts. Actual desktop SDL
+and the independent diagnostic setup crash remain open.
+
+The historical [sequential headless sweep](../../../../journal/entries/headless-regression-sweep-2026-10-27.md)
+records a single execution: **144 PASS / 59 optional SKIPPED**, all **141 required**
+checks, zero failures/blocked checks, **1795.66 s**, exit **0**. All **24** native
+Debug/ASan journeys quit and complete inspection. Catalogue ownership (**203**),
+source hashes (**34**), executables, checkpoints and JSON/JUnit audits match.
+Original menu/surface, terminal pose and bitmap-record repairs have exact
+generator parity; **112** suite/navigation contracts pass. Portable replay and
+broader game fidelity remain open. The extended-prefix door **−100** writer is
+still unknown; the journal owns all failed attempts and acceptance limits.
+
+[Natural potion consumption](../../../../journal/entries/natural-potion-consumption-2026-10-26.md)
+accepts the original random effect, including no-op, and makes branch summaries
+optional. The lingering-bottle report restores the existing generator's original
+animation-name repair; normal/ASan fixtures pass all **1,800** names and generated
+parity is complete. Damaged traversal shares the navigator's height-aware
+workshop approach. Headless Debug/ASan qualification passes **27 results** with
+**5 optional skips**, ten native menu exits and complete inspection; **89**
+contracts pass. The journal retains the visible Debug startup/input interruption
+and the farther scene-join traversal limit.
+
+[Scene-planned water objectives](../../../../journal/entries/water-goals-and-scene-navigation-2026-10-26.md)
+replace the archived human water corridor with the shared navigator and actual
+scene floors. Separate required unarmed/sword-equipped checks exercise swimming
+combat directions and water crossings/returns. The journal owns current native
+qualification; **84** contracts pass. Runtime behavior is unchanged.
+Final headless and visible-Debug block selections pass **22 required checks**
+with **2** optional shore-exit skips; focused visible displaced-pedestal
+entry/traversal passes **5/5**, with native Quit and complete inspection.
+
+The previous [swimming-route navigation](../../../../journal/entries/swimming-route-navigation-2026-10-26.md)
+now joins the recorded pedestal anchor before the water corridor, retaining
+actual swimming assertions, source-backed transition heights and a tighter bank
+corner. Headless and visible-Debug selections pass **8 required checks** in both
+builds with **2** optional armed/shore skips;
+the journal owns current visible qualification. Runtime behavior is unchanged.
+
+[Door-passage navigation](../../../../journal/entries/workshop-door-passage-navigation-2026-10-26.md)
+replaces the user's failing post-collapse forward hold with live steering through
+a required gate for door **980**. Headless Debug/ASan workshop checks pass **16/16**;
+the journal owns current visible qualification and limits. Runtime behavior is
+unchanged; other doors and progression planning remain open.
+
+[Task 10's goal-driven regression navigator](tasks/task-10-build-goal-driven-regression-navigation.md)
+now implements bounded receive-hit setup, workshop routes, fixed smith contact
+and sword approach. Live Debug/ASan attributed guard-284 hits reach Joe health
+100→95 and clean native exit; its journal owns current qualification and retained
+live-navigation failures. Runtime behavior is unchanged.
+[Task 09](tasks/task-09-recover-scene-population-and-interaction.md) remains the
+runtime behavior owner; its recorded courtyard route and controlled population
+fixture retain their acceptance limits. Regression 04 passes startup, movement
+and return assertions in shared Debug/ASan journeys. The preceding menu and
+parallel suite continuation remains relevant.
 It expands shared menu checkpoints across horseback/pedestal/gameplay and runs
 Debug/ASan concurrently with zero, one or two visible windows. Newly exposed
 menu label, restart and Load faults remain open. The reported session-retention
 error-handler abort has a fault-injection repair; the preceding allocation
 failure and extended gameplay stability remain open. Complete replay and longer human
-acceptance remain open; preserved animation-name drift is tracked separately.
+acceptance remain open. The animation-name drift documented in these historical
+continuations is resolved by the current potion repair above.
 The following continuations retain their historical limits.
 
 The [post-pedestal callback repair](tasks/task-09-recover-scene-population-and-interaction.md#callback-contract) reproduces the new fatal-script crash by exact replay and restores original code/actor/node ownership. Natural Debug/ASan intros and 60-second idle checks pass; compatible replay crosses the fault before incomplete-prefix exhaustion. The broader populated Debug traversal still fails its floor-return check, while ASan's bounded round trip passes. Task 09 remains active; workshop re-entry, sword pickup and full experimental ASan acceptance remain open.

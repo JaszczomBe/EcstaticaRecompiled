@@ -6,9 +6,10 @@ import struct
 
 NONCOMBAT_ACTORS = (284, 293, 602)  # Original gob3, gob3b, korc2; not marker labels.
 NONCOMBAT_SCENARIOS = {'movement', 'courtyard', 'workshop', 'sword', 'attacks',
-                       'unarmed', 'swimming', 'menus', 'menu-matrix'}
+                       'unarmed', 'swimming', 'water-traversal','water-combat','armed-swimming',
+                       'armed-water-traversal','armed-water-combat','menus', 'menu-matrix'}
 LIVE_CHECKS = {'Combat.UnarmedContact', 'Combat.KillSmith', 'Combat.TakeDamage',
-               'Interaction.DoorPassage', 'Stability.MixedJourney'}
+               'Interaction.DoorPassage', 'Interaction.DoorPassageDisplaced', 'Stability.MixedJourney'}
 
 
 def profile_for(scenario, checks=()):

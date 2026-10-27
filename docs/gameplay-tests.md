@@ -30,6 +30,13 @@ Filters include prerequisites automatically. Original assets remain external;
 CMake cache. Both SDL presets must already be configured for `--build`.
 The full suite can take many minutes. Each journey and original-code comparison
 has a host timeout; gameplay also has bounded waypoint attempts and update counts.
+Agent probes save `probe-stopped.json` for native signals or thrown
+`std::bad_alloc`. After 30 seconds without debugger or inspection progress, they
+write `probe-stall.json` and interrupt GDB for bounded stack capture before
+process-tree cleanup. The overall probe timeout also captures before cleanup.
+Reports distinguish this watchdog interruption from a spontaneous native fault;
+completed checkpoints retain their results while interrupted journeys fail.
+See the [Regression 08 investigation](journal/entries/regression-08-freeze-and-event-callback-2026-10-26.md).
 
 ## Controlled population and startup logos
 
@@ -108,8 +115,8 @@ headless/visible picker; **01** has no display prompt.
 | `04` | `movement` | Movement/release and courtyard return |
 | `05` | `unarmed` | Basic/advanced unarmed attacks, real unarmed enemy contact and natural player damage |
 | `06` | `workshop` | Workshop traversal, sword pickup, sword attacks, smith kill and door passage |
-| `07` | `swimming` | Water traversal/swimming and explicit unfinished armed-water coverage |
-| `08` | `potions` | Consumption trials, branch coverage and potion-to-sword sequence |
+| `07` | `swimming` | Unarmed/armed swimming actions and water traversal; optional shore exit remains unfinished |
+| `08` | `potions` | Consumption, naturally selected effects and potion-to-sword sequence |
 | `09` | `stability` | Mixed gameplay journey and released observation |
 | `10` | `replay` | Supplied complete replay corpus, or explicit optional skips |
 
@@ -143,7 +150,7 @@ Visible mode chooses Wayland when `WAYLAND_DISPLAY` is present, otherwise X11
 with `DISPLAY`. Use `--video-driver x11` or `wayland` to select explicitly.
 Missing desktop configuration is an error rather than a silent headless run.
 Headless mode uses SDL's `dummy` driver. Original-code/host checks have no gameplay
-window. Corpus replays retain their recorded display environment and strict
+window. Corpus replays receive the selected SDL driver explicitly and retain strict
 service/checkpoint checks; the watch option applies to fresh input journeys.
 Report metadata records the block, per-configuration display mode, driver and
 worker count. Concurrent output names each logical case's configuration; phase
@@ -159,10 +166,10 @@ declarations. Unselected checks are omitted. A dependency never establishes
 coverage: the movement checkpoint actually executes its turn, displacement,
 modifier and settled-release assertions, even when workshop traversal follows.
 
-The main journey can execute delayed intro skip → movement/release → all eight
-unarmed attacks → workshop → unarmed smith damage → sword pickup/attachment →
-four sword attacks → smith kill → door destruction/passage → mixed input and
-released observation → menus/exit. Only selected checkpoints and the setup they
+The main workshop journey can execute delayed intro skip → movement/release →
+workshop → sword pickup/attachment → four sword attacks → smith kill → door
+destruction/passage → mixed input and released observation → menus/exit.
+Unarmed attacks/contact and displaced door passage have separate fresh journeys. Only selected checkpoints and the setup they
 need run. Workshop traversal, sword pickup and attack setup run once within that
 journey. The report retains each checkpoint's phase range, observations and
 shared evidence directory. No save/load, snapshots, teleportation or state
@@ -172,8 +179,8 @@ intro menu therefore cannot block independent movement solely by owning its
 startup prerequisite; the menu journey validates its own setup without crediting
 that startup assertion a second time.
 
-Early skip and natural intro remain separate from delayed skip. Courtyard return
-and swimming use separate routes; armed-water checks remain unfinished.
+Early skip and natural intro remain separate from delayed skip. Courtyard return,
+unarmed swimming and armed swimming use separate routes.
 Regression **04** uses the user's recorded pedestal → central courtyard →
 pedestal loop from session `20261026_110852_153`. The human opening skip was at
 progress **438**, while the suite preserves its progress-**83** startup assertion.
@@ -183,7 +190,7 @@ detour remains available when guard **293** occupies the return staircase. The
 default noncombat fixture prevents that guard from being created. This keeps
 startup, movement/release and the loop in **one** shared process per configuration:
 **eight** logical results in **two** gameplay processes. The full plan remains
-**184** logical cases and **20** gameplay processes.
+**205** logical cases and **26** gameplay processes.
 
 `scripts/scenarios/courtyard-waypoints.json` retains published snapshot IDs,
 positions, cameras and inspection hashes for both legs. These points guide
@@ -206,14 +213,196 @@ exercise the alternate input path with suite option
 
 Four potion trials remain four fresh processes with their original bounded waits
 and live RNG. Trial A can continue directly into potion-to-sword assertions.
+Every trial accepts whichever original effect is selected, including a valid
+no-op. Branch summaries are informational and never require a particular draw.
 Damaged trials require actual fresh damage; missing damage blocks unexercised
 potion assertions. Debug and ASan execute separate pinned binaries in independent
 processes. Other destructive or incompatible routes receive separate declarations.
 
+## Goal-driven encounter navigation
+
+`scripts/e2_navigation.py` drives bounded observation → SDL input → progress
+checks for receive-hit setup, workshop corridors, fixed smith contact and sword
+approach. It records decisions under `details.navigation` in `probe-journey.json`.
+The navigator is test tooling; normal F5 controls and recovered runtime code are
+unchanged. Enemy-contact checks retain live population. Water action/traversal
+journeys and suitable pickup checks use `noncombat-opening`.
+
+Navigators default to **2400 updates**, **6 local replans** and **55 host seconds**
+(**165** in paced visible mode), with input batches of at most three updates and
+a **90-update** ground / **180-update** swimming progress window. Those are
+combined across its route/readiness/approach phases, rather than reset on every
+waypoint or attack bout. Scene readiness additionally allows **300 updates**.
+Scene-planned water approach declares **3200 updates** for its combined
+ground/entry/water goal; other navigators retain **2400**. The surrounding
+journey's existing update/host limits still apply. There is no
+scenario restart on exhaustion. Local guidance uses a **300-unit** height band;
+it does not prove connectivity. A recorded corridor establishes the stair
+approach, and each reached node must satisfy observed height. Workshop setup can
+attempt a separately reported local join within **4000** units after earlier
+controls displace Joe. Unknown joins and detours remain unproved until traversed.
+
+Receive-hit setup follows the recorded courtyard corridor and selects from
+original audited `St_gobsc` guards **284/293**. Actor-table identity, active
+membership, health, representation, original NPC attack slots and same-height
+eligibility are required. A guard on another ledge is rejected. The driver aims
+in front of the selected opponent using its observed heading/radius and releases
+controls for original melee. Waiting retains the existing 100-unit hysteresis
+in front and resumes movement when Joe falls behind. If an opponent becomes
+unavailable, reselection consumes the shared replan budget and repeats eligibility
+checks; replaced instances fail. Explicit fixed-target goals cannot reselect.
+
+For the encounter corridor, the join prefers the observed height. Displacement
+beyond its 1800-unit local boundary invokes the existing live scene-floor planner
+before following the corridor, within the same update/replan/host budgets.
+
+A health watchpoint retains the original melee-handler stack and node owner's
+identity. Only an attributed hit from the selected eligible opponent with Joe
+still alive satisfies damage, including a hit during approach. Nearness alone
+cannot pass. A bounded read-only observer retains original melee-node positions.
+The [contact-navigation evidence](journal/entries/receive-hit-contact-navigation-2026-10-26.md)
+records the failed policies, final correction and native acceptance limits.
+
+Smith **602** remains fixed for unarmed contact; sword **3717** remains fixed for
+pickup. A known original scene child can be approached while its scene action
+is still pending, but must become represented before encounter/pickup readiness.
+That position guidance does not credit an active opponent. Unarmed checks still
+require no sword and real smith health loss; pickup still requires Space,
+reciprocal attachment, equipped movement and following world position.
+
+Progress distinguishes lack of displacement, circling and steady pursuit of a
+moving target. Detours measure progress toward their own waypoint. Nearby actors
+are observations rather than proof of obstruction; Joe is excluded. Unknown
+blockers cannot be called locked or destructible, and the controller never
+attacks them. Known workshop door **980** has a constrained crossing goal after its explicit
+sword-damage/collapse assertion succeeds. It aligns before the opening, steers
+from live observations and requires an observed plane crossing within a
+256-unit half-width test gate. A bypass cannot pass. Released movement must
+still finish over 100 units beyond the original door plane on the same floor;
+`details.door_passage` records the result. This is specific scenario guidance,
+not inferred physical doorway dimensions or automatic door/progression planning.
+See the [door-passage evidence](journal/entries/workshop-door-passage-navigation-2026-10-26.md).
+
+A failed encounter setup owns `setup.ReceiveHitEncounter` or
+`setup.UnarmedEncounter`, blocks the unexercised combat assertion and fails the
+journey lifecycle. Established encounters that fail their actual combat assertion
+remain FAIL. Navigation releases held input on return/failure/interruption;
+outer probe cleanup stops descendants on timeout or termination. Atomic journals
+retain the goal, bounds, targets, positions, actions, camera/height, paths,
+rejected interactions, progress and exhausted budget. Source identity includes
+the navigator and its contracts. `Tools.NavigationContracts` runs once in the
+source/tools selection; the full catalogue is **205** cases with **26** gameplay
+processes. See the [implementation evidence and limits](journal/entries/goal-driven-navigation-2026-10-26.md).
+
+Potion-to-sword continuation plans from the actual post-drink floor instead of
+requiring every historical prop-corridor point. This approach also avoids
+observed actors using original motion flag **0x1000**, state other than **11**
+and three-quarter combined radii, with a **64-unit** steering margin and
+**60-unit** waypoint tolerance. The plan
+records each candidate; it does not infer an actor's role or prove collision
+causality. Stalled movement refreshes the observed floor/actor plan within the
+same six replans, 2400 updates and 55-second host bound. Final pickup, reciprocal
+attachment, attacks and bottle-removal assertions stay required. Bottle approach
+uses the same policy to reach the actual bottle position after the workshop join.
+Other routes
+retain their existing navigation policies. The
+[sweep journal](journal/entries/headless-regression-sweep-2026-10-27.md) records
+the integration failure, floor-only attempt and qualification boundary.
+
+If observed actors disconnect an otherwise connected floor route, the driver
+proves floor-only connectivity, releases input for **30 updates**, then refreshes
+actor clearance within the same six-replan/update/host budget. It never walks
+the floor-only diagnostic path. Static disconnection, node-budget errors and
+persistent obstruction still fail.
+
+Receive-hit corridor guidance hands over at the first eligible opponent within
+**1800 units** on Joe's actual floor. It avoids walking past that opponent to a
+historical endpoint. Pursuit moves around the opponent's original collision
+disc before closing on the front contact point at three-quarter combined radii plus **64** (**448 units**
+for the observed 256-unit radii). Its approach band is **64**, with **32** waiting
+hysteresis, preventing a loose off-axis stop or a goal inside the collision disc.
+Original state-2 retreat with signed readiness **+0xea ≤ 0x3000** is ineligible;
+a ready guard of either audited
+identity remains eligible. Actual surviving damage attributed to original enemy
+melee is still required. The sweep journal records native handoff, outside-disc
+steering and released-clearance-wait evidence, plus the guard-293 damage limit.
+
+Sword approach uses the original pickup query's forward selection region:
+one Joe radius ahead, then one radius around that point. With Joe's observed
+256-unit radius, approach stops within **2R−64 = 448 units**, faces the actual
+sword and sends Space. Actual reciprocal attachment, equipment and subsequent
+movement/combat assertions remain required.
+
+Unarmed directions/contact use their own fresh native journey. The armed
+workshop, smith, door and stability route preserves a fresh active door and all
+real prerequisites. An extended combined unarmed-contact → pickup prefix once
+left the door at **−100** before the dedicated door check; its writer remains
+unidentified. Separate compatible lifecycles preserve both assertions without
+resetting game state. Door/stability journeys enable a bounded read-only door
+health watch, retaining at most **64** original writer stacks. A repeated
+unexpected deactivation still fails the required door check.
+
+Smith-kill guidance follows and faces the same live actor between bounded
+strike bouts. The smith can retreat after a hit; holding one stale heading is
+insufficient. One fixed-target navigator retains the six-replan/update/host
+bounds, with at most **20×60** attack updates and **150** settling updates.
+Actual health loss, death, state **11** and representation removal stay required.
+When required directional attacks have already killed the smith, the later
+checkpoint needs a positive pre-attack baseline and a read-only observed fatal
+write from original melee owned by Joe **0**, against the same actor pointer.
+Other writers, other attackers and truncated traces cannot supply that evidence.
+Final death and representation removal still have to pass; an unexplained
+already dead target remains a failure.
+The same fatal-hit evidence can stop a fixed kill pursuit if a queued original
+strike finishes during a navigation update. Only that explicit fixed goal has
+this completion observation; absent/replaced actors still fail. Input releases
+before the driver waits for the required final death/removal state.
+
+Water paths now use `Navigator.navigate()` and the read-only live scene-floor
+planner in `e2_scene_navigation.py`. The archived human water route is no longer
+read by the driver. Goals come from actual water cells in cameras **543/545**;
+the bounded planner checks floor shapes, height layers, Joe's **256-unit**
+clearance and audited audio/scene-load bytecode. It never calls the side-effecting
+recovered floor helper. Actual swimming entry triggers a fresh water-only plan
+from Joe's observed position. Forward/backward swim steering avoids orbiting a
+nearby target behind Joe and completes each stroke before minor heading
+corrections. Region goals retain **512-unit** camera clearance; return goals
+use an interior cell in the starting water region. Captured maps/script policy and `details.navigation`
+retain source hashes, planned paths, bounds and decisions. A route movement over
+**1024 units** between observations still stops as an unproved discontinuity.
+
+The swimming block requires entry/displacement, four original combat directions
+and a camera-crossing return journey, both unarmed and after real sword pickup.
+The mode must remain representation **13** or **10**, respectively, throughout
+water traversal; armed checks retain reciprocal sword attachment. Each combat
+direction verifies its actual original mapped action, release and resumed swim
+movement. These checks exercise combat actions, not live-water-enemy damage.
+The controlled **noncombat-opening** population remains explicit. Shore exit is
+a separate optional unfinished check, rather than a reason to skip armed water
+actions. See the [water-goal evidence](journal/entries/water-goals-and-scene-navigation-2026-10-26.md)
+for current qualification and the [previous route repair](journal/entries/swimming-route-navigation-2026-10-26.md)
+for historical acceptance.
+
+Current headless and visible-Debug full-block selections both pass **22 required
+checks**, retaining **2** optional shore-exit skips. A separate focused visible
+entry/traversal selection passes **5/5** after movement leaves Joe west of the
+pedestal. Successful journeys require native menu Quit and complete inspection.
+
+Door **980** approach now plans from Joe's actual post-combat position to the
+existing local strike corridor through scene floors and observed actor clearance.
+`Interaction.DoorPassageDisplaced` is a separate required case: after real
+workshop/sword/smith setup, SDL input must reach the captured distant start
+**[4790, 4096, −11985]**, within **240** units on its actual floor. Only then may
+the same damage/collapse/opening-crossing assertions run against a fresh door.
+This controlled precondition exercises the user's failure condition without
+relying on a particular random smith retreat or assigning game state.
+The [reliability journal](journal/entries/regression-door-approach-reliability-2026-10-27.md)
+records the negative control, qualification matrix and remaining display limits.
+
 ## Menu stages and unfinished effects
 
-The catalogue has **184** logical cases across Debug/ASan. The full shared plan
-uses **20** gameplay processes, compared with **96** isolated diagnostic scenarios.
+The catalogue has **205** logical cases across Debug/ASan. The full shared plan
+uses **26** gameplay processes, compared with **108** isolated diagnostic scenarios.
 Menu block **03** selects **102** logical results and **two** gameplay processes,
 one per configuration, instead of **58** isolated scenarios.
 
@@ -249,15 +438,62 @@ before continuing independent checks. This is cleanup, not an assertion retry.
 Unexpected signals/stops cannot use that recovery path. A failed Start Game may
 continue only if the same live stage is observed; its transition remains **FAIL**.
 
-Current acceptance is red: the first expanded visible run finds stale
+The first expanded visible run found stale
 music/sound/difficulty labels, Debug gameplay Start Game SIGSEGV, and an ASan
 stack-buffer overflow opening Load during the intro. Isolated restart checks
 pass horseback restart but fail pedestal → initial intro in both builds.
 Earlier passes survive; unexercised checks are blocked. See the
 [menu/parallel journal](journal/entries/menu-stages-and-parallel-suite-2026-10-25.md)
-for evidence, timings and limits. No runtime repair is part of this suite change.
+for that historical evidence. The
+[2026-10-27 headless sweep](journal/entries/headless-regression-sweep-2026-10-27.md)
+repairs original option-item storage, restart dispatch/identity, binary slot
+labels/previews and the actual compatibility surface provider/callers. Its full
+menu block passes **54 required results / 48 optional skips**, with native menu
+exits and completed inspection in both configurations (**54.06 s**). Functional
+audio, persistence and full renderer acceptance remain outside those passes.
+
+The same sweep repairs a terminal action-event actor handoff exposed by the
+ASan stability journey. Events **0x16/0x17** retain the original actor before
+root-pose calculation; **3072** original-x86 event comparisons and **1152**
+root-pose cases pass per normal/ASan fixture mode. The repaired stability block
+passes **16/16**, including mixed input, **60-second** released observation,
+native Quit and completed inspection. This remains a bounded stability result.
+
+A later watchdog captures a bitmap-record stall while loading an unarmed action.
+Original-backed repairs restore the allocated record return, mapped **20×20-byte**
+pool and selected disposal owner. `Original.BitmapRecords` compares **14,208**
+allocation, publication, eviction, compaction and reuse cases per normal/ASan
+fixture mode. The journal distinguishes these fixtures from native parser and
+gameplay qualification and retains the stopped attempt.
 
 ## Results and evidence
+
+The user's later full visible-Debug/two-worker run returns **142 PASS / 1 FAIL /
+1 BLOCKED / 59 optional SKIPPED** on matching sources and executables. The
+[door approach reliability continuation](journal/entries/regression-door-approach-reliability-2026-10-27.md)
+supersedes full-suite acceptance. A single headless green run does not prove
+reliability across live AI outcomes, display pacing and concurrent configurations.
+The failing approach never reaches the door's damage assertion, so that run
+cannot prove either door passage or subsequent Debug stability.
+
+The correction passes an old-code failing control, paced Debug/ASan distant-start
+probes and a complete final-source two-worker headless run: **148 PASS / 57
+optional SKIPPED**, all **143 required**, zero failures/blocked checks,
+**1112.78 s**, **26** clean native exits with complete inspection. All **34**
+source hashes and pinned/live binaries match; **113** contracts pass. Six actual
+door interactions, including four controlled distant starts, retain original
+outcome assertions. Actual desktop SDL qualification and an independent earlier
+diagnostic setup crash remain open. This scoped proof does not make AI, clocks
+or RNG identical, and a single integrated pass does not establish broad reliability.
+
+The [2026-10-27 sweep](journal/entries/headless-regression-sweep-2026-10-27.md)
+records the earlier `full-final-07/` execution: **144 PASS / 59 optional SKIPPED**, all
+**141 required** checks, no failures/blocked work, **1795.66 s**, exit **0**. All
+**24** native journeys quit normally and complete inspection. Audits verify all
+**203** case identities exactly once, **34** source hashes, pinned/live binaries,
+checkpoint/branch provenance and JSON/JUnit agreement. All **112** contracts and
+registered native fixtures pass. This does not qualify optional omitted features,
+whole-game fidelity or new human gameplay.
 
 Console output distinguishes:
 
@@ -266,7 +502,7 @@ Console output distinguishes:
 | `PASS` | The logical checkpoint completed its own assertions; journey lifecycle separately requires clean menu exit and completed inspection |
 | `FAIL` | A command, route phase, outcome assertion, sanitizer check or timeout failed |
 | `BLOCKED` | A prerequisite failed or was not exercised; the case is not counted as a passing test |
-| `SKIPPED` | Explicitly unfinished coverage, absent optional replay corpus, or a required random branch not sampled |
+| `SKIPPED` | Explicitly unfinished coverage, absent optional replay corpus, or an optional random outcome not sampled |
 
 Completed checkpoint passes survive later assertion failures, crashes and
 interruptions. The failing checkpoint is `FAIL`; checkpoints the stopped journey
@@ -345,11 +581,11 @@ attachments, camera or clocks.
 | Unarmed attacks | Without a sword, all four basic Ctrl/arrow and advanced Ctrl/Alt/arrow groups become live actions; modifiers release and movement resumes |
 | Unarmed contact | Traverse to smith 602 without sword pickup and observe actual enemy health loss from unarmed strikes |
 | Smith kill | Actual target health loss, death and representation removal for actor 602 |
-| Player damage | Human-derived SDL input route causes real health loss without changing health directly |
+| Player damage | Bounded live guard-284 encounter, attributed original melee hit and surviving Joe health loss |
 | Door | Actual repeated damage, collapse/deactivation of door 980 and movement through its opening |
 | Potion trials | Actual branch, drinking, removal and original action/timer/health effects |
 | Potion then sword | Bottle remains removed after sword attachment and all four attacks |
-| Swimming | Traverse sampled human route to camera 543; swimming representation plus displacement |
+| Swimming | Live scene-floor routes to water cameras 543/545, swimming representation/displacement, directional actions and outward/return traversal |
 | Menus | Escape, cancel, actual resumed movement, reopened Quit and Yes, native exit zero |
 | Mixed stability | Workshop, sword, attacks, door passage, repeated movement and bounded released observation before menu exit |
 
@@ -360,9 +596,9 @@ generation parity and focused actor/animation/script-name, key release, attack,
 pickup, attachment, timer, cache, script-flow and water-identity comparisons.
 Failures in those isolated comparisons remain independently visible.
 
-Waypoint coordinates and the natural-damage keyboard schedule have journal
-provenance in `scripts/scenarios/`. They guide bounded SDL input; they are never
-written to game state. Fresh Debug/ASan timing and RNG can produce different
+Waypoint coordinates have journal provenance in `scripts/scenarios/`. They
+guide bounded SDL input; they are never written to game state. The historical
+`potion-damage-inputs.json` remains evidence and is no longer the receive-hit setup. Fresh Debug/ASan timing and RNG can produce different
 paths or encounter outcomes. A route failure is retained, rather than retried
 until green.
 
@@ -370,13 +606,23 @@ until green.
 
 Four fresh potion trials use bounded waits **0, 37, 83, 221** updates. Two first
 require real damage. Trials validate whichever original branch is observed;
-coverage cases separately require healing from below maximum health, poison
-onset, invisibility onset and an unafflicted conditional no-op. Missing branches
-are reported as required **SKIPPED** coverage, not invented or forced by RNG
-writes. A failed consumption trial blocks branch acceptance. Full-health healing
-dispatch alone does not satisfy the healing coverage case.
+pickup, drinking and reciprocal attachment must be observed, followed by bottle
+removal and the selected effect's health/action/timer checks. Healing while
+already healthy and an unafflicted conditional no-op are valid consumption.
+There are no injected potions, forced types or RNG writes. Four optional branch
+summaries record naturally observed healing from damage, poison onset,
+invisibility onset and no-op. An absent outcome is optional **SKIPPED**, so luck
+cannot make a successful consumption block incomplete. A failed trial still
+fails the block and cannot supply branch acceptance.
 
-Poison death, invisibility expiry/cure, armed swimming and shore exit remain
+Damaged potion setup shares the navigator's height-aware workshop corridor join
+instead of walking back toward the pedestal. Guard chases beyond its existing
+local join boundary require a connection planned from the live scene floors;
+the planner's update, node and script-policy bounds remain enforced. The
+[potion-consumption journal](journal/entries/natural-potion-consumption-2026-10-26.md)
+records the reported failures, animation-name repair and current acceptance.
+
+Poison death, invisibility expiry/cure and shore exit remain
 explicit optional skips until their original behavior and routes are accepted.
 The mixed journey is a bounded stress check, not proof that the entire game is
 stable or that every resource-cache eviction has been reached.
@@ -406,6 +652,16 @@ inspection and all scenario assertions. Divergence, timeout, crashes and incompl
 prefix exhaustion fail. Historical crash prefixes cannot masquerade as completed
 end-to-end scenarios. Keep recordings immutable and review baseline changes.
 
+The suite forwards its selected SDL driver through the scenario and replay
+launchers. Direct `replay-e2.py run` or `e2-debug.py scenario` calls preserve the
+recorded driver unless `--video-driver dummy|x11|wayland` is supplied. An explicit
+override is recorded in scenario results and remains subject to the native
+startup compatibility checks. Historical human captures that omit an SDL driver
+are rejected as having an extra environment field when dummy is enforced; they
+cannot qualify invisible replay. The [current sweep](journal/entries/headless-regression-sweep-2026-10-27.md)
+retains both failed supplied-corpus diagnostics and explicit optional corpus
+skips. No recording or strict verification rule is rewritten to obtain a pass.
+
 ## Maintaining the suite
 
 Add a `Case` with a stable name, real prerequisites, bound and observable
@@ -415,6 +671,7 @@ unrelated return journey for a test that only needs an outward route.
 
 ```sh
 python3 scripts/check-e2-suite.py
+python3 scripts/check-e2-navigation.py
 python3 scripts/check-docs-tree.py
 ```
 

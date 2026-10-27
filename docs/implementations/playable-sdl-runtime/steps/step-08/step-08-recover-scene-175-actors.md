@@ -6,7 +6,7 @@
 
 Status: active
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-10-14
+Last Updated: 2026-10-27
 
 ## Goal
 
@@ -59,7 +59,7 @@ One task per failure family. Recover only the helper signatures/data layouts nee
 
 11. [Recover Dirty-Rectangle Copy Inputs](tasks/task-11-recover-dirty-rectangle-copy-inputs.md) — implemented; original-x86 copy/caller comparisons pass; full-route verification depends on Task 12.
 
-12. [Recover DirectDraw Surface Lock](tasks/task-12-recover-directdraw-surface-lock.md) — planned; next bounded compatibility task for original rendering, replacing the generic Lock success with valid storage/pitch and ownership.
+12. [Recover DirectDraw Surface Lock](tasks/task-12-recover-directdraw-surface-lock.md) — provider implemented with bounded headless menu/runtime qualification; distinct storage/pitch and ownership fixtures pass; original-render full-route acceptance remains open.
 
 Task numbers remain stable. The full-render route resumes **12 compatibility Lock / 02 geometry → 05/01 placement and action validation → 03 child activation**, with Task 11 full-route, Task 06 full-route and Task 09 manual Escape checks pending. Pose inputs, trigonometry/projection, two corrupting matrix destinations, packed event metadata, polygon/lighting and copy contracts are recovered. The 2026-10-14 continuation verifies copy arguments and bytes, then identifies generic DirectDraw Lock returning destination base/pitch 0/0 as the current provider failure in `FUN_00418514`. The first proven lighting normal is degenerate, so valid geometry remains unproven. Action indexing and pool/event-metadata repairs remain opt-in; the default route exposes the action-384 error after the intro; clicking OK resumes updates at camera 87. Camera 175 must not be treated as script scene-resource 175.
 

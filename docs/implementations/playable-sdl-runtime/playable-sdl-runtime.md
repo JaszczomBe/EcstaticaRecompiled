@@ -7,7 +7,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-10-26
+Last Updated: 2026-10-27
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -26,6 +26,178 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 1. A release-ready port, full original fidelity, or 64-bit core migration.
 2. Replacing recovered logic with speculative shortcuts or direct SDL calls.
 3. Broad generated-file changes unrelated to a source-backed repair.
+
+## Current work — Door approach reliability regression
+
+The user's full visible-Debug/two-worker run fails door approach and blocks
+Debug stability on exactly the same sources and binaries as the earlier green
+headless run. Full-suite reliability is **open**; the historical single-run pass
+does not establish repeatability. The [reliability journal](../../journal/entries/regression-door-approach-reliability-2026-10-27.md)
+owns the counterexample, scene-planned approach repair, required displaced-start
+regression and qualification limits. Task 10 owns this test-driver correction;
+recovered runtime and generator are unchanged.
+
+A separate diagnostic setup variant also captures a bitmap-disposal fatal path
+before door setup; its stopped evidence remains open. Passing navigation runs
+do not repair or supersede that runtime counterexample.
+
+The correction now has an old-code failing control, passing paced Debug/ASan
+probes and a concurrent headless integration: **148 PASS / 57 optional SKIPPED**,
+all **143 required**, zero failures/blocked checks, **1112.78 s**, exit **0**.
+All **26** native journeys quit and complete inspection; **34** hashes and both
+executables match. The new required distant-start case reaches its measured
+precondition through real input before testing a fresh door. **113** contracts
+pass. This is scoped door-driver acceptance; actual desktop SDL and broader
+runtime reliability remain open. The journal retains every failed attempt.
+
+## Previous evidence — Single invisible regression sweep
+
+The authorized sequential **01–10** sweep and final integration are complete.
+`full-final-07/` passes all **141 required** checks: **144 PASS / 59 optional
+SKIPPED**, no failures or blocked checks, **1795.66 s**, exit **0**. All **24**
+Debug/ASan native journeys quit normally and complete inspection. Every one of
+**203** catalogue cases is owned once; all **34** source hashes, pinned/live
+executables and JSON/JUnit results agree. SDL is dummy, one worker, recording off.
+The [execution journal](../../journal/entries/headless-regression-sweep-2026-10-27.md)
+owns exact identities, block subsets, failed attempts and acceptance limits.
+
+Original-backed repairs restore live menu item storage, restart dispatch/word
+identity, binary slot labels/previews, actual DirectDraw surfaces/callers,
+terminal **0x16/0x17** actor ownership and bitmap-record return/pool/disposal
+ownership. All reconstructed repairs are mirrored in the generator; exact
+four-artifact parity passes. Normal/ASan fixtures include **3072** pose events,
+**1152** root-pose cases and **14,208** bitmap-record cases per mode.
+
+Input guidance now uses scene/actor planning, bounded clearance waits, original
+pickup geometry, live smith tracking and original-melee kill attribution.
+Receive-hit uses early eligible-encounter handoff and an outside-clearance front
+point with tighter settling; actual surviving enemy damage stays mandatory.
+Unarmed contact has its own compatible lifecycle. All **66 suite / 46 navigation
+= 112** contracts pass. Existing staged/unstaged work is preserved; no commit/push.
+
+Portable replay remains optional/unqualified because historical recordings reject
+the SDL-dummy environment field under strict native validation. Broader rendering,
+persistence/audio, shore exit, live water-enemy damage, final potion lifetime/cure,
+guard-293 actual damage, longer stability and new human F5 acceptance remain open.
+The extended unarmed-prefix door **−100** deactivation still has no captured
+writer; route separation does not repair that runtime gap. Capturing that writer
+is the next bounded diagnostic. The earlier screenshot freeze remains unconfirmed.
+
+## Current continuation — Receive-hit strike alignment
+
+The supplied next potion block stops ASan D's receive-hit setup while pursuing
+a guard. Test navigation now approaches in front of the observed opponent and
+lets original melee inflict the required damage. The eligible-opponent goal
+allows audited guards **284/293**, requiring same-floor attack capability and
+identity, with bounded reselection when an opponent disappears. Explicit fixed
+targets and actual melee attribution remain required. All **99** contracts pass.
+The [contact-navigation journal](../../journal/entries/receive-hit-contact-navigation-2026-10-26.md)
+owns native results and retained attempts. Reconstructed runtime, generator and
+normal F5 behavior are unchanged; the earlier screenshot freeze remains unconfirmed.
+Final visible-Debug/headless-ASan potion qualification passes **26 results / 6
+optional skips**, all **22 required** checks, ten native menu exits and completed
+inspection in **317.58 s**. Receive-hit after movement passes **8/8** in **57.01 s**,
+including an actual displaced Debug scene-floor join. Both runs match all **21**
+source hashes; the journal records unexercised guard-293/reselection limits.
+
+
+## Previous continuation — Regression 08 freeze investigation
+
+The user confirms stopping the suite after the in-game freeze; its later
+`SIGKILL` is not evidence of an OOM kill. New diagnostic runs capture a separate
+event-7 `FUN_0042f85c` crash from an uninitialized node. Original instructions
+now drive its explicit dispatcher/node, pose, resource and action contracts,
+mirrored in the generator. **6144** additional original-x86 cases pass in
+normal/ASan fixtures; regeneration has exact parity. Agent probes now retain
+bounded stacks for signals/allocation exceptions and capture before stalled
+process cleanup. All **91** suite/navigation contracts pass. The
+[freeze investigation](../../journal/entries/regression-08-freeze-and-event-callback-2026-10-26.md)
+owns new native qualification, identities and retained failures. The screenshot
+freeze's root cause remains unconfirmed; this callback repair does not by itself
+establish that cause.
+The full visible-Debug/headless-ASan potion block passes **27 results / 5 optional
+skips**, all **22 required** checks, with ten clean native exits and complete
+inspection in **343.22 s**. A final diagnostic-output cleanup also passes native
+GDB fixtures and fresh startup/menu lifecycles in both builds (**4/4**).
+
+## Previous continuation — Natural potion consumption
+
+Potion trials now accept their naturally selected effect, including a valid
+no-op; all four random-branch summaries are optional. Required checks retain
+drinking, reciprocal attachment, bottle removal and actual health/action/timer
+assertions. The supplied lingering-bottle failure restores the three original
+animation-name repair hunks already emitted by the generator, resolving the
+previous source/generator drift. All **1,800** original-x86 name comparisons pass
+in normal/ASan fixtures and all four generated artifacts match. Potion traversal
+after real damage shares the navigator's height-compatible workshop join.
+The [potion-consumption journal](../../journal/entries/natural-potion-consumption-2026-10-26.md)
+owns native qualification, source identities, failed attempts and remaining
+effect-lifetime limits. Headless Debug/ASan qualification passes **27 results**,
+with **5 optional skips**, no failures/blocked checks, ten clean native exits
+and complete inspection. All **89** suite/navigation contracts pass. The full
+visible Debug block retains a startup/input interruption; the farther scene
+join is planned and contract-tested but not exercised by final native runs.
+
+## Previous continuation — Scene-planned water objectives
+
+Swimming now uses the shared navigator with read-only live scene-floor planning,
+replacing the archived human water corridor. Required checkpoints cover unarmed
+and sword-equipped entry, four original swimming combat directions and a
+camera-crossing return journey, with real mode/displacement/equipment assertions.
+**84** suite/navigation contracts pass. The
+[water-goal journal](../../journal/entries/water-goals-and-scene-navigation-2026-10-26.md)
+owns current native qualification, source/asset identities and retained failures.
+Headless and visible-Debug full-block selections pass **22 required checks**
+with **2** optional shore-exit skips; focused visible displaced-pedestal
+entry/traversal passes **5/5**. All nine final processes quit natively and complete
+inspection.
+The catalogue now has **195** logical cases / **22** full shared gameplay
+processes. Runtime/generator/F5 and population policy are unchanged; shore exit,
+live-water-enemy damage and the full-suite run remain open.
+
+## Previous continuation — Swimming route approach
+
+The user's visible Debug water route stalls after movement leaves Joe west of
+the recorded pedestal anchor. Swimming now follows that anchor and the full
+height-aware route through the bounded navigator, with an explicit final
+water-entry height interval and tighter final dry-bank corner. Actual camera
+**543**, representation **13** and swimming displacement remain required.
+Headless and visible-Debug selections pass all **8 required checks** in both
+builds, with **2** unchanged optional armed/shore skips and clean native
+Quit/inspection. The [swimming-route journal](../../journal/entries/swimming-route-navigation-2026-10-26.md)
+owns current visible qualification, source/binary identities and retained failures.
+All **72** suite/navigation contracts pass. Runtime/generator/population/F5
+behavior is unchanged; the full suite and wider water interactions remain open.
+
+## Current continuation — Workshop door passage
+
+The user's workshop block passes destruction of door **980** in both builds but
+fails passage: a fixed forward hold leaves the opening as recovered movement
+changes heading. Test navigation now aligns and steers through a required gate,
+then verifies actual released displacement beyond the destroyed door on its
+floor. Headless Debug/ASan pass **16/16** workshop checks with native Quit and
+complete inspection. [Door-passage evidence](../../journal/entries/workshop-door-passage-navigation-2026-10-26.md)
+records the visible Debug startup `FUN_0042f85c` crash and BLOCKED door
+acceptance; ASan again passes. It owns identities and limits. All **67** suite/navigation
+contracts pass. Runtime/generator/F5 behavior is unchanged; this is guidance for
+one verified opening, with broader door/progression planning still open.
+
+## Current continuation — Goal-driven regression navigator
+
+[Step 09 Task 10](steps/step-09/tasks/task-10-build-goal-driven-regression-navigation.md)
+implements bounded state-aware test navigation for receive-hit setup, workshop
+routes, fixed unarmed contact and sword approach. Live Debug/ASan guard-284 hits
+now prove Joe health **100→95**, original melee attribution and native clean exit.
+Final Regression **05** passes **14/14** in **137.77 s**, four gameplay processes;
+fixed smith damage is **100→80** in both builds. Controlled pickup reuse passes
+**10/10**. All **62** runner/navigation contracts pass.
+The [navigator journal](../../journal/entries/goal-driven-navigation-2026-10-26.md)
+records current qualification, failed development attempts and live-navigation
+limits. Unknown blockers remain unknown; broader pathfinding and automatic
+progression interactions are not accepted. Task 09 owns recovered runtime
+behavior; this continuation changes test tooling, with **185** catalogue cases
+and the same **20** planned full gameplay processes. Existing runtime faults and
+source/generator drift remain untouched; the full suite is not rerun.
 
 ## Current regression fixture — 2026-10-26
 
@@ -123,8 +295,9 @@ launch runs Debug/ASan and reports failed prerequisites as blocked checkpoints,
 with explicit unfinished/random coverage skips. The
 [suite journal](../../journal/entries/gameplay-regression-suite-2026-10-24.md)
 records current results and distinguishes route qualification from runtime
-regressions. Existing animation-name drift remains preserved and failing; the
-suite does not turn historical success into current acceptance.
+regressions. That initial suite preserved a failing animation-name drift;
+the current potion continuation restores it with original-code comparison and
+complete generated parity. Historical success alone is not current acceptance.
 
 The [extended-gameplay crash investigation](../../journal/entries/alternate-target-crash-2026-10-24.md)
 now takes priority over the earlier stability deferral. Original EAX actor and

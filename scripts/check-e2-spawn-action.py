@@ -25,9 +25,17 @@ c=r'''
 #include <math.h>
 #include <sys/mman.h>
 static void FUN_00426f84(void) {abort();}
-typedef uint8_t byte,undefined1;typedef uint16_t ushort,undefined2;typedef uint32_t uint,undefined4;
+typedef uint8_t byte,undefined1;typedef uint16_t ushort,undefined2;typedef uint32_t uint,undefined4;typedef uint64_t undefined8;
 #define __fastcall
 static int E2R_actor_calc_context,E2R_actor_load_id_override;
+static uint event_rng,event_draws;
+__attribute__((used,noinline)) static uint event_random(void) {
+ event_draws++;event_rng=event_rng*0x41c64e6du+0x3039u;return event_rng>>16&0x7fff;
+}
+static undefined8 FUN_0045fc10(uint unused,uint preserved) {return (undefined8)event_random()|((undefined8)preserved<<32);}
+__attribute__((naked)) static void random_hook(void) {
+ __asm__("pushal; call event_random; mov %eax,28(%esp); popal; ret");
+}
 static int trace[64][3],calls;
 __attribute__((used,noinline)) static void record(int x,int y,int z,int w,int leaf) {
  assert(calls<64);trace[calls][0]=leaf;trace[calls][1]=x;
@@ -69,8 +77,8 @@ static void native_queue(short *local_6c,uint uVar25) {
 """+queue+'\n}\n'
 c+='static void FUN_0042efdc(int node) {record(node,0,0,0,9); }\nstatic void FUN_00423858(int actor,int mode) {record(actor,mode,0,0,10); }\n'
 c+=function('FUN_0042faf8')+'\n'
-c+='#define FUN_0042d46c fake_angles\n'+function('FUN_0042f9c0')+'\n#undef FUN_0042d46c\n'
-ranges=[(0x4154ff,0x415553),(0x45f556,0x45f573),(0x42faf8,0x42fc0a),(0x427ade,0x427b50),(0x424318,0x424860),(0x45de8b,0x45df0e),(0x42f9c0,0x42faf8),(0x45186c,0x451880),(0x422330,0x422704),(0x423674,0x423858),(0x424164,0x424318),(0x420ec4,0x421074),(0x432de4,0x432e08),(0x42274c,0x4228b8),(0x4228b8,0x422aa0),(0x42d46c,0x42d554),(0x432c64,0x432de4),(0x45dd04,0x45de8b)]
+c+='#define FUN_0042d46c fake_angles\n'+function('FUN_0042f85c')+'\n'+function('FUN_0042f9c0')+'\n#undef FUN_0042d46c\n'
+ranges=[(0x42f85c,0x42f9c0),(0x4154ff,0x415553),(0x45f556,0x45f573),(0x42faf8,0x42fc0a),(0x427ade,0x427b50),(0x424318,0x424860),(0x45de8b,0x45df0e),(0x42f9c0,0x42faf8),(0x45186c,0x451880),(0x422330,0x42274c),(0x423674,0x423858),(0x424164,0x424318),(0x420ec4,0x421074),(0x432de4,0x432e08),(0x42274c,0x4228b8),(0x4228b8,0x422aa0),(0x42d46c,0x42d554),(0x432c64,0x432de4),(0x45dd04,0x45de8b)]
 for start,end in ranges:c+=f'static const byte code_{start:x}[]={{'+','.join(map(str,original(start,end)))+'};\n'
 c+=r'''
 static void map(int at,int size){assert(mmap((void*)at,size,7,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)!=MAP_FAILED);}
@@ -86,6 +94,9 @@ __attribute__((naked)) static void run_asin_init(void){
 static int orientation;
 static void run_spawn(int node,int id,int action,int independent){
  __asm__ volatile("push orientation; call *%%edi" : "+a"(node),"+d"(id),"+b"(action),"+c"(independent):"D"(0x42f9c0):"memory","cc");
+}
+static void run_event(int node){
+ __asm__ volatile("call *%%edi" : "+a"(node):"D"(0x42f85c):"ebx","ecx","edx","memory","cc");
 }
 static void run_angles(int destination,int matrix){
  __asm__ volatile("call *%%edi" : "+a"(destination),"+d"(matrix):"D"(0x42d46c):"ebx","ecx","memory","cc");
@@ -290,6 +301,23 @@ c+=r'''
   setup(attached,missing,seed);FUN_0042f9c0(0x900000,3803,1877,independent,orientation);
   assert(calls==count);assert(!memcmp(expected_trace,trace,sizeof trace));assert(!memcmp(expected,(void*)0x900000,sizeof expected));assert(E2R_actor_calc_context==0x907000);cases++;
  }
+ hook(0x45fc10,random_hook);
+ for(int attached=0;attached<2;attached++)for(int missing=0;missing<3;missing++)for(int seed=0;seed<1024;seed++) {
+  setup(attached,missing,seed);
+  *(int*)0x630b74=missing==1?0:0x902000;*(int*)0x62ba24=missing==2?0:0x903000;
+  short angles[3]={(short)(seed*1973),(short)(seed*7919),(short)(seed*10457)};
+  memcpy((void*)0x908300,angles,6);E2R_ApplyEulerMatrix((short*)0x900006,(short*)0x908300);
+  static byte initial[0x10000];memcpy(initial,(void*)0x900000,sizeof initial);
+  event_rng=seed*917u;event_draws=0;run_event(0x900000);
+  assert(event_draws==3);uint expected_rng=event_rng;
+  memcpy(expected,(void*)0x900000,sizeof expected);memcpy(expected_trace,trace,sizeof trace);int count=calls;
+  memcpy((void*)0x900000,initial,sizeof initial);calls=0;memset(trace,0,sizeof trace);
+  event_rng=seed*917u;event_draws=0;E2R_actor_calc_context=0x907000;FUN_0042f85c(0x900000);
+  assert(event_draws==3 && event_rng==expected_rng);assert(calls==count);
+  assert(!memcmp(expected_trace,trace,sizeof trace));assert(!memcmp(expected,(void*)0x900000,sizeof expected));
+  assert(E2R_actor_calc_context==0x907000);
+ }
+ printf("PASS: 6144 original event-7 node/attachment/resource/memory/RNG cases\n");
  printf("PASS: 32768 original inverse-sine entries, 256 node-chain handoffs, 5120 original queued-action completions, 2048 root/FK, 4096 endpoint, 8192 IK and 1024 attached-root original poses, 4096 original matrix angle decompositions and %d spawn-event ownership/memory/call cases\n",cases);
 }
 '''

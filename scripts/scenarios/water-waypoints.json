@@ -414,7 +414,9 @@
         -551,
         4096,
         -3414
-      ]
+      ],
+      "tolerance": 80,
+      "tolerance_reason": "Reach recorded dry-bank corner before turning toward the water; a 180-unit shortcut diverged in visible-debug/ASan qualification (swimming-route-navigation-2026-10-26.md)"
     },
     {
       "snapshot": 338,
@@ -423,7 +425,9 @@
         -774,
         4460,
         -2636
-      ]
+      ],
+      "height_range": [4096, 5120],
+      "height_source": "Same human session: approach floor 4096, transient entry sample 4460, then swimming at 5120 (water-replay-and-sword-pickup-2026-10-24.md)"
     }
   ]
 }

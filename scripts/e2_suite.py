@@ -27,9 +27,10 @@ BLOCKS = {
     'movement': ('*.Movement.ControlsAndRelease','*.Traversal.CourtyardReturn'),
     'unarmed': ('*.Combat.Unarmed*','*.Combat.TakeDamage'),
     'workshop': ('*.Traversal.Workshop','*.Interaction.SwordPickup','*.Combat.FourDirections',
-                 '*.Combat.KillSmith','*.Interaction.DoorPassage'),
+                 '*.Combat.KillSmith','*.Interaction.DoorPassage','*.Interaction.DoorPassageDisplaced'),
     'potions': ('*.Potion.*','*.Interaction.PotionThenSword'),
-    'swimming': ('*.Movement.Swimming','*.Movement.ArmedSwimmingAndShoreExit'),
+    'swimming': ('*.Movement.Swimming','*.Traversal.Water','*.Combat.SwimmingDirections',
+                 '*.Movement.ArmedSwimming','*.Combat.ArmedSwimmingDirections','*.Traversal.ArmedWater','*.Movement.ShoreExit'),
     'menus': ('*.Menus.*',),
     'stability': ('*.Stability.*',),
     'replay': ('*.Replay.*',),
@@ -135,13 +136,20 @@ MENU_UNFINISHED = {
 SHARED_ROUTES = {
     'DelayedSkip': ('Startup.DelayedSkip','Menus.CancelResumeQuit'),
     'Controls': ('Startup.DelayedSkip','Movement.ControlsAndRelease','Combat.UnarmedDirections','Menus.CancelResumeQuit'),
-    'Workshop': ('Startup.DelayedSkip','Movement.ControlsAndRelease','Combat.UnarmedDirections',
-                 'Traversal.Workshop','Combat.UnarmedContact','Interaction.SwordPickup','Combat.FourDirections',
+    # Live unarmed contact can alter the later destructible-door setup. Keep
+    # its own declared route; every journey still performs its real setup.
+    'Workshop': ('Startup.DelayedSkip','Movement.ControlsAndRelease',
+                 'Traversal.Workshop','Interaction.SwordPickup','Combat.FourDirections',
                  'Combat.KillSmith','Interaction.DoorPassage','Stability.MixedJourney','Menus.CancelResumeQuit'),
+    # A fresh intact door is necessary for the deliberately distant approach.
+    'DisplacedDoor': ('Interaction.DoorPassageDisplaced','Menus.CancelResumeQuit'),
     'UnarmedContact': ('Startup.DelayedSkip','Movement.ControlsAndRelease','Combat.UnarmedDirections',
                       'Traversal.Workshop','Combat.UnarmedContact','Menus.CancelResumeQuit'),
     'Courtyard': ('Startup.DelayedSkip','Movement.ControlsAndRelease','Traversal.CourtyardReturn','Menus.CancelResumeQuit'),
-    'Swimming': ('Startup.DelayedSkip','Movement.ControlsAndRelease','Movement.Swimming','Menus.CancelResumeQuit'),
+    'Swimming': ('Startup.DelayedSkip','Movement.ControlsAndRelease','Movement.Swimming','Combat.SwimmingDirections',
+                 'Traversal.Water','Menus.CancelResumeQuit'),
+    'ArmedSwimming': ('Startup.DelayedSkip','Movement.ControlsAndRelease','Traversal.Workshop','Interaction.SwordPickup',
+                      'Movement.ArmedSwimming','Combat.ArmedSwimmingDirections','Traversal.ArmedWater','Menus.CancelResumeQuit'),
     'Damage': ('Startup.DelayedSkip','Movement.ControlsAndRelease','Combat.TakeDamage','Menus.CancelResumeQuit'),
     'PotionA': ('Startup.DelayedSkip','Movement.ControlsAndRelease','Potion.TrialA','Interaction.PotionThenSword','Menus.CancelResumeQuit'),
     'PotionB': ('Startup.DelayedSkip','Movement.ControlsAndRelease','Potion.TrialB','Menus.CancelResumeQuit'),
@@ -198,6 +206,8 @@ def journey_plan(cases, patterns=('*',)):
                 options.update({key:value for key,value in by_name[name].options.items() if key!='intro'})
             intro='early' if route=='EarlySkip' else 'natural' if route=='Natural' else 'delayed'
             options['intro']=intro
+            if route=='Workshop' and any(name.endswith(('Interaction.DoorPassage','Stability.MixedJourney')) for name in covered):
+                options['observe_door_health']=True
             # Observation is part of the stability checkpoint, before menu exit.
             if 'observe' in options:options['observe_seconds']=options.pop('observe')
             units.append(Case(prefix+'Journey.'+route,kind='journey',scenario='shared',configuration=configuration,
@@ -496,7 +506,8 @@ def run_cases(cases, executor, destination, patterns=('*',), metadata=None, shar
 def catalogue(configurations, game_data, build=False, replay_corpus=None):
     py=sys.executable;original=str(game_data/'E2WIN95.EXE');names=str(game_data/'Code/ECSTATIC.FAN')
     cases=[Case('Source.GeneratorParity',(py,str(ROOT/'scripts/check-e2-generation-parity.py'))),
-           Case('Tools.SuiteContracts',(py,str(ROOT/'scripts/check-e2-suite.py')))]
+           Case('Tools.SuiteContracts',(py,str(ROOT/'scripts/check-e2-suite.py'))),
+           Case('Tools.NavigationContracts',(py,str(ROOT/'scripts/check-e2-navigation.py')))]
     for configuration in configurations:
         prefix=configuration+'.';asan=configuration=='asan'
         preset='linux-clang32-sdl-debug'+('-asan' if asan else '')
@@ -505,9 +516,13 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
         cases.append(Case(prefix+'Host.SessionMaintenance',
             (py,str(ROOT/'scripts/check-e2-session-maintenance.py'),*(['--asan'] if asan else [])),
             configuration=configuration,timeout=120))
+        cases.append(Case(prefix+'Host.DirectDrawSurfaces',
+            (py,str(ROOT/'scripts/check-e2-ddraw-surfaces.py'),*(['--asan'] if asan else [])),
+            configuration=configuration,timeout=100))
         for label,script,extra in [
             ('ActorNames','actor-names',[names]),('AnimationNames','animation-names',[names]),
-            ('ScriptNames','script-names',[]),('KeyRelease','key-release',None),
+            ('ScriptNames','script-names',[]),('Menus','menu-contracts',[]),
+            ('PoseEvents','action-pose-events',[]),('BitmapRecords','bitmap-records',[]),('KeyRelease','key-release',None),
             ('AttackTarget','attack-target',[]),('Pickup','pickup',[]),
             ('Attachment','pickup-attachment',[]),('Detach','attachment-detach',[]),
             ('Timers','potion-timers',[]),('CacheReclamation','action-reclamation',[]),
@@ -539,16 +554,23 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
         combat=('Combat.FourDirections',)
         live('Combat.KillSmith','enemy',combat)
         live('Interaction.DoorPassage','door',combat)
+        live('Interaction.DoorPassageDisplaced','door',('Combat.KillSmith',),
+             displaced_door_start=True,observe_door_health=True,timeout=360)
         live('Combat.TakeDamage','damage',motion)
         for label,wait,damaged in [('A',0,False),('B',37,False),('C',83,True),('D',221,True)]:
             live('Potion.Trial'+label,'potion-damaged' if damaged else 'potion',
                  ('Combat.TakeDamage',) if damaged else workshop,potion_wait=wait,timeout=300)
         for branch in ('healing','poison','invisibility','noop'):
-            cases.append(Case(prefix+'Potion.Branch.'+branch,kind='coverage',configuration=configuration,
+            cases.append(Case(prefix+'Potion.Branch.'+branch,kind='coverage',configuration=configuration,required=False,
                 options=dict(branch=branch,trials=[prefix+'Potion.Trial'+label for label in 'ABCD']),
                 observes=tuple(prefix+'Potion.Trial'+label for label in 'ABCD')))
         live('Interaction.PotionThenSword','potion-sword',('Potion.TrialA','Interaction.SwordPickup'))
         live('Movement.Swimming','swimming',motion,timeout=300)
+        live('Traversal.Water','water-traversal',('Movement.Swimming',),timeout=300)
+        live('Combat.SwimmingDirections','water-combat',('Movement.Swimming',),timeout=300)
+        live('Movement.ArmedSwimming','armed-swimming',sword,timeout=360)
+        live('Combat.ArmedSwimmingDirections','armed-water-combat',('Movement.ArmedSwimming',),timeout=360)
+        live('Traversal.ArmedWater','armed-water-traversal',('Movement.ArmedSwimming',),timeout=360)
         live('Menus.CancelResumeQuit','menus',('Startup.DelayedSkip',))
         for check in MENU_CHECKS:
             if check=='Menus.CancelResumeQuit':continue
@@ -559,7 +581,7 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
                                   configuration=configuration))
         live('Stability.MixedJourney','stability',('Interaction.DoorPassage',),stability_batches=24,observe=60,timeout=300)
         for label,reason in [('Potion.DeathExpiryCure','Final poison death, invisibility expiry/cure are not recovered acceptance yet'),
-                             ('Movement.ArmedSwimmingAndShoreExit','Armed swimming and shore exit lack accepted routes')]:
+                             ('Movement.ShoreExit','Shore exit needs a recovered climb/exit route; swimming attacks and traversal run separately')]:
             cases.append(Case(prefix+label,required=False,skip=reason,configuration=configuration))
         if replay_corpus:
             corpus=json.loads(replay_corpus.read_text())
@@ -592,6 +614,11 @@ def qualify_journey_failure(case, result):
         'potion':('interaction.drink',),'potion-damaged':('interaction.drink',),
         'potion-sword':('interaction.drink','interaction.sword'),
         'swimming':('movement.swimming',),'menus':('menus.',),
+        'water-traversal':('traversal.water-outward','traversal.water-return'),
+        'water-combat':('combat.swimming-',),
+        'armed-swimming':('movement.swimming',),
+        'armed-water-traversal':('traversal.water-outward','traversal.water-return'),
+        'armed-water-combat':('combat.swimming-',),
         'stability':('stability.',),
     }.get(case.scenario,())
     if targets and not any(p['name'].startswith(targets) for p in phases):
@@ -628,7 +655,7 @@ def executor(game_data, video_driver='dummy'):
             if failed:
                 roots=sorted({root for name in failed for root in results[name].get('root_causes',[name])})
                 return dict(status='BLOCKED',reason='Potion trials failed before branch acceptance',root_causes=roots)
-            return dict(status='SKIPPED',reason='Required random branch was not exercised by bounded fresh trials')
+            return dict(status='SKIPPED',reason='Random outcome not sampled; consumption accepts any original branch')
         if case.kind=='build':
             if case.options['build']:
                 result=execute(('cmake','--build','--preset',case.options['preset']),directory,case.timeout,environment)
@@ -687,7 +714,7 @@ def executor(game_data, video_driver='dummy'):
             native_log=directory/'probe.log'
             if native_log.is_file():
                 native_output=native_log.read_text(errors='replace')
-                signal_match=re.search(r'received signal (\w+)',native_output)
+                signal_match=re.search(r'(?:received|terminated with) signal (\w+)',native_output)
                 stopped=re.search(r'received signal [^\n]+\n(?:0x[0-9a-f]+ in )?(\w+) \(',native_output)
                 sanitizer=re.search(r'ERROR: AddressSanitizer: ([^\s]+).*?\n.*?\n\s*#0 .*? in (\w+) ',native_output,re.S)
                 frame_match=stopped or (None if sanitizer else re.search(r'^#0 .*? in (\w+) ',native_output,re.M))
@@ -697,6 +724,18 @@ def executor(game_data, video_driver='dummy'):
                     if sanitizer:result['native_failure']['diagnostic']=sanitizer[1]
                     result.update(status='FAIL',reason=result['native_failure']['signal']+
                         (' in '+frame_match[1] if frame_match else ''))
+            stopped_path=directory/'probe-stopped.json'
+            stall_path=directory/'probe-stall.json'
+            if stopped_path.is_file():
+                stopped_data=json.loads(stopped_path.read_text())
+                result['stopped_evidence']=stopped_path.name
+                if stopped_data.get('exception'):
+                    result['native_failure']=dict(exception=stopped_data['exception'],log=stopped_path.name)
+                    result.update(status='FAIL',reason=stopped_data['exception'])
+            if stall_path.is_file():
+                result['stall']=json.loads(stall_path.read_text())
+                result['native_failure']=result.get('native_failure',{})|dict(stall=stall_path.name)
+                result.update(status='FAIL',reason=result['stall']['reason']+'; see '+stall_path.name)
             progress=directory/'probe-journey.json'
             if progress.is_file():
                 journey=json.loads(progress.read_text())
@@ -713,7 +752,7 @@ def executor(game_data, video_driver='dummy'):
         if case.kind=='replay':
             command=(sys.executable,str(ROOT/'scripts/e2-debug.py'),'scenario',str(binary),
                 case.options['source'],case.options['specification'],str(directory/'replay'),
-                '--compatible','--timeout',str(int(case.timeout)-10))
+                '--compatible','--timeout',str(int(case.timeout)-10),'--video-driver',video_driver)
         else:
             command=case.command
             if case.name=='Source.GeneratorParity':command+=('--output',str(directory/'generation'))

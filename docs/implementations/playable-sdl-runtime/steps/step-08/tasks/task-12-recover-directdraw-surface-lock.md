@@ -4,14 +4,42 @@
 [Project README](../../../../../../README.md) · [Parent: Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 <!-- /docs-tree:parent -->
 
-Status: planned
+Status: provider implemented and bounded menu/runtime callers verified; original-render acceptance remains open
 Parent Step: [Recover Scene 175 Actors](../step-08-recover-scene-175-actors.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-10-14
+Last Updated: 2026-10-27
 
 ## Goal
 
 Supply real surface storage and pitch through the compatibility DirectDraw Lock/Unlock contract so the recovered rectangle-copy path can execute in the runtime.
+
+## Current continuation — Headless menu sweep
+
+The [2026-10-27 sweep](../../../../../journal/entries/headless-regression-sweep-2026-10-27.md)
+reaches this provider through Load previews. The original installed saves expose
+real thumbnail reads; ASan returns base/pitch **0/0** from the generic Lock.
+The compatibility provider now supplies distinct physical surface objects and
+owned pixels, aligned pitch, exact 108-byte descriptor fields, validated
+Lock/Unlock ownership, Restore lifetime, references, attached buffers and Flip.
+Auxiliary buffers 2/3 and presentation snapshots retain separate ownership.
+
+Original creation/mode disassembly restores contiguous descriptors, real mode
+width/height and complete COM arguments. The high/low wrappers recover their
+original mode flags, dimensions, scene clear and palette pointer. Original
+`0x417cd7/0x417ce8` restores two copy-unlock selectors previously discarded by
+Ghidra. All reconstructed repairs are generator-owned; the compatibility provider
+is handwritten in `E2Recomp_stubs.c`.
+
+Both normal/ASan provider fixtures pass **100** ownership/storage lifecycles,
+including recovered high/low/high mode callers, invalid unlocks, attachment/flip,
+release and auxiliary isolation. Existing original-x86 comparisons again pass
+**2048** rectangle copies and **256** dispatches per mode. The complete headless
+Debug/ASan menu block passes **54 required checks / 48 optional skips**, two native
+exits and complete inspection in **54.06 s**, with all **26** source hashes
+matching. The journal owns retained attempts and exact limits. This does not
+establish the original actor renderer, visible presentation, arbitrary mode
+switching or the older full-render gated route. Broader Task 12 acceptance and
+the complete regression sweep remain open.
 
 ## Evidence
 
@@ -36,4 +64,6 @@ Record whether the runtime really copies the requested rectangle and reaches a l
 
 ## Review State
 
-Independent compatibility failure split from copy-input recovery. No DirectDraw surface provider is implemented by Task 11, and no visible-player or full-route acceptance is claimed.
+The independent compatibility failure now has a real provider and bounded menu
+qualification. Task 11's comparisons remain separate from original full-render
+and visible presentation acceptance, which are still open.
