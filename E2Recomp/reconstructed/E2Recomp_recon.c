@@ -11,6 +11,7 @@
 #include <string.h>
 #include "e2recomp_log.h"
 #include "EcstaticaInspect.h"
+#include "e2recomp_test_population.h"
 #ifdef NAN
 #undef NAN
 #endif
@@ -45696,6 +45697,7 @@ void __fastcall FUN_0044dca4(undefined4 param_1,undefined4 param_2)
     68,71,74,77,80,83,86,89,92,95,98,101,104,107,110,113,
     116,119,127,130,133,136,61,136,127,58,92,107
   };
+  if (E2R_TestNoncombatPopulation()) return;
   /* Explicit Joe-only prototype option. Existing actors and scripts still
    * update; only this automatic terrain-driven population leaf is deferred. */
   const char *defer = getenv("E2R_DEFER_BACKGROUND_SPAWNS");
@@ -48670,6 +48672,8 @@ void FUN_00451f5c(void)
   }
   actor_id = (short)in_EAX;
   uVar3 = DAT_0047a470;
+  /* Test fixture: omit creation; never freeze an existing collider. */
+  if (E2R_TestSuppressActor(actor_id)) return;
   if ((actor_id < 0) || (5000 <= actor_id)) {
     if (E2R_RuntimeDiagEnabled() && E2R_actor_load_diag_count < 48) {
       E2R_actor_load_diag_count = E2R_actor_load_diag_count + 1;
@@ -48873,6 +48877,7 @@ void __fastcall FUN_00452140(undefined4 param_1)
         psVar3 != (short *)0x0 && guard < 0x4000 &&
         !IsBadReadPtr(psVar3,0x1c); psVar3 = *(short **)(psVar3 + 0xc)) {
       guard = guard + 1;
+      if (E2R_TestSuppressActor(*psVar3)) continue;
       if ((*(byte *)(psVar3 + 7) & 0x20) == 0) {
         E2R_TraceSceneChildActivate("52140.child",(int)*(short *)(uintptr_t)in_EAX,psVar3);
         iVar1 = *psVar3 * 4;

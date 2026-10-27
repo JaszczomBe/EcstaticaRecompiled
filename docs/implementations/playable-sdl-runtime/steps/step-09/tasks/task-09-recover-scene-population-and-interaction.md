@@ -6,13 +6,202 @@
 
 Status: in progress; human sword pickup, four kills and two door destructions verified; animation-cache stall repaired; typed markers and Debug/ASan gameplay menu Quit pass; human random-potion pickup verified; delayed potion effects repaired; human bottle removal/sword use confirmed; diagnostic health/effect panel added; fresh healing 85→100, poison onset and conditional no-op verified; effect expiry/cure open; alternate-target crash repaired with bounded evidence; extended stability open; wider pickups/rendering deferred
 Parent Step: [Diagnostic Gameplay With Cylinder Actors](../step-09-enable-diagnostic-gameplay.md)
-Last Updated: 2026-10-24
+Last Updated: 2026-10-26
 
 ## Goal
 
 Restore original scene objects and NPCs needed for exploration and basic interaction while retaining cylinder presentation and Joe's working movement/camera transitions. Begin with one verified original resource and behavior; original models and full combat remain later work.
 
-## Current Continuation — Automated Gameplay Regression Suite
+## Current Continuation — Controlled Opening Test Population
+
+The user authorizes preventing enemy creation for noncombat regressions, avoiding
+random blockage/death before their assertions. The opt-in
+`E2R_TEST_POPULATION=noncombat-opening` fixture bypasses terrain creation and the
+original scripted guard **284/293** and smith **602** load paths. It leaves Joe,
+props, doors and pickups eligible; no freeze, collision bypass, health/RNG/pose
+write or fabricated script completion is introduced. The manifest is audited
+for the opening routes, not a general classifier for later regions. Original
+archive identities, production load gates and default-off original-x86 population
+comparisons cover the boundary; the generator mirrors all reconstructed gates.
+
+Movement/courtyard, action-only attacks, pickup, swimming and menu journeys use
+the fixture. Actual enemy contact/kill/damage, startup-only, potion and stability
+journeys remain live throughout. Every logical result records its profile;
+controlled censuses reject leaked audited enemies/generated actors. Healthy Joe
+still must reach the original release camera/floor after both guard creation
+requests were intercepted. This accepts controlled assertions, not populated
+startup or exploration fidelity.
+
+Normal F5 restores **5000 ms** logo waits. Automated journeys present each actual
+logo then inject separate SDL Space press/release pairs; horseback input remains
+separate. Conditional first-logo and original skip-fidelity/replay limits are
+explicit in the [population/logo journal](../../../../../journal/entries/noncombat-population-and-logos-2026-10-26.md).
+
+Final headless movement passes **8/8**, two processes / **60.96 s**, versus the
+same isolated selection **8/8**, six processes / **102.21 s**. Controlled workshop
+pickup passes **12/12** and three-stage menu show/hide **8/8**, in Debug/ASan,
+with native Quit and complete inspection. A natural-logo Debug example observes
+**5.67/5.69 s** waits without logo keys. Live Debug smith damage remains
+**100→80**; ASan live traversal fails before contact, correctly BLOCKED. A
+visible Wayland run receives unrelated desktop keys and is explicitly interrupted;
+X11 is unavailable. These failures are retained, with no completed visible
+acceptance or unchanged retry. All **46** contracts pass. The full catalogue is
+**184** logical results / **20** shared gameplay processes and is not rerun.
+The preserved animation-name generator drift and prior runtime faults stay open.
+
+## Prior Continuation — Recorded Courtyard Regression Route
+
+The user's Regression **04** run fails Debug's guessed camera-166 crossing while
+startup and movement pass. Their finalized session `20261026_110852_153` records
+the correct pedestal → central courtyard → pedestal loop. The
+[courtyard route journal](../../../../../journal/entries/recorded-courtyard-route-2026-10-26.md)
+owns its preserved human bundle, development failures and acceptance limits.
+
+The regression now follows published waypoints through central camera **125** /
+floor **4096**, then back to pedestal **175** / floor **3328**, within **500**
+world units of its starting area. The old camera-166 crossing, identity/alive,
+released movement, native Quit and completed-inspection gates remain. Continuous
+SDL input follows the two recorded legs; a separately declared bounded clearance
+path is selected only when live guard **293** occupies the return stairs. No
+actor, camera, clock, RNG, health or population state is written.
+
+Human skip progress **438** is recorded as provenance. Fresh probes show timing
+alone does not reproduce guard placement, so the final suite preserves its
+ordinary progress-**83** startup and all movement assertions in the same process
+as traversal. Regression **04** passes **8/8** in **69.68 seconds**, with Debug
+visible and ASan headless, using one shared process per build. The full plan
+remains **182** cases / **20** gameplay processes. Earlier failed route attempts
+are retained; this does not close wider movement/AI or full-suite acceptance.
+Separate native examples validate the alternate return input path in ASan with
+a guard in the stair region and, in Debug, the bounded pedestal approach after
+movement finishes on floor **3712**. Both finish the full loop, confirmed Quit,
+native exit **0** and complete inspection. All **42** runner contracts, the
+**241-document** README tree and whitespace checks pass. Recording is off for
+these fresh probes; no exact-replay acceptance is claimed.
+
+## Prior Continuation — Menu Stages And Concurrent Configurations
+
+The user requests broader menu coverage and now authorizes concurrent Debug/ASan
+execution, superseding the previous parallelism deferral. The
+[menu/parallel journal](../../../../../journal/entries/menu-stages-and-parallel-suite-2026-10-25.md)
+records bounded acceptance and newly exposed failures. The catalogue has **182**
+logical cases and plans **20** gameplay processes shared versus **96** isolated.
+Block **03** selects **102** logical results in **two** processes, one per build.
+
+The display picker offers headless, visible Debug, visible ASan or both windows.
+Configurations run concurrently by default; each retains sequential journeys,
+isolated artifacts and a pinned executable. CLI `--workers 1` restores sequential
+execution. Source/tool checks run once, prerequisite handling is preserved and
+merged HTML/JSON/JUnit reports retain checkpoint provenance. Worker interruption
+and crashes preserve completed assertions and fail the overall suite.
+Suite **01** still bypasses the display picker; the user's game/full-suite names
+and ordering are preserved.
+
+`Journey.MenuStages` checks horseback intro, pedestal intro and released gameplay
+in one process: Escape/Cancel/Quit-No, Settings, option controls and labels,
+Load/Save availability/dialog cancellation, and Start Game returning to the
+initial horseback camera/action/player state. No state restoration is used.
+Resolution behavior, audible music/effects, actual saved-state serialization and
+loading, subtitles and female restart remain explicit per-stage optional skips.
+A flag change or dialog opening cannot count as functional audio or persistence.
+Independent UI failures can continue only after verified cleanup through input;
+failed assertions remain FAIL, and native stops/crashes cannot use this cleanup.
+
+The user's former visible menu selection passed **6/6** in **53.04 seconds**.
+The equivalent concurrent selection passes **6/6** in **26.19 seconds**, showing
+Debug while ASan runs headless. The expanded both-visible run retains **17 PASS /
+14 FAIL / 25 BLOCKED / 46 SKIPPED** in **54.28 seconds**. Debug completes dialog
+and show/hide assertions at all three stages, but all nine option-label checks
+fail and gameplay Start Game segfaults in `FUN_0043a39c`. ASan preserves earlier
+passes/options failures before an intro Load stack-buffer overflow in
+`FUN_0043ce58`. Both failures have exported, integrity-verified bundles and remain
+open. The route subsequently orders restarts at each source stage; isolated
+checks pass horseback restart and fail pedestal → initial intro in both builds,
+retaining clean native exit and completed inspection. No runtime fix is made.
+The final focused route passes **12** logical checks and records **6** optional
+resolution skips in **24.98 seconds**, using two headless processes with delayed
+skip progress **83**, native exit **0** and completed inspection. All **40** runner
+contracts, the **240-document** README tree and whitespace checks pass. The new
+journal distinguishes final route acceptance from development-route failure
+evidence. The full native suite has not been rerun.
+
+## Prior Continuation — Shared Checkpoint Journeys
+
+The [shared-journey continuation](../../../../../journal/entries/shared-gameplay-journeys-2026-10-24.md)
+changes suite execution without editing reconstructed C or the generator. The
+**86** logical cases remain; the full default plan selects **18** gameplay
+processes across Debug/ASan instead of **42** isolated scenarios. Compatible
+checks execute their real assertions once in a shared process, with explicit
+coverage declarations. Early/delayed/natural startup, swimming, fresh RNG trials
+and the two configurations retain distinct journeys. `--execution isolated`
+keeps the prior diagnostic paths available. Full/block and visible launches
+retain automatic prerequisites, sequential windows and the headless picker.
+The 2026-10-25 launch cleanup numbers the regression blocks **01–10** from
+basic to advanced checks and removes the game name from their labels. One
+**★ FULL REGRESSION SUITE (Debug + ASan)** entry appears first with
+a prominent label and the display picker.
+
+The user's 2026-10-25 Suite 01 report retains **24 PASS / 4 FAIL**. No window
+is expected for its **28 source/tool/host checks**, even with visible selected;
+the console explains that, and **01** now bypasses the display picker while
+retaining its ordinary label. Its runner-contract failure came
+from exact full-suite/gameplay labels and absolute launch position assumptions.
+Contracts now identify those entries by their commands and verify the full suite
+comes first among regression entries, preserving the user's decorated names
+and ordinary-game ordering. All **28 contracts** and a desktop-free visible
+CLI selection of `Tools.SuiteContracts` pass. The supplied generation diff has
+exactly the documented animation-slot clearing and two **0x1117 / 0x445c**
+capacity hunks; Debug/ASan animation fixtures fail that same slot ownership
+assertion. Those three real source failures remain preserved; no runtime C,
+generator or assertions are changed to make them pass.
+
+The user's visible Suite 02 run
+`.tmp/gameplay-suite/run_20261025_133932_503306/` passes **8/8** logical results in
+**236.28 seconds**: two builds plus six distinct startup journeys. Inspection of
+its commands confirms early skip (progress **1**), delayed skip (progress **83**)
+and natural completion, each in Debug and ASan. Every native exit is zero and
+all six inspections are complete. Repeated released-player/menu phases validate
+each distinct process; these startup variants and configurations cannot share
+one execution. Console startup lines now identify the mode/configuration and
+covered checks, the delayed route is named `Journey.DelayedSkip`, and lifecycle
+metadata records both. The supplied gameplay run is retained without rerunning;
+all **28** runner contracts pass after these reporting/launch-only changes.
+
+Checkpoint passes survive later failures. A failing checkpoint is FAIL and
+unexercised dependents are BLOCKED; fresh setup failures retain their own root
+checkpoint. Journey lifecycle failure makes the run fail even after all logical
+assertions passed. JSON, HTML and JUnit preserve shared evidence and independent
+logical results. The guide documents the schema and lifecycle rows.
+
+Bounded native Debug and ASan workshop chains each pass **8/8** logical cases in
+one process, including movement/release, sword attachment/following, four attacks,
+smith death and door passage, at **74.08 / 74.38 seconds**. A Debug startup,
+movement, eight-unarmed-attack and menu selection passes **5/5** in one process
+(**50.82 seconds**); a visible Debug menu selection passes **3/3** in one SDL
+window (**25.55 seconds**). Recording is off; inspection and phase/input journals
+are retained. These results do not establish exact replay. The equivalent
+isolated Debug workshop selection also passes **8/8**, using **7** processes
+and **274.17 seconds**: sharing removes six startups and four workshop traversals
+and reduces measured duration by **73.0%**, retaining all logical assertions.
+The unarmed/menu equivalent is **4 → 1** processes and **114.79 → 50.82 seconds**
+(**55.7%** reduction), with all five logical cases passing in both modes.
+A deliberate native interruption verifies partial PASS/FAIL/BLOCKED reports,
+exit **130** and process cleanup. All **28** runner contracts and the
+**239-document** README tree pass. Full-suite native acceptance is not claimed.
+
+The larger combined Debug route is explicitly **red**: after startup, movement
+and unarmed checkpoint passes, workshop traversal stops progressing at **2,703**
+probe updates and hits its **290-second** probe bound. Results retain **4 PASS /
+1 FAIL / 7 BLOCKED**, including build identity. Four `Log cleanup failed:
+std::bad_alloc` messages occur without the former worker abort. This does not
+explain the allocation failure, establish its connection to the stalled update,
+or reproduce the separate `FUN_0042f85c` signal. The inactive session and matching
+binary are exported and integrity-verified in `core-timeout-bundle/` under the
+journal's evidence root. No unchanged gameplay retry or runtime repair is made.
+Later unarmed-contact/sword/stability checkpoints are not credited. Broader
+combined-route and full-suite acceptance remain open.
+
+## Prior Continuation — Automated Gameplay Regression Suite
 
 The [visible-block and abort continuation](../../../../../journal/entries/suite-visible-unarmed-and-retention-abort-2026-10-24.md)
 repairs session maintenance's allocating error handler after the user's new
@@ -35,7 +224,7 @@ replay of the reported allocation failure or close broader stability.
 
 The user now prioritizes a maintained end-to-end regression suite. The
 [suite guide](../../../../../gameplay-tests.md) describes its separate full-suite
-VS Code launch, dependency order, fresh-process input-only journeys and
+VS Code launch, dependency order, input-only journeys and
 PASS/FAIL/BLOCKED/SKIPPED HTML/JSON/JUnit reports. Original-code checks run
 independently of failed traversal prerequisites. Every successful journey also
 checks menu cancellation, resumed movement and confirmed Quit/native exit zero.

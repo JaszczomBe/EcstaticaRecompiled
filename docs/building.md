@@ -6,10 +6,12 @@
 
 The everyday configuration is **Debug · Clang 21 · i386 · SDL**, selected through CMake presets. The gameplay launch **Ecstatica Recompiled** follows the selected CMake executable and enables the experimental cylinder/action route. The runtime remains experimental; a successful build or static capture does not prove playable behavior.
 
-The separate **Ecstatica: Full regression suite** launch builds and runs all
-registered Debug/ASan regression cases sequentially in dependency order. Full
-and block launches offer a headless/visible picker (headless by default); a
-direct visible SDL full-suite entry is also available. Its terminal ends
+The separate **starred full regression suite** builds and runs all registered
+Debug/ASan cases in two concurrent configuration processes, each in dependency
+order. Full and numbered gameplay block launches share a picker for headless,
+visible Debug, visible ASan or both windows (headless by default); source/tool
+checks in **01** launch directly. CLI `--workers 1` restores sequential execution.
+There is one full-suite entry. Its terminal ends
 with PASS/FAIL/BLOCKED/SKIPPED counts and HTML/JSON/JUnit reports. See
 [automated gameplay tests](gameplay-tests.md). The ordinary gameplay launch
 continues to use the selected CMake target.
@@ -125,7 +127,7 @@ The logger starts automatically for that same launch, including Debug + ASan. It
 
 F5 appends `detect_leaks=0` to inherited `ASAN_OPTIONS`: LeakSanitizer cannot check leaks while GDB uses ptrace. AddressSanitizer memory checks remain enabled. Terminal launches keep their normal leak-checking behavior unless explicitly overridden.
 
-`E2R_STARTUP_LOGO_DELAY_MS=0` removes the startup logo waits while retaining logo/resource initialization. Set it to `5000` or remove it to restore the default waits. Space still skips the horseback sequence through its original skip script; the pedestal release sequence continues normally. There is no supported full-intro skip flag yet. See the [startup-skip assessment and measured Debug/ASan results](journal/entries/startup-skip-feasibility-2026-10-20.md).
+F5 sets `E2R_STARTUP_LOGO_DELAY_MS=5000`, retaining the default logo presentation. The diagnostic override `0` removes waits while retaining logo/resource initialization. Automated regressions instead present each actual logo and inject separate Space taps; see [controlled population and startup logos](gameplay-tests.md#controlled-population-and-startup-logos). Space still skips the horseback sequence through its original skip script; the pedestal release sequence continues normally. There is no supported full-intro skip flag yet. See the [startup-skip assessment and measured Debug/ASan results](journal/entries/startup-skip-feasibility-2026-10-20.md).
 
 Workspace settings show the configure preset, Build, and launch target in the status bar. Other controls remain in the CMake Tools sidebar/Command Palette. The kit/Debug-selector pair in undertone belongs to its non-preset VS Code mode; this workspace deliberately stays in preset mode. IntelliSense uses CMake Tools' selected configuration and compile commands.
 

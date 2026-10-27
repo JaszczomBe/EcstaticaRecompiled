@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Ecstatica Recompiled",
+      "name": "\u2605 Ecstatica Recompiled",
       "type": "cppdbg",
       "request": "launch",
       "program": "${command:cmake.launchTargetPath}",
@@ -37,8 +37,12 @@
           "value": "${env:ASAN_OPTIONS}:detect_leaks=0"
         },
         {
+          "name": "E2R_TEST_POPULATION",
+          "value": ""
+        },
+        {
           "name": "E2R_STARTUP_LOGO_DELAY_MS",
-          "value": "0"
+          "value": "5000"
         },
         {
           "name": "E2R_ACTOR_CYLINDERS",
@@ -61,87 +65,80 @@
       "MIMode": "gdb"
     },
     {
-      "name": "Ecstatica: Full regression suite",
+      "name": "\u2605 Reggression Suite FULL (Debug + ASan)",
       "type": "node-terminal",
       "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --display ${input:e2SuiteDisplay}",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --display ${input:e2SuiteDisplay}",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Ecstatica: Full regression suite \u2014 visible SDL",
+      "name": "Regression 01: Source, tools and original contracts",
       "type": "node-terminal",
       "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --display visible",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block checks",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Ecstatica suite: Source, tools and original contracts",
+      "name": "Regression 02: Startup",
       "type": "node-terminal",
       "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block checks --display ${input:e2SuiteDisplay}",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block startup --display ${input:e2SuiteDisplay}",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Ecstatica suite: Startup",
+      "name": "Regression 03: Menus",
       "type": "node-terminal",
       "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block startup --display ${input:e2SuiteDisplay}",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block menus --display ${input:e2SuiteDisplay}",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Ecstatica suite: Movement and courtyard",
+      "name": "Regression 04: Movement and courtyard",
       "type": "node-terminal",
       "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block movement --display ${input:e2SuiteDisplay}",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block movement --display ${input:e2SuiteDisplay}",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Ecstatica suite: Unarmed combat and damage",
+      "name": "Regression 05: Unarmed combat and damage",
       "type": "node-terminal",
       "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block unarmed --display ${input:e2SuiteDisplay}",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block unarmed --display ${input:e2SuiteDisplay}",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Ecstatica suite: Workshop, sword combat and doors",
+      "name": "Regression 06: Workshop, sword combat and doors",
       "type": "node-terminal",
       "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block workshop --display ${input:e2SuiteDisplay}",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block workshop --display ${input:e2SuiteDisplay}",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Ecstatica suite: Potions and equipment",
+      "name": "Regression 07: Swimming",
       "type": "node-terminal",
       "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block potions --display ${input:e2SuiteDisplay}",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block swimming --display ${input:e2SuiteDisplay}",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Ecstatica suite: Swimming",
+      "name": "Regression 08: Potions and equipment",
       "type": "node-terminal",
       "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block swimming --display ${input:e2SuiteDisplay}",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block potions --display ${input:e2SuiteDisplay}",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Ecstatica suite: Menus",
+      "name": "Regression 09: Mixed gameplay stability",
       "type": "node-terminal",
       "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block menus --display ${input:e2SuiteDisplay}",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block stability --display ${input:e2SuiteDisplay}",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Ecstatica suite: Mixed gameplay stability",
+      "name": "Regression 10: Complete replay corpus",
       "type": "node-terminal",
       "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block stability --display ${input:e2SuiteDisplay}",
-      "cwd": "${workspaceFolder}"
-    },
-    {
-      "name": "Ecstatica suite: Complete replay corpus",
-      "type": "node-terminal",
-      "request": "launch",
-      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --block replay --display ${input:e2SuiteDisplay}",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block replay --display ${input:e2SuiteDisplay}",
       "cwd": "${workspaceFolder}"
     }
   ],
@@ -149,10 +146,12 @@
     {
       "id": "e2SuiteDisplay",
       "type": "pickString",
-      "description": "Regression gameplay display (scenarios run one at a time)",
+      "description": "Gameplay windows (Debug and ASan run concurrently)",
       "options": [
         "headless",
-        "visible"
+        "visible-debug",
+        "visible-asan",
+        "visible-both"
       ],
       "default": "headless"
     }

@@ -7,7 +7,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-10-24
+Last Updated: 2026-10-26
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -26,6 +26,20 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 1. A release-ready port, full original fidelity, or 64-bit core migration.
 2. Replacing recovered logic with speculative shortcuts or direct SDL calls.
 3. Broad generated-file changes unrelated to a source-backed repair.
+
+## Current regression fixture — 2026-10-26
+
+The [current population task](steps/step-09/tasks/task-09-recover-scene-population-and-interaction.md#current-continuation--controlled-opening-test-population)
+now distinguishes controlled opening journeys from live population/combat.
+Noncombat tests prevent original guard/smith and terrain creation; normal F5 and
+combat retain live actors. Controlled movement/pickup/menu examples pass in
+Debug/ASan, while live ASan approach failure and interrupted visible-input evidence
+remain red. Shared movement uses **2** processes / **60.96 s**, versus **6** /
+**102.21 s** isolated. Normal logo waits are restored; automated tests present
+and tap each actual logo separately. The
+[population/logo journal](../../journal/entries/noncombat-population-and-logos-2026-10-26.md)
+records **46** passing contracts, source/fixture evidence, new **184**-case
+catalogue and the unrerun full-suite / preserved generator-drift limits.
 
 ## Bare Terminal Baseline
 
@@ -65,6 +79,36 @@ Step numbers are stable identifiers, not execution order. Step 07 is complete. T
 
 ## Active Frontier
 
+The [recorded courtyard route](../../journal/entries/recorded-courtyard-route-2026-10-26.md)
+replaces Regression **04**'s guessed crossing with the user's pedestal/central
+courtyard round trip. Startup, movement and traversal pass **8/8** in **69.68 s**,
+one shared Debug and one shared ASan process. Both central camera **125** / floor
+**4096** and return **175** / **3328** are asserted. A bounded input detour handles
+an observed guard at the return stairs; source timing alone cannot reproduce
+fresh population. No runtime C/generator or game-state restoration is involved.
+The owning task and journal retain development failures and acceptance limits.
+
+The [menu/parallel continuation](../../journal/entries/menu-stages-and-parallel-suite-2026-10-25.md)
+expands the suite to **182** logical cases and **20** shared gameplay processes
+versus **96** isolated scenarios. Debug/ASan run concurrently by default, with
+headless, either visible configuration or both windows; each build's journeys
+remain sequential. The old six-case menu selection passes in **26.19 seconds**
+versus the user's **53.04** sequential result. Three-stage menu coverage exposes
+stale option labels, pedestal restart failure, Debug gameplay Start Game SIGSEGV
+and an ASan intro Load stack-buffer overflow. These failures remain open and
+preserve earlier checkpoint passes; audio, resolution and functional save/load
+retain explicit per-stage skips. The owning task records evidence and limits.
+
+The earlier [shared-journey suite continuation](../../journal/entries/shared-gameplay-journeys-2026-10-24.md)
+retained **86** logical cases while planning **18** fresh gameplay processes
+instead of **42**, with individual checkpoint results and shared evidence.
+Debug/ASan workshop chains pass eight logical checks in one process each;
+a larger Debug chain times out during workshop traversal after preserving its
+startup/movement/unarmed passes. Repeated retention `std::bad_alloc` reports
+survive without abort, but allocation pressure and the stalled update remain
+unexplained. Full combined-route acceptance is open. The owning task records
+results and limits; isolated diagnostic execution remains available.
+
 The [visible-block/unarmed continuation](../../journal/entries/suite-visible-unarmed-and-retention-abort-2026-10-24.md)
 adds sequential SDL watching and prerequisite-aware suite launches. Unarmed
 attack/contact cases are independent of sword pickup. Session-retention error
@@ -74,8 +118,8 @@ unexplained. Broader gameplay stability and the earlier ASan event fault remain
 open.
 
 The [automated gameplay suite](../../gameplay-tests.md) now exercises recovered
-capabilities in dependency order from fresh processes. Its separate full-suite
-launch runs Debug/ASan and reports failed prerequisites as blocked scenarios,
+capabilities in shared, input-only journeys. Its separate full-suite
+launch runs Debug/ASan and reports failed prerequisites as blocked checkpoints,
 with explicit unfinished/random coverage skips. The
 [suite journal](../../journal/entries/gameplay-regression-suite-2026-10-24.md)
 records current results and distinguishes route qualification from runtime

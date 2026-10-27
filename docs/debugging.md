@@ -10,9 +10,10 @@ run locally; original game assets remain in their external installation.
 
 The [gameplay regression suite](gameplay-tests.md) runs bounded fresh-input
 journeys and original-code comparisons with dependency-aware reports. Select
-**Ecstatica: Full regression suite** for all configured Debug/ASan cases, or a
-separate block launch with automatic prerequisites. A headless/visible picker
-defaults to headless; a direct visible SDL launch runs windows one at a time. Use the
+the **starred full regression suite** for all configured Debug/ASan cases, or a
+separate block launch with automatic prerequisites. Debug/ASan run concurrently;
+the display picker defaults to headless and can show either configuration or
+both windows. Each configuration runs its journeys sequentially. Use the
 ordinary gameplay launch for human F5 investigation.
 
 ## Normal gameplay investigation in VS Code
@@ -59,8 +60,10 @@ python3 scripts/e2-debug.py bundle /absolute/session \
 The export includes the F5 investigation artifacts and debugger output. Source
 context is a startup snapshot, while the executable hash identifies the binary;
 context alone is not proof that every file produced that image. Terminal launches
-keep inspection opt-in. F5 retains the existing zero-logo-wait setting, so its
-timing is a diagnostic route rather than natural-logo timing acceptance.
+keep inspection opt-in. F5 now retains the default five-second startup logo
+waits. Regression probes present each logo and use separate SDL Space taps;
+[gameplay tests](gameplay-tests.md#controlled-population-and-startup-logos) explain
+the natural-wait option and the original-code/replay limits.
 
 ## Health and potion observation
 

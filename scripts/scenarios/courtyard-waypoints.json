@@ -1,0 +1,731 @@
+{
+  "schema": "e2suite.courtyard-waypoints.1",
+  "source": {
+    "session": "session_20261026_110852_153",
+    "executable_sha256": "9818189b760d86c861cf46e4c16706125bca9806246fbd2f5bacd69de5d5aef9",
+    "inspection_complete": true,
+    "inspection_sha256": {
+      "timeline.csv": "e7938382d28a4eb7249d54915597627aa280139f181c4d90f5eeb0f71ba955a1",
+      "state.csv": "659e5092be0ac8e21c51d0d64ed68d799e9fc8b6368e1971620b89594ee550a5"
+    },
+    "note": "Published human inspection states; positions guide SDL input only. Outward and return are separate paths.",
+    "intro_skip_action": 1,
+    "intro_skip_progress": 438
+  },
+  "outward": [
+    {
+      "snapshot": 142,
+      "update": 1636,
+      "camera": 175,
+      "position": [
+        9988,
+        3328,
+        -17408
+      ]
+    },
+    {
+      "snapshot": 155,
+      "update": 1699,
+      "camera": 175,
+      "position": [
+        9897,
+        3456,
+        -16867
+      ]
+    },
+    {
+      "snapshot": 160,
+      "update": 1738,
+      "camera": 175,
+      "position": [
+        8968,
+        3712,
+        -16399
+      ]
+    },
+    {
+      "snapshot": 162,
+      "update": 1740,
+      "camera": 175,
+      "position": [
+        8948,
+        3840,
+        -16401
+      ]
+    },
+    {
+      "snapshot": 163,
+      "update": 1752,
+      "camera": 175,
+      "position": [
+        8460,
+        3968,
+        -16435
+      ]
+    },
+    {
+      "snapshot": 164,
+      "update": 1770,
+      "camera": 166,
+      "position": [
+        8093,
+        4096,
+        -16462
+      ]
+    },
+    {
+      "snapshot": 167,
+      "update": 1800,
+      "camera": 166,
+      "position": [
+        7174,
+        4096,
+        -16528
+      ]
+    },
+    {
+      "snapshot": 169,
+      "update": 1820,
+      "camera": 166,
+      "position": [
+        6604,
+        4096,
+        -16570
+      ]
+    },
+    {
+      "snapshot": 173,
+      "update": 1838,
+      "camera": 166,
+      "position": [
+        6166,
+        4096,
+        -16514
+      ]
+    },
+    {
+      "snapshot": 174,
+      "update": 1860,
+      "camera": 166,
+      "position": [
+        5610,
+        4096,
+        -16416
+      ]
+    },
+    {
+      "snapshot": 176,
+      "update": 1890,
+      "camera": 166,
+      "position": [
+        4799,
+        4096,
+        -16272
+      ]
+    },
+    {
+      "snapshot": 178,
+      "update": 1920,
+      "camera": 169,
+      "position": [
+        4140,
+        4096,
+        -16156
+      ]
+    },
+    {
+      "snapshot": 183,
+      "update": 1950,
+      "camera": 169,
+      "position": [
+        3583,
+        4096,
+        -15734
+      ]
+    },
+    {
+      "snapshot": 186,
+      "update": 1970,
+      "camera": 166,
+      "position": [
+        3479,
+        4096,
+        -15219
+      ]
+    },
+    {
+      "snapshot": 190,
+      "update": 1988,
+      "camera": 166,
+      "position": [
+        3232,
+        4096,
+        -14787
+      ]
+    },
+    {
+      "snapshot": 191,
+      "update": 2010,
+      "camera": 166,
+      "position": [
+        2769,
+        4096,
+        -14414
+      ]
+    },
+    {
+      "snapshot": 194,
+      "update": 2040,
+      "camera": 176,
+      "position": [
+        2281,
+        4096,
+        -14023
+      ]
+    },
+    {
+      "snapshot": 198,
+      "update": 2064,
+      "camera": 176,
+      "position": [
+        1774,
+        4096,
+        -13706
+      ]
+    },
+    {
+      "snapshot": 201,
+      "update": 2100,
+      "camera": 176,
+      "position": [
+        951,
+        4096,
+        -13611
+      ]
+    },
+    {
+      "snapshot": 205,
+      "update": 2119,
+      "camera": 176,
+      "position": [
+        527,
+        4096,
+        -13556
+      ]
+    },
+    {
+      "snapshot": 207,
+      "update": 2130,
+      "camera": 176,
+      "position": [
+        108,
+        4096,
+        -13452
+      ]
+    },
+    {
+      "snapshot": 208,
+      "update": 2160,
+      "camera": 176,
+      "position": [
+        -486,
+        4096,
+        -13302
+      ]
+    },
+    {
+      "snapshot": 209,
+      "update": 2160,
+      "camera": 164,
+      "position": [
+        -544,
+        4096,
+        -13287
+      ]
+    },
+    {
+      "snapshot": 211,
+      "update": 2190,
+      "camera": 164,
+      "position": [
+        -1187,
+        4096,
+        -13126
+      ]
+    },
+    {
+      "snapshot": 214,
+      "update": 2214,
+      "camera": 164,
+      "position": [
+        -1793,
+        4096,
+        -12973
+      ]
+    },
+    {
+      "snapshot": 218,
+      "update": 2250,
+      "camera": 164,
+      "position": [
+        -2414,
+        4096,
+        -12682
+      ]
+    },
+    {
+      "snapshot": 220,
+      "update": 2278,
+      "camera": 125,
+      "position": [
+        -3094,
+        4096,
+        -12341
+      ]
+    },
+    {
+      "snapshot": 224,
+      "update": 2300,
+      "camera": 125,
+      "position": [
+        -3527,
+        4096,
+        -12124
+      ]
+    },
+    {
+      "snapshot": 227,
+      "update": 2332,
+      "camera": 125,
+      "position": [
+        -3912,
+        4096,
+        -11342
+      ]
+    },
+    {
+      "snapshot": 230,
+      "update": 2354,
+      "camera": 125,
+      "position": [
+        -3862,
+        4096,
+        -10795
+      ]
+    },
+    {
+      "snapshot": 234,
+      "update": 2385,
+      "camera": 125,
+      "position": [
+        -4218,
+        4096,
+        -10147
+      ]
+    },
+    {
+      "snapshot": 237,
+      "update": 2430,
+      "camera": 125,
+      "position": [
+        -5234,
+        4096,
+        -9606
+      ]
+    },
+    {
+      "snapshot": 239,
+      "update": 2447,
+      "camera": 125,
+      "position": [
+        -5620,
+        4096,
+        -9404
+      ]
+    },
+    {
+      "snapshot": 244,
+      "update": 2489,
+      "camera": 125,
+      "position": [
+        -6189,
+        4096,
+        -9116
+      ]
+    }
+  ],
+  "returning": [
+    {
+      "snapshot": 273,
+      "update": 2575,
+      "camera": 125,
+      "position": [
+        -6063,
+        4096,
+        -9185
+      ]
+    },
+    {
+      "snapshot": 278,
+      "update": 2593,
+      "camera": 125,
+      "position": [
+        -5551,
+        4096,
+        -9251
+      ]
+    },
+    {
+      "snapshot": 279,
+      "update": 2606,
+      "camera": 125,
+      "position": [
+        -5122,
+        4096,
+        -9362
+      ]
+    },
+    {
+      "snapshot": 284,
+      "update": 2634,
+      "camera": 125,
+      "position": [
+        -4639,
+        4096,
+        -9760
+      ]
+    },
+    {
+      "snapshot": 287,
+      "update": 2663,
+      "camera": 125,
+      "position": [
+        -4368,
+        4096,
+        -10385
+      ]
+    },
+    {
+      "snapshot": 290,
+      "update": 2677,
+      "camera": 125,
+      "position": [
+        -4037,
+        4096,
+        -10709
+      ]
+    },
+    {
+      "snapshot": 291,
+      "update": 2700,
+      "camera": 125,
+      "position": [
+        -3476,
+        4096,
+        -10905
+      ]
+    },
+    {
+      "snapshot": 296,
+      "update": 2730,
+      "camera": 164,
+      "position": [
+        -3038,
+        4096,
+        -11354
+      ]
+    },
+    {
+      "snapshot": 299,
+      "update": 2747,
+      "camera": 164,
+      "position": [
+        -2681,
+        4096,
+        -11734
+      ]
+    },
+    {
+      "snapshot": 303,
+      "update": 2775,
+      "camera": 164,
+      "position": [
+        -2114,
+        4096,
+        -12091
+      ]
+    },
+    {
+      "snapshot": 308,
+      "update": 2803,
+      "camera": 164,
+      "position": [
+        -1650,
+        4096,
+        -12484
+      ]
+    },
+    {
+      "snapshot": 310,
+      "update": 2820,
+      "camera": 164,
+      "position": [
+        -1232,
+        4096,
+        -12657
+      ]
+    },
+    {
+      "snapshot": 312,
+      "update": 2849,
+      "camera": 176,
+      "position": [
+        -505,
+        4096,
+        -12794
+      ]
+    },
+    {
+      "snapshot": 317,
+      "update": 2878,
+      "camera": 176,
+      "position": [
+        159,
+        4096,
+        -13091
+      ]
+    },
+    {
+      "snapshot": 320,
+      "update": 2910,
+      "camera": 176,
+      "position": [
+        981,
+        4096,
+        -13480
+      ]
+    },
+    {
+      "snapshot": 324,
+      "update": 2940,
+      "camera": 176,
+      "position": [
+        1677,
+        4096,
+        -13679
+      ]
+    },
+    {
+      "snapshot": 326,
+      "update": 2966,
+      "camera": 176,
+      "position": [
+        2285,
+        4096,
+        -13816
+      ]
+    },
+    {
+      "snapshot": 329,
+      "update": 3000,
+      "camera": 166,
+      "position": [
+        3162,
+        4096,
+        -14010
+      ]
+    },
+    {
+      "snapshot": 333,
+      "update": 3030,
+      "camera": 166,
+      "position": [
+        3740,
+        4096,
+        -13812
+      ]
+    },
+    {
+      "snapshot": 337,
+      "update": 3056,
+      "camera": 166,
+      "position": [
+        4257,
+        4096,
+        -13551
+      ]
+    },
+    {
+      "snapshot": 341,
+      "update": 3090,
+      "camera": 166,
+      "position": [
+        5109,
+        4096,
+        -13589
+      ]
+    },
+    {
+      "snapshot": 344,
+      "update": 3120,
+      "camera": 166,
+      "position": [
+        5813,
+        4096,
+        -13947
+      ]
+    },
+    {
+      "snapshot": 347,
+      "update": 3147,
+      "camera": 166,
+      "position": [
+        6180,
+        4096,
+        -14506
+      ]
+    },
+    {
+      "snapshot": 351,
+      "update": 3174,
+      "camera": 166,
+      "position": [
+        6580,
+        4096,
+        -14973
+      ]
+    },
+    {
+      "snapshot": 354,
+      "update": 3191,
+      "camera": 166,
+      "position": [
+        6983,
+        4096,
+        -15197
+      ]
+    },
+    {
+      "snapshot": 356,
+      "update": 3210,
+      "camera": 166,
+      "position": [
+        7485,
+        4096,
+        -15364
+      ]
+    },
+    {
+      "snapshot": 359,
+      "update": 3236,
+      "camera": 166,
+      "position": [
+        8076,
+        4096,
+        -15738
+      ]
+    },
+    {
+      "snapshot": 364,
+      "update": 3268,
+      "camera": 175,
+      "position": [
+        8558,
+        3968,
+        -16214
+      ]
+    },
+    {
+      "snapshot": 368,
+      "update": 3281,
+      "camera": 175,
+      "position": [
+        8953,
+        3840,
+        -16317
+      ]
+    },
+    {
+      "snapshot": 369,
+      "update": 3288,
+      "camera": 175,
+      "position": [
+        9119,
+        3712,
+        -16340
+      ]
+    },
+    {
+      "snapshot": 370,
+      "update": 3300,
+      "camera": 175,
+      "position": [
+        9327,
+        3584,
+        -16340
+      ]
+    },
+    {
+      "snapshot": 373,
+      "update": 3320,
+      "camera": 175,
+      "position": [
+        9623,
+        3456,
+        -16624
+      ]
+    },
+    {
+      "snapshot": 377,
+      "update": 3349,
+      "camera": 175,
+      "position": [
+        10100,
+        3328,
+        -17106
+      ]
+    },
+    {
+      "snapshot": 400,
+      "update": 3411,
+      "camera": 175,
+      "position": [
+        10154,
+        3328,
+        -17184
+      ]
+    }
+  ],
+  "stair_clearance": {
+    "gate_snapshot": 364,
+    "actor": 293,
+    "region": [
+      9365,
+      -16348
+    ],
+    "radius": 650,
+    "note": "Input-only clearance when live guard occupies the recorded return stairs; rejoins the human pedestal endpoint. Intermediate clearance coordinates are navigation guidance, not recorded samples.",
+    "waypoints": [
+      [
+        8460,
+        -16435
+      ],
+      [
+        8968,
+        -16780
+      ],
+      [
+        9365,
+        -16800
+      ],
+      [
+        9897,
+        -16867
+      ],
+      [
+        10154,
+        -17184
+      ]
+    ]
+  }
+}

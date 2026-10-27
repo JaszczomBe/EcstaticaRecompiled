@@ -3,8 +3,9 @@
 All game changes go through SDL input. Actor positions, actions, health, resource
 identity, clocks and RNG are observation-only. There are no saved-state shortcuts.
 """
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import json
+import copy
 import math
 from pathlib import Path
 import time
@@ -25,27 +26,60 @@ POTION = [(2000,-11100),(1350,-11250),(700,-11480),(300,-11580)]
 
 class Journey:
     def __init__(self, context, name, options):
-        if not isinstance(options,dict) or any(key not in ('potion_wait','stability_batches') for key in options):
+        if not isinstance(options,dict) or any(key not in ('potion_wait','stability_batches','checks','observe_seconds','courtyard_stair_clearance') for key in options):
             raise ValueError('Unsupported journey options')
-        for key,low,high in (('potion_wait',0,1000),('stability_batches',1,60)):
+        if type(options.get('courtyard_stair_clearance',False)) is not bool:
+            raise ValueError('courtyard_stair_clearance must be a boolean input-path selector')
+        if name=='shared':
+            from e2_suite import SHARED_ROUTES
+            allowed={check for checks in SHARED_ROUTES.values() for check in checks}
+            checks=options.get('checks')
+            if not isinstance(checks,list) or not checks or len(set(checks))!=len(checks) or any(check not in allowed for check in checks):
+                raise ValueError('Invalid shared checkpoints')
+        for key,low,high in (('potion_wait',0,1000),('stability_batches',1,60),('observe_seconds',0,120)):
             if key in options and (type(options[key]) is not int or not low<=options[key]<=high):
                 raise ValueError('Invalid bounded option '+key)
         self.c, self.name, self.options = context, name, options
         self.value, self.field = context['value'], context['field']
         self.actor, self.prefix = context['actor'], context['prefix']
         self.held, self.updates, self.phases, self.inputs = {}, 0, [], []
-        self.details = {}
+        from e2_population_profile import observe
+        self.details = dict(population=observe(self.prefix,'journey-start'),logos=context.get('startup_logos',[]))
+        self.checkpoints = []
+        self.checkpoint_stack = []
+        self.local = set()
         self.complete = False
         self.save()
 
     def save(self):
         target = Path(self.prefix + '-journey.json')
         report = dict(schema='e2suite.journey.1', scenario=self.name,
-                      phases=self.phases, inputs=self.inputs, updates=self.updates,
+                      phases=self.phases, checkpoints=self.checkpoints, inputs=self.inputs, updates=self.updates,
                       details=self.details, complete=self.complete)
         temporary = target.with_suffix('.json.tmp')
         temporary.write_text(json.dumps(report, indent=2)+'\n')
         temporary.replace(target)
+
+    @contextmanager
+    def checkpoint(self, name):
+        started=time.monotonic()
+        row=dict(name=name,status='RUNNING',phase_start=len(self.phases),started_monotonic=started,
+                 parent=self.checkpoint_stack[-1] if self.checkpoint_stack else None)
+        self.checkpoints.append(row)
+        self.checkpoint_stack.append(name)
+        self.save()
+        try:
+            yield
+            row['status']='PASS'
+            self.local.add(name)
+        except BaseException as error:
+            row.update(status='FAIL',reason=str(error) or type(error).__name__)
+            raise
+        finally:
+            row.update(phase_end=len(self.phases),seconds=time.monotonic()-started,
+                       details=copy.deepcopy(self.details))
+            self.checkpoint_stack.pop()
+            self.save()
 
     def require(self, condition, message):
         if not condition:
@@ -70,6 +104,8 @@ class Journey:
             if observe:
                 self.alive()
                 self.c['checkpoint'](name)
+                from e2_population_profile import observe as observe_population
+                self.details['population']=observe_population(self.prefix,name)
             row['status'] = 'PASS'
             if not observe:self.complete=True
         except Exception as error:
@@ -126,7 +162,7 @@ class Journey:
     def camera(self):
         return self.c['observe_camera']()
 
-    def walk(self, points, tolerance=160, attempts=240):
+    def walk(self, points, tolerance=160, attempts=240, on_waypoint=None):
         for index, (x,z) in enumerate(points):
             for _ in range(attempts):
                 self.alive()
@@ -145,6 +181,7 @@ class Journey:
                 position=self.position()
                 if math.hypot(x-position[0],z-position[2])>=tolerance:
                     raise gdb.GdbError(f'Traversal missed waypoint {index}: ({x},{z}); actual {position}')
+            if on_waypoint:on_waypoint(index)
         self.release()
         self.advance(8)
 
@@ -191,30 +228,58 @@ class Journey:
             self.require(self.position() == position, 'Released movement did not settle')
 
     def courtyard(self):
+        route=json.loads((Path(__file__).parent/'scenarios/courtyard-waypoints.json').read_text())
+        self.require(route.get('schema')=='e2suite.courtyard-waypoints.1','Unsupported courtyard route')
+        self.details['courtyard']=dict(source=route['source'],outward=[],returning=[])
+        def follow(leg):
+            def walk_rows(rows):
+                def observe(index):
+                    observation=dict(snapshot=rows[index]['snapshot'],camera=self.camera(),position=self.position())
+                    self.details['courtyard'][leg].append(observation)
+                    self.save()
+                # Keep walking between samples, with normal actor-radius guidance.
+                self.walk([(row['position'][0],row['position'][2]) for row in rows],on_waypoint=observe)
+            rows=route[leg]
+            if leg=='returning':
+                clearance=route['stair_clearance']
+                prefix=[row for row in rows if row['snapshot']<clearance['gate_snapshot']]
+                walk_rows(prefix);rows=rows[len(prefix):]
+                guard=self.value(f'*(unsigned int*)(0x630b60+{clearance["actor"]}*4)')
+                position=self.position(guard) if guard else None
+                occupied=position is not None and math.hypot(position[0]-clearance['region'][0],
+                                                           position[2]-clearance['region'][1])<clearance['radius']
+                diagnostic=self.options.get('courtyard_stair_clearance',False)
+                self.details['courtyard']['stair_clearance']=dict(actor=clearance['actor'],position=position,
+                    occupied=occupied,diagnostic=diagnostic,used=occupied or diagnostic)
+                if occupied or diagnostic:rows=[dict(snapshot=None,position=[x,0,z]) for x,z in clearance['waypoints']]
+            walk_rows(rows)
+            return self.position()
+        if self.camera()!=175 or self.field(0x86)!=3328:
+            with self.phase('traversal.pedestal-approach'):
+                start=route['outward'][0]['position'];position=self.position()
+                self.require(math.hypot(position[0]-start[0],position[2]-start[2])<2500,
+                             'Movement left Joe outside the bounded pedestal approach')
+                self.details['courtyard']['approach']=dict(camera=self.camera(),position=position)
+                # Movement assertions can finish on the steps. Walk around the
+                # same live obstruction and back up; never restore actor state.
+                self.walk(route['stair_clearance']['waypoints'])
         with self.phase('traversal.courtyard-outward'):
-            self.require(self.camera()==175, 'Expected starting courtyard camera 175')
-            crossed = False
-            for vk, batches in ((0x26,4),(0x28,24)):
-                self.key(vk,True)
-                for _ in range(batches):
-                    self.advance(30)
-                    if self.camera()!=175:
-                        crossed=True
-                        break
-                self.release(); self.advance(90)
-                if crossed:
-                    break
-            self.require(self.camera()==166, 'Did not cross into camera 166')
-            return_key = 0x28 if vk==0x26 else 0x26
+            self.require(self.camera()==175 and self.field(0x86)==3328,
+                         'Expected starting pedestal camera 175 / floor 3328')
+            position=follow('outward')
+            self.require(any(row['camera']==166 for row in self.details['courtyard']['outward']),
+                         'Recorded route did not cross camera 166')
+            self.require(self.camera()==125 and position[1]==4096,
+                         'Did not reach central courtyard camera 125 / floor 4096')
         with self.phase('traversal.courtyard-return'):
-            self.key(return_key,True)
-            for _ in range(24):
-                self.advance(30)
-                if self.camera()==175 and self.field(0x86)==3328:
-                    break
+            follow('returning')
             self.release(); self.advance(90)
             self.require(self.camera()==175 and self.field(0x86)==3328,
                          'Did not return to camera 175 / floor 3328')
+            start=route['outward'][0]['position']
+            position=self.position()
+            self.require(math.hypot(position[0]-start[0],position[2]-start[2])<500,
+                         'Return stopped outside the pedestal starting area')
 
     def workshop(self):
         with self.phase('traversal.workshop'):
@@ -311,8 +376,8 @@ class Journey:
                 if self.position()!=before:break
             self.require(self.position()!=before, 'Movement did not resume after unarmed attacks')
 
-    def unarmed_contact(self):
-        self.workshop()
+    def unarmed_contact(self, traverse=True):
+        if traverse:self.workshop()
         with self.phase('traversal.unarmed-contact'):
             self.require(self.field(0xf0)==0, 'Contact test must not equip a sword')
             target=self.actor_by_id(602)
@@ -424,8 +489,10 @@ class Journey:
             self.details['damage']=dict(before=before, after=self.field(0xec))
 
     def potion(self, damaged=False):
-        if damaged:
-            self.damage()
+        if damaged and 'Combat.TakeDamage' not in self.local:
+            with self.checkpoint('setup.Combat.TakeDamage') if self.name=='shared' else nullcontext():
+                self.damage()
+                self.local.add('Combat.TakeDamage')
         with self.phase('traversal.potion'):
             position=self.position()
             from_stairs=damaged and position[0]<8000 and position[2]>-16500
@@ -509,12 +576,93 @@ class Journey:
             self.require(rep and self.value(f'*(short*){rep}')==13 and self.position()!=before,
                          'Swimming representation and displacement not observed')
 
-    def run(self):
+    def shared_step(self, name):
+        def workshop():
+            if 'Traversal.Workshop' not in self.local:
+                with self.checkpoint('setup.Traversal.Workshop') if name!='Traversal.Workshop' else nullcontext():
+                    self.workshop();self.local.add('Traversal.Workshop')
+        def sword():
+            workshop()
+            if 'Interaction.SwordPickup' not in self.local:
+                with self.checkpoint('setup.Interaction.SwordPickup') if name!='Interaction.SwordPickup' else nullcontext():
+                    self.sword(traverse=False);self.local.add('Interaction.SwordPickup')
+        def attacks():
+            sword()
+            if 'Combat.FourDirections' not in self.local:
+                with self.checkpoint('setup.Combat.FourDirections') if name!='Combat.FourDirections' else nullcontext():
+                    self.attacks();self.local.add('Combat.FourDirections')
+        if name=='Movement.ControlsAndRelease':self.movement()
+        elif name=='Combat.UnarmedDirections':self.unarmed()
+        elif name=='Traversal.CourtyardReturn':self.courtyard()
+        elif name=='Traversal.Workshop':workshop()
+        elif name=='Combat.UnarmedContact':
+            workshop();self.unarmed_contact(traverse=False)
+        elif name=='Interaction.SwordPickup':sword()
+        elif name=='Combat.FourDirections':attacks()
+        elif name=='Combat.KillSmith':
+            attacks();self.strike(602,death=True)
+        elif name=='Interaction.DoorPassage':
+            attacks();self.strike(980)
+        elif name=='Combat.TakeDamage':self.damage()
+        elif name.startswith('Potion.Trial'):
+            self.potion(damaged=name[-1] in 'CD')
+        elif name=='Interaction.PotionThenSword':
+            self.walk([(-125,-9845),(-789,-9781),(-1278,-9756),(-837,-10021)])
+            self.sword(traverse=False);self.attacks()
+            with self.phase('interaction.bottle-remains-removed'):
+                bottle=self.actor_by_id(537)
+                self.require(self.value(f'*(unsigned int*)({bottle}+0xf2)')==0 and
+                             self.value(f'*(unsigned int*)({bottle}+0x11e)')==0,
+                             'Sword use restored the consumed bottle')
+        elif name=='Movement.Swimming':self.swimming()
+        elif name=='Stability.MixedJourney':
+            attacks()
+            if 'Interaction.DoorPassage' not in self.local:
+                with self.checkpoint('setup.Interaction.DoorPassage'):self.strike(980)
+            with self.phase('stability.active-input'):
+                for _ in range(self.options.get('stability_batches',24)):
+                    self.key(0x25,True);self.advance(30);self.release()
+                    self.key(0x26,True);self.advance(30);self.release()
+                    self.key(0x28,True);self.advance(30);self.release()
+                self.advance(300)
+            with self.phase('stability.released-observation'):
+                started=time.monotonic()
+                while time.monotonic()-started<self.options.get('observe_seconds',60):
+                    self.advance(30);self.alive();self.camera()
+                self.details['observed_seconds']=time.monotonic()-started
+                state=self.c['snapshot']('observed-released')
+                self.require(not any(state['held_keys'].values()),'Observation left a key held')
+        else:raise ValueError('Unknown shared checkpoint '+name)
+
+    def startup(self):
         with self.phase('startup.released-player'):
+            population=self.details['population']
+            if population['profile']=='noncombat-opening':
+                self.require(population['blocked_requests_mask'] & 3 == 3,
+                             'Fixture did not intercept both original guard creation requests')
             self.require(self.field(0x82)==4 and self.field(0xec)==100,
                          'Startup did not produce healthy controllable Joe')
             self.require(self.camera()==175 and self.field(0x86)==3328,
                          'Startup did not reach the expected courtyard/floor')
+
+    def run(self):
+        if self.name=='shared':
+            checks=self.options['checks']
+            startup=next((name for name in checks if name.startswith('Startup.')),None)
+            if startup:
+                with self.checkpoint(startup):self.startup()
+            else:
+                with self.checkpoint('setup.Startup'):self.startup()
+            for name in checks:
+                if name.startswith('Startup.') or name=='Menus.CancelResumeQuit':continue
+                with self.checkpoint(name):self.shared_step(name)
+            with self.checkpoint('setup.ReleasedInput'):
+                with self.phase('journey.released-input'):
+                    self.release();self.advance(30);self.alive()
+            self.save()
+            return dict(scenario=self.name,phases=self.phases,details=self.details,
+                        checkpoints=self.checkpoints,updates=self.updates,inputs=self.inputs)
+        self.startup()
         name=self.name
         if name=='movement': self.movement()
         elif name=='courtyard': self.courtyard()

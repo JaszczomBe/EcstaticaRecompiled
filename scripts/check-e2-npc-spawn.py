@@ -39,7 +39,7 @@ typedef uint16_t ushort;
 typedef uint8_t byte;
 #define __fastcall
 static uintptr_t DAT_0047a470,_DAT_0063726c;
-static int E2R_actor_calc_context,E2R_actor_load_id_override=-1;
+static int E2R_actor_calc_context,E2R_actor_load_id_override=-1,E2R_actor_archive_load_context;
 static int rng_calls,query_calls,load_calls,unlinks,activations,poses;
 static int range_first,range_count,range_calls,load_id;
 static int visibility,cell_missing,terrain,spawn_mode,selector_mode,random_value;
@@ -65,6 +65,8 @@ static uint choose_range(uint first,uint count) {
     return spawn_mode?0x901000:0;
 }
 '''
+harness+='#include "'+str(Path('E2Recomp/platform/e2recomp_test_population.h').resolve())+'"\n'
+harness+=re.search(r'static void E2R_LoadPopulationActor\(int actor_id\)\n\{.*?\n\}',source,re.S).group()+'\n'
 harness+=function('FUN_0044db80').replace('FUN_0044db80(', 'native_range(')+'\n'
 harness+='static uint FUN_0044db80(uint first,uint count) { return choose_range(first,count); }\n'
 harness+=function('FUN_0044dca4')+'\n'
@@ -154,6 +156,9 @@ int main(void) {
         assert(!memcmp(&expected,&actual,sizeof expected));placements++;
     }
     setup(35,0,1,0,0,0);struct Snapshot before,after;snapshot(&before);
+    unsetenv("E2R_TEST_POPULATION");
+    setenv("E2R_TEST_POPULATION","noncombat-opening",1);FUN_0044dca4(0,0);snapshot(&after);
+    assert(!memcmp(&before,&after,sizeof before));unsetenv("E2R_TEST_POPULATION");
     setenv("E2R_DEFER_BACKGROUND_SPAWNS","1",1);FUN_0044dca4(0,0);snapshot(&after);
     assert(!memcmp(&before,&after,sizeof before));unsetenv("E2R_DEFER_BACKGROUND_SPAWNS");
     printf("PASS: %u original-x86 NPC range cases; %u terrain/placement/overlap/floor-sampling cases\n",ranges,placements);

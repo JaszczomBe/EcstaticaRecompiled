@@ -8762,6 +8762,19 @@ patchRectangleFunction("FUN_0043cbf0", body => replaceRectangleInput(body,
   '  uVar5 = FUN_0043b384(0x0047a630,0);',
   '  E2R_InspectObserve("requester",0x2e,iVar1);\n  uVar5 = FUN_0043b384(0x0047a630,0);'));
 
+// Opt-in opening-route test population; ordinary original-shaped loads remain intact.
+source = replaceRectangleInput(source, '#include "EcstaticaInspect.h"',
+  '#include "EcstaticaInspect.h"\n#include "e2recomp_test_population.h"');
+patchRectangleFunction("FUN_00451f5c", body => replaceRectangleInput(body,
+  '  actor_id = (short)in_EAX;\n  uVar3 = DAT_0047a470;',
+  '  actor_id = (short)in_EAX;\n  uVar3 = DAT_0047a470;\n  /* Test fixture: omit creation; never freeze an existing collider. */\n  if (E2R_TestSuppressActor(actor_id)) return;'));
+patchRectangleFunction("FUN_00452140", body => replaceRectangleInput(body,
+  '      guard = guard + 1;\n      if ((*(byte *)(psVar3 + 7) & 0x20) == 0) {',
+  '      guard = guard + 1;\n      if (E2R_TestSuppressActor(*psVar3)) continue;\n      if ((*(byte *)(psVar3 + 7) & 0x20) == 0) {'));
+patchRectangleFunction("FUN_0044dca4", body => replaceRectangleInput(body,
+  '  /* Explicit Joe-only prototype option. Existing actors and scripts still',
+  '  if (E2R_TestNoncombatPopulation()) return;\n  /* Explicit Joe-only prototype option. Existing actors and scripts still'));
+
 fs.writeFileSync(outSrc, source);
 
 const sortedIds = [...ids].sort();

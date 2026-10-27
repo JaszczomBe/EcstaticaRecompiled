@@ -6,11 +6,15 @@
 
 Status: active; Task 09 alternate-target crash repaired with bounded evidence; extended gameplay stability open
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-10-24
+Last Updated: 2026-10-26
 
-Current work is [Task 09's automated gameplay suite](tasks/task-09-recover-scene-population-and-interaction.md#current-continuation--automated-gameplay-regression-suite).
-It adds dependency-aware acceptance around recovered gameplay, unarmed coverage
-and sequential visible/headless block launches. The reported session-retention
+Current work is [Task 09's recorded courtyard route](tasks/task-09-recover-scene-population-and-interaction.md#current-continuation--recorded-courtyard-regression-route),
+following the user's pedestal/central-courtyard round trip with live guard clearance.
+Regression 04 passes startup, movement and return assertions in shared Debug/ASan
+journeys. The preceding menu and parallel suite continuation remains relevant.
+It expands shared menu checkpoints across horseback/pedestal/gameplay and runs
+Debug/ASan concurrently with zero, one or two visible windows. Newly exposed
+menu label, restart and Load faults remain open. The reported session-retention
 error-handler abort has a fault-injection repair; the preceding allocation
 failure and extended gameplay stability remain open. Complete replay and longer human
 acceptance remain open; preserved animation-name drift is tracked separately.

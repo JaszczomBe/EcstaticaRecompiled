@@ -8,6 +8,12 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Controlled opening population and startup logos — 2026-10-26](entries/noncombat-population-and-logos-2026-10-26.md): prevents audited enemy creation in noncombat journeys, preserves live combat failures, restores default F5 logo waits and measures shared versus isolated execution.
+
+- [Recorded pedestal–courtyard round trip — 2026-10-26](entries/recorded-courtyard-route-2026-10-26.md): replaces Regression 04's guessed crossing with the user's central-courtyard loop, preserves return assertions and separates incompatible startup/movement state.
+
+- [Menu stages and concurrent regression configurations — 2026-10-25](entries/menu-stages-and-parallel-suite-2026-10-25.md): runs Debug/ASan concurrently with one/two visible windows; adds shared horseback/pedestal/gameplay menu checkpoints and explicit unfinished effects; preserves newly exposed label, restart and Load failures.
+
 - [Visible suite blocks, unarmed combat and retention abort — 2026-10-24](entries/suite-visible-unarmed-and-retention-abort-2026-10-24.md): reproduces and repairs cleanup error-handler termination under allocation failure; adds unarmed action/contact regressions and sequential full/block SDL launches with a default-headless display picker.
 
 - [Automated gameplay regression suite — 2026-10-24](entries/gameplay-regression-suite-2026-10-24.md): implements dependency-aware fresh gameplay journeys, original-code gates, bounded evidence and GoogleTest-style console plus HTML/JSON/JUnit reporting; adds a separate full-suite VS Code launch and records passing routes, preserved regressions and blocked coverage.
@@ -131,4 +137,5 @@ Use [journal.template.md](../templates/journal.template.md) for new journal entr
 - [Courtyard Steering Replay And Sustained Observation — 2026-10-19](entries/courtyard-steering-audit-2026-10-19.md)
 - [Manual Castle Exploration And Population Frontier — 2026-10-19](entries/manual-castle-exploration-2026-10-19.md)
 - [Pedestal intro restart after early skip — 2026-10-24](entries/pedestal-intro-restart-2026-10-24.md)
+- [Shared gameplay checkpoint journeys — 2026-10-24](entries/shared-gameplay-journeys-2026-10-24.md)
 <!-- /docs-tree:children -->

@@ -17,16 +17,18 @@ import tempfile
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('exe', type=Path)
 parser.add_argument('--game-data', type=Path)
-parser.add_argument('--suite-scenario', choices=('startup','movement','courtyard','workshop','sword','attacks','unarmed','unarmed-contact','enemy','damage','door','potion','potion-damaged','potion-sword','swimming','menus','stability'))
+parser.add_argument('--suite-scenario', choices=('menu-matrix','shared','startup','movement','courtyard','workshop','sword','attacks','unarmed','unarmed-contact','enemy','damage','door','potion','potion-damaged','potion-sword','swimming','menus','stability'))
 parser.add_argument('--suite-options', type=json.loads, default={})
 parser.add_argument('--output', type=Path, default=Path('/tmp/e2-player-motion'))
-parser.add_argument('--intro-skip-action', type=int, default=0,
-                    help='Send SDL Space at the Nth distinct horseback action using the real --run-recon path')
+parser.add_argument('--intro-skip-action', type=int, default=None,
+                    help='Send SDL Space at the Nth observed horseback action (default: first; --natural-intro sends none)')
 parser.add_argument('--intro-skip-progress', type=int, default=0,
                     help='Wait for this action-progress tick before the selected horseback Space tap')
 parser.add_argument('--natural-intro', action='store_true',
                     help='Let the horseback intro finish without the diagnostic Space shortcut')
-parser.add_argument('--startup-logo-delay-ms', type=int, default=0,
+parser.add_argument('--logo-policy', choices=('skip','natural'), default='skip',
+                    help='Observe actual presented logos, with separate Space taps or natural waits')
+parser.add_argument('--startup-logo-delay-ms', type=int, default=5000,
                     help='Wait per startup logo; use 5000 to match the default F5 launch')
 parser.add_argument('--frames', type=int, default=60)
 parser.add_argument('--release-delay', type=int, default=3,
@@ -73,6 +75,8 @@ parser.add_argument('--population-frames', type=int, default=0,
                     help='After observed release, enable experimental actor lookup/spawning and census this many frames before the input route')
 parser.add_argument('--population-only', action='store_true',
                     help='End after the post-release population census; do not run the arrow route')
+parser.add_argument('--population-profile', choices=('live','noncombat-opening'), default='live',
+                    help='Explicit opening-route fixture; live preserves original actor creation')
 parser.add_argument('--background-spawns', action='store_true',
                     help='Run the original population scheduler from startup without the population-probe flag')
 parser.add_argument('--require-background-population', action='store_true',
@@ -82,6 +86,9 @@ parser.add_argument('--inspect-object-scene', type=int, default=-1,
 parser.add_argument('--inspect-approach-cameras', type=int, nargs='+', default=[],
                     help='Select these original views before --inspect-object-scene to exercise neighbouring object initialization; no actor coordinates are assigned')
 args = parser.parse_args()
+if args.intro_skip_action is None:args.intro_skip_action=0 if args.natural_intro else 1
+if not args.intro_skip_action and not args.natural_intro and args.startup_logo_delay_ms:
+    parser.error('Legacy --intro-skip-action 0 requires --startup-logo-delay-ms 0; use --natural-intro for no horseback skip')
 if args.intro_skip_action < 0 or (args.intro_skip_action and args.natural_intro):
     parser.error('intro skip action must be nonnegative and separate from --natural-intro')
 if args.intro_skip_progress < 0 or (args.intro_skip_progress and not args.intro_skip_action):
@@ -96,6 +103,8 @@ if args.population_only and (not args.population_frames or args.camera_round_tri
     parser.error('--population-only requires --population-frames and a separate input route')
 if args.require_background_population and (not args.background_spawns or not args.population_frames):
     parser.error('--require-background-population requires --background-spawns and --population-frames')
+if args.population_profile=='noncombat-opening' and (args.background_spawns or args.pedestal_guards or args.population_frames):
+    parser.error('noncombat-opening cannot require or enable live population')
 if args.camera_round_trip and args.turn_forward:
     parser.error('--camera-round-trip and --turn-forward are separate routes')
 if args.simultaneous_turn and (not args.turn_forward or args.release_turn_first):
@@ -116,6 +125,10 @@ if args.sword_attacks and not args.sword_pickup:
 if args.sword_pickup and (args.camera_round_trip or args.turn_forward or args.population_only or
         args.inspect_object_scene >= 0 or args.hold_through_release):
     parser.error('--sword-pickup requires a separate input route without camera selection')
+if args.population_profile=='noncombat-opening' and args.suite_scenario:
+    from e2_population_profile import profile_for
+    if profile_for(args.suite_scenario,args.suite_options.get('checks',[]))=='live':
+        parser.error('Selected checkpoints require live population')
 prefix = str(args.output.resolve())
 Path(prefix).parent.mkdir(parents=True, exist_ok=True)
 env = os.environ.copy()
@@ -134,12 +147,15 @@ env.update(SDL_VIDEODRIVER=args.video_driver, E2R_STARTUP_LOGO_DELAY_MS=str(args
 # Preserve the existing intro resources; recovery is enabled at the checkpoint.
 env['E2R_POPULATION_PROBE'] = '0'
 if args.background_spawns:env['E2R_DEFER_BACKGROUND_SPAWNS'] = '0'
+if args.population_profile=='noncombat-opening':env['E2R_TEST_POPULATION']='noncombat-opening'
+else:env.pop('E2R_TEST_POPULATION',None)
 env['ASAN_OPTIONS'] = env.get('ASAN_OPTIONS', '') + ':detect_leaks=0'
 commands = r'''
 set pagination off
 set confirm off
 python
-import gdb,json,time,re
+import gdb,json,time,re,sys
+sys.path.insert(0,SCRIPT_DIRECTORY)
 prefix=PREFIX
 frames=FRAMES
 use_sdl=SDL_EVENTS
@@ -155,6 +171,14 @@ intro_skip_action=INTRO_SKIP_ACTION
 population_only=POPULATION_ONLY
 population_samples=[]
 value=lambda expression:int(gdb.parse_and_eval(expression))
+startup_logos=[]
+def start_runtime(command):
+    global startup_logos
+    if LOGO_DELAY:
+        from e2_startup_steps import start
+        startup_logos=start(command,prefix,WATCH_MODE,WINDOW_TITLE,LOGO_SKIP)
+        return startup_logos
+    gdb.execute(command,to_string=True)
 exit_status=[]
 gdb.events.exited.connect(lambda event:exit_status.append(getattr(event,'exit_code',None)))
 def require(condition,message):
@@ -175,7 +199,7 @@ if intro_skip_action:
     intro=gdb.Breakpoint('FUN_00415d40',internal=True)
     base_condition='DAT_0047a470 != 0 && _DAT_0073cc3c != 0 && _DAT_0073cc3c != 0x67da4c && *(int*)((int)DAT_0047a470+0xa6) != 0'
     intro.condition=base_condition
-    gdb.execute('run --run-recon',to_string=True)
+    start_runtime('run --run-recon')
     for ordinal in range(intro_skip_action):
         require(gdb.selected_frame().name()=='FUN_00415d40','Stopped before horseback skip checkpoint')
         pointer=value('*(unsigned int*)((int)DAT_0047a470+0xa6)')
@@ -211,7 +235,7 @@ if intro_skip_action:
     intro.delete()
     gdb.execute('continue',to_string=True)
 elif natural_intro:
-    gdb.execute('run --run-recon',to_string=True)
+    start_runtime('run --run-recon')
     if not check_guards:
         released.delete()
         ready.enabled=True
@@ -395,6 +419,8 @@ def observe_camera():
     camera_samples.append(dict(camera=camera,position=[field(0x84+i*2) for i in range(3)]))
     return camera
 def checkpoint(label):
+    from e2_population_profile import observe
+    observe(prefix,label)
     states.append(snapshot(label))
     if check_guards:guard_checkpoint(label)
     if population_frames:population_census(label)
@@ -813,9 +839,12 @@ if observe_seconds:
         npc_observation=dict(samples=len(npc_samples),active_windows=active_windows,
                              moved_ids=sorted(moved),changed_ids=sorted(changed))
 if GAMEPLAY_MENU_EXIT:
-    from contextlib import nullcontext
+    from contextlib import nullcontext, ExitStack
     menu_phase=suite_journey.phase('menus.cancel-resume-quit',observe=False) if SUITE_SCENARIO else nullcontext()
-    with menu_phase:
+    with ExitStack() as menu_stack:
+        if SUITE_SCENARIO=='shared':
+            menu_stack.enter_context(suite_journey.checkpoint('Menus.CancelResumeQuit'))
+        menu_stack.enter_context(menu_phase)
         def menu_escape(pressed):
             gdb.execute('set $menu_key=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
             gdb.execute(f'set $menu_key->key.type={0x300 if pressed else 0x301}',to_string=True)
@@ -907,13 +936,18 @@ print('PROBE COMPLETE: position_changed='+str(report['position_changed'])+
 end
 quit
 '''.replace('WATCH_MODE',repr(args.watch)).replace('WINDOW_TITLE',repr(args.window_title)).replace('SUITE_SCENARIO',repr(args.suite_scenario)).replace('SUITE_OPTIONS',repr(args.suite_options)).replace('SCRIPT_DIRECTORY',repr(str(Path(__file__).resolve().parent))).replace('GAMEPLAY_MENU_EXIT',repr(args.gameplay_menu_exit)).replace('BASH_WORKSHOP_DOOR',repr(args.bash_workshop_door)).replace('SWORD_ATTACKS',repr(args.sword_attacks)).replace('SWORD_PICKUP',repr(args.sword_pickup)).replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
-    'PROCESS_SECONDS', str(args.timeout + 10)).replace('LOGO_DELAY',str(args.startup_logo_delay_ms)).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
+    'PROCESS_SECONDS', str(args.timeout + 10)).replace('LOGO_DELAY',str(args.startup_logo_delay_ms)).replace('LOGO_SKIP',repr(args.logo_policy=='skip')).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
     'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip or args.sword_pickup or args.gameplay_menu_exit or args.suite_scenario or bool(args.tap_modifiers))).replace('TAP_MODIFIERS',repr(args.tap_modifiers)).replace(
     'RELEASE_TURN',repr(args.release_turn_first)).replace('SIMULTANEOUS_TURN',repr(args.simultaneous_turn)).replace('HOLD_THROUGH_RELEASE',repr(args.hold_through_release)).replace('VIDEO_DRIVER',repr(args.video_driver)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(
     'QUERY_LIMIT',str(args.trace_queries)).replace('OBSERVE_SECONDS',str(args.observe_seconds)).replace(
     'POPULATION_COUNT',str(args.population_frames)).replace('POPULATION_ONLY',repr(args.population_only)).replace('REQUIRE_POPULATION',repr(args.require_background_population)).replace('BACKGROUND_SPAWNS',repr(args.background_spawns)).replace('CHECK_GUARDS',repr(args.pedestal_guards)).replace('NATURAL_INTRO',repr(args.natural_intro)).replace('INTRO_SKIP_ACTION',str(args.intro_skip_action)).replace('INTRO_SKIP_PROGRESS',str(args.intro_skip_progress))
 if args.game_data:
     commands = commands.replace(repr('run --run-recon'),repr('run --game-data-dir '+json.dumps(str(args.game_data.resolve()))+' --run-recon'))
+if args.suite_scenario=='menu-matrix':
+    commands='set pagination off\nset confirm off\npython\nimport sys\n'
+    commands+='sys.path.insert(0,'+repr(str(Path(__file__).resolve().parent))+')\n'
+    commands+='from e2_menu_steps import run\n'
+    commands+='run('+repr(prefix)+','+repr(args.suite_options)+','+repr(args.watch)+','+repr(args.window_title)+','+repr(str(args.game_data.resolve()) if args.game_data else None)+','+repr(args.startup_logo_delay_ms)+','+repr(args.logo_policy=='skip')+')\nend\nquit\n'
 with tempfile.TemporaryDirectory(prefix='e2-player-motion-') as tmp:
     script = Path(tmp) / 'probe.gdb'
     # Desktop drivers load GDB Python helpers from shared libraries. Their
@@ -926,20 +960,33 @@ with tempfile.TemporaryDirectory(prefix='e2-player-motion-') as tmp:
     script.write_text(preamble + '\npython\nexec(compile(open(' + source_path +
                       ').read(), ' + source_path + ', "exec"), '
                       '{"__name__": "__e2_motion_probe__"})\nend\n' + trailing)
+    # GDB can put its inferior in another process group. Stop descendants too
+    # before GDB disappears, both on the local bound and suite interruption.
+    from e2_suite import stop_process
+    process = subprocess.Popen(['gdb', '-q', '-batch', '-x', str(script),
+                                str(args.exe.resolve())], env=env,
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                               text=True, start_new_session=True)
     try:
-        result = subprocess.run(['gdb', '-q', '-batch', '-x', str(script),
-                                 str(args.exe.resolve())], env=env,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                text=True, timeout=args.timeout)
-    except subprocess.TimeoutExpired as exc:
-        output = exc.stdout or b''
-        Path(prefix + '.log').write_bytes(output if isinstance(output, bytes) else output.encode())
+        stdout, _ = process.communicate(timeout=args.timeout)
+    except subprocess.TimeoutExpired:
+        stop_process(process)
+        stdout, _ = process.communicate(timeout=5)
+        Path(prefix + '.log').write_text(stdout)
         raise SystemExit(f'FAIL: probe timeout; see {prefix}.log')
+    except BaseException:
+        stop_process(process)
+        raise
+    result = subprocess.CompletedProcess(process.args, process.returncode, stdout)
     Path(prefix + '.log').write_text(result.stdout)
     if (result.returncode or 'PROBE COMPLETE:' not in result.stdout or
             'ERROR: AddressSanitizer' in result.stdout or 'SUMMARY: AddressSanitizer' in result.stdout):
         raise SystemExit(f'FAIL: unexpected runtime/debugger stop; see {prefix}.log')
     report = json.loads(Path(prefix + '.json').read_text())
+    if args.suite_scenario=='menu-matrix':
+        print('Menu stages complete; native exit='+str(report['native_exit_code']))
+        print(f'Evidence: {prefix}.json, {prefix}.log, {prefix}-journey.json')
+        raise SystemExit(0)
     for state in report['states']:
         print(f"{state['phase']}: position={state['position']} facing={state['facing']} "
               f"rep={state['representation_id']} action={state['action_id']} "

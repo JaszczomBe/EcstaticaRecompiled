@@ -20,11 +20,12 @@ running executable and saves stopped-thread evidence. Ending debugging generates
 an inspection report in that session. See [debugging tools and usage](docs/debugging.md)
 for the artifacts, replay, comparisons and export commands.
 
-For automated regression checks, select **Ecstatica: Full regression suite**.
-It offers a headless/visible picker and runs Debug/ASan cases sequentially in
-dependency order, producing PASS/FAIL/BLOCKED/SKIPPED reports. Separate block
-launches include their prerequisites; a direct visible SDL full-suite entry is
-also available. See [gameplay tests](docs/gameplay-tests.md).
+For automated regression checks, select the **starred full regression suite**.
+Its picker offers headless, one visible configuration or both windows. Debug and
+ASan run concurrently, each in dependency order, producing individual
+PASS/FAIL/BLOCKED/SKIPPED reports. Separate block
+launches include their prerequisites and are numbered from basic to advanced
+checks. The full-suite entry appears first. See [gameplay tests](docs/gameplay-tests.md).
 
 ## Documentation tree
 
