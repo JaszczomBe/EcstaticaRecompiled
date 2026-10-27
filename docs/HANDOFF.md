@@ -26,6 +26,13 @@ evidence. Normal human investigation uses the single **Ecstatica Recompiled**
 F5 launch with recording, inspection, executable pinning and debugger evidence.
 See [build setup](building.md) and [debugging usage](debugging.md).
 
+For the game save/load continuation, open the
+[persistence handoff and implementation sequence](implementations/playable-sdl-runtime/steps/step-10/step-10-recover-game-save-load.md)
+and its [first task](implementations/playable-sdl-runtime/steps/step-10/tasks/task-01-map-original-save-load-contracts.md).
+Those documents own the changing baseline, original-code entry points, evidence
+and acceptance criteria; this link keeps them reachable from the context-resume
+protocol without duplicating their implementation state here.
+
 Read these sources in order:
 
 1. [Playable SDL Runtime](implementations/playable-sdl-runtime/playable-sdl-runtime.md) - current execution state, acceptance limits and active gameplay work.

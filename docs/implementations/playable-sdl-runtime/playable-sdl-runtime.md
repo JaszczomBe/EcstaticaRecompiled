@@ -20,6 +20,7 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 2. Actor/action initialization and rendering after the intro.
 3. Gameplay controls, camera behavior, and requester fidelity.
 4. Timing, initial audio compatibility, and developer bootstrap.
+5. Functional original-format game save/load and writable runtime storage.
 
 ## Non-Goals
 
@@ -27,7 +28,27 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 2. Replacing recovered logic with speculative shortcuts or direct SDL calls.
 3. Broad generated-file changes unrelated to a source-backed repair.
 
-## Current continuation — Tower actor eviction
+## Current continuation — Functional game save/load
+
+The user has selected **game save/load** after accepting player/enemy recovery
+and committing the subsequent gameplay repairs. Baseline **v0.2.0** is commit
+`ae54e6f8e4dcb3570625c4780cfaf74ca252ecd1`; both version tags were pushed to
+`origin`. [Step 10](steps/step-10/step-10-recover-game-save-load.md) owns the
+implementation, bounded acceptance and remaining persistence limits.
+[Task 01](steps/step-10/tasks/task-01-map-original-save-load-contracts.md) starts
+with original callbacks, writer/reader contracts and safe writable path ownership.
+
+The [save/load journal](../../journal/entries/game-save-load-recovery-2026-10-27.md)
+records the recovered mixed-endian version-4 format, protected writable slot
+storage, normal/ASan original-code fixtures, repeated actual menu Save/change/Load
+and fresh-process restoration. Player/world fields, action ownership and sword
+attachments restore; input, animation, camera crossing and attack interaction
+resume. Installed save hashes remain intact; tests use private copies of free
+slot 5. Nonempty timers have original-code fixture evidence; corrupt-file fatal
+cleanup and arbitrary original progressions remain unqualified. Continue with
+game sounds, then music.
+
+## Previous continuation — Tower actor eviction
 
 The user accepts the preceding enemy-play/potion repairs and reaches the top of
 the tower in a longer F5 session. The new failure occurs while loading
@@ -296,7 +317,7 @@ The 2026-09-14 audit rebuilt commit `43ddc8a`; the same-day Step 07 continuation
 | Scene children | Camera and script-resource namespaces distinguished; Start_sc resource 0 traced | Original video confirms two green creatures; their resource identities/activation remain unresolved; 319/322/318 belonged to an unproven lookup |
 | Regression wrapper | Debug/early ASan canonical-Up latches and long-delay ASan error-modal checks pass; arrow matrix 8/8 | State/surface checks do not prove actor motion; separate SDL test covers OK and Escape menu entry |
 | Generator | Syntax and all four artifact comparisons pass, including polygon/lighting/copy mirrors | Scoped repairs reproduce; broader helper inputs and behavior remain incomplete |
-| Audio/save | Compatibility stubs and requester routing exist | MIDI is silent; quick-save writer is a no-op; functional save/load is unproven |
+| Audio/save | Original-format gameplay serialization and menu restoration; audio compatibility stubs | Repeated same/fresh-process Debug/ASan loading passes within Step 10’s bounds; malformed-file recovery remains unqualified; MIDI/audio remain silent |
 
 SDL 3.4.12 is vendored in `dep/SDL`. The host backend presents 640x480 frames centered in the 640x640 window and owns window/input/presentation services. X11 remains the default backend; VS Code offers one `Ecstatica Recompiled` launch following the selected CMake preset; select SDL/i386 Debug for everyday use. The September audit used dummy SDL; subsequent manual evidence is recorded below. F5 now supplies the cylinder/action/proxy flags and differs from this bare terminal baseline. Its current Debug result and ASan limits are recorded in Step 09 and the F5 journal.
 
@@ -304,15 +325,21 @@ The 2026-10-14 [documentation review](../../journal/entries/documentation-review
 
 ## Step Roadmap
 
-Step numbers are stable identifiers, not execution order. The current order is **08 Task 02 player model/animation → game save/load → other enemy animation → sounds → music**. Step 09's accepted diagnostic gameplay and the completed regression tools supply verification; their minor gaps remain tracked. Steps 01/02/07 and Step 03 Tasks 01/02 retain their bounded historical completions.
+Step numbers are stable identifiers, not execution order. Player/enemy recovery
+has user acceptance with recorded fidelity limits. The current order is
+**10 game save/load → game sounds → music**. Step 09's accepted diagnostic
+gameplay and the completed regression tools supply verification; their minor
+gaps remain tracked. Steps 01/02/07 and Step 03 Tasks 01/02 retain their bounded
+historical completions.
 
 | Step | Status | Outcome / dependency |
 | --- | --- | --- |
 | [01 — Interactive SDL stability](steps/step-01/step-01-stabilize-interactive-sdl-f5-runtime.md) | completed | Historical bounded startup/F5 investigation |
 | [02 — DirectDraw page and palette semantics](steps/step-02/step-02-recover-directdraw-page-and-palette-semantics.md) | completed | Recovered front source, palette, aspect-fit presentation |
 | [07 — Restore reproducible baseline](steps/step-07/step-07-restore-reproducible-runtime-baseline.md) | completed | Automated checks pass; manual screenshot/log confirms scene-175 baseline |
-| [09 — Diagnostic gameplay with cylinders](steps/step-09/step-09-enable-diagnostic-gameplay.md) | active | Diagnostic gameplay milestone accepted with recorded follow-ups; movement, population, interactions and the regression suite support player recovery |
-| [08 — Recover scene-175 actors](steps/step-08/step-08-recover-scene-175-actors.md) | active | Player body and bone animation restored with original-backed Debug/ASan evidence; human visual qualification and remaining actor/equipment rendering stay separate |
+| [09 — Diagnostic gameplay with cylinders](steps/step-09/step-09-enable-diagnostic-gameplay.md) | follow-ups retained | Accepted gameplay milestone and subsequent crash repairs support persistence; broader gameplay limits remain recorded |
+| [08 — Recover scene-175 actors](steps/step-08/step-08-recover-scene-175-actors.md) | follow-ups retained | Player/enemy body and animation direction accepted; exhaustive animation, equipment and other rendering remain separate |
+| [10 — Functional game save/load](steps/step-10/step-10-recover-game-save-load.md) | implemented within recorded bounds | Original writer/reader/menu recovery, repeated same-process and fresh-process restoration; corrupt-file recovery and broad progression remain limited |
 | [03 — Gameplay control and camera proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) | partially deferred | Input mapping/matrix complete; basic locomotion/camera proofs join 09, broader controls follow readiness |
 | [04 — Timing and frame pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) | planned | Recover game timing ownership after visible control proofs |
 | [05 — DirectSound compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) | planned | Map sound calls before implementing an audio boundary |

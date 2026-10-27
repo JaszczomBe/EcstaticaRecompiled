@@ -28,12 +28,13 @@ owns current evidence and acceptance.
 
 1. Original player model/animation (Step 08, Task 02): accepted by the user after
    the projection correction on 2026-10-27; retain recorded equipment/video limits.
-2. Recover other enemies' bodies and animations (Step 08, Task 03), moved ahead
-   of persistence by the user's latest request. Reuse recovered player rendering
-   contracts with original AI/actions. Equipment polygons remain a separate gap.
-3. Implement functional game save/load: recover original state serialization and
-   restoration, then validate actual save → continue/change state → load through
-   the menus. Existing slot labels/thumbnails and session recording do not prove it.
+2. Original enemies' bodies and animations (Step 08, Task 03): accepted direction
+   by the user; retain exhaustive species/action, equipment and broader gameplay
+   limits. The subsequent gameplay repairs are included in v0.2.0.
+3. Implement [functional game save/load](../implementations/playable-sdl-runtime/steps/step-10/step-10-recover-game-save-load.md),
+   now implemented with bounded Debug/ASan menu save/change/load and fresh-process
+   verification. The owning step records protected original saves, timer-fixture
+   evidence and malformed-file/full-progression limits.
 4. Recover game sounds and their original event, volume and channel ownership.
 5. Recover music and its original track selection, looping and transitions.
 
@@ -58,6 +59,11 @@ Linux/i386 is the proving ground. Packed 32-bit pointers, legacy calling convent
 7. Diagnostic playability and original visual fidelity have separate acceptance. A useful first playable result is genuine input-driven cylinder movement, floor/stair checks and camera traversal with continuous actor state.
 
 ## Change Log
+
+### 2026-10-27
+
+1. Recorded user acceptance of player/enemy recovery and selected functional game persistence as the next milestone after v0.2.0.
+2. Added Step 10's context handoff and first original-contract mapping task; game sounds and music follow persistence.
 
 ### 2026-10-14
 

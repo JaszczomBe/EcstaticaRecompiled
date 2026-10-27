@@ -589,6 +589,77 @@ static int e2r_resolve_known_data_path(const char *input, char *resolved, size_t
     return 1;
 }
 
+static char e2r_save_directory[PATH_MAX];
+
+int E2R_ConfigureSaveDirectory(const char *runtime_data, const char *game_data)
+{
+    char candidate[PATH_MAX];
+    char original[PATH_MAX];
+    char resolved[PATH_MAX];
+    struct stat directory;
+
+    e2r_save_directory[0] = '\0';
+    if (!runtime_data || !game_data ||
+        snprintf(candidate, sizeof(candidate), "%s/Saved", runtime_data) >= (int)sizeof(candidate))
+        return 0;
+    if (mkdir(candidate, 0700) != 0 && errno != EEXIST) return 0;
+    if (!realpath(candidate, resolved) || stat(resolved, &directory) || !S_ISDIR(directory.st_mode))
+        return 0;
+    if (snprintf(candidate, sizeof(candidate), "%s/Saved", game_data) >= (int)sizeof(candidate))
+        return 0;
+    if (realpath(candidate, original) && !strcmp(resolved, original)) return 0;
+    strcpy(e2r_save_directory, resolved);
+    return 1;
+}
+
+/* Every original slot user (labels, preview, loader and writer) passes through
+ * CreateFileA. Reads prefer the writable slot, then read-only installed data;
+ * writes require the configured runtime directory and never fall back. */
+static FILE *e2r_open_save_file(const char *name, DWORD access, DWORD creation)
+{
+    char path[PATH_MAX];
+    char slot[9];
+    int flags;
+    int descriptor;
+    struct stat existing;
+    FILE *file;
+
+    if (strlen(name) != 14 || strcasecmp(name + 10, ".ecs")) {
+        errno = EINVAL;
+        return NULL;
+    }
+    for (int i = 6; i < 10; ++i) {
+        if (!isdigit((unsigned char)name[i])) { errno = EINVAL; return NULL; }
+    }
+    if (!e2r_save_directory[0]) { errno = EACCES; return NULL; }
+    snprintf(slot, sizeof(slot), "%.4s.ECS", name + 6);
+    if (snprintf(path, sizeof(path), "%s/%s", e2r_save_directory, slot) >= (int)sizeof(path)) {
+        errno = ENAMETOOLONG;
+        return NULL;
+    }
+    if (!(access & GENERIC_WRITE)) return fopen(path, "rb");
+    /* Reject aliases before truncation, including private slots accidentally
+     * linked to an installed reference. O_NOFOLLOW also covers a symlink race. */
+    if (lstat(path, &existing) == 0 && (!S_ISREG(existing.st_mode) || existing.st_nlink != 1)) {
+        errno = EACCES;
+        return NULL;
+    }
+    flags = (access & 0x80000000u) ? O_RDWR : O_WRONLY;
+    switch (creation) {
+    case 1: flags |= O_CREAT | O_EXCL; break;
+    case 2: flags |= O_CREAT | O_TRUNC; break;
+    case 3: break;
+    case 4: flags |= O_CREAT; break;
+    case 5: flags |= O_TRUNC; break;
+    default: errno = EINVAL; return NULL;
+    }
+    descriptor = open(path, flags | O_NOFOLLOW, 0600);
+    if (descriptor < 0) return NULL;
+    file = fdopen(descriptor, (access & 0x80000000u) ? "r+b" : "wb");
+    if (!file) close(descriptor);
+    return file;
+}
+
 HANDLE CreateFileA(LPCSTR name, DWORD access, DWORD share, LPVOID security,
                    DWORD creation, DWORD flags, HANDLE template_file)
 {
@@ -600,12 +671,17 @@ HANDLE CreateFileA(LPCSTR name, DWORD access, DWORD share, LPVOID security,
     int resolved_case = 0;
     (void)share;
     (void)security;
-    (void)creation;
     (void)flags;
     (void)template_file;
     e2r_normalize_path(normalized, sizeof(normalized), name);
     open_name = normalized;
-    file = fopen(open_name, (access & GENERIC_WRITE) ? "wb+" : "rb");
+    if (!strncasecmp(normalized, "saved/", 6)) {
+        file = e2r_open_save_file(normalized, access, creation);
+        if (!file && ((access & GENERIC_WRITE) || errno != ENOENT)) return INVALID_HANDLE_VALUE;
+    }
+    else {
+        file = fopen(open_name, (access & GENERIC_WRITE) ? "wb+" : "rb");
+    }
     if (!file && (access & GENERIC_WRITE) == 0 && e2r_resolve_known_data_path(normalized, resolved, sizeof(resolved))) {
         open_name = resolved;
         resolved_case = 2;
@@ -641,7 +717,7 @@ BOOL ReadFile(HANDLE file, LPVOID buffer, DWORD bytes_to_read, DWORD *bytes_read
     if (!file || file == INVALID_HANDLE_VALUE || !file->ptr) return FALSE;
     size_t n = fread(buffer, 1, bytes_to_read, (FILE *)file->ptr);
     if (bytes_read) *bytes_read = (DWORD)n;
-    return TRUE;
+    return ferror((FILE *)file->ptr) == 0;
 }
 
 BOOL WriteFile(HANDLE file, LPCVOID buffer, DWORD bytes_to_write,
@@ -657,10 +733,11 @@ BOOL WriteFile(HANDLE file, LPCVOID buffer, DWORD bytes_to_write,
 
 BOOL CloseHandle(HANDLE file)
 {
+    int result = 0;
     if (!file || file == INVALID_HANDLE_VALUE) return FALSE;
-    if (file->ptr) fclose((FILE *)file->ptr);
+    if (file->ptr) result = fclose((FILE *)file->ptr);
     e2r_host_free(file);
-    return TRUE;
+    return result == 0;
 }
 
 int wsprintfA(LPSTR buffer, LPCSTR format, ...)

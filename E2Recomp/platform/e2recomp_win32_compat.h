@@ -310,6 +310,7 @@ typedef INT_PTR (WINAPI *FARPROC)();
 
 HANDLE CreateFileA(LPCSTR name, DWORD access, DWORD share, LPVOID security,
                    DWORD creation, DWORD flags, HANDLE template_file);
+int E2R_ConfigureSaveDirectory(const char *runtime_data, const char *game_data);
 BOOL WriteFile(HANDLE file, LPCVOID buffer, DWORD bytes_to_write,
                DWORD *bytes_written, LPVOID overlapped);
 BOOL CloseHandle(HANDLE file);

@@ -64,6 +64,13 @@ and the [follow-up journal](../../../../../journal/entries/enemy-play-crash-and-
 own the false action-index/bitmap crash and dropped-potion name/consumption repair.
 These do not require reverting character animation recovery.
 
+The user then accepted those repairs and reached the top of the tower.
+The [tower journal](../../../../../journal/entries/tower-actor-eviction-crash-2026-10-27.md)
+records the subsequent actor-eviction repair and remaining replay/human limits.
+Character recovery and these follow-ups are committed in **v0.2.0**. The selected
+next milestone is [Step 10 functional game save/load](../../step-10/step-10-recover-game-save-load.md);
+exhaustive enemy animation, equipment and other fidelity follow-ups stay separate.
+
 ## Implementation Notes
 
 Validate after Tasks 01/02 and Task 05 placement. **Correction from 2026-09-15:** camera slot 175 is not script scene-resource ID 175. The historical lookup of scene record `0xaba3a4` was not sufficient to associate it with the pedestal scene. That record lists children 319/sword2cv, 322/burkrt, and 318/sword2. Their ordinary actor offsets are absent; scene/rep offsets exist:

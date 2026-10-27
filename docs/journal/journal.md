@@ -153,6 +153,7 @@ Use [journal.template.md](../templates/journal.template.md) for new journal entr
 
 - [Courtyard Camera Traversal — 2026-10-19](entries/courtyard-camera-traversal-2026-10-19.md)
 - [Courtyard Steering Replay And Sustained Observation — 2026-10-19](entries/courtyard-steering-audit-2026-10-19.md)
+- [Game save/load recovery — 2026-10-27](entries/game-save-load-recovery-2026-10-27.md)
 - [Goal-driven regression navigation — 2026-10-26](entries/goal-driven-navigation-2026-10-26.md)
 - [Sequential invisible regression sweep — 2026-10-27](entries/headless-regression-sweep-2026-10-27.md)
 - [Manual Castle Exploration And Population Frontier — 2026-10-19](entries/manual-castle-exploration-2026-10-19.md)

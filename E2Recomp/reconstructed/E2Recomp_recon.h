@@ -539,7 +539,7 @@ undefined8 __fastcall FUN_004538c0(undefined4 param_1,undefined4 param_2);
 undefined8 __fastcall FUN_00453920(undefined4 param_1,char *param_2);
 undefined8 __fastcall FUN_004544a4(undefined4 param_1,undefined4 param_2);
 void __fastcall FUN_00454fe4(undefined4 param_1,undefined4 param_2);
-void FUN_00455034(void);
+void __fastcall FUN_00455034(undefined4 param_1,undefined4 param_2);
 void FUN_00455094(void);
 void FUN_00455294(void);
 undefined8 __fastcall FUN_004554cc(undefined4 param_1,undefined4 param_2);

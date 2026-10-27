@@ -142,6 +142,20 @@ Workspace settings show the configure preset, Build, and launch target in the st
 
 Cylinders are host diagnostics tied to validated actor coordinates. Movement, populated courtyard crossings and bounded workshop activation are verified; manual workshop re-entry, sword pickup and full experimental ASan acceptance remain open. Follow [Step 09 Task 09](implementations/playable-sdl-runtime/steps/step-09/tasks/task-09-recover-scene-population-and-interaction.md) for the current gameplay frontier. Restart F5 after rebuilding.
 
+## Game save storage
+
+Menu Save writes original-format slots to `--data-dir/Saved`, normally
+`~/.ecstatica2/Saved`. Slot labels, previews and Load prefer those files and read
+installed `Saved/*.ECS` only when a runtime slot is absent. Saving an occupied
+original slot creates a runtime override; it does not modify the original file.
+The runtime rejects using the installed save directory as writable storage.
+
+Use the single **Ecstatica Recompiled** F5 launch for human Save/Load checks.
+Automated checks use private save copies and originally free slots only; see
+[game persistence regressions](gameplay-tests.md#game-persistence).
+The [owning step](implementations/playable-sdl-runtime/steps/step-10/step-10-recover-game-save-load.md)
+records bounded same/fresh-process acceptance and malformed-file recovery limits.
+
 ## Runtime Logging
 
 F5 and terminal launches use the C++ logger for both stderr and session files. Each launch creates `~/.ecstatica2/logs/session_YYYYMMDD_HHMMSS_mmm/`, containing JSON `session.meta` and rotating `e2recomp_*.log` files. The output directory resolves before entering the original game-data directory, so changing the selected build or launch working directory does not relocate logs. Each file rotates at 5 MiB. This is file logging, not a route recorder or a guarantee that asynchronous records survive a crash.

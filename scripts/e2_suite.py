@@ -32,6 +32,7 @@ BLOCKS = {
     'swimming': ('*.Movement.Swimming','*.Traversal.Water','*.Combat.SwimmingDirections',
                  '*.Movement.ArmedSwimming','*.Combat.ArmedSwimmingDirections','*.Traversal.ArmedWater','*.Movement.ShoreExit'),
     'menus': ('*.Menus.*',),
+    'persistence': ('*.Persistence.*',),
     'stability': ('*.Stability.*',),
     'replay': ('*.Replay.*',),
 }
@@ -388,7 +389,8 @@ def run_cases(cases, executor, destination, patterns=('*',), metadata=None, shar
     units=journey_plan(cases,patterns) if shared else isolated_plan(cases,patterns)
     destination.mkdir(parents=True,exist_ok=False)
     report=dict(schema='e2suite.result.2',state='running',metadata=metadata or {},results=[],journeys=[],seconds=0,
-                planned_executions=len(units),planned_gameplay_processes=sum(unit.kind=='journey' for unit in units))
+                planned_executions=len(units),planned_gameplay_processes=sum(unit.kind=='journey' for unit in units)
+                +sum(1 if unit.options.get('failure_case') else 2 for unit in units if unit.kind=='persistence'))
     results={};start=time.monotonic();interrupted=False
     print(f'[==========] Running {len(selected)} selected cases in {len(units)} execution units.',flush=True)
     def retain(result):
@@ -519,6 +521,10 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
         cases.append(Case(prefix+'Host.DirectDrawSurfaces',
             (py,str(ROOT/'scripts/check-e2-ddraw-surfaces.py'),*(['--asan'] if asan else [])),
             configuration=configuration,timeout=100))
+        for label,script in [('SaveStorage','save-storage'),('SaveStreams','save-streams')]:
+            cases.append(Case(prefix+'Host.'+label,
+                (py,str(ROOT/f'scripts/check-e2-{script}.py'),*(['--asan'] if asan else [])),
+                configuration=configuration,timeout=100))
         for label,script,extra in [
             ('ActorNames','actor-names',[names]),('AnimationNames','animation-names',[names]),
             ('ScriptNames','script-names',[]),('Menus','menu-contracts',[]),
@@ -526,6 +532,8 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
             ('InterpolatedNodeEvents','interpolated-node-events',[]),('RenderCopies','render-copies',[]),
             ('PoseEvents','action-pose-events',[]),('BitmapRecords','bitmap-records',[]),
             ('ActorEviction','actor-eviction',[]),('KeyRelease','key-release',None),
+            ('SaveContracts','save-contracts',[]),('SaveWriter','save-writer',[]),
+            ('SaveSlotCallbacks','save-slot-callbacks',[]),('SaveRestoreTimers','save-restore-timers',[]),
             ('AttackTarget','attack-target',[]),('Pickup','pickup',[]),
             ('Attachment','pickup-attachment',[]),('Detach','attachment-detach',[]),
             ('Timers','potion-timers',[]),('CacheReclamation','action-reclamation',[]),
@@ -541,6 +549,13 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
             timeout=options.pop('timeout',240);required=options.pop('required',True)
             cases.append(Case(prefix+label,requires=(prefix+'Build',*[prefix+r for r in requires]),
                 kind='journey',scenario=scenario,configuration=configuration,timeout=timeout,options=options,required=required))
+        for label,equipment,profile,failure in [('World',False,'live',None),
+                ('Attachment',True,'noncombat-opening',None),('SaveFailure',False,'live','save-open')]:
+            cases.append(Case(prefix+'Persistence.'+label,kind='persistence',configuration=configuration,
+                requires=tuple(prefix+name for name in ('Build','Host.SaveStorage','Host.SaveStreams',
+                    'Original.SaveContracts','Original.SaveWriter','Original.SaveSlotCallbacks','Original.SaveRestoreTimers')),
+                timeout=180 if failure else 600,
+                options=dict(equipment=equipment,population_profile=profile,failure_case=failure)))
         live('Startup.EarlySkip','startup',intro='early')
         live('Startup.DelayedSkip','startup',intro='delayed')
         live('Startup.Natural','startup',intro='natural',timeout=180)
@@ -672,11 +687,32 @@ def executor(game_data, video_driver='dummy'):
             import shutil
             shutil.copy2(binary,directory/'e2recomp')
             return dict(status='PASS',reason='',binary=identity)
-        if case.kind in ('journey','replay'):
+        if case.kind in ('journey','replay','persistence'):
             binary=destination/(case.configuration+'.Build')/'e2recomp'
             expected=results[case.configuration+'.Build']['binary']['sha256']
             if digest(binary)!=expected:
                 return dict(status='FAIL',reason='Pinned executable identity changed')
+        if case.kind=='persistence':
+            processes=1 if case.options.get('failure_case') else 2
+            command=[sys.executable,str(ROOT/'scripts/probe-e2-game-save-load.py'),str(binary),
+                '--game-data',str(game_data),'--output',str(directory/'probe'),
+                '--timeout',str(int(case.timeout/processes)-10),'--video-driver',video_driver,
+                '--population-profile',case.options['population_profile']]
+            if case.options['equipment']:command+=['--equipment']
+            if case.options.get('failure_case'):command+=['--failure-case',case.options['failure_case']]
+            result=execute(command,directory,case.timeout,environment)
+            report_path=directory/'probe/report.json'
+            if report_path.is_file():
+                report=json.loads(report_path.read_text())
+                accepted=(report.get('probe_complete') and len(report.get('processes',[]))==processes
+                    and all(row.get('native_exit_code')==0 for row in report['processes'])
+                    and all(report.get('installed_saves_unchanged',{}).values())
+                    and all(report.get('unowned_private_slots_unchanged',{}).values()))
+                if result['status']=='PASS' and not accepted:
+                    result.update(status='FAIL',reason='Missing completed persistence/preservation evidence')
+                result['persistence']=report
+            elif result['status']=='PASS':result.update(status='FAIL',reason='Persistence probe emitted no report')
+            return result|dict(artifacts=case.name,population_profile=case.options['population_profile'])
         if case.kind=='journey':
             # Watch mode adds host pacing only. Fresh timing/RNG may differ;
             # retain the same assertions with a larger, still bounded timeout.
@@ -759,6 +795,8 @@ def executor(game_data, video_driver='dummy'):
         else:
             command=case.command
             if case.name=='Source.GeneratorParity':command+=('--output',str(directory/'generation'))
+            if '.Original.Save' in case.name or '.Host.Save' in case.name:
+                command+=('--keep-harness',str(directory/'fixture.c'))
         result=execute(command,directory,case.timeout,environment)
         return result|dict(artifacts=case.name)
     return perform

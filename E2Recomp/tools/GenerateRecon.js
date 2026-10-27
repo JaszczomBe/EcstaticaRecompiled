@@ -759,10 +759,6 @@ source = source.replace(
 source = source.replace(/\*\(short \*\)\(local_7c \+ 0x6366a8\)/g,
                         "*(short *)(style_index + 0x6366a8)");
 source = source.replace(
-  /\/\* 00453920 \*\/\s*\r?\n\s*\/\* WARNING:[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\s*\/\* 004544a4 \*\//,
-  "/* 00453920 */\n\nundefined8 __fastcall FUN_00453920(undefined4 param_1,char *param_2)\n\n{\n  (void)param_1;\n  (void)param_2;\n  return 0;\n}\n\n\n\n/* 004544a4 */"
-);
-source = source.replace(
   /\/\* 00455e84 \*\/\s*\r?\n\s*void FUN_00455e84\(void\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\s*\/\* 00455fe8 \*\//,
   "/* 00455e84 */\n\nvoid FUN_00455e84(void)\n\n{\n  if (DAT_0047a43c == 0) {\n    E2R_ClearHudIconName((char *)0x00475ef8);\n    E2R_ClearHudIconName((char *)0x00475f00);\n    E2R_ClearHudIconName((char *)0x00475f08);\n    E2R_ClearHudIconName((char *)0x00475f2c);\n    E2R_ClearHudIconName((char *)0x00475f20);\n    E2R_ClearHudIconName((char *)0x00475f6c);\n    E2R_ClearHudIconName((char *)0x00475f64);\n    E2R_ClearHudIconNameRange(0x0047ab71,0x0047ab9e);\n    E2R_ClearHudIconName((char *)0x00475f5c);\n    E2R_ClearHudIconName((char *)0x00475e4c);\n    E2R_ClearHudIconNameRange(0x0047ac40,0x0047ac76);\n    E2R_ClearHudIconNameRange(0x0047ac76,0x0047acac);\n    E2R_ClearHudIconNameRange(0x0047acac,0x0047ace2);\n  }\n  else {\n    E2R_ClearHudIconName((char *)0x00475ee0);\n    E2R_ClearHudIconName((char *)0x00475ee8);\n    E2R_ClearHudIconName((char *)0x00475ef0);\n    E2R_ClearHudIconName((char *)0x00475f18);\n    E2R_ClearHudIconName((char *)0x00475f10);\n    E2R_ClearHudIconName((char *)0x00475f50);\n    E2R_ClearHudIconName((char *)0x00475f44);\n    E2R_ClearHudIconNameRange(0x0047ab44,0x0047ab71);\n    E2R_ClearHudIconName((char *)0x00475f38);\n    E2R_ClearHudIconName((char *)0x00475e40);\n    E2R_ClearHudIconNameRange(0x0047ab9e,0x0047abd4);\n    E2R_ClearHudIconNameRange(0x0047abd4,0x0047ac0a);\n    E2R_ClearHudIconNameRange(0x0047ac0a,0x0047ac40);\n  }\n  return;\n}\n\n\n\n/* 00455fe8 */"
 );
@@ -4364,10 +4360,6 @@ source = source.replace(
 source = source.replace(
   /undefined8 __fastcall FUN_0043cbf0\(undefined4 param_1,undefined4 param_2\)\s*\r?\n\s*\{[\s\S]*?\r?\n\}\s*\r?\n\s*\r?\n\/\* 0043ccc8 \*\//,
   "undefined8 __fastcall FUN_0043cbf0(undefined4 param_1,undefined4 param_2)\n\n{\n  int *in_EAX;\n  int iVar1;\n  int iVar3;\n  int iVar4;\n  undefined8 uVar5;\n  int iVar2;\n  undefined4 local_single [2];\n  \n  in_EAX = E2R_ResolveMenuStringList(param_1,param_2,local_single);\n  if (in_EAX == (int *)0x0) {\n    return (ulonglong)param_2 << 0x20;\n  }\n  E2R_WORD_AT(DAT_0047a45e,2) = 0x2e;\n  iVar2 = 0;\n  do {\n    iVar1 = iVar2 + 0x33;\n    iVar3 = 0;\n    *(undefined1 *)(iVar2 + 0x64403a) = 0;\n    iVar2 = iVar1;\n  } while (iVar1 != 0x396);\n  iVar1 = 0;\n  iVar3 = 0;\n  iVar4 = 0x6430fa;\n  iVar2 = *in_EAX;\n  while (iVar2 != 0) {\n    if (!E2R_IsReadableCString((char *)(uintptr_t)*in_EAX)) {\n      break;\n    }\n    FUN_0045f22f(iVar1,(char *)*in_EAX);\n    *(undefined1 *)(iVar1 * 0x33 + 0x64406c) = 0;\n    if (iVar1 < 0x11) {\n      *(int *)((undefined1 *)0x006430ee + iVar3) = iVar4;\n    }\n    in_EAX = in_EAX + 1;\n    iVar4 = iVar4 + 0x1e;\n    iVar3 = iVar3 + 0x1e;\n    iVar1 = iVar1 + 1;\n    if (0x11 < iVar1) break;\n    if (IsBadReadPtr(in_EAX,4)) break;\n    iVar2 = *in_EAX;\n  }\n  _DAT_0047a636 = (short)iVar1 * 9 + 0x28;\n  if (iVar1 < 0x12) {\n    iVar3 = iVar1 * 0xf;\n    *(undefined4 *)((undefined1 *)0x006430ee + iVar1 * 0x1e) = 0x643de4;\n  }\n  else {\n    *(undefined4 *)0x006432ec = 0x643de4;\n  }\n  uVar5 = FUN_0043b384(iVar1,iVar3);\n  return CONCAT44(param_2,(int)uVar5);\n}\n\n\n\n/* 0043ccc8 */"
-);
-source = source.replace(
-  /\/\* 00453920 \*\/[\s\S]*?\r?\n\s*\r?\n\/\* 004544a4 \*\//,
-  "/* 00453920 */\n\nundefined8 __fastcall FUN_00453920(undefined4 param_1,char *param_2)\n\n{\n  (void)param_1;\n  (void)param_2;\n  return 0;\n}\n\n\n\n/* 004544a4 */"
 );
 source = source.replace(
   "  FUN_0045fd2c(uVar6,_DAT_006365f4);",
@@ -9709,6 +9701,710 @@ source = source.replace(/void FUN_00424b48\(void\)\s*\{[\s\S]*?(?=\n\/\* 00424bd
 
 
 `);
+
+
+// Persistence primitives: original 0x417248 writes big endian resource words;
+// 0x417308 writes little endian state words. Host writes use binary handles.
+patchRectangleFunction('FUN_00417308', body => body.replace(
+  '  if (((*(byte *)((int)param_2 + 0xd) & 4)',
+  `  in_AX = (ushort)param_1;
+  if ((uint)param_2[6] == E2R_STREAM_MAGIC) {
+    E2R_WriteHostedStreamByte((undefined4 *)param_2,(byte)in_AX);
+    E2R_WriteHostedStreamByte((undefined4 *)param_2,(byte)(in_AX >> 8));
+    return;
+  }
+  if (((*(byte *)((int)param_2 + 0xd) & 4)`));
+patchRectangleFunction('FUN_00417248', body => body.replace(
+  '  if (((*(byte *)((int)param_2 + 0xd) & 4)',
+  `  in_EAX = (ushort)param_1;
+  if ((uint)param_2[6] == E2R_STREAM_MAGIC) {
+    E2R_WriteHostedStreamByte((undefined4 *)param_2,(byte)(in_EAX >> 8));
+    E2R_WriteHostedStreamByte((undefined4 *)param_2,(byte)in_EAX);
+    return;
+  }
+  if (((*(byte *)((int)param_2 + 0xd) & 4)`));
+source = replaceRectangleInput(source,'/* 00417248 */',`static undefined4 E2R_OpenWriteStream(const char *path)
+{
+  HANDLE file = CreateFileA(path,0x40000000,3,NULL,2,0x80,NULL);
+  if (file == INVALID_HANDLE_VALUE) return 0;
+  undefined4 *stream = (undefined4 *)LocalAlloc(0x40,0x1c);
+  if (stream == NULL) { CloseHandle(file); return 0; }
+  stream[3] = 0x42;
+  stream[4] = (undefined4)(uintptr_t)file;
+  stream[6] = E2R_STREAM_MAGIC;
+  if (!E2R_RegisterHostedStream(stream)) {
+    CloseHandle(file);
+    LocalFree(stream);
+    return 0;
+  }
+  return (undefined4)(uintptr_t)stream;
+}
+
+static int E2R_WriteHostedStreamByte(undefined4 *stream,int value)
+{
+  DWORD written = 0;
+  byte data = (byte)value;
+  if (stream == NULL || stream[6] != E2R_STREAM_MAGIC || !(stream[3] & 2)) return -1;
+  if ((stream[3] & 0x20) || !WriteFile((HANDLE)(uintptr_t)stream[4],&data,1,&written,NULL) || written != 1) {
+    stream[3] |= 0x20;
+    return -1;
+  }
+  return data;
+}
+
+/* 00417248 */`);
+patchRectangleFunction('FUN_0045ec6c', body => replaceRectangleInput(body,
+  '    if (stream[5] != 0) {',
+  `    if (stream[3] & 2) {
+      int failed = (stream[3] & 0x20) != 0;
+      if (!CloseHandle((HANDLE)(uintptr_t)stream[4])) failed = 1;
+      stream[6] = 0;
+      LocalFree(stream);
+      return CONCAT44(param_2,failed ? 0xffffffffu : 0);
+    }
+    if (stream[5] != 0) {`));
+patchRectangleFunction('FUN_00454fe4', () => `void __fastcall FUN_00454fe4(undefined4 param_1,undefined4 param_2)
+{
+  const short *matrix = (const short *)(uintptr_t)param_1;
+  int *stream = (int *)(uintptr_t)param_2;
+  /* Original traverses columns: +0,+6,+12; +2,+8,+14; +4,+10,+16. */
+  for (int column = 0; column < 3; ++column)
+    for (int row = 0; row < 3; ++row)
+      FUN_00417308((int)matrix[row * 3 + column],stream);
+}`);
+
+// Save resource records use five big-endian words, followed by little-endian
+// world state. All offsets and ordering below follow 0x4437f0..0x44432d and
+// 0x453920..0x45442f; pointers are represented by resource IDs or relative time.
+source = replaceRectangleInput(source,'/* 004437f0 */',`static void E2R_WriteSaveRecord(int *stream,int type,int id,int a,int b,int c)
+{
+  const short words[5] = {type,id,a,b,c};
+  for (int i = 0; i < 5; ++i) FUN_00417248((int)words[i],stream);
+}
+
+static void E2R_WriteSaveVectorRecord(int *stream,int type,int id,uintptr_t address)
+{
+  const short *v = (const short *)address;
+  E2R_WriteSaveRecord(stream,type,id,v[0],v[1],v[2]);
+}
+
+/* 004437f0 */`);
+patchRectangleFunction('FUN_00443dbc', () => `void __fastcall FUN_00443dbc(undefined4 param_1,undefined4 param_2)
+{
+  uintptr_t parent = param_1;
+  int *stream = (int *)(uintptr_t)param_2;
+  for (uintptr_t part = *(uint *)(parent + 0x1e); part; part = *(uint *)(part + 0xca)) {
+    int id = *(short *)part;
+    if (*(short *)(parent + 4) == 7)
+      E2R_WriteSaveVectorRecord(stream,10,0,part);
+    else E2R_WriteSaveVectorRecord(stream,7,*(short *)parent,part);
+    static const ushort fields[][2] = {
+      {2,0x2c},{0x1f,0x110},{1,0x26},{4,0x68},{5,0x6e},{3,0xce}
+    };
+    for (uint i = 0; i < sizeof(fields)/sizeof(fields[0]); ++i)
+      E2R_WriteSaveVectorRecord(stream,fields[i][0],id,part + fields[i][1]);
+    E2R_WriteSaveRecord(stream,0xe,id,*(short *)(part + 2),-1,0);
+    E2R_WriteSaveRecord(stream,0x48,id,*(short *)(part + 0xd0),0,0);
+    static const ushort more[][2] = {
+      {0x39,0xa4},{0x3e,0x116},{0x38,0x9e},{0x3a,0xb0},{0x3b,0xb6},{0x3c,0xc4}
+    };
+    for (uint i = 0; i < sizeof(more)/sizeof(more[0]); ++i)
+      E2R_WriteSaveVectorRecord(stream,more[i][0],id,part + more[i][1]);
+    E2R_WriteSaveRecord(stream,0x3d,id,*(short *)(part + 0xc8),-1,0);
+    for (uintptr_t point = *(uint *)(part + 0x11e); point; point = *(uint *)(point + 0x26)) {
+      E2R_WriteSaveVectorRecord(stream,0x29,id,point);
+      E2R_WriteSaveVectorRecord(stream,0x2a,*(short *)point,point + 4);
+    }
+    FUN_00443dbc(part,param_2);
+  }
+}`);
+patchRectangleFunction('FUN_004437f0', () => `void __fastcall FUN_004437f0(undefined4 param_1,undefined4 param_2)
+{
+  uintptr_t actor = param_1;
+  int *stream = (int *)(uintptr_t)param_2;
+  E2R_WriteSaveVectorRecord(stream,8,0,actor);
+  E2R_WriteSaveVectorRecord(stream,0x14,0,actor + 0x9c);
+  E2R_WriteSaveRecord(stream,0x15,0,*(short *)(actor + 2),*(short *)(actor + 0x146),-1);
+  static const ushort fields[][2] = {{0x31,0xf6},{0x32,0xfc},{0x40,0x102},{0x41,0x108}};
+  for (uint i = 0; i < sizeof(fields)/sizeof(fields[0]); ++i)
+    E2R_WriteSaveVectorRecord(stream,fields[i][0],0,actor + fields[i][1]);
+  E2R_WriteSaveRecord(stream,0x37,0,*(short *)(actor + 0x122),1,*(short *)(actor + 0x124));
+  E2R_WriteSaveRecord(stream,0x42,0,*(short *)(actor + 0x136) + 1,
+      *(short *)(actor + 0x138) + 1,*(short *)(actor + 0x13a) + 1);
+  E2R_WriteSaveRecord(stream,0x4e,0,*(short *)(actor + 0x13c) + 1,*(short *)(actor + 0x13e) + 1,0);
+  FUN_00443dbc(param_1,param_2);
+  for (uintptr_t part = *(uint *)(actor + 0x1e); part; part = *(uint *)(part + 0x4c)) {
+    uintptr_t attachment = *(uint *)(part + 0x12e);
+    if (attachment) E2R_WriteSaveRecord(stream,0x30,*(short *)part,*(short *)attachment,0,0);
+  }
+  for (uintptr_t link = *(uint *)(actor + 0xd8); link; link = *(uint *)(link + 0x1e)) {
+    int id = *(short *)link;
+    E2R_WriteSaveRecord(stream,0x2b,id,**(short **)(link + 4),**(short **)(link + 8),**(short **)(link + 0xc));
+    uintptr_t target = *(uint *)(link + 0x28);
+    if (target) E2R_WriteSaveRecord(stream,0x49,id,*(short *)target,0,0);
+    E2R_WriteSaveRecord(stream,0x2c,id,*(short *)(link + 0x10),*(short *)(link + 0x12),0);
+    E2R_WriteSaveRecord(stream,0x2d,id,*(short *)(link + 2),-1,0);
+    E2R_WriteSaveRecord(stream,0x43,id,*(short *)(link + 0x1c),0,0);
+    if (*(short *)(link + 0x2c) >= 0) {
+      E2R_WriteSaveRecord(stream,0x4a,id,*(short *)(link + 0x2c),0,0);
+      E2R_WriteSaveVectorRecord(stream,0x4b,id,link + 0x2e);
+      E2R_WriteSaveVectorRecord(stream,0x4c,id,link + 0x34);
+      E2R_WriteSaveRecord(stream,0x4d,id,*(short *)(link + 0x3a),*(short *)(link + 0x3c),0);
+    }
+  }
+}`);
+patchRectangleFunction('FUN_00453920', () => `undefined8 __fastcall FUN_00453920(undefined4 param_1,char *param_2)
+{
+  char path[15];
+  char label[26] = {0};
+  int slot = (int)param_1;
+  if (slot > 10) { FUN_00414e68(); return 0xffffffffu; }
+  snprintf(path,sizeof(path),"saved\\\\%04d.ecs",slot);
+  int *stream = (int *)(uintptr_t)E2R_OpenWriteStream(path);
+  if (stream == NULL) { FUN_0043cac0((uint)(uintptr_t)0x475c64,0); return 0xffffffffu; }
+  strncpy(label,param_2,25);
+  for (int i = 0; i < 26; ++i) E2R_WriteHostedStreamByte((undefined4 *)stream,(byte)label[i]);
+  FUN_00417308(4,stream);
+  int page = 1 - (DAT_0047a279 >> 24);
+  int had_cursor = *(short *)(0x479e8e + page * 2) >= 0;
+  if (had_cursor) FUN_0041ca90(page);
+  if (DAT_0047a43c == 0) {
+    const byte *pixels = *(byte **)(0x636150 + page * 4);
+    for (int x = 0; x < (int)_DAT_006401ec / 4; ++x)
+      for (int y = 0; y < 60; ++y)
+        E2R_WriteHostedStreamByte((undefined4 *)stream,pixels[x + ((int)_DAT_006401d4 * y / 60) * 80]);
+  }
+  else {
+    undefined4 pitch;
+    const byte *pixels = (const byte *)(uintptr_t)FUN_00418a04(page,&pitch);
+    for (int x = 0; x < (int)_DAT_006401ec / 8; ++x)
+      for (int y = 0; y < (int)_DAT_006401d4 / 8; ++y)
+        E2R_WriteHostedStreamByte((undefined4 *)stream,pixels[x * 8 + y * 8 * pitch]);
+    FUN_00418b00(page,(uint)(uintptr_t)pixels);
+  }
+  if (had_cursor) FUN_0041c518(0);
+  for (uintptr_t actor = _DAT_0063726c; actor; actor = *(uint *)(actor + 0x4c))
+    FUN_004437f0(actor,(uint)(uintptr_t)stream);
+  E2R_WriteSaveRecord(stream,0,0,0,0,0);
+  for (uintptr_t actor = _DAT_00637254; actor; actor = *(uint *)(actor + 0x1a6))
+    if (*(byte *)(actor + 0x1aa) & 2) FUN_00417308(*(short *)actor,stream);
+  FUN_00417308(-1,stream);
+  for (uintptr_t resource = _DAT_00637260; resource; resource = *(uint *)(resource + 0x9c))
+    FUN_00417308(*(short *)resource,stream);
+  FUN_00417308(-1,stream);
+  for (uintptr_t actor = _DAT_0063726c; actor; actor = *(uint *)(actor + 0x4c)) {
+    FUN_00417308(*(short *)actor,stream);
+    static const ushort fields[] = {0x82,0x84,0x86,0x88,0x8a,0x8c,0x8e,0x90,0x92,0x94,
+      0x96,0x98,0xe8,0x98,0xea,0xec,0xee,0xf0};
+    for (uint i = 0; i < sizeof(fields)/sizeof(fields[0]); ++i)
+      FUN_00417308(*(short *)(actor + fields[i]),stream);
+    FUN_00454fe4(actor + 0xc6,(uint)(uintptr_t)stream);
+    static const ushort more[] = {0x182,0x186,0x184};
+    for (uint i = 0; i < sizeof(more)/sizeof(more[0]); ++i)
+      FUN_00417308(*(short *)(actor + more[i]),stream);
+    uintptr_t a = *(uint *)(actor + 0x126), b = *(uint *)(actor + 0x12a);
+    FUN_00417308(a ? *(short *)a : -1,stream);
+    FUN_00417308(b ? *(short *)b : -1,stream);
+    int count = 0;
+    for (uintptr_t timer = *(uint *)(actor + 0x17c); timer; timer = *(uint *)(timer + 6)) count++;
+    FUN_00417308(count,stream);
+    for (uintptr_t timer = *(uint *)(actor + 0x17c); timer; timer = *(uint *)(timer + 6)) {
+      FUN_00417308(*(short *)timer,stream);
+      FUN_00417308(*(uint *)(timer + 2) - _DAT_00636588,stream);
+    }
+    uintptr_t action = *(uint *)(actor + 0xa6);
+    uintptr_t owner = 0, found = 0;
+    if (action && (*(byte *)(action + 0xc) & 2)) {
+      for (owner = _DAT_00637260; owner; owner = *(uint *)(owner + 0x9c)) {
+        for (found = *(uint *)(owner + 4); found && found + 2 != action; found = *(uint *)(found + 0x18)) {}
+        if (found) break;
+      }
+      if (!found) { FUN_0043cac0((uint)(uintptr_t)0x475c14,0); }
+    }
+    E2R_WriteHostedStreamByte((undefined4 *)stream,found ? 1 : action ? 2 : 0);
+    if (action) {
+      FUN_00417308(found ? *(short *)owner : *(short *)action,stream);
+      FUN_00417308(*(ushort *)(actor + 0xac),stream);
+      FUN_00417308(*(ushort *)(actor + 0xb2),stream);
+    }
+    uintptr_t attachment = *(uint *)(actor + 0xf2);
+    if (attachment) FUN_00417308(**(short **)(attachment + 0x22),stream);
+    FUN_00417308(attachment ? *(short *)attachment : -1,stream);
+  }
+  FUN_00417308(-1,stream);
+  for (int i = 0; i < 2500; ++i) FUN_00417308(*(short *)(0x670c38 + i * 2),stream);
+  for (uintptr_t actor = _DAT_00637248; actor; actor = *(uint *)(actor + 0x50)) {
+    int id = *(short *)actor;
+    memcpy((void *)(0x669708 + id * 6),(void *)(actor + 0x84),6);
+    memcpy((void *)(0x658980 + id * 6),(void *)(actor + 0x90),6);
+    *(short *)(0x671fc0 + id * 2) = *(short *)(actor + 0x122);
+    *(short *)(0x647a68 + id * 2) = *(short *)(actor + 0xec);
+    *(byte *)(0x64c950 + id) = *(byte *)(actor + 0x184);
+  }
+  for (int id = 0; id < 5000; ++id) {
+    FUN_00417308(*(short *)(0x64a178 + id * 2),stream);
+    for (int j = 0; j < 3; ++j) {
+      FUN_00417308(*(short *)(0x669708 + id * 6 + j * 2),stream);
+      FUN_00417308(*(short *)(0x658980 + id * 6 + j * 2),stream);
+    }
+    FUN_00417308(*(short *)(0x671fc0 + id * 2),stream);
+    FUN_00417308(*(short *)(0x647a68 + id * 2),stream);
+    E2R_WriteHostedStreamByte((undefined4 *)stream,*(byte *)(0x64c950 + id));
+    FUN_00417308(*(short *)(0x666ff8 + id * 2),stream);
+    FUN_00417308(*(short *)(0x6648e8 + id * 2),stream);
+    FUN_00417308(*(short *)(0x65feb0 + id * 2),stream);
+  }
+  for (uintptr_t resource = _DAT_00637268; resource; resource = *(uint *)(resource + 0x16)) {
+    FUN_00417308(*(short *)resource,stream);
+    for (int j = 0; j < 10; ++j) {
+      ushort index = *(ushort *)(resource + 2 + j * 2);
+      FUN_00417308(index,stream);
+      if (index != 0xffff) {
+        if (index >= 60000) FUN_00414e68();
+        else FUN_00417308(*(byte *)(0x68cd6f + index * 12),stream);
+      }
+    }
+  }
+  FUN_00417308(-1,stream);
+  static const uintptr_t globals[] = {0x47ab0c,0x47ab28,0x47ab18,0x47ab14,0x47ab2c,0x47a4a4};
+  for (uint i = 0; i < sizeof(globals)/sizeof(globals[0]); ++i) FUN_00417308(*(int *)globals[i],stream);
+  FUN_00441600(DAT_0047ab20,stream);
+  FUN_00441600(DAT_0047ab24,stream);
+  for (int i = 0; i < 150; ++i) E2R_WriteHostedStreamByte((undefined4 *)stream,*(byte *)(0xac4b00 + i));
+  FUN_00417308(DAT_0047ab40,stream);
+  for (int i = 0; i < DAT_0047ab40; ++i) {
+    FUN_00417308(*(int *)(0xac493c + i * 4),stream);
+    FUN_00417308(*(int *)(0xaba2ac + i * 4),stream);
+    FUN_00417308(*(int *)(0xac48ec + i * 4),stream);
+    FUN_00417308(*(int *)(0xaa69fc + i * 4),stream);
+  }
+  FUN_00417308(DAT_0047a49c,stream);
+  FUN_00417308(DAT_0047a4a0,stream);
+  FUN_00417308(DAT_0047a498,stream);
+  FUN_00417308(DAT_0047a440,stream);
+  FUN_00417308(0x1234,stream);
+  return FUN_0045ec6c(0,(uint)(uintptr_t)stream);
+}`);
+patchRectangleFunction('FUN_00441600', () => `void __fastcall FUN_00441600(undefined4 param_1,int *param_2)
+{
+  FUN_00417248((int)(short)(param_1 >> 16),param_2);
+  FUN_00417248((int)(short)param_1,param_2);
+}`);
+
+source = replaceRectangleInput(source,'/* 004544a4 */',`static ushort E2R_ReadSaveWord(int *stream)
+{
+  int *previous = E2R_fan_parse_stream;
+  E2R_fan_parse_stream = stream;
+  ushort word = (ushort)FUN_004173c8((uint)(uintptr_t)stream,0);
+  E2R_fan_parse_stream = previous;
+  return word;
+}
+
+static uint E2R_ReadSaveDword(int *stream)
+{
+  int *previous = E2R_fan_parse_stream;
+  E2R_fan_parse_stream = stream;
+  uint word = (uint)FUN_00441444((uint)(uintptr_t)stream,0);
+  E2R_fan_parse_stream = previous;
+  return word;
+}
+
+static undefined8 E2R_LoadSaveFailure(int *stream,const char *message)
+{
+  fprintf(stderr,"game load failed: %s\\n",message);
+  if (stream) FUN_0045ec6c(0,(uint)(uintptr_t)stream);
+  FUN_00414e68();
+  return 0xffffffffu;
+}
+
+/* 004544a4 */`);
+patchRectangleFunction('FUN_004544a4', () => `undefined8 __fastcall FUN_004544a4(undefined4 param_1,undefined4 param_2)
+{
+  char path[15];
+  int slot = (int)param_1;
+  if (slot > 10) return E2R_LoadSaveFailure(NULL,"invalid slot");
+  snprintf(path,sizeof(path),"saved\\\\%04d.ecs",slot);
+  int *stream = (int *)(uintptr_t)E2R_OpenReadStream(path);
+  if (!stream) return E2R_LoadSaveFailure(NULL,"open failed");
+  for (int i = 0; i < 26; ++i) E2R_ReadHostedStreamByte((undefined4 *)stream);
+  if ((short)E2R_ReadSaveWord(stream) < 4) {
+    undefined4 messages[3] = {0x475cc4,0x475ca4,0};
+    FUN_0043cbf0((uint)(uintptr_t)messages,0);
+    FUN_0045ec6c(0,(uint)(uintptr_t)stream);
+    return 0xffffffffu;
+  }
+  /* Original 0x454577: destructive load starts after the version check. */
+  FUN_00420c34();
+  FUN_00452d3c(0);
+  _DAT_0073cc3c = 0;
+  DAT_0047ab00 = 1;
+  FUN_00413e88();
+  DAT_0047ab38 = DAT_0047ab34 = DAT_0047ab30 = 0;
+  for (int i = 0; i < 4800; ++i) E2R_ReadHostedStreamByte((undefined4 *)stream);
+  DAT_0047a470 = 0;
+  while (1) {
+    if (stream[1] < 10) return E2R_LoadSaveFailure(stream,"truncated resource records");
+    int *previous = E2R_fan_parse_stream;
+    E2R_fan_parse_stream = stream;
+    short *record = (short *)(uintptr_t)(uint)FUN_004413fc((uint)(uintptr_t)stream,0);
+    E2R_fan_parse_stream = previous;
+    int type = (ushort)record[1];
+    FUN_0042b880(0,DAT_0047a470);
+    if (type == 0x15) {
+      if (!DAT_0047a470) return E2R_LoadSaveFailure(stream,"missing current actor");
+      ((short *)(uintptr_t)DAT_0047a470)[1] &= 0xfb77;
+      ((short *)(uintptr_t)DAT_0047a470)[0xa2] = record[4];
+    }
+    record[1] = (short)0x8000;
+    if (type == 0) break;
+  }
+  for (uintptr_t actor = _DAT_00637248; actor; actor = *(uint *)(actor + 0x50)) {
+    for (uintptr_t link = *(uint *)(actor + 0xd8); link; link = *(uint *)(link + 0x1e)) {
+      *(short *)(link + 0x14) = *(short *)(link + 0x10);
+      *(short *)(link + 0x16) = *(short *)(link + 0x12);
+      *(short *)(link + 0x18) = *(short *)(link + 2);
+      for (uintptr_t part = *(uint *)(actor + 0x1e); part; part = *(uint *)(part + 0x4c))
+        for (uintptr_t point = *(uint *)(part + 0x11e); point; point = *(uint *)(point + 0x26))
+          memcpy((void *)(point + 0x1c),(void *)(point + 4),6);
+    }
+  }
+  int id;
+  while ((id = (short)E2R_ReadSaveWord(stream)) >= 0) FUN_00451998(id,0);
+  while ((id = (short)E2R_ReadSaveWord(stream)) >= 0) {
+    FUN_0045233c(0,id);
+    uintptr_t scene = *(uint *)(0x62e450 + id * 4);
+    if (scene) FUN_00452140(scene);
+  }
+  int previous_context = E2R_actor_calc_context;
+  while ((id = (short)E2R_ReadSaveWord(stream)) >= 0) {
+    if (id >= 5000) return E2R_LoadSaveFailure(stream,"invalid actor ID");
+    uintptr_t actor = *(uint *)(0x630b60 + id * 4);
+    if (!actor) return E2R_LoadSaveFailure(stream,"actor missing after resource reconstruction");
+    static const ushort fields[] = {0x82,0x84,0x86,0x88,0x8a,0x8c,0x8e,0x90,0x92,0x94,
+      0x96,0x98,0xe8,0x98,0xea,0xec,0xee,0xf0};
+    for (uint i = 0; i < sizeof(fields)/sizeof(fields[0]); ++i)
+      *(short *)(actor + fields[i]) = E2R_ReadSaveWord(stream);
+    for (int column = 0; column < 3; ++column)
+      for (int row = 0; row < 3; ++row)
+        *(short *)(actor + 0xc6 + row * 6 + column * 2) = E2R_ReadSaveWord(stream);
+    static const ushort more[] = {0x182,0x186,0x184};
+    for (uint i = 0; i < sizeof(more)/sizeof(more[0]); ++i)
+      *(short *)(actor + more[i]) = E2R_ReadSaveWord(stream);
+    for (int i = 0; i < 2; ++i) {
+      int action_id = (short)E2R_ReadSaveWord(stream);
+      if (action_id >= 0) {
+        FUN_00451880(0,action_id);
+        *(uint *)(actor + 0x126 + i * 4) = *(uint *)(0x62ba20 + action_id * 4);
+      }
+    }
+    int timers = (short)E2R_ReadSaveWord(stream);
+    uintptr_t tail = 0;
+    for (int i = 0; i < timers; ++i) {
+      uintptr_t timer = (uint)FUN_004538c0(0,0);
+      *(short *)timer = E2R_ReadSaveWord(stream);
+      *(uint *)(timer + 2) = _DAT_00636588 + (short)E2R_ReadSaveWord(stream);
+      if (tail) *(uint *)(tail + 6) = timer;
+      else *(uint *)(actor + 0x17c) = timer;
+      *(uint *)(timer + 6) = 0;
+      tail = timer;
+    }
+    E2R_actor_calc_context = actor;
+    FUN_00426c3c();
+    int kind = E2R_ReadHostedStreamByte((undefined4 *)stream);
+    if (kind == 1 || kind == 2) {
+      int action_id = (short)E2R_ReadSaveWord(stream);
+      uintptr_t action;
+      if (kind == 1) {
+        uintptr_t owner = *(uint *)(0x62e450 + action_id * 4);
+        if (!owner) return E2R_LoadSaveFailure(stream,"missing scene action owner");
+        action = *(uint *)(owner + 4);
+        while (action && *(short *)action != id) action = *(uint *)(action + 0x18);
+        if (!action) return E2R_LoadSaveFailure(stream,"missing scene actor action");
+        action += 2;
+        *(uint *)(actor + 0x132) = owner;
+      }
+      else {
+        FUN_00451880(0,action_id);
+        action = *(uint *)(0x62ba20 + action_id * 4);
+        if (!action) return E2R_LoadSaveFailure(stream,"missing action");
+        *(uint *)(actor + 0x132) = 0;
+      }
+      *(uint *)(actor + 0xa6) = action;
+      FUN_00426a80();
+      *(short *)(actor + 0xac) = E2R_ReadSaveWord(stream);
+      *(short *)(actor + 0xb2) = E2R_ReadSaveWord(stream);
+    }
+    else if (kind == 0) {
+      *(uint *)(actor + 0xa6) = *(uint *)(actor + 0x132) = 0;
+    }
+    int owner_id = (short)E2R_ReadSaveWord(stream);
+    if (owner_id >= 0) {
+      int node_id = (short)E2R_ReadSaveWord(stream);
+      uintptr_t owner = *(uint *)(0x630b60 + owner_id * 4);
+      if (!owner) return E2R_LoadSaveFailure(stream,"missing attachment owner");
+      uintptr_t node = *(uint *)(*(uint *)(owner + 0x54) + node_id * 4);
+      if (!node) return E2R_LoadSaveFailure(stream,"missing attachment node");
+      *(uint *)(actor + 0xf2) = node;
+      *(uint *)(node + 0x13a) = actor;
+    }
+  }
+  E2R_actor_calc_context = previous_context;
+  for (uintptr_t scene = (uintptr_t)_DAT_0063725c; scene; scene = *(uint *)(scene + 8)) {
+    *(uint *)(scene + 0x9c) = _DAT_00637260;
+    *(byte *)(scene + 0x96) |= 1;
+    _DAT_00637260 = scene;
+  }
+  for (int i = 0; i < 2500; ++i) *(short *)(0x670c38 + i * 2) = E2R_ReadSaveWord(stream);
+  for (int id = 0; id < 5000; ++id) {
+    *(short *)(0x64a178 + id * 2) = E2R_ReadSaveWord(stream);
+    for (int j = 0; j < 3; ++j) {
+      *(short *)(0x669708 + id * 6 + j * 2) = E2R_ReadSaveWord(stream);
+      *(short *)(0x658980 + id * 6 + j * 2) = E2R_ReadSaveWord(stream);
+    }
+    *(short *)(0x671fc0 + id * 2) = E2R_ReadSaveWord(stream);
+    *(short *)(0x647a68 + id * 2) = E2R_ReadSaveWord(stream);
+    *(byte *)(0x64c950 + id) = E2R_ReadHostedStreamByte((undefined4 *)stream);
+    *(short *)(0x666ff8 + id * 2) = E2R_ReadSaveWord(stream);
+    *(short *)(0x6648e8 + id * 2) = E2R_ReadSaveWord(stream);
+    *(short *)(0x65feb0 + id * 2) = E2R_ReadSaveWord(stream);
+  }
+  while ((id = (short)E2R_ReadSaveWord(stream)) >= 0) {
+    uintptr_t resource = *(uint *)(0x629630 + id * 4);
+    if (!resource) return E2R_LoadSaveFailure(stream,"missing visibility resource");
+    for (int j = 0; j < 10; ++j) {
+      ushort index = E2R_ReadSaveWord(stream);
+      *(short *)(resource + 2 + j * 2) = index;
+      if (index != 0xffff) {
+        if (index >= 60000) return E2R_LoadSaveFailure(stream,"invalid visibility index");
+        *(byte *)(0x68cd6f + index * 12) = E2R_ReadSaveWord(stream);
+      }
+    }
+  }
+  static const uintptr_t globals[] = {0x47ab0c,0x47ab28,0x47ab18,0x47ab14,0x47ab2c,0x47a4a4};
+  for (uint i = 0; i < sizeof(globals)/sizeof(globals[0]); ++i) *(int *)globals[i] = (short)E2R_ReadSaveWord(stream);
+  DAT_0047ab20 = E2R_ReadSaveDword(stream);
+  DAT_0047ab24 = E2R_ReadSaveDword(stream);
+  for (int i = 0; i < 150; ++i) *(byte *)(0xac4b00 + i) = E2R_ReadHostedStreamByte((undefined4 *)stream);
+  DAT_0047ab40 = (short)E2R_ReadSaveWord(stream);
+  for (int i = 0; i < DAT_0047ab40; ++i) {
+    *(int *)(0xac493c + i * 4) = (short)E2R_ReadSaveWord(stream);
+    *(int *)(0xaba2ac + i * 4) = (short)E2R_ReadSaveWord(stream);
+    *(int *)(0xac48ec + i * 4) = (short)E2R_ReadSaveWord(stream);
+    *(int *)(0xaa69fc + i * 4) = (short)E2R_ReadSaveWord(stream);
+  }
+  int value = (short)E2R_ReadSaveWord(stream);
+  if (value != 0x1234) {
+    if (DAT_00479dbc != 0 && DAT_00479dbc != 6) DAT_0047a49c = value;
+    value = (short)E2R_ReadSaveWord(stream);
+    if (DAT_00479dbc != 0) DAT_0047a4a0 = value;
+    DAT_0047a498 = (short)E2R_ReadSaveWord(stream);
+    DAT_0047a440 = (short)E2R_ReadSaveWord(stream);
+    if (DAT_0047a440 != DAT_0047a43c) {
+      if (DAT_0047a43c != 0) FUN_0043acec();
+      else FUN_0043ac60();
+    }
+    if (E2R_ReadSaveWord(stream) != 0x1234) return E2R_LoadSaveFailure(stream,"invalid trailer");
+  }
+  FUN_004598b4();
+  if (DAT_0047a49c && DAT_00479dbc && DAT_00479dbc != 6 && DAT_0047ab0c &&
+      (uint)FUN_004142e4(DAT_0047ab0c,0)) FUN_004598a0();
+  FUN_0045ec6c(0,(uint)(uintptr_t)stream);
+  DAT_0047a470 = *(short **)0x630b60;
+  DAT_0047a450 = DAT_0047a76c = 0;
+  FUN_0044e5b0();
+  FUN_004559bc();
+  FUN_00456f94();
+  _DAT_0047aa24 = _DAT_0047aa28 = 0;
+  return CONCAT44(param_2,0);
+}`);
+
+source = replaceRectangleInput(source,'static int E2R_InvokeRequesterAction(uintptr_t action)',`static void E2R_SelectRequesterSlot(int save,int slot,int confirmed)
+{
+  _DAT_0064353c = slot;
+  if (save && confirmed) {
+    if (slot >= 0) FUN_00453920(slot,(char *)0x643434 + slot * 26);
+    return;
+  }
+  if (save) {
+    FUN_0043c1b8(slot,0);
+    for (int i = 0; i < 10; ++i) {
+      strcpy((char *)0x643434 + i * 26,(char *)0x643540 + i * 26);
+      *(byte *)(0x643309 + i * 30) &= 0xf7;
+    }
+    *(byte *)(0x643309 + slot * 30) |= 8;
+  }
+  else {
+    for (int i = 0; i < 10; ++i) *(byte *)(0x642fc1 + i * 30) &= 0xf7;
+    *(byte *)(0x642fc1 + slot * 30) |= 8;
+    if (!(uint)FUN_0043c1b8(slot,0)) _DAT_0064353c = -1;
+  }
+  uintptr_t record = (uintptr_t)FUN_0043aeac();
+  for (uintptr_t item = save ? 0x6432f8 : 0x642fb0; record && item; item = *(uint *)(item + 0x12))
+    FUN_0043b9bc(record,(short *)item);
+}
+
+static int E2R_InvokeRequesterAction(uintptr_t action)`);
+source = replaceRectangleInput(source,
+  '  if (action == (uintptr_t)&LAB_0043c594) {\n    /* Original 0x43c5c6',
+  `  if ((requester_id == 0x29 && action == (uintptr_t)&LAB_0043fadc) ||
+      (requester_id == 0x2a && action == (uintptr_t)&LAB_0043fb58)) {
+    short *item = (short *)(uintptr_t)_DAT_00643430;
+    int slot = (ushort)item[8] & 0x7f;
+    E2R_SelectRequesterSlot(requester_id == 0x2a,slot,_DAT_00643644 != 0);
+    /* Save selection continues into the requester's original caret setup. */
+    return requester_id == 0x29 || _DAT_00643644 != 0;
+  }
+  if (action == (uintptr_t)&LAB_0043c594) {
+    if (requester_id == 0x29 || requester_id == 0x2a) {
+      if ((int)_DAT_0064353c >= 0) {
+        if (requester_id == 0x29) FUN_004544a4(_DAT_0064353c,0);
+        else FUN_00453920(_DAT_0064353c,(char *)0x643434 + _DAT_0064353c * 26);
+      }
+      _DAT_006443d0 = 1;
+      return 1;
+    }
+    /* Original 0x43c5c6`);
+source = replaceRectangleInput(source,
+  '        _DAT_0064353c = (int)(ushort)item[8] & 0xff;\n        E2R_RedrawActiveRequesterItem();\n        return 1;',
+  '        FUN_0043b708(0,item);\n        return 1;');
+// During resource restore the 0x08 record explicitly carries actor ID in +4,
+// as at 0x42ba2c. Retain the FAN resource-name normalization outside this call.
+source = replaceRectangleInput(source,
+  '    int type = (ushort)record[1];\n    FUN_0042b880(0,DAT_0047a470);',
+  `    int type = (ushort)record[1];
+    int previous_name = E2R_actor_resource_name_context;
+    E2R_actor_resource_name_context = record[2];
+    FUN_0042b880(0,DAT_0047a470);
+    E2R_actor_resource_name_context = previous_name;`);
+
+// Original 0x4161f0 reads the live one-byte keyboard queue; its exported
+// stand-alone symbol contains unrelated image bytes. EAX is explicitly slot 9.
+patchRectangleFunction('FUN_00415d40', body => body
+  .replaceAll("DAT_004c39af", "(*(byte *)0x004c39af)")
+  .replace('FUN_00453920(param_1,s_____QUICK_SAVED_GAME_____00471430)',
+           'FUN_00453920(9,s_____QUICK_SAVED_GAME_____00471430)'));
+
+// The original common OK item is reused by the slot requesters. Recreate its
+// mapped text/action after other requesters have reused that same item storage.
+patchRectangleFunction('FUN_0043ce58', body => replaceRectangleInput(body,
+  '        E2R_InitRequesterRecord(0x0047a5a4,-1,-1,0xf0,0xb4,',
+  `        E2R_InitRequesterItem(0x00643de4,0x38,10,-0x14,0xc,
+                               DAT_00479e00 == 0 ? (uintptr_t)"OK" : _DAT_0060ae70,
+                               (uintptr_t)&LAB_0043c594,0x2000,0);
+        E2R_InitRequesterRecord(0x0047a5a4,-1,-1,0xf0,0xb4,`));
+
+// Original 0x455034 has EAX matrix, EDX binary stream, with the same column
+// traversal as the writer. Its earlier no-argument export lost both inputs.
+patchRectangleFunction('FUN_00455034', () => `void __fastcall FUN_00455034(undefined4 param_1,undefined4 param_2)
+{
+  short *matrix = (short *)(uintptr_t)param_1;
+  int *previous = E2R_fan_parse_stream;
+  E2R_fan_parse_stream = (int *)(uintptr_t)param_2;
+  for (int column = 0; column < 3; ++column)
+    for (int row = 0; row < 3; ++row)
+      matrix[row * 3 + column] = (short)FUN_004173c8(param_2,0);
+  E2R_fan_parse_stream = previous;
+}`);
+prototypes[prototypes.indexOf('void FUN_00455034(void);')] =
+  'void __fastcall FUN_00455034(undefined4 param_1,undefined4 param_2);';
+patchRectangleFunction('FUN_004544a4', body => replaceRectangleInput(body,
+  '    for (int column = 0; column < 3; ++column)\n      for (int row = 0; row < 3; ++row)\n        *(short *)(actor + 0xc6 + row * 6 + column * 2) = E2R_ReadSaveWord(stream);',
+  '    FUN_00455034(actor + 0xc6,(uint)(uintptr_t)stream);'));
+
+// Original short-message requester 0x43cac0..0x43cb16: explicit EAX
+// string ownership, 51-byte copy and the mapped 0x47a534 record.
+patchRectangleFunction('FUN_0043cac0', body => {
+  body = body.replace('  char acStack_54 [50];','  char acStack_54 [51];');
+  body = replaceRectangleInput(body,
+    '  E2R_WORD_AT(DAT_0047a45e,2) = 0x15;',
+    '  in_EAX = (char *)(uintptr_t)param_1;\n  E2R_WORD_AT(DAT_0047a45e,2) = 0x15;');
+  const start = body.indexOf('  if (~uVar3 - 1 < 0x33) {');
+  const end = body.indexOf('\n  else {',start);
+  if (start < 0 || end < 0) throw new Error('Missing short-message requester branch');
+  return body.slice(0,start) + `  if (~uVar3 - 1 < 0x33) {
+    strncpy(acStack_54,in_EAX,50);
+    acStack_54[50] = 0;
+    uint length = strlen(acStack_54);
+    int width = length < 23 ? 150 : length * 6 + 20;
+    E2R_InitRequesterItem(0x00643de4,0x38,10,-0x14,0xc,
+                         DAT_00479e00 == 0 ? (uintptr_t)"OK" : _DAT_0060ae70,
+                         (uintptr_t)&LAB_0043c594,0x2000,0);
+    E2R_InitRequesterRecord(0x0047a534,-1,-1,width,50,(uintptr_t)acStack_54,0x00643de4);
+    uVar6 = FUN_0043b384(0x0047a534,0);
+    uVar2 = (undefined4)uVar6;
+  }` + body.slice(end);
+});
+source = replaceRectangleInput(source,
+  '    if (requester_id == 0x2e) {\n      _DAT_006443d0 = 1;',
+  '    if (requester_id == 0x15 || requester_id == 0x2e) {\n      _DAT_006443d0 = 1;');
+source = replaceRectangleInput(source,
+  'FUN_0043cac0((uint)(uintptr_t)0x475c64,0)',
+  'FUN_0043cac0((uint)(uintptr_t)"Can\'t open file to save game",0)');
+source = replaceRectangleInput(source,
+  '    undefined4 messages[3] = {0x475cc4,0x475ca4,0};',
+  '    undefined4 messages[3] = {(uint)(uintptr_t)"Can\'t load game",\n        (uint)(uintptr_t)"Game was saved in old version",0};');
+
+// Hosted stream headers are host allocations and can be above 0x70000000 on
+// i386. Validate their header/registry before applying the legacy CRT guard.
+patchRectangleFunction('FUN_0045ec6c', body => {
+  body = replaceRectangleInput(body,
+    '  if ((uintptr_t)stream < 0x10000 || (uintptr_t)stream >= 0x70000000u ||\n      IsBadReadPtr(stream,0x1c)) {',
+    '  if ((uintptr_t)stream < 0x10000 || IsBadReadPtr(stream,0x1c)) {');
+  body = replaceRectangleInput(body,
+    '    if (stream[3] & 2) {',
+    '    if (E2R_fan_parse_stream == (int *)stream) E2R_fan_parse_stream = NULL;\n    if (stream[3] & 2) {');
+  return replaceRectangleInput(body,
+    '  (*(code *)PTR_FUN_0047d3b0)();',
+    '  if ((uintptr_t)stream >= 0x70000000u) return CONCAT44(param_2,0xffffffffu);\n  (*(code *)PTR_FUN_0047d3b0)();');
+});
+source = replaceRectangleInput(source,
+  '  if (requester_id != 0x2e && (_DAT_00643650 == 0 ||',
+  '  if (requester_id != 0x15 && requester_id != 0x2e && (_DAT_00643650 == 0 ||');
+
+// Original 0x416308..0x41637a reopens the slot requester after confirming
+// without a selection. EDX remains zero across both modal calls.
+patchRectangleFunction('FUN_00415d40', body => {
+  const start = body.indexOf('    case 3:\n      _DAT_0064353c = -1;');
+  const end = body.indexOf('    case 6:',start);
+  if (start < 0 || end < 0) throw new Error('Missing save/load menu states');
+  return body.slice(0,start) + `    case 3:
+    case 4: {
+      int save = _DAT_00643650 == 3;
+      _DAT_0064353c = -1;
+      do {
+        FUN_0043ce58(save ? 0x2a : 0x29,0);
+        if ((int)_DAT_0064353c < 0) {
+          const char *message = save ? "No slot selected!" : "No game selected!";
+          if (DAT_00479e00 != 0)
+            message = (const char *)(uintptr_t)*(uint *)(save ? 0x60aea8 : 0x60aeb4);
+          FUN_0043cac0((uint)(uintptr_t)message,0);
+        }
+      } while ((int)_DAT_0064353c < 0);
+      break;
+    }
+` + body.slice(end);
+});
+source = replaceRectangleInput(source,
+  '      FUN_0043ce58(0x29,5);',
+  `      _DAT_0064353c = -1;
+      do {
+        FUN_0043ce58(0x29,5);
+        if ((int)_DAT_0064353c < 0) {
+          const char *message = DAT_00479e00 == 0 ? "No game selected!" :
+              (const char *)(uintptr_t)*(uint *)0x60aeb4;
+          FUN_0043cac0((uint)(uintptr_t)message,0);
+        }
+      } while ((int)_DAT_0064353c < 0);`);
+
+// Original non-editable click 0x43b8cd..0x43b947 preserves the active
+// name-field pointer across the confirmation callback. The hosted mouse path
+// must not make the short OK label the target of a live save-name caret.
+source = replaceRectangleInput(source,
+  '      _DAT_00643430 = item;\n      E2R_requester_probe_action_count++;',
+  `      if (!((requester_id == 0x29 || requester_id == 0x2a) &&
+            action == (uintptr_t)&LAB_0043c594))
+        _DAT_00643430 = item;
+      E2R_requester_probe_action_count++;`);
 
 fs.writeFileSync(outSrc, source);
 

@@ -13,21 +13,29 @@ diagnostic object markers alongside recovered animated character bodies.
 | --- | --- | --- |
 | Build and editor | Clang 21 i386 Debug/ASan, SDL/X11 builds, selected-target F5 | Debug is the everyday choice; optimized runtime and 64-bit execution remain experimental/incomplete |
 | Gameplay | Recovered movement, camera crossings, NPC/object population and bounded workshop activation | Human swimming, sword pickup, four kills and two broken doors verified; animation-cache stall repaired; Debug/ASan door passage and actual menu Quit pass; human random-potion pickup verified and delayed effects repaired with live Debug/ASan poison dispatch; bottle removal and subsequent sword use confirmed in the latest human run; visible health/potion diagnostics added; fresh Debug healing 85→100, poison onset, invisibility dispatch and conditional no-op verified; final effect expiry/cure remains open; latest alternate-target crash repaired with isolated generated Debug/ASan prefix evidence; extended stability remains a follow-up; animation-name parity restored for potion cleanup; natural effect summaries are optional; wider pickups/rendering remain deferred |
-| Rendering and audio | Original animated player and enemy ellipsoid bodies, original backgrounds, palette/depth/page presentation; diagnostic shapes for objects and equipment | The user accepted the corrected player; enemy bodies have bounded live guard/attack evidence, with broader combat and human visual qualification still open; equipment polygons, original HUD and audio remain incomplete |
-| Persistence | Original data/resource loading and replay | Quick-save is a no-op; functional game save/load is unproven |
+| Rendering and audio | Original animated player and enemy ellipsoid bodies, original backgrounds, palette/depth/page presentation; diagnostic shapes for objects and equipment | The user accepted the corrected player and enemy recovery direction; bounded live guard/attack evidence does not establish exhaustive species/actions or broader combat; equipment polygons, original HUD and audio remain incomplete |
+| Persistence | Original-format gameplay Save/Load, writable runtime slots and original read fallback | Debug/ASan repeated same-process and fresh-process loads restore active actors and sword ownership, then resume input/animation/attacks; installed saves remain intact; arbitrary original progressions and malformed-file recovery remain unqualified |
 | Investigation | Automatic F5 logging, replay, state timeline, rolling frames, pinned binary and debugger evidence | Capture limits, incomplete recordings and strict replay divergence remain explicit |
-| Recovery tools | Original-x86 fixtures, crash export, state/report queries, route expectations, dependency-aware Debug/ASan gameplay suite with concurrent configurations, shared checkpoints, three-stage menu coverage, one/two visible windows, unarmed combat and host allocation-fault checks, recovery/diagnostic index | Headless menu labels, three-stage restarts and Load/Save dialog checks pass after original-backed menu/surface repairs; functional persistence/audio and broad rendering remain unqualified; sampled/fixture evidence does not establish complete game behavior; rr is optional and currently absent |
+| Recovery tools | Original-x86 fixtures, crash export, state/report queries, route expectations, dependency-aware Debug/ASan gameplay suite with concurrent configurations, shared checkpoints, three-stage menu coverage, one/two visible windows, unarmed combat and host allocation-fault checks, recovery/diagnostic index | Headless menu labels, three-stage restarts and Load/Save dialog checks pass after original-backed menu/surface repairs; broader persistence, audio and exhaustive rendering remain unqualified; sampled/fixture evidence does not establish complete game behavior; rr is optional and currently absent |
 
 ## Current implementation and next work
 
-The user accepted the corrected player model/animation on 2026-10-27 and moved
-**enemy animations ahead of functional game save/load**, then game sounds and
-music. Investigation session saving, replay and the gameplay regression suite
+The user accepted the player/enemy recovery direction and selected
+**functional game save/load → game sounds → music**. Investigation session
+saving, replay and the gameplay regression suite
 remain closed milestones with recorded minor limits deferred.
 
 The [runtime implementation](implementations/playable-sdl-runtime/playable-sdl-runtime.md)
-and [enemy task](implementations/playable-sdl-runtime/steps/step-08/tasks/task-03-activate-scene-backed-children.md)
-own current work. F5 enables `E2R_PLAYER_MESH=1` and `E2R_NPC_MESH=1`: original
+and [save/load handoff](implementations/playable-sdl-runtime/steps/step-10/step-10-recover-game-save-load.md)
+own current work. Baseline **v0.2.0** points at `ae54e6f8e4dc`; both version tags
+were pushed to `origin`. The [save/load journal](journal/entries/game-save-load-recovery-2026-10-27.md)
+records recovered version-4 serialization, actual repeated menu round trips,
+fresh-process restoration and file-rejection limits. Saves write to
+`--data-dir/Saved` (normally `~/.ecstatica2/Saved`); installed saves are read-only
+fallbacks. Tests use private copies and originally empty slots only. Next in the
+selected order is game sounds, then music.
+
+F5 enables `E2R_PLAYER_MESH=1` and `E2R_NPC_MESH=1`: original
 character bodies use recovered bones, camera composition, ellipsoid shading and
 depth/page restoration. Their diagnostic shapes are hidden. Objects/equipment
 retain diagnostic rendering; their polygon and box leaves remain bypassed.
@@ -41,6 +49,11 @@ repairs false animation-directory entries that led into bitmap eviction and
 restores the full original representation-name pool for dropped-potion script
 conditions. Fresh original-code and bounded native evidence remain distinct from
 full-suite, complete replay and long-play acceptance.
+
+The [tower eviction repair](journal/entries/tower-actor-eviction-crash-2026-10-27.md)
+is also included in v0.2.0: actor removal and root reuse pass original-code
+comparisons, while Debug and ASan replay limits and further tower acceptance
+remain recorded. These follow-ups do not replace the selected save/load work.
 
 The prior [door approach correction](journal/entries/regression-door-approach-reliability-2026-10-27.md)
 and [headless sweep](journal/entries/headless-regression-sweep-2026-10-27.md) retain

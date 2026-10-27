@@ -481,7 +481,7 @@ destination=Path(sys.argv[sys.argv.index('--data-dir')+1]);destination.mkdir(par
                 self.assertIn('--display ${input:e2SuiteDisplay}',launches[0]['command'])
             self.assertIn('--execution shared',launches[0]['command'])
         suites=[c for c in config['configurations'] if 'run-e2-suite.py' in c.get('command','')]
-        expected=['checks','startup','menus','movement','unarmed','workshop','swimming','potions','stability','replay']
+        expected=['checks','startup','menus','movement','unarmed','workshop','swimming','potions','stability','replay','persistence']
         self.assertEqual(len(suites),len(expected)+1)
         self.assertNotIn('--block ',suites[0]['command'])
         self.assertIn('--display ${input:e2SuiteDisplay}',suites[0]['command'])
@@ -509,7 +509,7 @@ destination=Path(sys.argv[sys.argv.index('--data-dir')+1]);destination.mkdir(par
         units=journey_plan(cases)
         names=[name for unit in units for name in unit.checkpoints or (unit.name,)]
         self.assertEqual(set(names),{case.name for case in cases})
-        self.assertEqual(len(names),215)
+        self.assertEqual(len(names),233)
         self.assertIn('debug.Original.ActorEviction',names)
         self.assertIn('asan.Original.ActorEviction',names)
         self.assertEqual(sum(unit.kind=='journey' for unit in cases),108)

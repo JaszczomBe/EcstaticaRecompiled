@@ -2821,6 +2821,10 @@ int main(int argc, char **argv)
                   "runtime bootstrap: game_data_dir=%s data_dir=%s",
                   runtime_options.game_data_dir, runtime_options.data_dir);
 
+    if (!E2R_ConfigureSaveDirectory(runtime_options.data_dir, runtime_options.game_data_dir)) {
+        fprintf(stderr, "failed to configure writable save directory\n");
+        return 1;
+    }
     if (!SetCurrentDirectoryA(runtime_options.game_data_dir)) {
         fprintf(stderr, "failed to enter Ecstatica II data directory\n");
         return 1;

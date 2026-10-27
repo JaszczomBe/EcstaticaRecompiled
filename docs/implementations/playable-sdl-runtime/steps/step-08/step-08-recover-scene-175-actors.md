@@ -31,7 +31,9 @@ the regression suite remain closed milestones with minor follow-ups deferred.
 player recovery. [Task 03](tasks/task-03-activate-scene-backed-children.md) now
 enables original enemy ellipsoid bodies and bone poses in F5. Objects/equipment
 retain diagnostic shapes; broad combat and enemy visual acceptance remain scoped
-by the current task/journal. Game save/load follows, then sounds and music.
+by the current task/journal. The user subsequently accepted the enemy recovery
+direction; [Step 10 game save/load](../step-10/step-10-recover-game-save-load.md)
+is now selected, followed by sounds and music. Rendering follow-ups remain here.
 
 ## Out Of Scope
 

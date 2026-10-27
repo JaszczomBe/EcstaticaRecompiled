@@ -67,6 +67,48 @@ the former 1000-byte bound. The [human-play follow-up](journal/entries/enemy-pla
 records native consumption and the fixture/replay limits.
 
 
+## Game persistence
+
+```sh
+python3 scripts/run-e2-suite.py --build --block persistence --configurations debug asan
+```
+
+Regression **11** runs six source/host fixtures, two round-trip scenarios and a save-open failure
+scenario per configuration, plus the two build checks: **20** logical cases and
+**ten** native process executions. `Persistence.World` uses live opening actors;
+`Persistence.Attachment` uses the established noncombat-opening workshop route to
+pick up the sword before saving. `Persistence.SaveFailure` verifies the error
+dialog while editing a label, dismissal, resumed movement and clean Quit. Both enable original player/NPC bodies. Each
+same-process journey performs two Save/change/Load cycles, then a fresh process
+loads that file. Assertions compare serialized actor state at loader return,
+then verify movement, animation, original attack action and attached equipment
+following Joe. Native pending timers are not present in these opening saves;
+`Original.SaveRestoreTimers` compares nonempty timer reconstruction against
+original code separately. Menu-only dialog probes retain `state_round_trip=False`.
+
+The probe copies all installed save files into a private runtime directory and
+selects only a slot whose installed contents are exactly `CR LF CR LF`. It fails
+before running the game if none of slots 0–8 is confirmed empty. A writer guard
+stops before any unowned write. Installed saves and unowned private slots are
+SHA-256 checked even on failure. Slot 9 is excluded from test writes.
+`probe/report.json`, `same.log`, `fresh.log`, `expected-state.json`, input/phase
+JSON and the six extracted fixture/provenance files retain evidence. Recording
+is disabled; native execution has per-process timeouts and a progress watchdog.
+
+For a single bounded diagnostic:
+
+```sh
+python3 scripts/probe-e2-game-save-load.py build/Debug/clang21-i386-sdl/e2recomp --game-data /path/to/Ecstatica2 --output /tmp/e2-save-trial --timeout 240
+```
+
+Add `--equipment --population-profile noncombat-opening` for the sword route.
+`--failure-case empty|save-open|unsupported|truncated|missing` selects one private
+file-rejection diagnostic instead of a round trip. Missing/truncated tests stop
+at the loader failure helper and kill the isolated process before unqualified
+generic fatal cleanup; they do not prove rollback or clean failure exit. The
+[journal](journal/entries/game-save-load-recovery-2026-10-27.md) retains failed
+attempts, exact original ranges and current gameplay/compatibility limits.
+
 ## Controlled population and startup logos
 
 Noncombat journeys use the explicit **noncombat-opening** test fixture. It
@@ -132,7 +174,7 @@ number of gameplay processes for either execution mode.
 
 The single **starred full regression suite** appears first among regression entries,
 with a distinct full-suite label. Block entries follow in basic-to-complex order,
-numbered **01–10**. The full suite and gameplay blocks use the same
+numbered **01–11**. The full suite and gameplay blocks use the same
 headless/visible picker; **01** has no display prompt.
 
 | Launch | CLI `--block` | Target scenarios |
@@ -148,6 +190,7 @@ headless/visible picker; **01** has no display prompt.
 | `08` | `potions` | Consumption, naturally selected effects and potion-to-sword sequence |
 | `09` | `stability` | Mixed gameplay journey and released observation |
 | `10` | `replay` | Supplied complete replay corpus, or explicit optional skips |
+| `11` | `persistence` | Protected private-slot Save/change/Load cycles and fresh-process restoration |
 
 **Regression 01** runs source/tool/host checks only, so it opens no game process
 or SDL window. Its ordinary launch name is retained and it bypasses the display
