@@ -26,6 +26,7 @@ static inline int E2R_HostDumpInspectionFrame(E2R_HostWindow *window, const char
 #endif
 
 int E2R_IsCharacterActor(uintptr_t actor);
+int E2R_IsObjectMeshActor(uintptr_t actor);
 
 /* Read-only runtime snapshot for optional host-side actor diagnostics. */
 #define E2R_ACTOR_CUE_CAPACITY 64
@@ -42,7 +43,7 @@ typedef struct E2R_ActorCue {
     /* Presentation categories: generated actors use original table bit 0x08;
      * objects have no active representation or owning script scene.
      * These runtime categories do not imply hostility or asset type. */
-    int is_object, generated, visible_in_view;
+    int is_object, generated, visible_in_view, original_object_mesh;
     int marker_kind, health, actor_state;
     int poison_status, invisibility_status, healing;
     char name[48];

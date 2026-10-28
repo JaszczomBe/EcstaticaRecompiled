@@ -24,6 +24,7 @@ static inline int e2r_marker_kind(const char *name, const char *rep,
         e2r_marker_contains(name, "sword") || e2r_marker_contains(name, "korax"))
         return E2R_MARKER_WEAPON;
     if (strcmp(rep, "coins") == 0 || strcmp(rep, "trophy") == 0 ||
+        strcmp(rep, "gem") == 0 || strcmp(rep, "blugem") == 0 || strcmp(rep, "crown") == 0 ||
         (flags & 4u)) return E2R_MARKER_ITEM;
     if (rep[0] == 0 && previous != E2R_MARKER_OBJECT) return previous;
     if (generated || (flags & 0x1000u)) return E2R_MARKER_CREATURE;

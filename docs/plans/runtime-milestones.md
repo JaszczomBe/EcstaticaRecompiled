@@ -19,8 +19,9 @@ The [Linux reconstruction record](../implementations/linux-e2-reconstructed-runt
 
 ## Recommended Order
 
-The user's 2026-10-28 refinement inserts original HUD recovery before audio,
-following the 2026-10-27 character/persistence sequence. Session
+The user's latest 2026-10-28 refinement selects original item, weapon, door and
+acid-pool models/animations next, after HUD and recording recovery and before
+audio. This follows the 2026-10-27 character/persistence sequence. Session
 saving, session replay and the gameplay regression suite are closed milestones;
 their recorded minor gaps remain follow-ups. Session saving means investigation
 recording, not game-state persistence. Existing step/task numbers stay stable.
@@ -41,8 +42,12 @@ owns current evidence and acceptance.
    F1 selects original HUD and F2 selects the existing debug overlay. Implemented
    with bounded original-code and Debug/ASan native verification; Step 11 retains
    indicator-branch and visual-review limits.
-5. Recover game sounds and their original event, volume and channel ownership.
-6. Recover music and its original track selection, looping and transitions.
+5. Recover [item, weapon, door and acid-pool models and animations](../implementations/playable-sdl-runtime/steps/step-12/step-12-recover-object-models-and-animations.md)
+   (Step 12), selected next with implementation not started. Establish original
+   asset/owner/primitive/material and action contracts; retain fallbacks until
+   each recovered class has original-code and fresh native visual evidence.
+6. Recover game sounds and their original event, volume and channel ownership.
+7. Recover music and its original track selection, looping and transitions.
 
 Timing, remaining gameplay defects and portability remain tracked follow-ups.
 Take one up sooner when it blocks the active milestone. Preserve the completed

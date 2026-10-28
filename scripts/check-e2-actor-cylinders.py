@@ -38,6 +38,7 @@ harness = r'''
 #define E2R_LOG_NO_WRAP 1
 #include "E2Recomp_recon.h"
 #include "e2recomp_host_backend.h"
+#include "e2recomp_hud.h"
 #include "e2recomp_actor_markers.h"
 #include <assert.h>
 #include <math.h>
@@ -49,7 +50,7 @@ harness = r'''
 int E2R_ReplayCaptureIncomplete(void) { return 0; }
 uintptr_t _DAT_0073cc3c, _DAT_0063726c, _DAT_006401ec, _DAT_006401d4,
           _DAT_00640118, _DAT_00640114, DAT_0047a34a, DAT_0047a43c,
-          DAT_0047a76c, _DAT_00643650, DAT_0047a45e, _DAT_006366b4, _DAT_0063668c;
+          DAT_0047a76c, _DAT_00643650, DAT_0047a45e, _DAT_006366b4, _DAT_0063668c, _DAT_0063615c;
 BOOL IsBadReadPtr(const void *p, UINT_PTR n) {
     if ((uintptr_t)p >= 0x937000 && (uintptr_t)p + n <= 0x938000) return 0;
     return (uintptr_t)p < 0x470000 || (uintptr_t)p + n > 0x6b0000;
@@ -62,10 +63,11 @@ for name in ('FUN_00422368', 'FUN_00422460', 'FUN_00422538',
 harness += native[native.index('static void e2r_cue_name('):native.index('/* Host diagnostics only:')] + '\n'
 harness += function(native, 'E2R_GetActorCues') + '\n'
 hud = (root / 'E2Recomp/platform/e2recomp_hud.c').read_text()
-harness += 'static int e2r_debug_overlay;\n'
-for name in ('E2R_DebugOverlaySelected', 'E2R_HandleDisplayKey'):
+harness += 'static int e2r_debug_overlay,e2r_geometry_mode,e2r_geometry_key_down;\n'
+for name in ('E2R_DebugOverlaySelected', 'E2R_GeometryMode', 'E2R_HandleDisplayKey'):
     from e2_original import function as extract
     harness += extract(hud, name) + '\n'
+harness += extract(native, 'e2r_geometry_pixels') + '\n'
 harness += '#include "' + str(root / 'E2Recomp/platform/e2recomp_host_backend_sdl.c') + '"\n'
 harness += r'''
 static byte *joe = (byte*)0x690000;
@@ -87,6 +89,20 @@ int main(int argc,char **argv) {
                 MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0) != MAP_FAILED);
     assert(mmap((void*)0x937000,0x1000,PROT_READ|PROT_WRITE,
                 MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0) != MAP_FAILED);
+    e2r_geometry_mode=E2R_GEOMETRY_BOXES;
+    _DAT_0073cc3c=0x67c728;DAT_0047a43c=1;_DAT_0063615c=0x6a0000;
+    const byte *scene=(const byte*)0x690000;
+    assert(e2r_geometry_pixels(scene,16)==(const byte*)_DAT_0063615c);
+    DAT_0047a45e=40u<<16;
+    assert(e2r_geometry_pixels(scene,16)==scene); // Modal ID gates even idle state 0.
+    DAT_0047a45e=0;_DAT_00643650=5;
+    assert(e2r_geometry_pixels(scene,16)==scene);
+    _DAT_00643650=0;DAT_0047a34a=1;
+    assert(e2r_geometry_pixels(scene,16)==scene);
+    DAT_0047a34a=0;DAT_0047a43c=0;
+    assert(e2r_geometry_pixels(scene,16)==scene);
+    DAT_0047a43c=1;e2r_geometry_mode=E2R_GEOMETRY_ORIGINAL;
+    assert(e2r_geometry_pixels(scene,16)==scene);
     for(int i=0;i<65536;i++) {
         double phase=i*6.28318/65536.0;
         *(short*)(0x59b590+i*2)=(short)(sin(phase)*16384.5);
@@ -135,6 +151,13 @@ int main(int argc,char **argv) {
     assert(e2r_marker_kind("fakepot2","potion",0x829,0,0)==E2R_MARKER_POTION);
     assert(e2r_marker_kind("nschwrt1","nothing",0x6d,0,0)==E2R_MARKER_WEAPON);
     assert(e2r_marker_kind("munze1","coins",0x809,0,0)==E2R_MARKER_ITEM);
+    assert(e2r_marker_kind("stabgem","gem",0x809,0,0)==E2R_MARKER_ITEM);
+    assert(e2r_marker_kind("crown3","crown",0x809,0,0)==E2R_MARKER_ITEM);
+    // Human corpse samples retain 0x1000, even after their representation is
+    // removed. Nearby green props are separate effect/projectile owners.
+    assert(e2r_marker_kind("gob3","",0x1c40,0,0)==E2R_MARKER_CREATURE);
+    assert(e2r_marker_kind("korc2","",0x1c49,0,0)==E2R_MARKER_CREATURE);
+    assert(e2r_marker_kind("blodsqt1","",0x2c68,0,0)==E2R_MARKER_OBJECT);
     assert(e2r_marker_kind("kdorr","",0x1c48,0,E2R_MARKER_DOOR)==E2R_MARKER_DOOR);
     short potion_top[3],corpse_top[3],door_top[3];
     e2r_marker_offset(E2R_MARKER_POTION,12,potion_top);
@@ -296,6 +319,55 @@ int main(int argc,char **argv) {
     int object_x=state.actors[1].cylinder[0][0],object_y=state.actors[1].cylinder[0][1];
     assert(((Uint32*)((byte*)window->present_surface->pixels+object_y*window->present_surface->pitch))[object_x]==object_color);
     assert(E2R_HostDumpPresentation(window,argv[1])==2);
+    // Original-object selection resolves only a registered root ID and removes
+    // its fallback on a fresh presentation, independently of HUD selection.
+    char selected[32];snprintf(selected,sizeof selected,"%d",*(short*)object);
+    setenv("E2R_OBJECT_MESH_IDS",selected,1);
+    assert(E2R_IsObjectMeshActor((uintptr_t)object));
+    assert(!E2R_IsObjectMeshActor((uintptr_t)joe));
+    DAT_0047a43c=0;
+    assert(!E2R_IsObjectMeshActor((uintptr_t)object));
+    DAT_0047a43c=1;
+    memcpy(before,(void*)0x470000,0x240000);
+    E2R_GetActorCues(&state);
+    assert(state.actors[1].original_object_mesh);
+    assert(E2R_HostPresentIndexed8(window,indexed,640,480,640,NULL));
+    assert(!memcmp(before,(void*)0x470000,0x240000));
+    assert(((Uint32*)((byte*)window->present_surface->pixels+object_y*window->present_surface->pitch))[object_x]==plain);
+    // F3 cycles geometry independently of F1/F2; duplicate downs are consumed.
+    for(int mode=1;mode<=3;mode++) {
+        assert(E2R_HandleDisplayKey(WM_KEYDOWN,0x72));
+        assert(E2R_HandleDisplayKey(WM_KEYDOWN,0x72));
+        assert(E2R_GeometryMode()==mode%3);
+        assert(E2R_HandleDisplayKey(WM_KEYUP,0x72));
+        assert(E2R_HandleDisplayKey(WM_KEYDOWN,0x70));
+        assert(E2R_GeometryMode()==mode%3);
+        memcpy(before,(void*)0x470000,0x240000);
+        assert(E2R_HostPresentIndexed8(window,indexed,640,480,640,NULL));
+        assert(!memcmp(before,(void*)0x470000,0x240000));
+        Uint32 actual=((Uint32*)((byte*)window->present_surface->pixels+object_y*window->present_surface->pitch))[object_x];
+        assert(actual==(mode==3?plain:object_color));
+        for(int i=0;i<640*480;i++)assert(indexed[i]==17);
+    }
+    unsetenv("E2R_OBJECT_MESH_IDS");
+    // Qualified collectible families use the original requested/base rep, not
+    // a transient action ID or the live representation allocation's address.
+    setenv("E2R_OBJECT_MESH_REPS","271,277,279,282,349",1);
+    *(short*)(object+0x122)=282;
+    assert(E2R_IsObjectMeshActor((uintptr_t)object));
+    memcpy(before,(void*)0x470000,0x240000);
+    E2R_GetActorCues(&state);assert(state.actors[1].original_object_mesh);
+    assert(E2R_HostPresentIndexed8(window,indexed,640,480,640,NULL));
+    assert(!memcmp(before,(void*)0x470000,0x240000));
+    assert(((Uint32*)((byte*)window->present_surface->pixels+object_y*window->present_surface->pitch))[object_x]==plain);
+    *(short*)(object+0x122)=0;*(short*)(object+0x124)=271;
+    assert(E2R_IsObjectMeshActor((uintptr_t)object));
+    *(short*)(object+0x124)=87;
+    assert(!E2R_IsObjectMeshActor((uintptr_t)object));
+    *(short*)(object+0x124)=271;DAT_0047a43c=0;
+    assert(!E2R_IsObjectMeshActor((uintptr_t)object));
+    DAT_0047a43c=1;*(short*)(object+0x124)=0;
+    unsetenv("E2R_OBJECT_MESH_REPS");
     // Original mode hides HUD text and labels but retains scene fallback geometry.
     assert(E2R_HandleDisplayKey(WM_KEYDOWN,0x70));
     assert(E2R_HostPresentIndexed8(window,indexed,640,480,640,NULL));

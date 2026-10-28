@@ -8,6 +8,14 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Courtyard acid, flames and roof effects — 2026-10-28](entries/courtyard-acid-flames-and-roof-effects-2026-10-28.md): replays the next human recording, maps the two newly visited pool groups, restores intro lightning/flames/coloured doors and omitted shelf/roof effects, and distinguishes mixed-mode boxes from missing geometry.
+
+- [Animals, collectibles and courtyard projectiles — 2026-10-28](entries/animals-collectibles-and-projectiles-2026-10-28.md): follows the next gameplay report, maps rats/horse and omitted effects/traps, qualifies five collectible families and retains all diagnostic boxes under F3 with fresh Debug/ASan evidence.
+
+- [Object variants and F3 geometry modes — 2026-10-28](entries/object-variants-and-f3-2026-10-28.md): follows the human gameplay report, adds exact dropped-bottle/weapon/door/blood owners, retains diagnostic geometry under F3 and records fresh bounded evidence.
+
+- [Original object rendering recovery — 2026-10-28](entries/object-rendering-recovery-2026-10-28.md): maps real assets/owners and acid ellipsoids, repairs flat columns and box vertices/tables, selects eight assets in F5, and records bounded Debug/ASan pixels, protected persistence and remaining variants.
+
 - [Original HUD recovery — 2026-10-28](entries/original-hud-recovery-2026-10-28.md): restores original indexed artwork and life/indicator contracts, defaults to original HUD with F1/F2 selection, verifies natural healing and protected Debug/ASan persistence, and retains native branch limits.
 
 - [Original HUD handoff — 2026-10-28](entries/original-hud-handoff-2026-10-28.md): selects original HUD before sounds/music, records default/F1/F2 display requirements and assigns the next context's recovery task without changing runtime behavior.
@@ -164,6 +172,7 @@ Use [journal.template.md](../templates/journal.template.md) for new journal entr
 - [Goal-driven regression navigation — 2026-10-26](entries/goal-driven-navigation-2026-10-26.md)
 - [Sequential invisible regression sweep — 2026-10-27](entries/headless-regression-sweep-2026-10-27.md)
 - [Manual Castle Exploration And Population Frontier — 2026-10-19](entries/manual-castle-exploration-2026-10-19.md)
+- [Object models and animations handoff — 2026-10-28](entries/object-models-and-animations-handoff-2026-10-28.md)
 - [Pedestal intro restart after early skip — 2026-10-24](entries/pedestal-intro-restart-2026-10-24.md)
 - [Save/load menu refinements — 2026-10-27](entries/save-load-menu-refinements-2026-10-27.md)
 - [Shared gameplay checkpoint journeys — 2026-10-24](entries/shared-gameplay-journeys-2026-10-24.md)

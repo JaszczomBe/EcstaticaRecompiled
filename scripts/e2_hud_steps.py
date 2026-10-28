@@ -24,9 +24,9 @@ class HudChecks:
         self.journey.save()
 
 
-    def select(self, mode, label):
+    def select(self, mode, label, geometry=False):
         # Real SDL scancodes, including repeated key-down and a final release.
-        key = 0x40000000 | (59 if mode else 58)
+        key = 0x40000000 | (60 if geometry else (59 if mode else 58))
         for down, repeat in ((True, False), (True, True), (False, False)):
             gdb.execute('set $hud_event=(SDL_Event*)calloc(1,sizeof(SDL_Event))', to_string=True)
             for member, number in [('type', 0x300 if down else 0x301), ('down', int(down)),
@@ -44,7 +44,11 @@ class HudChecks:
                     self.journey.require(self.value('SDL_PushEvent($hud_event)') == 1, 'HUD focus event rejected')
                     gdb.execute('call (void)free($hud_event)', to_string=True)
                     gdb.execute('call e2r_poll_host_events("hud-focus")', to_string=True)
-        self.check_mode(mode)
+        if geometry:
+            self.journey.require(self.value('E2R_GeometryMode()') == mode,
+                                 'F3 repeated or failed to cycle geometry')
+        else:
+            self.check_mode(mode)
 
     def page_bytes(self):
         pages = []
@@ -110,9 +114,13 @@ class HudChecks:
         self.select(0, 'menu')
         third = self.capture('menu-restored', False)
         self.journey.require(first == second == third, 'Display keys obscured or changed the active requester')
+        for mode in (1, 2, 0):
+            self.select(mode, 'menu-geometry', geometry=True)
+            frame = self.capture('menu-geometry-' + str(mode), False)
+            self.journey.require(frame == first, 'F3 obscured the active requester')
         self.journey.close()
         self.check_mode(0)
-        self.rows.append(dict(menu_switches=True, identical_modal_pixels=True))
+        self.rows.append(dict(menu_switches=True, geometry_switches=True, identical_modal_pixels=True))
         self.journey.save()
 
 

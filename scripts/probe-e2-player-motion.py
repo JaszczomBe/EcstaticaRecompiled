@@ -22,7 +22,15 @@ parser.add_argument('--suite-options', type=json.loads, default={})
 parser.add_argument('--output', type=Path, default=Path('/tmp/e2-player-motion'))
 parser.add_argument('--npc-mesh', action='store_true',
                     help='Enable original character bodies and bone poses alongside Joe, retaining diagnostic objects')
+parser.add_argument('--object-mesh-ids', type=int, nargs='+', default=[],
+                    help='Select original actor IDs for original object rendering instead of their diagnostic shapes')
+parser.add_argument('--object-mesh-reps', type=int, nargs='+', default=[],
+                    help='Select qualified original representation families, including their collectible variants')
 parser.add_argument('--hud', action='store_true',help='Capture and verify recovered HUD pixels at gameplay checkpoints')
+parser.add_argument('--geometry-modes', action='store_true', help='Verify real SDL F3 cycling and unchanged game pages/poses at selected checkpoints')
+parser.add_argument('--object-event-preview', type=int, nargs='+', choices=(5,1085,1153,1188,2671,2703,2708,2709,2718,3820,3821,3822), default=[],
+                    help='Explicit asset fixture: invoke original spawn events at an existing guard 284 bone, then observe normal updates; not a natural enemy drop')
+parser.add_argument('--object-raster-probe', action='store_true', help='Observe bounded actual pixel writes for selected object owners')
 parser.add_argument('--player-mesh', action='store_true',
                     help='Enable Joe through original bones/rasterization; capture player poses and physical-frame pixel evidence')
 parser.add_argument('--intro-skip-action', type=int, default=None,
@@ -88,6 +96,8 @@ parser.add_argument('--require-background-population', action='store_true',
                     help='Require the script population gate open and a live terrain-generated actor in the census')
 parser.add_argument('--inspect-object-scene', type=int, default=-1,
                     help='After release, select the preloaded script scene\'s camera for an activation/presentation check, then restore the original view; this is not traversal')
+parser.add_argument('--inspect-load-scene', action='store_true',
+                    help='Explicit diagnostic loading of --inspect-object-scene through the original resource loader; not gameplay traversal')
 parser.add_argument('--inspect-approach-cameras', type=int, nargs='+', default=[],
                     help='Select these original views before --inspect-object-scene to exercise neighbouring object initialization; no actor coordinates are assigned')
 args = parser.parse_args()
@@ -100,6 +110,10 @@ if args.intro_skip_progress < 0 or (args.intro_skip_progress and not args.intro_
     parser.error('intro-skip-progress requires an intro-skip-action and must be nonnegative')
 if args.frames < 1 or args.timeout < 1 or args.release_delay < 0:
     parser.error('frames/timeout must be positive and release-delay nonnegative')
+if any(identity <= 0 or identity >= 5000 for identity in args.object_mesh_ids):
+    parser.error('object mesh IDs must be original actor IDs from 1 to 4999')
+if any(identity <= 0 or identity >= 500 for identity in args.object_mesh_reps):
+    parser.error('object mesh representations must be original IDs from 1 to 499')
 if args.watch and args.video_driver=='dummy':
     parser.error('--watch requires a desktop video driver')
 if args.startup_logo_delay_ms < 0:
@@ -120,6 +134,8 @@ if args.trace_queries < 0 or args.observe_seconds < 0 or args.population_frames 
     parser.error('query count and observation seconds must be nonnegative')
 if args.inspect_object_scene < -1 or args.inspect_object_scene >= 2500:
     parser.error('object scene must be an original script resource ID below 2500')
+if args.inspect_load_scene and args.inspect_object_scene < 0:
+    parser.error('--inspect-load-scene requires --inspect-object-scene')
 if args.inspect_approach_cameras and (args.inspect_object_scene < 0 or
         any(v < 0 or v >= 1200 for v in args.inspect_approach_cameras)):
     parser.error('approach cameras require --inspect-object-scene and camera IDs below 1200')
@@ -151,6 +167,10 @@ env.update(SDL_VIDEODRIVER=args.video_driver, E2R_STARTUP_LOGO_DELAY_MS=str(args
            E2R_PROXY_MESH_BYPASS='1', E2R_DEFER_BACKGROUND_SPAWNS='1')
 # Preserve the existing intro resources; recovery is enabled at the checkpoint.
 env['E2R_POPULATION_PROBE'] = '0'
+env.pop('E2R_OBJECT_MESH_IDS', None)
+if args.object_mesh_ids:env['E2R_OBJECT_MESH_IDS']=','.join(map(str,args.object_mesh_ids))
+env.pop('E2R_OBJECT_MESH_REPS', None)
+if args.object_mesh_reps:env['E2R_OBJECT_MESH_REPS']=','.join(map(str,args.object_mesh_reps))
 env.pop('E2R_NPC_MESH', None)
 if args.npc_mesh:env['E2R_NPC_MESH']='1'
 env.pop('E2R_PLAYER_MESH', None)
@@ -207,6 +227,11 @@ if natural_intro and not check_guards:
 
 if check_guards:
     ready.condition='DAT_0047a76c != 0 && _DAT_0073cc3c == 0x67da4c && DAT_0047a470 != 0 && *(int*)(0x630b60+284*4) != 0 && *(int*)(0x630b60+293*4) != 0'
+if OBJECT_RASTER_PROBE:
+    # Scene-zero effects can finish before Joe is released. Observe original
+    # raster calls from startup as well as the later gameplay/asset checkpoints.
+    from e2_object_render import watch_rasters
+    object_raster_observers=watch_rasters(prefix,OBJECT_MESH_IDS,OBJECT_MESH_REPS)
 intro_actions=[]
 if intro_skip_action:
     intro=gdb.Breakpoint('FUN_00415d40',internal=True)
@@ -421,6 +446,12 @@ def field(offset,kind='short'):
     return value(f'*({kind}*)({actor}+{offset})')
 def snapshot(label):
     enemy_mesh_snapshot(label)
+    if GEOMETRY_CHECKS and (label in ('object-view', 'interaction.sword-follows-movement', 'before') or label.endswith('-spawn')):
+        from e2_geometry_steps import check_modes
+        check_modes(prefix,label)
+    if OBJECT_MESH_IDS or OBJECT_MESH_REPS:
+        from e2_object_render import observe
+        observe(prefix,label,OBJECT_MESH_IDS,OBJECT_MESH_REPS)
     rep=field(0x11e,'unsigned int');action=field(0xa6,'unsigned int')
     position=[field(0x84+i*2) for i in range(3)]
     cell_address=0x684d68+((position[0]>>9)+64)*2+((position[2]>>9)+64)*256
@@ -472,7 +503,7 @@ def snapshot(label):
             bounds=[min(x for x,y in changed),min(y for x,y in changed),max(x for x,y in changed),max(y for x,y in changed)] if changed else None)
     packet=prefix+'-'+label
     expression='e2r_write_visibility_packet((HWND)_DAT_00ac4dac,'+json.dumps(packet)+')'
-    if not SUITE_SCENARIO or (NPC_MESH and label.startswith('combat.')):
+    if not SUITE_SCENARIO or OBJECT_MESH_IDS or (NPC_MESH and label.startswith('combat.')):
         require(value(expression)==1,'Visibility packet failed')
     return data
 states=[]
@@ -496,7 +527,8 @@ def checkpoint(label):
     if population_frames:population_census(label)
     # Retain completed phases even when a later input exposes a runtime fault.
     with open(prefix+'.json','w') as out:
-        json.dump(dict(probe_complete=False,frames_per_phase=frames,states=states,
+        json.dump(dict(probe_complete=False,frames_per_phase=frames,states=states,object_mesh_ids=OBJECT_MESH_IDS,object_mesh_reps=OBJECT_MESH_REPS,
+                       object_event_preview=OBJECT_EVENT_PREVIEW,object_raster_probe=OBJECT_RASTER_PROBE,geometry_modes=GEOMETRY_CHECKS,
                        combined_turn=TURN_FORWARD,turn_calls=globals().get('turn_calls',[]),
                        simultaneous_turn=SIMULTANEOUS_TURN,burst_frames=BURST_FRAMES,
                        background_spawns=BACKGROUND_SPAWNS,
@@ -512,7 +544,32 @@ object_view_sample=None
 if OBJECT_SCENE >= 0:
     import struct
     inf=gdb.selected_inferior()
+    def render_object_view():
+        if not (OBJECT_MESH_IDS or OBJECT_MESH_REPS):return
+        # Explicit asset preview: execute each selected object's normal update
+        # once. Loading a remote scene is not a traversed gameplay lifecycle.
+        from e2_object_render import selected_actor_ids
+        for identity in selected_actor_ids(OBJECT_MESH_IDS,OBJECT_MESH_REPS):
+            pointer=value(f'*(unsigned int*)(0x630b60+{identity}*4)')
+            if pointer:gdb.execute(f'call FUN_00427584({pointer},0)',to_string=True)
+        cursor=value('_DAT_0063726c');seen=set()
+        while cursor:
+            require(cursor not in seen and len(seen)<256,'Invalid diagnostic render chain')
+            seen.add(cursor)
+            gdb.execute(f'call FUN_00421074({cursor},0)',to_string=True)
+            cursor=value(f'*(unsigned int*)({cursor}+0x4c)')
+        # Execute the original drawing/presentation tail with the explicitly
+        # selected camera. The usual frame would choose Joe's camera again.
+        gdb.execute('call FUN_00421a14()',to_string=True)
+        page=1-(value('DAT_0047a279')>>24)
+        gdb.execute(f'call E2R_CopyGameRect(2,{page},0,0,0,0,_DAT_006401ec,_DAT_006401d4)',to_string=True)
+        gdb.execute('call FUN_00421f54(0)',to_string=True)
+        gdb.execute('call FUN_00422238(0,0)',to_string=True)
     scene=value(f'*(unsigned int*)(0x62e450+{OBJECT_SCENE}*4)')
+    if not scene and INSPECT_LOAD_SCENE:
+        gdb.execute(f'call FUN_0045233c({OBJECT_SCENE},{OBJECT_SCENE})',to_string=True)
+        require(value('DAT_0047a470')==actor,'Diagnostic scene load changed Joe ownership')
+        scene=value(f'*(unsigned int*)(0x62e450+{OBJECT_SCENE}*4)')
     require(scene!=0,'Requested object scene was not preloaded by the original startup script')
     camera=value(f'*(short*)({scene}+2)')
     original_camera=observe_camera()
@@ -542,6 +599,7 @@ if OBJECT_SCENE >= 0:
                                  cached=cached,position=position))
         child=value(f'*(unsigned int*)({child}+24)')
     require(any(c['active'] for c in children),'No child activated through the original visibility sweep')
+    render_object_view()
     require(value('e2r_present_current_frame((HWND)_DAT_00ac4dac,1)')==1,'Object view SDL presentation failed')
     view_state=snapshot('object-view')
     with open(prefix+'-object-view-state.txt') as stream:visibility=stream.read()
@@ -559,8 +617,22 @@ if OBJECT_SCENE >= 0:
     object_view_sample=dict(scene_id=OBJECT_SCENE,camera=camera,record=scene,
                             approach_cameras=APPROACH_CAMERAS,
                             diagnostic_view_selection=True,children=children,
+                            diagnostic_object_updates=bool(OBJECT_MESH_IDS or OBJECT_MESH_REPS),
+                            camera_selection_intercept=bool(OBJECT_MESH_IDS or OBJECT_MESH_REPS),preview_updates=36 if (OBJECT_MESH_IDS or OBJECT_MESH_REPS) else 0,
                             joe_position=original_position,state=view_state)
     with open(prefix+'-object-view.json','w') as out:json.dump(object_view_sample,out,indent=2)
+    # Bound this asset preview to the selected original view while the normal
+    # runtime advances. Only automatic Joe-camera selection is intercepted;
+    # actor poses, actions and draw calls continue to execute original paths.
+    preview_camera=None
+    if OBJECT_MESH_IDS or OBJECT_MESH_REPS:
+        preview_camera=gdb.Breakpoint('FUN_0044c224',internal=True)
+        preview_camera.commands='silent\nreturn\ncontinue\n'
+    for sample in range(3 if (OBJECT_MESH_IDS or OBJECT_MESH_REPS) else 0):
+        advance(12)
+        require(value('e2r_present_current_frame((HWND)_DAT_00ac4dac,1)')==1,'Object sample presentation failed')
+        snapshot('object-view-'+str(sample))
+    if preview_camera:preview_camera.delete()
     gdb.execute(f'call FUN_0044be20({original_camera})',to_string=True)
     require(observe_camera()==original_camera,'Object view did not restore the original camera')
     require([field(0x84+i*2) for i in range(3)]==original_position,'Object view return moved Joe')
@@ -641,6 +713,25 @@ if population_frames:
         require(population_samples[-1]['population_disabled']==0,'Script still disables terrain population')
         require(bool(population_samples[-1]['generated_active']),'No terrain-generated actor is active')
 suite_result=None
+if OBJECT_EVENT_PREVIEW:
+    # Source-owned event contracts: 0x42f9c0 retains the source node, original
+    # resource/action IDs and independent-owner flag. Never assign coordinates,
+    # health, action progress, dimensions or completion flags in this fixture.
+    for identity in OBJECT_EVENT_PREVIEW:
+        action_id={5:1,1085:661,1153:694,1188:754,2671:1449,2703:1181,
+                   2708:1187,2709:1197,2718:1350,3820:1542,3821:1542,3822:1542}[identity]
+        source=value('*(unsigned int*)(0x630b60+284*4)')
+        require(source!=0,'Original guard 284 is required for the spawn-event fixture')
+        node=value(f'*(unsigned int*)({source}+0x1e)')
+        gdb.execute(f'call (unsigned int)FUN_0042f9c0({node},{identity},{action_id},1,0)',to_string=True)
+        # The squirt is brief. Avoid a slow capture at progress zero skipping
+        # its whole lifetime before the next normal render update.
+        if identity in (1085,1153):advance(3)
+        advance(1)
+        checkpoint('object-event-'+str(identity)+'-spawn')
+        for index,count in enumerate((6,12,24)):
+            advance(count)
+            checkpoint('object-event-'+str(identity)+'-'+str(index))
 if SUITE_SCENARIO:
     import sys
     sys.path.insert(0,SCRIPT_DIRECTORY)
@@ -1006,7 +1097,7 @@ if NPC_MESH:
         for identifier in (284,293):
             require(any(e['id']==identifier and e['distinct_poses']>1 and min(e['node_counts'])>0 for e in enemy_mesh_result),
                     'Live guard did not produce changing original skeletal poses')
-report=dict(probe_complete=True,player_mesh=mesh_result,enemy_mesh=enemy_mesh_result,native_exit_code=exit_status[-1] if exit_status else None,suite_result=suite_result,frames_per_phase=frames,states=states,sword_pickup=pickup_result,workshop_door=door_result,gameplay_menu_exit=GAMEPLAY_MENU_EXIT,
+report=dict(probe_complete=True,object_mesh_ids=OBJECT_MESH_IDS,object_mesh_reps=OBJECT_MESH_REPS,object_event_preview=OBJECT_EVENT_PREVIEW,object_raster_probe=OBJECT_RASTER_PROBE,geometry_modes=GEOMETRY_CHECKS,player_mesh=mesh_result,enemy_mesh=enemy_mesh_result,native_exit_code=exit_status[-1] if exit_status else None,suite_result=suite_result,frames_per_phase=frames,states=states,sword_pickup=pickup_result,workshop_door=door_result,gameplay_menu_exit=GAMEPLAY_MENU_EXIT,
             watch=WATCH_MODE,window_title=WINDOW_TITLE,
             object_view_sample=object_view_sample,
             combined_turn=TURN_FORWARD,move_key=MOVE_KEY,turn_calls=turn_calls,
@@ -1034,6 +1125,7 @@ quit
     'RELEASE_TURN',repr(args.release_turn_first)).replace('SIMULTANEOUS_TURN',repr(args.simultaneous_turn)).replace('HOLD_THROUGH_RELEASE',repr(args.hold_through_release)).replace('VIDEO_DRIVER',repr(args.video_driver)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(
     'QUERY_LIMIT',str(args.trace_queries)).replace('OBSERVE_SECONDS',str(args.observe_seconds)).replace(
     'POPULATION_COUNT',str(args.population_frames)).replace('POPULATION_ONLY',repr(args.population_only)).replace('REQUIRE_POPULATION',repr(args.require_background_population)).replace('BACKGROUND_SPAWNS',repr(args.background_spawns)).replace('CHECK_GUARDS',repr(args.pedestal_guards)).replace('NATURAL_INTRO',repr(args.natural_intro)).replace('INTRO_SKIP_ACTION',str(args.intro_skip_action)).replace('INTRO_SKIP_PROGRESS',str(args.intro_skip_progress))
+commands=commands.replace('OBJECT_MESH_REPS',repr(args.object_mesh_reps)).replace('OBJECT_MESH_IDS',repr(args.object_mesh_ids)).replace('INSPECT_LOAD_SCENE',repr(args.inspect_load_scene)).replace('GEOMETRY_CHECKS',repr(args.geometry_modes)).replace('OBJECT_EVENT_PREVIEW',repr(args.object_event_preview)).replace('OBJECT_RASTER_PROBE',repr(args.object_raster_probe))
 if args.game_data:
     commands = commands.replace(repr('run --run-recon'),repr('run --game-data-dir '+json.dumps(str(args.game_data.resolve()))+' --run-recon'))
 if args.suite_scenario=='menu-matrix':

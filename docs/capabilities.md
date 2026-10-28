@@ -13,15 +13,36 @@ diagnostic object markers alongside recovered animated character bodies.
 | --- | --- | --- |
 | Build and editor | Clang 21 i386 Debug/ASan, SDL/X11 builds, selected-target F5 | Debug is the everyday choice; optimized runtime and 64-bit execution remain experimental/incomplete |
 | Gameplay | Recovered movement, camera crossings, NPC/object population and bounded workshop activation | Human swimming, sword pickup, four kills and two broken doors verified; animation-cache stall repaired; Debug/ASan door passage and actual menu Quit pass; human random-potion pickup verified and delayed effects repaired with live Debug/ASan poison dispatch; bottle removal and subsequent sword use confirmed in the latest human run; visible health/potion diagnostics added; fresh Debug healing 85→100, poison onset, invisibility dispatch and conditional no-op verified; final effect expiry/cure remains open; latest alternate-target crash repaired with isolated generated Debug/ASan prefix evidence; extended stability remains a follow-up; animation-name parity restored for potion cleanup; natural effect summaries are optional; wider pickups/rendering remain deferred |
-| Rendering and audio | Original animated player and enemy ellipsoid bodies, original backgrounds, palette/depth/page presentation; diagnostic shapes for objects and equipment | The user accepted the corrected player and enemy recovery direction; bounded live guard/attack evidence does not establish exhaustive species/actions or broader combat; equipment polygons and audio remain incomplete; original HUD artwork/default and F1/F2 selection have bounded original-code/native evidence |
+| Rendering and audio | Original animated characters, 47 selected object/animal/effect owners and 16 representation families (251 original resources), independent F3 geometry modes, backgrounds and palette/depth/page presentation; diagnostic fallbacks for remaining objects/equipment | Bounded Debug/ASan pixels cover animals, intro lightning, courtyard pool groups, flames, coloured doors, roof effects and collectible representatives; natural pickup/combat lifetimes and exhaustive species/actions remain unqualified; audio and remaining rendering are incomplete; original HUD artwork/default and F1/F2 retain bounded original-code/native evidence |
 | Persistence | Original-format gameplay Save/Load, writable runtime slots and original read fallback | Debug/ASan repeated same-process and fresh-process loads restore active actors and sword ownership, then resume input/animation/attacks; saved previews display at 160×120 without dirtying game pages, original menu geometry/font and title alignment are restored, successful Load dismisses the menu; installed saves remain intact; arbitrary original progressions and malformed-file recovery remain unqualified |
 | Investigation | Automatic F5 logging, replay, state timeline, rolling frames, pinned binary and debugger evidence | 16 MiB recording chunks and streaming replay remove the former 256 MiB ceiling; disk capacity, incomplete prefixes and strict replay divergence remain explicit |
 | Recovery tools | Original-x86 fixtures, crash export, state/report queries, route expectations, dependency-aware Debug/ASan gameplay suite with concurrent configurations, shared checkpoints, three-stage menu coverage, one/two visible windows, unarmed combat and host allocation-fault checks, recovery/diagnostic index | Headless menu labels, three-stage restarts and Load/Save dialog checks pass after original-backed menu/surface repairs; broader persistence, audio and exhaustive rendering remain unqualified; sampled/fixture evidence does not establish complete game behavior; rr is optional and currently absent |
 
 ## Current implementation and next work
 
-The user selected **original HUD → game sounds → music** on 2026-10-28 after
-functional save/load and menu/layout refinement. [Step 11](implementations/playable-sdl-runtime/steps/step-11/step-11-recover-original-hud.md)
+The user selected **item, weapon, door and acid-pool models/animations → game
+sounds → music** after HUD and recording recovery on 2026-10-28.
+[Step 12](implementations/playable-sdl-runtime/steps/step-12/step-12-recover-object-models-and-animations.md)
+and its [first task](implementations/playable-sdl-runtime/steps/step-12/tasks/task-01-recover-object-rendering-and-animation-contracts.md)
+own the implemented first slice: original actor IDs **537,710,711,908,909,912,
+980,3717** use recovered flat/box/rounded geometry and actions. Acid pools in
+scene **350**, camera **116**, use animated flattened ellipsoids and rounded
+bubbles. [Task 02](implementations/playable-sdl-runtime/steps/step-12/tasks/task-02-qualify-object-variants-and-natural-acid-lifecycle.md)
+retains variants and natural hazard/lifecycle acceptance. The
+[recovery journal](journal/entries/object-rendering-recovery-2026-10-28.md) records
+original-code parity, bounded Debug/ASan potion/sword/controlled-door/pool pixels,
+protected persistence/HUD and retained live door failures. The [handoff journal](journal/entries/object-models-and-animations-handoff-2026-10-28.md)
+records the selection.
+
+The [latest human-play follow-up](journal/entries/animals-collectibles-and-projectiles-2026-10-28.md)
+adds rats **601/608**, stable horse **663**, courtyard stone-ball/statue owners,
+second blood squirt **1153** and armour-hit effect **1188**. Source-audited coin,
+red/blue gem, trophy and crown representation families select their variants
+without a per-instance ID list. F3 retains boxes for every recovered model;
+unknown paths keep their fallbacks. Fresh Debug/ASan pixel/action, HUD/menu,
+protected persistence, recording and generation checks are recorded there.
+
+The retained [Step 11](implementations/playable-sdl-runtime/steps/step-11/step-11-recover-original-hud.md)
 and its [first task](implementations/playable-sdl-runtime/steps/step-11/tasks/task-01-recover-hud-and-display-mode-ownership.md)
 own recovered life/armour/hand/capacity/magic graphics and original-default/F1/F2
 presentation. Original visual state is composed onto an indexed presentation copy;
@@ -32,9 +53,10 @@ Investigation session saving, replay and the
 gameplay regression suite remain closed milestones with minor limits deferred.
 
 The [runtime implementation](implementations/playable-sdl-runtime/playable-sdl-runtime.md)
-owns current acceptance. Baseline is `22c36a3f70bef9467e62299376905cbb5552dd71`
-on `linux-e2-reconstructed-runtime`; functional persistence is committed in
-`35be1cc` and menu/layout refinements in `22c36a3`. The historical v0.2.0 tag
+owns current acceptance. Observed HEAD is `a2a6043ed2def4ca6babf9cc8a6ef45587e0431b`
+on `linux-e2-reconstructed-runtime`; HUD recovery is in `44ebf8f`, chunked
+recording/streaming replay in `a2a6043`, functional persistence in `35be1cc` and
+menu/layout refinements in `22c36a3`. The historical v0.2.0 tag
 remains at `ae54e6f8e4dc`; no newer release/push is inferred.
 
 The [persistence step](implementations/playable-sdl-runtime/steps/step-10/step-10-recover-game-save-load.md)
@@ -45,13 +67,24 @@ restoration and file-rejection limits. Saves write to `--data-dir/Saved`
 use private copies and confirmed originally empty slots only. The
 [menu layout/font follow-up](implementations/playable-sdl-runtime/steps/step-10/tasks/task-05-recover-menu-layout-and-font.md)
 passes 28 focused Debug/ASan checks and preserves the original saved-image format;
-its three-stage menu sweep retains explicit unsupported checks. HUD recovery must
-preserve these paths and verify affected behavior afresh.
+its three-stage menu sweep retains explicit unsupported checks. Object-model
+recovery must preserve these paths and verify affected behavior afresh.
 
-F5 enables `E2R_PLAYER_MESH=1` and `E2R_NPC_MESH=1`: original
-character bodies use recovered bones, camera composition, ellipsoid shading and
-depth/page restoration. Their diagnostic shapes are hidden. Objects/equipment
-retain diagnostic rendering; their polygon and box leaves remain bypassed.
+F5 enables `E2R_PLAYER_MESH=1`, `E2R_NPC_MESH=1` and the explicit owner/family
+selection in the [build guide](building.md). The [courtyard/intro/decorative
+follow-up](journal/entries/courtyard-acid-flames-and-roof-effects-2026-10-28.md)
+records the latest full pinned replay, additional acid styles, scene-zero lightning,
+potion shelf/well bottle, animated flames, red/blue doors and separate roof glows.
+The original recording ends in mixed mode: recovered coins/potions intentionally
+retain boxes there. Fresh render previews and a new recording are separate from
+replaying an old input stream with a changed render-call sequence.
+**F3** cycles original models with boxes for unrecovered actors, models plus all
+boxes, and boxes only. It preserves original poses, game pixel/depth pages,
+HUD/F1/F2 and saves; original background artwork remains in all three modes.
+The [variant/F3 follow-up](journal/entries/object-variants-and-f3-2026-10-28.md)
+records the human-reported omissions, exact additional owners, bounded pixel
+checks and retained natural-gameplay limits. Earlier eight-asset evidence above
+remains the first slice rather than exhaustive coverage.
 The [enemy recovery journal](journal/entries/enemy-model-and-animation-2026-10-27.md)
 records live guard poses, actual enemy-inflicted damage, retained combat failures
 and current acceptance limits. The [player journal](journal/entries/player-model-and-animation-2026-10-27.md)
@@ -66,7 +99,7 @@ full-suite, complete replay and long-play acceptance.
 The [tower eviction repair](journal/entries/tower-actor-eviction-crash-2026-10-27.md)
 is also included in v0.2.0: actor removal and root reuse pass original-code
 comparisons, while Debug and ASan replay limits and further tower acceptance
-remain recorded. These follow-ups do not replace the selected HUD recovery.
+remain recorded. These limits remain alongside the selected object-model recovery.
 
 The prior [door approach correction](journal/entries/regression-door-approach-reliability-2026-10-27.md)
 and [headless sweep](journal/entries/headless-regression-sweep-2026-10-27.md) retain

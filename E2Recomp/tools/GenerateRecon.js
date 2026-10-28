@@ -9122,6 +9122,95 @@ patchRectangleFunction("FUN_00446a24", body => replaceRectangleInput(body,
   if (previous < 0 && index >= 0) *(uint *)(0x00635980 + (uint)(ushort)index * 4) = 0;
   return CONCAT44(param_2,(ushort)index);`));
 
+// Original 0x425199..0x425204 supplies every box vertex transform explicitly.
+patchRectangleFunction("FUN_00425018", body => body
+  .replace("vertex transforms remain separately unrecovered.", "explicit Q14 vertex inputs.")
+  .replace("    FUN_0045de8b();", "    E2R_TransformVector14(psVar3,local_2c,(short *)local_34);")
+  .replace("    iVar2 = CONCAT22(extraout_var,psVar3[2]) + CONCAT22((short)((uint)local_1c >> 0x10),local_1c[2])\n    ;\n    psVar3[2] = (short)iVar2;", "    psVar3[2] = psVar3[2] + local_1c[2];")
+  .replace("FUN_004525f0(local_28,(int)*(short *)(local_30 + 0x156))", "FUN_004525f0((int)*(short *)(local_30 + 0x156),(int)*(short *)(local_30 + 0x156))"));
+
+// Original immutable face indices at 0x47a2b8..0x47a347 are arrays, not
+// pointer arithmetic across separately allocated Ghidra scalar globals.
+patchRectangleFunction("FUN_00425018", body => {
+  body = body.replace("  byte geometry[0x1d8] = {0};", `  byte geometry[0x1d8] = {0};
+  static const byte faces[3][12] = {
+    {0,3,4,7,4,2,5,0,7,2,7,1},
+    {2,1,5,6,6,0,4,1,3,6,5,3},
+    {1,2,6,5,0,6,1,4,6,3,3,5}
+  };`);
+  for (const [label,column,previous] of [
+    ["0047a2b8",0,false],["0047a2e8",1,false],["0047a318",2,false],
+    ["0047a2b4",0,true],["0047a2e4",1,true],["0047a314",2,true]]) {
+    body = body.split("*(int *)((int)&DAT_" + label + " + iVar5)")
+      .join("faces[" + column + "][uVar4" + (previous ? " - 1" : "") + "]");
+  }
+  return body;
+});
+
+// Original high-resolution flat polygon column/depth/Lock contract.
+patchRectangleFunction("FUN_00431a7c", body => {
+  const start = body.indexOf("      local_60 = iVar10;");
+  const end = body.indexOf("\n    }\n  }",start);
+  if (start < 0 || end < 0) throw new Error("flat polygon column anchor missing");
+  return (body.slice(0,start) + `      /* Original 0x4322b5..0x432bcc: retain the surface selector across
+       * Lock and pass the column drawer's ESI/EDI/EBX explicitly. */
+      uint pitch = 0;
+      byte *pixels = (byte *)(uintptr_t)FUN_00418a04(param_2,&pitch);
+      if (pixels == NULL) return;
+      short *depth = (short *)(uintptr_t)(local_c8 ? _DAT_0063666c : _DAT_00636668);
+      int fraction = 15 - (uVar8 & 15);
+      int left_long = local_9c < local_98;
+      int long_y = (int)((uint)iVar5 * 4096u + (uint)_DAT_00640114 * 65536u +
+                        (uint)((int)((uint)local_9c * fraction) >> 4));
+      int short_y = (int)((uint)iVar5 * 4096u + (uint)_DAT_00640114 * 65536u +
+                         (uint)((int)((uint)local_98 * fraction) >> 4));
+      int long_z = (int)((uint)local_80 * 65536u +
+                        (uint)((int)((uint)local_f8 * fraction) >> 4));
+      int short_z = (int)((uint)local_80 * 65536u +
+                         (uint)((int)((uint)local_f4 * fraction) >> 4));
+      int x = iVar10 + _DAT_00640118;
+      int column = 0;
+      for (int half = 0; half < 2; ++half) {
+        if (half) {
+          fraction = 15 - (local_84 & 15);
+          short_y = (int)((uint)local_88 * 4096u + (uint)_DAT_00640114 * 65536u +
+                          (uint)((int)((uint)local_a0 * fraction) >> 4));
+          short_z = (int)((uint)local_8c * 65536u +
+                          (uint)((int)((uint)local_fc * fraction) >> 4));
+        }
+        int end = half ? local_c4 : local_c0;
+        int short_dy = half ? local_a0 : local_98;
+        int short_dz = half ? local_fc : local_f4;
+        for (; column < end && x < _DAT_00640144; ++column, ++x) {
+          if (x >= _DAT_00640124) {
+            int top = (left_long ? long_y : short_y) >> 16;
+            int bottom = (left_long ? short_y : long_y) >> 16;
+            uint z = (uint)(left_long ? long_z : short_z) +
+                     (uint)((int)((uint)(15 - (top & 15)) * local_bc) >> 4);
+            if (top < _DAT_0064012c) {
+              z += (uint)(_DAT_0064012c - top) * local_bc;
+              top = _DAT_0064012c;
+            }
+            if (bottom > _DAT_00640120) bottom = _DAT_00640120;
+            for (int y = top; y < bottom; ++y, z += local_bc) {
+              short value = (short)(z >> 16);
+              short *old = depth + y * _DAT_006401ec + x;
+              if (value <= *old) {
+                *old = value;
+                pixels[y * pitch + x] = (byte)local_a8;
+              }
+            }
+          }
+          long_y = (int)((uint)long_y + local_9c);
+          short_y = (int)((uint)short_y + short_dy);
+          long_z = (int)((uint)long_z + local_f8);
+          short_z = (int)((uint)short_z + short_dz);
+        }
+      }
+      FUN_00418b00(param_2,(uint)(uintptr_t)pixels);` + body.slice(end))
+    .replace("  in_EAX = polygon;", "  if (DAT_0047a43c == 0) return;\n  in_EAX = polygon;");
+});
+
 // Original character bodies and poses; retain NPC polygon/box and HUD bypasses.
 source = replaceRectangleInput(source,"static int E2R_actor_calc_context;",
   "static int E2R_actor_calc_context;\n" + `static int E2R_UseProxyMesh(int actor,int ellipsoids)
@@ -9133,6 +9222,8 @@ source = replaceRectangleInput(source,"static int E2R_actor_calc_context;",
     int player = *(int *)0x00630b60;
     if (player != 0 && (actor == player || *(int *)(actor + 0x22) == player)) return 0;
   }
+  extern int E2R_IsObjectMeshActor(uintptr_t actor);
+  if (E2R_IsObjectMeshActor(actor) || E2R_IsObjectMeshActor(*(int *)(actor + 0x22))) return 0;
   const char *npc_mesh = getenv("E2R_NPC_MESH");
   if (ellipsoids && npc_mesh != NULL && npc_mesh[0] != '\\0' && npc_mesh[0] != '0') {
     extern int E2R_IsCharacterActor(uintptr_t actor);

@@ -28,7 +28,79 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 2. Replacing recovered logic with speculative shortcuts or direct SDL calls.
 3. Broad generated-file changes unrelated to a source-backed repair.
 
-## Current continuation — Original game HUD
+## Selected next continuation — Object models and animations
+
+The user selected original **item, weapon, door and acid-pool models/animations**
+after HUD recovery and the recording repair. The revised next order is
+**object models/animations → game sounds → music**.
+[Step 12](steps/step-12/step-12-recover-object-models-and-animations.md) and
+[Task 01](steps/step-12/tasks/task-01-recover-object-rendering-and-animation-contracts.md)
+own the first bounded slice, now implemented: actor IDs **537,710,711,908,909,
+912,980,3717** use original rounded, flat-polygon and box geometry and original
+actions in F5. Other object/equipment fallbacks remain. Acid pools in scene
+**350**, camera **116**, use animated flattened ellipsoids/rounded bubble nodes,
+not polygon water or sprites. [Task 02](steps/step-12/tasks/task-02-qualify-object-variants-and-natural-acid-lifecycle.md)
+owns remaining variants and the naturally reached acid-room lifecycle.
+
+The [recovery journal](../../journal/entries/object-rendering-recovery-2026-10-28.md)
+records **3,072** flat-pixel/depth cases and **12,288** box-face comparisons per
+mode, original owner/pose contracts, four builds and independent four-artifact
+parity. Native Debug/ASan checks cover potion removal followed by equipped sword
+use, controlled door destruction/passage and successive pool action frames in an
+explicit asset preview. Protected repeated same/fresh-process Save/Load and
+HUD/F1/F2 pass in both configurations; installed saves remain intact. Two live
+door attempts retain their approach/combat failures. Human visual review, natural
+pool traversal/hazard behavior, textured/planar rendering and all object variants
+remain unqualified. Sounds and music stay deferred.
+
+The subsequent [human-play/F3 follow-up](../../journal/entries/object-variants-and-f3-2026-10-28.md)
+adds dropped bottles **3820–3822**, smith axe **603**, door **963** and blood
+owners **5/1085** to the original selection, now fifteen IDs. **F3** independently
+cycles original models with unrecovered boxes, mixed models/boxes, and boxes
+only. Diagnostic representations remain available for recovered characters and
+objects. Debug/ASan checks include actual pixel writes, read-only mode cycling,
+menus and protected Save/Load; remaining variants and natural acid traversal
+stay in Task 02. The live combat failure is retained as a failure.
+
+The [next human-play correction](../../journal/entries/animals-collectibles-and-projectiles-2026-10-28.md)
+extends F5 to **35 explicit owners** plus **five collectible representation
+families/65 original actor resources**. Rats **601/608**, horse **663**, courtyard
+stone balls/statues, blood **1153** and armour-hit effect **1188** use their
+original geometry/actions. Collectible family selection reads original requested
+and saved standing representation IDs; it does not alter collection mechanics.
+Debug/ASan observe original rounded/flat pixels and animation progression, retain
+all F3 boxes and pass protected persistence/HUD/menu/recording checks. Natural
+collection/removal journeys, complete combat effects, other unqualified assets
+and the natural acid-room lifecycle remain open. Unknown sparks **1189** retains
+its fallback; the green props identified near corpses are separate effect/trap
+owners, not evidence for changing character/corpse classification.
+
+The [courtyard/intro/decorative follow-up](../../journal/entries/courtyard-acid-flames-and-roof-effects-2026-10-28.md)
+maps the next human recording and matches its complete pinned replay through
+**2,492 checkpoints**. F5 now selects **47 explicit owners** plus **16 audited
+representation families/251 original resources**: both newly visited courtyard
+pool groups, scene-zero lightning, animated small/large flames, red/blue doors,
+potion variants/shelf/well bottle, chalices, a roof wand and eight separate roof
+glow effects join the earlier coverage. Pools remain flattened ellipsoids;
+lightning and flames also use original rounded geometry. Native Debug/ASan
+previews establish actual pixels and action progression, not hazard or future
+door-destruction acceptance. Mixed F3 mode intentionally retains recovered
+pickup boxes. Failed live/controlled navigation and cross-render-policy replay
+attempts remain failures; fresh final-configuration persistence and recording
+checks have separate evidence. Unknown decorative owners, sparks **1189** and
+unsupported paths keep their fallbacks. Audio remains deferred.
+
+Observed baseline is `a2a6043ed2def4ca6babf9cc8a6ef45587e0431b` on
+`linux-e2-reconstructed-runtime`. HUD recovery is committed in `44ebf8f` and
+chunked recording/streaming replay in `a2a6043`. Preserve subsequent worktree
+changes; no new commit, push or tag action is requested. The
+[selection journal](../../journal/entries/object-models-and-animations-handoff-2026-10-28.md)
+records this documentation-only handoff. Keep accepted characters, HUD/F1/F2,
+menu/persistence, protected saves and independent diagnostics/recording intact.
+The [recording journal](../../journal/entries/chunked-recording-and-streaming-replay-2026-10-28.md)
+retains large-recording and replay evidence; it does not qualify object rendering.
+
+## Previous continuation — Original game HUD
 
 The user selected **original HUD → game sounds → music** on 2026-10-28, after
 functional persistence and its menu/layout refinements. [Step 11](steps/step-11/step-11-recover-original-hud.md)
@@ -46,10 +118,9 @@ checks, natural damage/potion outcomes and explicit indicator/visual limits.
 Original legacy graphic/script/inventory leaves remain bypassed; the recovered
 HUD uses immutable original assets and a fresh indexed presentation copy.
 
-Current baseline is `22c36a3f70bef9467e62299376905cbb5552dd71` on
+The HUD pass started from `22c36a3f70bef9467e62299376905cbb5552dd71` on
 `linux-e2-reconstructed-runtime`; persistence is in `35be1cc`, and menu/layout
-refinements are in `22c36a3`. Preserve the new handoff documents and any subsequent
-worktree changes; no commit, push or tag change is authorized. The
+refinements are in `22c36a3`. Its historical
 [handoff journal](../../journal/entries/original-hud-handoff-2026-10-28.md) records
 this priority change and observed source entry points. Keep existing character,
 menu/persistence and save-protection behavior intact. Historical tower/rendering
@@ -370,8 +441,9 @@ The 2026-10-14 [documentation review](../../journal/entries/documentation-review
 ## Step Roadmap
 
 Step numbers are stable identifiers, not execution order. Player/enemy recovery
-has user acceptance with recorded fidelity limits. The current order is
-**10 game save/load → game sounds → music**. Step 09's accepted diagnostic
+has user acceptance with recorded fidelity limits. Save/load and HUD are
+implemented within their recorded bounds. The next order is
+**12 object models/animations → game sounds → music**. Step 09's accepted diagnostic
 gameplay and the completed regression tools supply verification; their minor
 gaps remain tracked. Steps 01/02/07 and Step 03 Tasks 01/02 retain their bounded
 historical completions.
@@ -384,6 +456,8 @@ historical completions.
 | [09 — Diagnostic gameplay with cylinders](steps/step-09/step-09-enable-diagnostic-gameplay.md) | follow-ups retained | Accepted gameplay milestone and subsequent crash repairs support persistence; broader gameplay limits remain recorded |
 | [08 — Recover scene-175 actors](steps/step-08/step-08-recover-scene-175-actors.md) | follow-ups retained | Player/enemy body and animation direction accepted; exhaustive animation, equipment and other rendering remain separate |
 | [10 — Functional game save/load](steps/step-10/step-10-recover-game-save-load.md) | implemented within recorded bounds | Original writer/reader/menu recovery, repeated same-process and fresh-process restoration; corrupt-file recovery and broad progression remain limited |
+| [11 — Original HUD](steps/step-11/step-11-recover-original-hud.md) | implemented within recorded bounds | Original-default/F1/F2 presentation, original-code/raster and bounded native evidence; unexercised indicators remain recorded |
+| [12 — Object models and animations](steps/step-12/step-12-recover-object-models-and-animations.md) | active; first slice verified | Eight original item/weapon/door/pool assets; source map, flat/box recovery and Debug/ASan evidence; Task 02 retains variants and natural pool lifecycle before audio |
 | [03 — Gameplay control and camera proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) | partially deferred | Input mapping/matrix complete; basic locomotion/camera proofs join 09, broader controls follow readiness |
 | [04 — Timing and frame pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) | planned | Recover game timing ownership after visible control proofs |
 | [05 — DirectSound compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) | planned | Map sound calls before implementing an audio boundary |

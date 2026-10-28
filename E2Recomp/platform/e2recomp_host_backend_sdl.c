@@ -563,6 +563,7 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
         }
         else if (event.type == SDL_EVENT_KEY_DOWN && message_callback != NULL) {
             UINT vk = e2r_virtual_key_from_sdl(event.key.key);
+            if (vk == 0x72 && event.key.repeat) continue;
             if (e2r_sdl_input_diag_enabled() && key_diag_count < 512u) {
                 fprintf(stderr, "host input keydown: sdl=0x%x vk=0x%x window=%u\n",
                         (unsigned)event.key.key, (unsigned)vk,
@@ -654,6 +655,9 @@ void E2R_HostPollEvents(E2R_HostWindow *window,
             }
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
                 message_callback(WM_CLOSE, 0, 0, user);
+            }
+            else if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
+                E2R_HandleDisplayKey(WM_KEYUP,0x72);
             }
             else if (event.type == SDL_EVENT_WINDOW_RESIZED ||
                      event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) {
@@ -871,7 +875,8 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
 {
     const char *enabled = getenv("E2R_ACTOR_CUES");
     const char *cylinder_env = getenv("E2R_ACTOR_CYLINDERS");
-    int cylinders = cylinder_env && *cylinder_env && *cylinder_env != '0';
+    int cylinders = (cylinder_env && *cylinder_env && *cylinder_env != '0') ||
+                    E2R_GeometryMode() != E2R_GEOMETRY_ORIGINAL;
     int scene_cues = cylinders || (enabled && *enabled && *enabled != '0');
     int detailed = cylinders || !scene_cues;
     E2R_ActorCueSnapshot state;
@@ -897,9 +902,10 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
     if (scene_cues && state.camera_ready && state.view_width == surface->w && state.view_height == surface->h) {
         for (unsigned i = 0; i < state.count; ++i) {
             const E2R_ActorCue *actor = &state.actors[i];
-            if ((actor->is_joe && player_mesh_enabled) ||
+            if (E2R_GeometryMode() == E2R_GEOMETRY_ORIGINAL &&
+                (actor->original_object_mesh || (actor->is_joe && player_mesh_enabled) ||
                 (npc_mesh_enabled && (actor->marker_kind == E2R_MARKER_CREATURE ||
-                                      actor->marker_kind == E2R_MARKER_CORPSE)))
+                                      actor->marker_kind == E2R_MARKER_CORPSE))))
                 continue;
             objects += actor->is_object;
             generated += actor->generated;
@@ -947,6 +953,12 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
             ++drawn;
         }
     }
+    if (E2R_GeometryMode() != E2R_GEOMETRY_ORIGINAL) {
+        const char *mode = E2R_GeometryMode() == E2R_GEOMETRY_MIXED ?
+                           "F3: MODELS + BOXES" : "F3: BOXES ONLY";
+        e2r_cue_rect(surface,6,surface->h-18,126,13,bg);
+        e2r_cue_text(surface,10,surface->h-15,mode,cyan);
+    }
     if (!E2R_DebugOverlaySelected()) return;
     snprintf(label,sizeof(label),"%s: %u VISIBLE / %u HIDDEN / %u BEHIND / %u OFFSCREEN",
              cylinders ? "MARKERS" : "ACTOR CUES",drawn,hidden,behind,outside);
@@ -975,7 +987,7 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
             break;
         }
         e2r_cue_text(surface,10,59,npc_mesh_enabled ?
-                     "ORIGINAL CHARACTERS / OBJECTS USE DIAGNOSTIC SHAPES" : player_mesh_enabled ?
+                     "ORIGINAL CHARACTERS / OBJECT FALLBACKS RETAINED" : player_mesh_enabled ?
                      "PLAYER MESH / OTHER ACTORS USE DIAGNOSTIC SHAPES" : bypass && *bypass && *bypass != '0' ?
                      (state.background_spawns_deferred ? "PROXY / MESH, HUD AND BACKGROUND SPAWNS OMITTED" :
                       "PROXY DRAW / MESH AND HUD GRAPHICS OMITTED") :

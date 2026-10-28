@@ -19,11 +19,17 @@ parser.add_argument('--game-data',type=Path,required=True)
 parser.add_argument('--output',type=Path,required=True)
 parser.add_argument('--timeout',type=int,default=240)
 parser.add_argument('--equipment',action='store_true')
+parser.add_argument('--object-mesh-ids',type=int,nargs='+',default=[])
+parser.add_argument('--object-mesh-reps',type=int,nargs='+',default=[])
 parser.add_argument('--hud',action='store_true',help='Verify original/debug selection and repainting during both persistence processes')
 parser.add_argument('--failure-case',choices=('empty','save-open','unsupported','truncated','missing'))
 parser.add_argument('--population-profile',choices=('live','noncombat-opening'),default='live')
 parser.add_argument('--video-driver',choices=('dummy','x11','wayland'),default='dummy')
 args=parser.parse_args()
+if any(identity<=0 or identity>=5000 for identity in args.object_mesh_ids):
+    parser.error('object mesh IDs must be original actor IDs from 1 to 4999')
+if any(identity<=0 or identity>=500 for identity in args.object_mesh_reps):
+    parser.error('object mesh representation IDs must be from 1 to 499')
 if not 30<=args.timeout<=600:parser.error('--timeout must be 30..600 seconds per bounded process')
 executable=args.executable.resolve(strict=True);game=args.game_data.resolve(strict=True);original_game=game
 output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
@@ -58,8 +64,11 @@ env.update(E2R_RECORD='off',E2R_DATA_DIR=str(runtime),E2R_STARTUP_LOGO_DELAY_MS=
            E2R_PLAYER_MESH='1',E2R_NPC_MESH='1',E2R_DEFER_BACKGROUND_SPAWNS='0',
            E2R_POPULATION_PROBE='1',SDL_VIDEODRIVER=args.video_driver,ASAN_OPTIONS='detect_leaks=0')
 if args.video_driver=='dummy':env.pop('DISPLAY',None)
+if args.object_mesh_ids:env['E2R_OBJECT_MESH_IDS']=','.join(map(str,args.object_mesh_ids))
+if args.object_mesh_reps:env['E2R_OBJECT_MESH_REPS']=','.join(map(str,args.object_mesh_reps))
 if args.population_profile!='live':env['E2R_TEST_POPULATION']=args.population_profile
 report=dict(probe_complete=False,slot=slot,initially_empty_slots=free,recording='off',
+            object_mesh_ids=args.object_mesh_ids,object_mesh_reps=args.object_mesh_reps,
             failure_case=args.failure_case,
             population_profile=args.population_profile,
             executable=dict(path=str(executable),sha256=hashlib.sha256(executable.read_bytes()).hexdigest()),

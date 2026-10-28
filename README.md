@@ -1,8 +1,13 @@
 # Ecstatica Recompiled
 
 Ecstatica II is being reconstructed from original x86 behavior into a Linux/i386
-runtime using original game data. The current developer game renders original animated character bodies against SDL
-backgrounds, with diagnostic shapes for objects and equipment. Original HUD artwork is the default; F1 selects it and F2 selects the debug overlay.
+runtime using original game data. The developer game renders original animated
+characters, selected item/weapon/door/blood/pool assets, rats, the stable horse,
+courtyard projectiles, animated pools/flames, coloured doors and collectible
+families against SDL backgrounds.
+Other objects retain diagnostic fallbacks. **F3** cycles
+original models with unrecovered fallbacks, models plus boxes, and boxes only.
+Original HUD artwork is the default; **F1** selects it and **F2** selects the debug overlay.
 Original-format menu save/load has bounded Debug/ASan round-trip verification. Audio,
 remaining models, broad gameplay fidelity and the 64-bit runtime remain incomplete.
 
@@ -11,7 +16,7 @@ remaining models, broad gameplay fidelity and the 64-bit runtime remain incomple
 1. Read [project state and capabilities](docs/capabilities.md).
 2. Follow the [handoff and working rules](docs/HANDOFF.md).
 3. Open the [active runtime implementation](docs/implementations/playable-sdl-runtime/playable-sdl-runtime.md)
-   and its [current original-HUD handoff](docs/implementations/playable-sdl-runtime/steps/step-11/step-11-recover-original-hud.md).
+   and its [next object-model/animation step](docs/implementations/playable-sdl-runtime/steps/step-12/step-12-recover-object-models-and-animations.md).
 4. Use [build and VS Code setup](docs/building.md), then press F5 with
    **Ecstatica Recompiled** and the **Debug · Clang 21 · i386 · SDL** preset.
 

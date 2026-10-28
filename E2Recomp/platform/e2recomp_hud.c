@@ -7,6 +7,8 @@
 #include <string.h>
 
 static int e2r_debug_overlay;
+static int e2r_geometry_mode;
+static int e2r_geometry_key_down;
 static unsigned char *e2r_hud_pixels;
 static size_t e2r_hud_capacity;
 
@@ -15,10 +17,21 @@ int E2R_DebugOverlaySelected(void)
     return e2r_debug_overlay;
 }
 
+int E2R_GeometryMode(void)
+{
+    return e2r_geometry_mode;
+}
+
 int E2R_HandleDisplayKey(unsigned message, unsigned key)
 {
-    if ((message != WM_KEYDOWN && message != WM_KEYUP) || (key != 0x70 && key != 0x71))
+    if ((message != WM_KEYDOWN && message != WM_KEYUP) || (key < 0x70 || key > 0x72))
         return 0;
+    if (key == 0x72) {
+        if (message == WM_KEYDOWN && !e2r_geometry_key_down)
+            e2r_geometry_mode = (e2r_geometry_mode + 1) % 3;
+        e2r_geometry_key_down = message == WM_KEYDOWN;
+        return 1;
+    }
     if (message == WM_KEYDOWN) e2r_debug_overlay = key == 0x71;
     return 1;
 }

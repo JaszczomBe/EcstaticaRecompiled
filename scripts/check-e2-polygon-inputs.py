@@ -36,7 +36,7 @@ def original(start, end):
 source = (Path(__file__).resolve().parent.parent /
           'E2Recomp/reconstructed/E2Recomp_recon.c').read_text()
 functions = []
-for name in ('E2R_UseProxyMesh', 'FUN_00433d30', 'FUN_00424e44', 'FUN_00425018'):
+for name in ('E2R_TransformVector14', 'E2R_UseProxyMesh', 'FUN_00433d30', 'FUN_00424e44', 'FUN_00425018'):
     match = re.search(r'(?:static )?(?:void|int) (?:__fastcall )?' + name + r'\([^\n]*\)\s*\{.*?\n\}', source, re.S)
     if not match:
         raise ValueError(f'Missing function {name}')
@@ -53,6 +53,7 @@ typedef uint64_t undefined8, ulonglong;
 typedef uint16_t ushort, undefined2;
 typedef uint32_t uint, undefined4;
 int E2R_IsCharacterActor(uintptr_t actor){return 0;}
+int E2R_IsObjectMeshActor(uintptr_t actor){return 0;}
 #define __fastcall
 #define DAT_0047a279 (*(uint32_t*)0x47a279)
 #define DAT_0047a3e0 (*(uint32_t*)0x47a3e0)
@@ -121,7 +122,7 @@ static int _DAT_00636588, _DAT_006401c8, _DAT_006401cc, _DAT_006401d4,
 #define E2R_READ2(p,off) (*(uint16_t*)((uintptr_t)(p)+(off)))
 void FUN_0045de8b(void) {} /* Existing unrecovered transform remains a stub. */
 void FUN_00422fd8(uint32_t out,int in) { memset((void*)out,0,6); }
-undefined8 FUN_004525f0(void *unused,int texture) { abort(); }
+undefined8 FUN_004525f0(int unused,int texture) { abort(); }
 void FUN_00433e9c(int texture,int mode) { abort(); }
 '''
 data = original(0x47a2b8, 0x47a348)

@@ -26,12 +26,13 @@ evidence. Normal human investigation uses the single **Ecstatica Recompiled**
 F5 launch with recording, inspection, executable pinning and debugger evidence.
 See [build setup](building.md) and [debugging usage](debugging.md).
 
-For the original-HUD continuation, open the
-[HUD recovery handoff](implementations/playable-sdl-runtime/steps/step-11/step-11-recover-original-hud.md)
-and its [first implementation task](implementations/playable-sdl-runtime/steps/step-11/tasks/task-01-recover-hud-and-display-mode-ownership.md).
-The user explicitly requested this navigation update when selecting HUD before
-audio. These links replace the completed persistence continuation; changing
-baselines, display requirements and evidence remain owned by the active step.
+For the selected next continuation, open the
+[object-model/animation step](implementations/playable-sdl-runtime/steps/step-12/step-12-recover-object-models-and-animations.md)
+and its [first task](implementations/playable-sdl-runtime/steps/step-12/tasks/task-01-recover-object-rendering-and-animation-contracts.md).
+The user explicitly requested this handoff navigation update after HUD and
+recording recovery: items, weapons, doors and acid pools now precede audio.
+These links replace the previous HUD continuation; current baseline, evidence,
+acceptance and remaining source questions stay owned by the active step/task.
 
 Read these sources in order:
 

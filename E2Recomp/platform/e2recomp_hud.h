@@ -19,6 +19,8 @@ void E2R_DrawOriginalHudState(const E2R_HudState *state, const E2R_HudPainter *p
 
 /* Process-local presentation policy. Both key edges are consumed by the host. */
 int E2R_DebugOverlaySelected(void);
+enum { E2R_GEOMETRY_ORIGINAL, E2R_GEOMETRY_MIXED, E2R_GEOMETRY_BOXES };
+int E2R_GeometryMode(void);
 int E2R_HandleDisplayKey(unsigned message, unsigned key);
 const unsigned char *E2R_ComposeOriginalHud(const unsigned char *pixels,
                                          unsigned width, unsigned height, unsigned pitch);

@@ -84,6 +84,8 @@ static int E2R_UseProxyMesh(int actor,int ellipsoids)
     int player = *(int *)0x00630b60;
     if (player != 0 && (actor == player || *(int *)(actor + 0x22) == player)) return 0;
   }
+  extern int E2R_IsObjectMeshActor(uintptr_t actor);
+  if (E2R_IsObjectMeshActor(actor) || E2R_IsObjectMeshActor(*(int *)(actor + 0x22))) return 0;
   const char *npc_mesh = getenv("E2R_NPC_MESH");
   if (ellipsoids && npc_mesh != NULL && npc_mesh[0] != '\0' && npc_mesh[0] != '0') {
     extern int E2R_IsCharacterActor(uintptr_t actor);
@@ -18382,8 +18384,13 @@ void FUN_00425018(int actor)
   int local_20;
   short *local_1c;
 
-  /* Original 0x425018 stack records; vertex transforms remain separately unrecovered. */
+  /* Original 0x425018 stack records; explicit Q14 vertex inputs. */
   byte geometry[0x1d8] = {0};
+  static const byte faces[3][12] = {
+    {0,3,4,7,4,2,5,0,7,2,7,1},
+    {2,1,5,6,6,0,4,1,3,6,5,3},
+    {1,2,6,5,0,6,1,4,6,3,3,5}
+  };
 
   in_EAX = actor;
   if (in_EAX == 0 || (uint)in_EAX < 0x10000u || 0x70000000u <= (uint)in_EAX ||
@@ -18427,12 +18434,10 @@ void FUN_00425018(int actor)
   local_30 = in_EAX;
   do {
     local_20 = local_24 * 0x2a;
-    FUN_0045de8b();
+    E2R_TransformVector14(psVar3,local_2c,(short *)local_34);
     *psVar3 = *psVar3 + *local_1c;
     psVar3[1] = psVar3[1] + local_1c[1];
-    iVar2 = CONCAT22(extraout_var,psVar3[2]) + CONCAT22((short)((uint)local_1c >> 0x10),local_1c[2])
-    ;
-    psVar3[2] = (short)iVar2;
+    psVar3[2] = psVar3[2] + local_1c[2];
     FUN_00422fd8((undefined4)(uintptr_t)(psVar3 + 3),(int)psVar3);
     iVar2 = local_20;
     if ((DAT_0047a34a != 0) && (DAT_0047a366 != 0)) {
@@ -18459,7 +18464,7 @@ void FUN_00425018(int actor)
   } while (local_24 < 8);
   iVar2 = 0;
   if ((-1 < *(short *)(local_30 + 0x156)) && (DAT_0047a3e0 == 0)) {
-    uVar6 = FUN_004525f0(local_28,(int)*(short *)(local_30 + 0x156));
+    uVar6 = FUN_004525f0((int)*(short *)(local_30 + 0x156),(int)*(short *)(local_30 + 0x156));
     iVar2 = *(int *)((int)((ulonglong)uVar6 >> 0x20) * 4 + 0x62b700);
     if (iVar2 != 0) {
       *(undefined4 *)(iVar2 + 0x10) = _DAT_00636588;
@@ -18468,17 +18473,17 @@ void FUN_00425018(int actor)
   uVar4 = 0;
   iVar5 = 0;
   do {
-    iVar1 = *(int *)((int)&DAT_0047a2e8 + iVar5);
-    (*(undefined1 * *)(geometry + 0x198)) = ((undefined1 *)(geometry + 0x0)) + *(int *)((int)&DAT_0047a2b8 + iVar5) * 0x2a;
+    iVar1 = faces[1][uVar4];
+    (*(undefined1 * *)(geometry + 0x198)) = ((undefined1 *)(geometry + 0x0)) + faces[0][uVar4] * 0x2a;
     (*(undefined1 * *)(geometry + 0x19c)) = ((undefined1 *)(geometry + 0x0)) + iVar1 * 0x2a;
-    (*(undefined1 * *)(geometry + 0x1a0)) = ((undefined1 *)(geometry + 0x0)) + *(int *)((int)&DAT_0047a318 + iVar5) * 0x2a;
+    (*(undefined1 * *)(geometry + 0x1a0)) = ((undefined1 *)(geometry + 0x0)) + faces[2][uVar4] * 0x2a;
     (*(undefined1 * *)(geometry + 0x15c)) = (*(undefined1 * *)(geometry + 0x1a0));
     (*(undefined1 * *)(geometry + 0x154)) = (*(undefined1 * *)(geometry + 0x198));
     (*(undefined1 * *)(geometry + 0x158)) = (*(undefined1 * *)(geometry + 0x19c));
     if ((int)uVar4 / 2 != (int)(uVar4 + 1) / 2) {
-      iVar1 = *(int *)((int)&DAT_0047a2e4 + iVar5);
-      (*(undefined1 * *)(geometry + 0x15c)) = ((undefined1 *)(geometry + 0x0)) + *(int *)((int)&DAT_0047a314 + iVar5) * 0x2a;
-      (*(undefined1 * *)(geometry + 0x154)) = ((undefined1 *)(geometry + 0x0)) + *(int *)((int)&DAT_0047a2b4 + iVar5) * 0x2a;
+      iVar1 = faces[1][uVar4 - 1];
+      (*(undefined1 * *)(geometry + 0x15c)) = ((undefined1 *)(geometry + 0x0)) + faces[2][uVar4 - 1] * 0x2a;
+      (*(undefined1 * *)(geometry + 0x154)) = ((undefined1 *)(geometry + 0x0)) + faces[0][uVar4 - 1] * 0x2a;
       (*(undefined1 * *)(geometry + 0x158)) = ((undefined1 *)(geometry + 0x0)) + iVar1 * 0x2a;
     }
     if ((uVar4 & 1) == 0) {
@@ -27255,6 +27260,7 @@ void __fastcall FUN_00431a7c(int polygon,int param_2,int reference_polygon)
   int iStack_18;
   short sStack_14;
 
+  if (DAT_0047a43c == 0) return;
   in_EAX = polygon;
   if (in_EAX == 0 || (uint)in_EAX < 0x10000u ||
       IsBadReadPtr((void *)(uintptr_t)in_EAX,0x2c)) {
@@ -27515,223 +27521,62 @@ void __fastcall FUN_00431a7c(int polygon,int param_2,int reference_polygon)
       else {
         local_bc = ((((iVar4 * local_f8 >> 0x14) + local_80) - local_8c) * 0x10000) / local_bc;
       }
-      local_60 = iVar10;
-      if (DAT_0047a43c != 0) {
-        local_104 = FUN_00418a04(iVar5,&local_108);
-                    /* WARNING: Read-only address (ram,0x0045d93f) is written */
-        uRam0045d93f = local_108;
-        iVar5 = extraout_ECX_03;
-      }
-      local_b8 = iVar5 * 0x1000 + _DAT_00640114 * 0x10000;
-      iVar10 = iVar10 + _DAT_00640118;
-      iVar3 = 0xf - (uVar8 & 0xf);
-      local_2c = iVar10 * 2;
-      iVar5 = param_2 << 2;
-      iVar4 = local_9c * iVar3 >> 4;
-      iVar9 = local_98 * iVar3 >> 4;
-      if (local_9c < local_98) {
-        local_b4 = local_b8 + iVar4;
-        local_f0 = local_80 * 0x10000 + (iVar3 * local_f8 >> 4);
-        local_b8 = local_b8 + iVar9;
-        local_20 = 0;
-        iVar3 = local_c8 << 2;
-        iVar9 = iVar5;
-        iVar4 = local_2c;
-        if (0 < local_c0) {
-          do {
-            local_34 = iVar4;
-            local_58 = iVar9;
-            local_5c = iVar3;
-            if (_DAT_00640144 <= iVar10) break;
-            if (_DAT_00640124 <= iVar10) {
-              uVar8 = local_b4 >> 0x10;
-              iVar5 = local_f0 + ((int)((0xf - (uVar8 & 0xf)) * local_bc) >> 4);
-              local_24 = local_34 + _DAT_006401ec * uVar8 * 2 + *(int *)(&DAT_00636668 + local_5c);
-              if (DAT_0047a43c == 0) {
-                FUN_0045cef4();
-                iVar3 = _DAT_0064012c - uVar8;
-              }
-              else {
-                iVar3 = _DAT_0064012c - uVar8;
-              }
-              if (0 < iVar3) {
-                local_24 = local_24 + _DAT_006401ec * iVar3 * 2;
-                iVar5 = iVar5 + iVar3 * local_bc;
-                uVar8 = _DAT_0064012c;
-              }
-              iVar3 = local_b8 >> 0x10;
-              if (_DAT_00640120 < local_b8 >> 0x10) {
-                iVar3 = _DAT_00640120;
-              }
-              if ((int)uVar8 < iVar3) {
-                if (DAT_0047a43c == 0) {
-                  FUN_0045d903(local_a8 | (iVar3 - uVar8) * 0x100 - 0x100,iVar5);
-                }
-                else {
-                  func_0x0045d92a();
-                }
+      /* Original 0x4322b5..0x432bcc: retain the surface selector across
+       * Lock and pass the column drawer's ESI/EDI/EBX explicitly. */
+      uint pitch = 0;
+      byte *pixels = (byte *)(uintptr_t)FUN_00418a04(param_2,&pitch);
+      if (pixels == NULL) return;
+      short *depth = (short *)(uintptr_t)(local_c8 ? _DAT_0063666c : _DAT_00636668);
+      int fraction = 15 - (uVar8 & 15);
+      int left_long = local_9c < local_98;
+      int long_y = (int)((uint)iVar5 * 4096u + (uint)_DAT_00640114 * 65536u +
+                        (uint)((int)((uint)local_9c * fraction) >> 4));
+      int short_y = (int)((uint)iVar5 * 4096u + (uint)_DAT_00640114 * 65536u +
+                         (uint)((int)((uint)local_98 * fraction) >> 4));
+      int long_z = (int)((uint)local_80 * 65536u +
+                        (uint)((int)((uint)local_f8 * fraction) >> 4));
+      int short_z = (int)((uint)local_80 * 65536u +
+                         (uint)((int)((uint)local_f4 * fraction) >> 4));
+      int x = iVar10 + _DAT_00640118;
+      int column = 0;
+      for (int half = 0; half < 2; ++half) {
+        if (half) {
+          fraction = 15 - (local_84 & 15);
+          short_y = (int)((uint)local_88 * 4096u + (uint)_DAT_00640114 * 65536u +
+                          (uint)((int)((uint)local_a0 * fraction) >> 4));
+          short_z = (int)((uint)local_8c * 65536u +
+                          (uint)((int)((uint)local_fc * fraction) >> 4));
+        }
+        int end = half ? local_c4 : local_c0;
+        int short_dy = half ? local_a0 : local_98;
+        int short_dz = half ? local_fc : local_f4;
+        for (; column < end && x < _DAT_00640144; ++column, ++x) {
+          if (x >= _DAT_00640124) {
+            int top = (left_long ? long_y : short_y) >> 16;
+            int bottom = (left_long ? short_y : long_y) >> 16;
+            uint z = (uint)(left_long ? long_z : short_z) +
+                     (uint)((int)((uint)(15 - (top & 15)) * local_bc) >> 4);
+            if (top < _DAT_0064012c) {
+              z += (uint)(_DAT_0064012c - top) * local_bc;
+              top = _DAT_0064012c;
+            }
+            if (bottom > _DAT_00640120) bottom = _DAT_00640120;
+            for (int y = top; y < bottom; ++y, z += local_bc) {
+              short value = (short)(z >> 16);
+              short *old = depth + y * _DAT_006401ec + x;
+              if (value <= *old) {
+                *old = value;
+                pixels[y * pitch + x] = (byte)local_a8;
               }
             }
-            iVar10 = iVar10 + 1;
-            local_34 = local_34 + 2;
-            local_b4 = local_b4 + local_9c;
-            iVar5 = local_f0 + local_f8;
-            local_b8 = local_b8 + local_98;
-            local_20 = local_20 + 1;
-            local_f0 = iVar5;
-            iVar3 = local_5c;
-            iVar9 = local_58;
-            iVar4 = local_34;
-          } while (local_20 < local_c0);
-        }
-        local_b8 = _DAT_00640114 * 0x10000 + local_88 * 0x1000 +
-                   ((int)(local_a0 * (0xf - (local_84 & 0xf))) >> 4);
-        if (local_20 < local_c4) {
-          local_50 = param_2 << 2;
-          local_54 = local_c8 << 2;
-          local_30 = iVar10 * 2;
-          do {
-            if (_DAT_00640144 <= iVar10) break;
-            if (_DAT_00640124 <= iVar10) {
-              uVar8 = local_b4 >> 0x10;
-              local_1c = local_f0 + ((int)((0xf - (uVar8 & 0xf)) * local_bc) >> 4);
-              if (DAT_0047a43c == 0) {
-                FUN_0045cef4();
-                if (0 < (int)(_DAT_0064012c - uVar8)) {
-                  local_1c = local_1c + (_DAT_0064012c - uVar8) * local_bc;
-                  uVar8 = _DAT_0064012c;
-                }
-              }
-              else if (0 < (int)(_DAT_0064012c - uVar8)) {
-                local_1c = local_1c + (_DAT_0064012c - uVar8) * local_bc;
-                uVar8 = _DAT_0064012c;
-              }
-              iVar5 = local_b8 >> 0x10;
-              if (_DAT_00640120 < local_b8 >> 0x10) {
-                iVar5 = _DAT_00640120;
-              }
-              if ((int)uVar8 < iVar5) {
-                if (DAT_0047a43c == 0) {
-                  FUN_0045d903(local_a8 | (iVar5 - uVar8) * 0x100 - 0x100,local_1c);
-                }
-                else {
-                  func_0x0045d92a();
-                }
-              }
-            }
-            iVar10 = iVar10 + 1;
-            local_20 = local_20 + 1;
-            iVar5 = local_b4 + local_9c;
-            local_f0 = local_f0 + local_f8;
-            local_b8 = local_b8 + local_a0;
-            local_30 = local_30 + 2;
-            local_b4 = iVar5;
-          } while (local_20 < local_c4);
+          }
+          long_y = (int)((uint)long_y + local_9c);
+          short_y = (int)((uint)short_y + short_dy);
+          long_z = (int)((uint)long_z + local_f8);
+          short_z = (int)((uint)short_z + short_dz);
         }
       }
-      else {
-        local_b4 = local_b8 + iVar9;
-        local_a4 = 0;
-        local_f0 = local_80 * 0x10000 + (iVar3 * local_f4 >> 4);
-        local_b8 = local_b8 + iVar4;
-        iVar3 = local_c8 << 2;
-        iVar9 = local_2c;
-        if (0 < local_c0) {
-          do {
-            local_3c = iVar9;
-            local_48 = iVar5;
-            local_4c = iVar3;
-            if (_DAT_00640144 <= iVar10) break;
-            if (_DAT_00640124 <= iVar10) {
-              uVar8 = local_b4 >> 0x10;
-              iVar5 = local_f0 + ((int)((0xf - (uVar8 & 0xf)) * local_bc) >> 4);
-              local_cc = local_3c + _DAT_006401ec * uVar8 * 2 + *(int *)(&DAT_00636668 + local_4c);
-              if (DAT_0047a43c == 0) {
-                FUN_0045cef4();
-                iVar3 = _DAT_0064012c - uVar8;
-              }
-              else {
-                iVar3 = _DAT_0064012c - uVar8;
-              }
-              if (0 < iVar3) {
-                local_cc = local_cc + _DAT_006401ec * iVar3 * 2;
-                iVar5 = iVar5 + iVar3 * local_bc;
-                uVar8 = _DAT_0064012c;
-              }
-              iVar3 = local_b8 >> 0x10;
-              if (_DAT_00640120 < local_b8 >> 0x10) {
-                iVar3 = _DAT_00640120;
-              }
-              if ((int)uVar8 < iVar3) {
-                if (DAT_0047a43c == 0) {
-                  FUN_0045d903(local_a8 | (iVar3 - uVar8) * 0x100 - 0x100,iVar5);
-                }
-                else {
-                  func_0x0045d92a();
-                }
-              }
-            }
-            iVar10 = iVar10 + 1;
-            local_3c = local_3c + 2;
-            local_a4 = local_a4 + 1;
-            local_b4 = local_b4 + local_98;
-            local_f0 = local_f0 + local_f4;
-            local_b8 = local_b8 + local_9c;
-            iVar3 = local_4c;
-            iVar5 = local_48;
-            iVar9 = local_3c;
-          } while (local_a4 < local_c0);
-        }
-        iVar3 = 0xf - (local_84 & 0xf);
-        iVar5 = _DAT_00640114 * 0x10000;
-        local_b4 = local_88 * 0x1000 + iVar5 + (local_a0 * iVar3 >> 4);
-        local_28 = local_8c * 0x10000 + (iVar3 * local_fc >> 4);
-        if (local_a4 < local_c4) {
-          local_40 = param_2 << 2;
-          local_44 = local_c8 << 2;
-          local_38 = iVar10 * 2;
-          do {
-            if (_DAT_00640144 <= iVar10) break;
-            if (_DAT_00640124 <= iVar10) {
-              uVar8 = local_b4 >> 0x10;
-              iStack_18 = local_28 + ((int)((0xf - (uVar8 & 0xf)) * local_bc) >> 4);
-              if (DAT_0047a43c == 0) {
-                FUN_0045cef4();
-                if (0 < (int)(_DAT_0064012c - uVar8)) {
-                  iStack_18 = iStack_18 + (_DAT_0064012c - uVar8) * local_bc;
-                  uVar8 = _DAT_0064012c;
-                }
-              }
-              else if (0 < (int)(_DAT_0064012c - uVar8)) {
-                iStack_18 = iStack_18 + (_DAT_0064012c - uVar8) * local_bc;
-                uVar8 = _DAT_0064012c;
-              }
-              iVar5 = local_b8 >> 0x10;
-              if (_DAT_00640120 < local_b8 >> 0x10) {
-                iVar5 = _DAT_00640120;
-              }
-              if ((int)uVar8 < iVar5) {
-                if (DAT_0047a43c == 0) {
-                  FUN_0045d903((iVar5 - uVar8) * 0x100 - 0x100 | local_a8,iStack_18);
-                }
-                else {
-                  func_0x0045d92a();
-                }
-              }
-            }
-            iVar10 = iVar10 + 1;
-            local_a4 = local_a4 + 1;
-            iVar5 = local_b4 + local_a0;
-            local_28 = local_28 + local_fc;
-            local_b8 = local_b8 + local_9c;
-            local_38 = local_38 + 2;
-            local_b4 = iVar5;
-          } while (local_a4 < local_c4);
-        }
-      }
-      if (DAT_0047a43c != 0) {
-        FUN_00418b00(iVar5,local_104);
-      }
+      FUN_00418b00(param_2,(uint)(uintptr_t)pixels);
     }
   }
                     /* WARNING: Read-only address (ram,0x0045d93f) is written */

@@ -25,6 +25,7 @@ harness = support() + r'''
 #include <sys/mman.h>
 typedef uint8_t byte;typedef uint16_t ushort,undefined2;typedef uint32_t uint,undefined4;
 int E2R_IsCharacterActor(uintptr_t actor){return 0;}
+int E2R_IsObjectMeshActor(uintptr_t actor){return 0;}
 #define __fastcall
 #define DAT_0047a279 (*(int*)0x47a279)
 #define DAT_0047a2a4 (*(int*)0x47a2a4)

@@ -44,6 +44,35 @@ static void e2r_cue_name(char *out, size_t capacity, uintptr_t pool, size_t byte
     }
 }
 
+static int e2r_mesh_list_contains(const char *ids, int identity)
+{
+    while (ids && *ids) {
+        char *end;
+        long selected = strtol(ids,&end,10);
+        if (end == ids || (*end && *end != ',')) return 0;
+        if (selected == identity) return 1;
+        ids = *end ? end + 1 : end;
+    }
+    return 0;
+}
+
+/* Explicit original actor/representation selection, independent of HUD and
+ * population. +0x122 is the requested representation; original 0x426220 saves
+ * it at +0x124 across actions. Keep collectible variants and disappearance on
+ * the same qualified path without interpreting local bone IDs as actor IDs. */
+int E2R_IsObjectMeshActor(uintptr_t actor)
+{
+    if (!DAT_0047a43c || !actor || IsBadReadPtr((void *)actor,0x18c)) return 0;
+    int id = *(int16_t *)actor;
+    if (id <= 0 || id >= 5000 || *(uint32_t *)(0x630b60u + id * 4u) != actor) return 0;
+    if (e2r_mesh_list_contains(getenv("E2R_OBJECT_MESH_IDS"),id)) return 1;
+    const char *reps = getenv("E2R_OBJECT_MESH_REPS");
+    int requested = *(int16_t *)(actor + 0x122);
+    int standing = *(int16_t *)(actor + 0x124);
+    return (requested > 0 && requested < 500 && e2r_mesh_list_contains(reps,requested)) ||
+           (standing > 0 && standing < 500 && e2r_mesh_list_contains(reps,standing));
+}
+
 /* Select the same original-resource character category as the diagnostic
  * overlay. This controls the optional render bypass only, never AI/game state. */
 int E2R_IsCharacterActor(uintptr_t actor)
@@ -141,6 +170,7 @@ void E2R_GetActorCues(E2R_ActorCueSnapshot *snapshot)
                 E2R_ActorCue *cue = &snapshot->actors[snapshot->count++];
                 memcpy(position, (void *)(actor + 0x84), sizeof(position));
                 cue->id = id;
+                cue->original_object_mesh = E2R_IsObjectMeshActor(actor);
                 cue->is_joe = id == 0;
                 uint16_t table_flags;
                 uint32_t representation, scene_owner;
@@ -426,11 +456,26 @@ extern uintptr_t E2R_active_palette_update_count;
 static int e2r_write_surface_set(const char *prefix);
 static int e2r_write_visibility_packet(HWND hwnd, const char *prefix);
 
+static const unsigned char *e2r_geometry_pixels(const unsigned char *pixels, size_t bytes)
+{
+    /* Page 3 is the clean camera background. Keep original poses, raster pages
+     * and dirty/depth bookkeeping running in every host presentation mode. */
+    if (E2R_GeometryMode() == E2R_GEOMETRY_BOXES && DAT_0047a43c != 0 &&
+        DAT_0047a34a == 0 && _DAT_00643650 == 0 && (DAT_0047a45e >> 16) == 0 &&
+        _DAT_0073cc3c != 0 &&
+        _DAT_0063615c != 0 && !IsBadReadPtr((void *)_DAT_0063615c,bytes))
+        return (const unsigned char *)_DAT_0063615c;
+    return pixels;
+}
+
 static int e2r_original_mesh_enabled(void)
 {
     const char *value = getenv("E2R_PLAYER_MESH");
     const char *npc = getenv("E2R_NPC_MESH");
-    return ((value && *value && *value != '0') || (npc && *npc && *npc != '0')) &&
+    const char *objects = getenv("E2R_OBJECT_MESH_IDS");
+    const char *reps = getenv("E2R_OBJECT_MESH_REPS");
+    return ((value && *value && *value != '0') || (npc && *npc && *npc != '0') ||
+            (objects && *objects) || (reps && *reps)) &&
            DAT_0047a43c != 0 && _DAT_00643650 == 0;
 }
 
@@ -637,7 +682,7 @@ static int e2r_present_current_frame(HWND hwnd, int force_present)
         return 0;
     }
     presented = E2R_HostPresentIndexed8((E2R_HostWindow *)hwnd->ptr,
-                                        E2R_ComposeOriginalHud((const unsigned char *)framebuffer,
+                                        E2R_ComposeOriginalHud(e2r_geometry_pixels((const unsigned char *)framebuffer,bytes),
                                                               width, height, width),
                                         width, height, width,
                                         E2R_active_palette_valid ? E2R_active_palette : NULL);

@@ -20,12 +20,20 @@ p.add_argument('--released-player',action='store_true',help='Wait for release be
 p.add_argument('--background-spawns',action='store_true',help='Also exercise populated gameplay; divergence is a failing fidelity check')
 p.add_argument('--inspect',action='store_true',help='Also verify observational capture and replay with inspection disabled')
 p.add_argument('--chunk-bytes', type=int, help='Exercise physical chunk rotation during the route')
+p.add_argument('--object-mesh-ids', type=int, nargs='+', default=[])
+p.add_argument('--object-mesh-reps', type=int, nargs='+', default=[])
+p.add_argument('--character-meshes', action='store_true', help='Record/replay with original player and NPC rendering')
 p.add_argument('--output',type=Path,default=Path('/tmp/e2-replay-route'))
 a=p.parse_args();exe=a.exe.resolve();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True)
+if any(v <= 0 or v >= 5000 for v in a.object_mesh_ids):p.error('actor IDs must be 1..4999')
+if any(v <= 0 or v >= 500 for v in a.object_mesh_reps):p.error('representation IDs must be 1..499')
 env=os.environ.copy()
 for key in list(env):
     if key.startswith('E2R_'):env.pop(key)
 env.update(SDL_VIDEODRIVER='dummy',SDL_AUDIODRIVER='dummy',E2R_STARTUP_LOGO_DELAY_MS='0',E2R_ACTOR_CYLINDERS='1',E2R_ACTION_INDEX_PROBE='1',E2R_PROXY_MESH_BYPASS='1',E2R_DEFER_BACKGROUND_SPAWNS='0' if a.background_spawns else '1',ASAN_OPTIONS='detect_leaks=0')
+if a.object_mesh_ids:env['E2R_OBJECT_MESH_IDS']=','.join(map(str,a.object_mesh_ids))
+if a.object_mesh_reps:env['E2R_OBJECT_MESH_REPS']=','.join(map(str,a.object_mesh_reps))
+if a.character_meshes:env.update(E2R_PLAYER_MESH='1',E2R_NPC_MESH='1')
 if a.inspect:env['E2R_INSPECT']='1'
 if a.chunk_bytes:
     env['E2R_REPLAY_CHUNK_BYTES'] = str(a.chunk_bytes)
@@ -122,5 +130,6 @@ if a.inspect:
 # Pause after a real checkpoint; wall time must not influence game-visible clocks.
 (out/'pause.gdb').write_text('set pagination off\nset confirm off\nbreak E2R_ReplayPumpBegin\nignore 1 100\nrun\npython\nimport time\ntime.sleep(2)\nend\ndisable 1\ncontinue\n')
 results.append(run('pause',['gdb','--nx','-q','--batch','-x',str(out/'pause.gdb'),'--args',*command]))
-report=dict(source=str(source),replays=results,inputs=len(inputs),checkpoints=sum(x['kind']=='checkpoint' for x in rows),clock_calls=sum(int(x['repeat']) for x in rows if x['kind']=='clock'),clock_rows=sum(x['kind']=='clock' for x in rows),bytes=sum(x.stat().st_size for x in source.iterdir()))
+report=dict(source=str(source),object_mesh_ids=a.object_mesh_ids,object_mesh_reps=a.object_mesh_reps,
+            character_meshes=a.character_meshes,replays=results,inputs=len(inputs),checkpoints=sum(x['kind']=='checkpoint' for x in rows),clock_calls=sum(int(x['repeat']) for x in rows if x['kind']=='clock'),clock_rows=sum(x['kind']=='clock' for x in rows),bytes=sum(x.stat().st_size for x in source.iterdir()))
 (out/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))

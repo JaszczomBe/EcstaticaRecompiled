@@ -13,7 +13,11 @@ Last Updated: 2026-10-28
 Restore the original game HUD, starting with the player's life bar and recovering
 its other indicators from original assets and behavior. Make it the default
 presentation, with F1 selecting the original HUD and F2 selecting the existing
-debug overlay. The user's revised order is **original HUD → game sounds → music**.
+debug overlay. The original selection order was **original HUD → game sounds →
+music**. After implementation, the user selected
+[Step 12 object models/animations](../step-12/step-12-recover-object-models-and-animations.md)
+(items, weapons, doors and acid pools) next, before sounds and music. This step
+retains HUD ownership and its recorded limits.
 
 The original HUD is now implemented. [Task 01](tasks/task-01-recover-hud-and-display-mode-ownership.md)
 and the [recovery journal](../../../../journal/entries/original-hud-recovery-2026-10-28.md)

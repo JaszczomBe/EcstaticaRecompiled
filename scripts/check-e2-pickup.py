@@ -31,6 +31,7 @@ typedef uint32_t uint,undefined4;
 typedef uint64_t ulonglong;
 typedef int64_t longlong;
 int E2R_IsCharacterActor(uintptr_t actor){return 0;}
+int E2R_IsObjectMeshActor(uintptr_t actor){return 0;}
 #define __fastcall
 #define CONCAT22(a,b) (((uint)(ushort)(a)<<16)|(ushort)(b))
 #define CONCAT44(a,b) (((uint64_t)(uint32_t)(a)<<32)|(uint32_t)(b))
