@@ -28,7 +28,34 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 2. Replacing recovered logic with speculative shortcuts or direct SDL calls.
 3. Broad generated-file changes unrelated to a source-backed repair.
 
-## Current continuation — Functional game save/load
+## Current continuation — Original game HUD
+
+The user selected **original HUD → game sounds → music** on 2026-10-28, after
+functional persistence and its menu/layout refinements. [Step 11](steps/step-11/step-11-recover-original-hud.md)
+and [Task 01](steps/step-11/tasks/task-01-recover-hud-and-display-mode-ownership.md)
+own the recovered player life bar, armour, hand/sword/rod, item capacity and
+magic indicators. **Original HUD is the default**; **F1** selects original HUD
+and **F2** selects the existing debug overlay. Display choice is process-local,
+consumes both host key edges and remains independent of gameplay, original saves,
+character rendering, object/equipment fallback shapes and diagnostic observation.
+
+The [HUD recovery journal](../../journal/entries/original-hud-recovery-2026-10-28.md)
+records original register/page contracts, indexed composition, the repaired live
+visibility key queue, original-x86 fixtures, native switching/menu/persistence
+checks, natural damage/potion outcomes and explicit indicator/visual limits.
+Original legacy graphic/script/inventory leaves remain bypassed; the recovered
+HUD uses immutable original assets and a fresh indexed presentation copy.
+
+Current baseline is `22c36a3f70bef9467e62299376905cbb5552dd71` on
+`linux-e2-reconstructed-runtime`; persistence is in `35be1cc`, and menu/layout
+refinements are in `22c36a3`. Preserve the new handoff documents and any subsequent
+worktree changes; no commit, push or tag change is authorized. The
+[handoff journal](../../journal/entries/original-hud-handoff-2026-10-28.md) records
+this priority change and observed source entry points. Keep existing character,
+menu/persistence and save-protection behavior intact. Historical tower/rendering
+limits and closed investigation/replay/regression milestones remain as recorded.
+
+## Previous continuation — Functional game save/load
 
 The user has selected **game save/load** after accepting player/enemy recovery
 and committing the subsequent gameplay repairs. Baseline **v0.2.0** is commit
@@ -45,8 +72,8 @@ and fresh-process restoration. Player/world fields, action ownership and sword
 attachments restore; input, animation, camera crossing and attack interaction
 resume. Installed save hashes remain intact; tests use private copies of free
 slot 5. Nonempty timers have original-code fixture evidence; corrupt-file fatal
-cleanup and arbitrary original progressions remain unqualified. Continue with
-game sounds, then music.
+cleanup and arbitrary original progressions remain unqualified. HUD recovery now
+precedes game sounds and music.
 
 The user accepted functional persistence, then requested three menu refinements.
 [Task 04](steps/step-10/tasks/task-04-refine-save-load-menu-presentation.md) and the
@@ -62,7 +89,8 @@ main/slot geometry, initial/repaint title alignment and mixed-case font, with a
 160×120 preview display. Its [journal](../../journal/entries/menu-layout-and-font-2026-10-28.md)
 records 28/28 focused Debug/ASan checks, protected saves, native layout assertions,
 original edit-state/Save handoff repairs and a three-stage menu sweep with no
-failures and explicit skips. Broader visual/gameplay limits remain; sounds are next.
+failures and explicit skips. Broader visual/gameplay limits remain; Step 11 HUD
+recovery is the selected next work.
 
 ## Previous continuation — Tower actor eviction
 

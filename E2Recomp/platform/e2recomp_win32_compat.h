@@ -312,6 +312,9 @@ HANDLE CreateFileA(LPCSTR name, DWORD access, DWORD share, LPVOID security,
                    DWORD creation, DWORD flags, HANDLE template_file);
 int E2R_ConfigureSaveDirectory(const char *runtime_data, const char *game_data);
 int E2R_ReadOriginalImageData(uint32_t address, void *buffer, size_t size);
+BOOL ReadFile(HANDLE file, LPVOID buffer, DWORD bytes_to_read,
+              DWORD *bytes_read, LPVOID overlapped);
+DWORD SetFilePointer(HANDLE file, LONG distance, PLONG high_distance, DWORD method);
 BOOL WriteFile(HANDLE file, LPCVOID buffer, DWORD bytes_to_write,
                DWORD *bytes_written, LPVOID overlapped);
 BOOL CloseHandle(HANDLE file);

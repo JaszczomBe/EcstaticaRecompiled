@@ -67,12 +67,13 @@ the natural-wait option and the original-code/replay limits.
 
 ## Health and potion observation
 
-The normal F5 diagnostic view includes a bottom **HEALTH** panel with
+Normal F5 starts with the recovered original HUD. **F1** selects original HUD;
+**F2** selects the diagnostic overlay, including a bottom **HEALTH** panel with
 **POISON / INVISIBILITY** status. Health is Joe's actual signed value; **HEALING**
 appears during his health-effect action. Potion indicators observe current
 actions and their scheduled expiry/death records, using **NONE, PENDING, ACTIVE,
 FADING**. They do not predict random potion contents or establish original mesh
-effects. The panel hides during modal menus and remains visible when Joe is
+effects. In F2 mode the panel hides during modal menus and remains visible when Joe is
 offscreen. Visibility packets include the corresponding `player_status` row;
 status codes are 0/1/2/3 in the order above. See the
 [health/status evidence](journal/entries/diagnostic-health-and-potion-status-2026-10-24.md).

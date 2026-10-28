@@ -10281,6 +10281,8 @@ source = replaceRectangleInput(source,
 // stand-alone symbol contains unrelated image bytes. EAX is explicitly slot 9.
 patchRectangleFunction('FUN_00415d40', body => body
   .replaceAll("DAT_004c39af", "(*(byte *)0x004c39af)")
+  // 0x416221 reads the same live keyboard queue for HUD visibility.
+  .replaceAll("DAT_004c39a7", "(*(byte *)0x004c39a7)")
   .replace('FUN_00453920(param_1,s_____QUICK_SAVED_GAME_____00471430)',
            'FUN_00453920(9,s_____QUICK_SAVED_GAME_____00471430)'));
 
@@ -10670,6 +10672,167 @@ patchRectangleFunction('FUN_0043af98', body => replaceRectangleInput(body,
                  (short)(((*(int *)(puVar3 + 0xb) >> 0x10) - (int)sVar5) / 2));`,
   `    FUN_0041b078(puVar3[8] + (puVar3[12] - sVar5) / 2,
                  puVar3[10] + DAT_0047a40c + 2);`));
+
+// Read-only original HUD visual leaves, recovered from explicit x86 registers.
+source += String.raw`
+#include "e2recomp_hud.h"
+
+void E2R_GetOriginalHudState(E2R_HudState *state)
+{
+  int actor = *(int *)0x00630b60;
+  int node;
+  int held;
+  memset(state,0,sizeof(*state));
+  /* 0x4559c1..0x4559d6 and the modal/indexed-page ownership boundary. */
+  state->high = DAT_0047a43c != 0;
+  if (actor == 0 || DAT_0047a76c != 0 || DAT_0047a448 != 0 ||
+      E2R_WORD_AT(DAT_0047a45e,2) != 0 || DAT_0047a34a != 0 ||
+      IsBadReadPtr((void *)(uintptr_t)actor,0x188)) return;
+  state->visible = 1;
+  state->life = *(short *)(actor + 0xec);
+  state->maximum_life = *(short *)(actor + 0xee);
+  state->armour = *(short *)(actor + 0x182);
+  state->magic = *(short *)(actor + 0x184);
+  state->poison_limit = 100;
+  /* 0x456a6c..0x456adf: timer type 5, absolute deadline, original duration.
+   * Observation must not clear DAT_0047ab2c when that timer has expired. */
+  if (DAT_0047ab2c != 0) {
+    int timer = *(int *)(actor + 0x17c);
+    for (int count = 0; timer != 0 && count < 0x400; count = count + 1) {
+      if (IsBadReadPtr((void *)(uintptr_t)timer,10)) break;
+      if (*(short *)timer == 5) {
+        state->poison_limit = ((*(int *)(timer + 2) - (int)_DAT_00636588) * 100) /
+                              (int)DAT_0047ab2c;
+        if (state->poison_limit < 0) state->poison_limit = -1;
+        break;
+      }
+      timer = *(int *)(timer + 6);
+    }
+  }
+  node = *(int *)(actor + 0x54);
+  if (node == 0 || IsBadReadPtr((void *)(uintptr_t)node,0x24)) return;
+  node = *(int *)(node + 0x20);
+  if (node == 0 || IsBadReadPtr((void *)(uintptr_t)node,0x13e)) return;
+  state->hand_present = 1;
+  held = *(int *)(node + 0x13a);
+  if (held == 0 || IsBadReadPtr((void *)(uintptr_t)held,0x188)) return;
+  state->held_present = 1;
+  state->held_rod = (*(byte *)(held + 2) & 0x10) != 0;
+  state->held_magic = *(short *)(held + 0x184) != 0;
+  state->capacity = *(short *)(held + (state->held_magic ? 0x186 : 0x182));
+  state->charge = *(short *)(held + 0x184);
+}
+
+static void E2R_HudLifeLines(const E2R_HudState *state,const E2R_HudPainter *painter)
+{
+  int scale = state->maximum_life / 100;
+  int life = state->life < 0 ? -1 : (scale != 0 ? state->life / scale : -1);
+  int limit = state->poison_limit;
+  int thickness;
+  int y;
+  int start;
+  int length;
+  /* 0x456adf..0x456f84: the three original frame widths and both poison
+   * branches. Coordinates here are EDX=x / EBX=y, not the decompiler's ECX. */
+  if (state->high) {
+    int kind = scale == 2 ? 1 : scale == 3 ? 2 : 0;
+    y = scale == 3 ? 22 : 24;
+    thickness = kind * 2 + 3;
+    start = 69;
+    length = 100;
+  }
+  else {
+    int inset = scale == 3;
+    thickness = scale == 2 || scale == 3 ? scale : 1;
+    life = life / 2;
+    limit = limit / 2;
+    y = (limit < life ? 24 : 13) - inset;
+    start = limit < life ? 69 : 34;
+    length = 50;
+  }
+  for (int page = 0; page < 3; page = page + 1) {
+    for (int row = 0; row < thickness; row = row + 1) {
+      int x = start;
+      int first = limit < life ? limit : life;
+      if (first >= 0) {
+        painter->line(painter->context,page,x,y + row,start + first,y + row,11);
+        x = start + first;
+      }
+      if (limit < life) {
+        if (life >= 0) {
+          painter->line(painter->context,page,x,y + row,start + life,y + row,12);
+          x = start + life;
+        }
+        painter->line(painter->context,page,x,y + row,start + length,y + row,15);
+      }
+      else {
+        painter->line(painter->context,page,x,y + row,start + limit,y + row,13);
+        if (limit < length)
+          painter->line(painter->context,page,start + limit,y + row,start + length,y + row,15);
+      }
+    }
+  }
+}
+
+void E2R_DrawOriginalHudState(const E2R_HudState *state,const E2R_HudPainter *painter)
+{
+  char name[9];
+  int high = state->high;
+  if (!state->visible) return;
+  /* Original 0x4559bc..0x455e84. ECX=0 means an absolute graphic origin. */
+  snprintf(name,sizeof(name),"%slife%d",high ? "" : "l",
+           state->maximum_life == 100 ? 1 : state->maximum_life == 200 ? 2 : 3);
+  painter->graphic(painter->context,name,high ? 25 : 12,high ? 8 : 4,0);
+  if (state->armour > 100) {
+    snprintf(name,sizeof(name),"%sarmour%d",high ? "" : "l",state->armour > 200 ? 3 : 2);
+    painter->graphic(painter->context,name,high ? 395 : 198,high ? 15 : 7,0);
+  }
+  if (state->hand_present) {
+    const char *hand = high ? "hndicon1" : "lhand2";
+    if (state->held_present)
+      hand = state->held_rod ? (high ? "rodicon1" : "lrod1") : (high ? "swdicon1" : "lsword1");
+    painter->graphic(painter->context,hand,high ? 531 : 269,high ? 7 : 1,0);
+    if (state->held_present && state->capacity > 100) {
+      int level = state->capacity / 100 - 1;
+      if (level > 4) level = 4;
+      snprintf(name,sizeof(name),"%sbar%d",high ? "" : "l",level + 1);
+      painter->graphic(painter->context,name,high ? 468 : 238,high ? 20 : 10,0);
+    }
+    if (state->held_present && state->held_magic)
+      painter->graphic(painter->context,high ? "magibar1" : "lmbar",high ? 565 : 286,high ? 21 : 10,0);
+  }
+  /* 0x456f94..0x457404: 0..24 player magic in six groups of four.
+   * Family 1 is full; family 2 is the two/three remainder; family 3 is one. */
+  int magic = state->magic > 24 ? 24 : state->magic;
+  int full = magic / 4;
+  int remainder = magic - full * 4;
+  for (int i = 0; i < 6; i = i + 1) {
+    int family = i < full ? 1 : i == full ? (remainder == 1 ? 3 : remainder >= 2 ? 2 : 0) : 0;
+    if (family == 0) continue;
+    if (i == 0) snprintf(name,sizeof(name),"%smagic%d",high ? "" : "l",family);
+    else snprintf(name,sizeof(name),"%smagic%d%c",high ? "" : "l",family,'a' + i);
+    painter->graphic(painter->context,name,(high ? 223 : 111) + i * (high ? 27 : 14),high ? 10 : 7,0);
+  }
+  E2R_HudLifeLines(state,painter);
+  /* 0x457410..0x4575c4: the held item's short +184, scaled by 5/2. */
+  int charge = state->charge * 5 / 2;
+  if (state->held_present && charge != 0) {
+    if (charge > 50) charge = 50;
+    if (!high) charge = charge / 2;
+    int start = high ? 566 : 287;
+    for (int page = 0; page < 3; page = page + 1) {
+      for (int y = high ? 22 : 11; y < (high ? 31 : 16); y = y + 1) {
+        int x = start;
+        if (charge >= 0) {
+          painter->line(painter->context,page,x,y,start + charge,y,11);
+          x = start + charge;
+        }
+        painter->line(painter->context,page,x,y,high ? 616 : 312,y,13);
+      }
+    }
+  }
+}
+`;
 
 fs.writeFileSync(outSrc, source);
 

@@ -7,7 +7,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-10-27
+Last Updated: 2026-10-28
 
 ## Goal
 
@@ -19,7 +19,8 @@ The [Linux reconstruction record](../implementations/linux-e2-reconstructed-runt
 
 ## Recommended Order
 
-The user's 2026-10-27 order supersedes the earlier cylinder-first plan. Session
+The user's 2026-10-28 refinement inserts original HUD recovery before audio,
+following the 2026-10-27 character/persistence sequence. Session
 saving, session replay and the gameplay regression suite are closed milestones;
 their recorded minor gaps remain follow-ups. Session saving means investigation
 recording, not game-state persistence. Existing step/task numbers stay stable.
@@ -35,8 +36,13 @@ owns current evidence and acceptance.
    now implemented with bounded Debug/ASan menu save/change/load and fresh-process
    verification. The owning step records protected original saves, timer-fixture
    evidence and malformed-file/full-progression limits.
-4. Recover game sounds and their original event, volume and channel ownership.
-5. Recover music and its original track selection, looping and transitions.
+4. Recover the [original game HUD](../implementations/playable-sdl-runtime/steps/step-11/step-11-recover-original-hud.md),
+   including the player life bar and related indicators. Default to original HUD;
+   F1 selects original HUD and F2 selects the existing debug overlay. Implemented
+   with bounded original-code and Debug/ASan native verification; Step 11 retains
+   indicator-branch and visual-review limits.
+5. Recover game sounds and their original event, volume and channel ownership.
+6. Recover music and its original track selection, looping and transitions.
 
 Timing, remaining gameplay defects and portability remain tracked follow-ups.
 Take one up sooner when it blocks the active milestone. Preserve the completed
@@ -59,6 +65,13 @@ Linux/i386 is the proving ground. Packed 32-bit pointers, legacy calling convent
 7. Diagnostic playability and original visual fidelity have separate acceptance. A useful first playable result is genuine input-driven cylinder movement, floor/stair checks and camera traversal with continuous actor state.
 
 ## Change Log
+
+### 2026-10-28
+
+1. Recorded the committed save/load and menu/layout baseline and the user's new
+   priority: original HUD before sounds, then music.
+2. Added Step 11 and its first original-code recovery task, with default/F1/F2
+   display requirements and preserved diagnostic/gameplay boundaries.
 
 ### 2026-10-27
 

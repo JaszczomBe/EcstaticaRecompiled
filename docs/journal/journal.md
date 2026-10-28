@@ -8,6 +8,10 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Original HUD recovery — 2026-10-28](entries/original-hud-recovery-2026-10-28.md): restores original indexed artwork and life/indicator contracts, defaults to original HUD with F1/F2 selection, verifies natural healing and protected Debug/ASan persistence, and retains native branch limits.
+
+- [Original HUD handoff — 2026-10-28](entries/original-hud-handoff-2026-10-28.md): selects original HUD before sounds/music, records default/F1/F2 display requirements and assigns the next context's recovery task without changing runtime behavior.
+
 - [Menu layout and original font — 2026-10-28](entries/menu-layout-and-font-2026-10-28.md): recovers original slot-panel dimensions, title position and mixed-case glyphs, and enlarges preview display without changing save files.
 
 - [Enemy-play crash and dropped potion — 2026-10-27](entries/enemy-play-crash-and-dropped-potion-2026-10-27.md): reproduces the human bitmap failure, repairs false action-index entries inside sound data and restores the original representation-name pool for dropped-potion healing/removal.

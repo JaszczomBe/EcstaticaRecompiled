@@ -22,6 +22,7 @@ parser.add_argument('--suite-options', type=json.loads, default={})
 parser.add_argument('--output', type=Path, default=Path('/tmp/e2-player-motion'))
 parser.add_argument('--npc-mesh', action='store_true',
                     help='Enable original character bodies and bone poses alongside Joe, retaining diagnostic objects')
+parser.add_argument('--hud', action='store_true',help='Capture and verify recovered HUD pixels at gameplay checkpoints')
 parser.add_argument('--player-mesh', action='store_true',
                     help='Enable Joe through original bones/rasterization; capture player poses and physical-frame pixel evidence')
 parser.add_argument('--intro-skip-action', type=int, default=None,
@@ -488,6 +489,9 @@ def checkpoint(label):
     from e2_population_profile import observe
     observe(prefix,label)
     states.append(snapshot(label))
+    if HUD_CHECKS:
+        from e2_hud_steps import observe_frame
+        observe_frame(globals(),label)
     if check_guards:guard_checkpoint(label)
     if population_frames:population_census(label)
     # Retain completed phases even when a later input exposes a runtime fault.
@@ -1024,7 +1028,7 @@ print('PROBE COMPLETE: position_changed='+str(report['position_changed'])+
       ' facing_changed='+str(report['facing_changed'])+'; gameplay acceptance remains open')
 end
 quit
-'''.replace('NPC_MESH',repr(args.npc_mesh)).replace('PLAYER_MESH',repr(args.player_mesh)).replace('WATCH_MODE',repr(args.watch)).replace('WINDOW_TITLE',repr(args.window_title)).replace('SUITE_SCENARIO',repr(args.suite_scenario)).replace('SUITE_OPTIONS',repr(args.suite_options)).replace('SCRIPT_DIRECTORY',repr(str(Path(__file__).resolve().parent))).replace('GAMEPLAY_MENU_EXIT',repr(args.gameplay_menu_exit)).replace('BASH_WORKSHOP_DOOR',repr(args.bash_workshop_door)).replace('SWORD_ATTACKS',repr(args.sword_attacks)).replace('SWORD_PICKUP',repr(args.sword_pickup)).replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('GAME_DATA_ROOT',repr(str(args.game_data.resolve()) if args.game_data else None)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
+'''.replace('HUD_CHECKS',repr(args.hud)).replace('NPC_MESH',repr(args.npc_mesh)).replace('PLAYER_MESH',repr(args.player_mesh)).replace('WATCH_MODE',repr(args.watch)).replace('WINDOW_TITLE',repr(args.window_title)).replace('SUITE_SCENARIO',repr(args.suite_scenario)).replace('SUITE_OPTIONS',repr(args.suite_options)).replace('SCRIPT_DIRECTORY',repr(str(Path(__file__).resolve().parent))).replace('GAMEPLAY_MENU_EXIT',repr(args.gameplay_menu_exit)).replace('BASH_WORKSHOP_DOOR',repr(args.bash_workshop_door)).replace('SWORD_ATTACKS',repr(args.sword_attacks)).replace('SWORD_PICKUP',repr(args.sword_pickup)).replace('APPROACH_CAMERAS',repr(args.inspect_approach_cameras)).replace('OBJECT_SCENE',str(args.inspect_object_scene)).replace('GAME_DATA_ROOT',repr(str(args.game_data.resolve()) if args.game_data else None)).replace('PREFIX', json.dumps(prefix)).replace('RELEASE_DELAY',str(args.release_delay)).replace('BURST_FRAMES',repr(args.burst_frames)).replace('FRAMES', str(args.frames)).replace(
     'PROCESS_SECONDS', str(args.timeout + 10)).replace('LOGO_DELAY',str(args.startup_logo_delay_ms)).replace('LOGO_SKIP',repr(args.logo_policy=='skip')).replace('TURN_FORWARD', repr(args.turn_forward)).replace(
     'MOVE_KEY', repr(args.move_key)).replace('SDL_EVENTS',repr(args.sdl_events or args.camera_round_trip or args.sword_pickup or args.gameplay_menu_exit or args.suite_scenario or bool(args.tap_modifiers))).replace('TAP_MODIFIERS',repr(args.tap_modifiers)).replace(
     'RELEASE_TURN',repr(args.release_turn_first)).replace('SIMULTANEOUS_TURN',repr(args.simultaneous_turn)).replace('HOLD_THROUGH_RELEASE',repr(args.hold_through_release)).replace('VIDEO_DRIVER',repr(args.video_driver)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(

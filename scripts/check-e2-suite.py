@@ -509,7 +509,7 @@ destination=Path(sys.argv[sys.argv.index('--data-dir')+1]);destination.mkdir(par
         units=journey_plan(cases)
         names=[name for unit in units for name in unit.checkpoints or (unit.name,)]
         self.assertEqual(set(names),{case.name for case in cases})
-        self.assertEqual(len(names),235)
+        self.assertEqual(len(names),239)
         self.assertIn('debug.Original.ActorEviction',names)
         self.assertIn('asan.Original.ActorEviction',names)
         self.assertEqual(sum(unit.kind=='journey' for unit in cases),108)

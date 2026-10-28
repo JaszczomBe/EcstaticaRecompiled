@@ -55,30 +55,25 @@ The saved image format remains 80×60. The final focused suite passes 28/28
 Debug/ASan checks, including original geometry/font/edit-state comparisons,
 same/fresh-process restoration, enlarged previews and preserved installed saves.
 The three-stage menu sweep has no failures, with its existing skips explicit.
-Retain broader gameplay/rendering limits; sounds remain next in the selected order.
+Retain broader gameplay/rendering limits; the user now selects original HUD
+recovery before sounds and music.
 
-## Next Context Handoff
+## Next context after persistence
 
-The user accepted Joe's corrected appearance and animation, then the recovered
-enemies. Subsequent play exposed the dropped-potion/resource-index failures and
-the tower actor-eviction failure; their repairs are committed. The selected next
-work is **functional game save/load → game sounds → music**. Investigation
-session saving, replay and the gameplay regression-suite implementation are
-closed milestones with recorded minor gaps deferred. Do not restart those
-projects as prerequisites to persistence.
+The user has selected [Step 11: original game HUD](../step-11/step-11-recover-original-hud.md)
+before game sounds and music. Start with its
+[first implementation task](../step-11/tasks/task-01-recover-hud-and-display-mode-ownership.md).
+Default original HUD, F1 original HUD and F2 debug overlay are requested future
+behavior; this handoff does not change the runtime. Do not restart Step 10's
+historical Task 01 as the current frontier.
 
-Baseline branch: `linux-e2-reconstructed-runtime`, commit
-`ae54e6f8e4dcb3570625c4780cfaf74ca252ecd1`, annotated tag **v0.2.0**. Both
-**v0.1.0** (commit `1f81f76c3c5e4698c382cf0628a2be4f64f633c9`) and **v0.2.0**
-were pushed to `origin` and verified. The worktree was clean before this handoff;
-these documentation changes are subsequent work. Check actual status before
-editing and preserve unrelated changes. This handoff does not authorize another
-commit, push or tag change.
-
-Start with [Task 01: map the original persistence contracts](tasks/task-01-map-original-save-load-contracts.md).
-It owns the first bounded action and evidence. Continue with separate writer,
-restore and native round-trip tasks as those contracts become concrete; this
-step owns completion of the whole persistence milestone.
+Persistence and menu/layout recovery are committed in `35be1cc` and `22c36a3`;
+current baseline is `22c36a3f70bef9467e62299376905cbb5552dd71` on
+`linux-e2-reconstructed-runtime`. Preserve new uncommitted handoff documents and
+any later worktree changes. Do not commit, push or change tags unless requested.
+Original saves and all recorded progression, timer, malformed-file and broader
+gameplay limits remain protected during HUD regression verification. The source
+observations below retain their historical v0.2.0 meaning.
 
 ## Historical v0.2.0 Persistence Boundary
 
@@ -190,3 +185,9 @@ do not expand into audio, music, renderer polish, packaging or 64-bit execution.
 
 1. Created the save/load continuation handoff after tagging v0.2.0.
 2. Recovered original writer/loader/menu dispatch and protected runtime save storage; added original-code and real menu Debug/ASan checks. Fresh evidence and failure limits are linked above.
+
+<!-- docs-tree:children -->
+## Related documents
+
+- [Map Original Save And Load Contracts](tasks/task-01-map-original-save-load-contracts.md)
+<!-- /docs-tree:children -->

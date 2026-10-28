@@ -19,6 +19,7 @@ parser.add_argument('--game-data',type=Path,required=True)
 parser.add_argument('--output',type=Path,required=True)
 parser.add_argument('--timeout',type=int,default=240)
 parser.add_argument('--equipment',action='store_true')
+parser.add_argument('--hud',action='store_true',help='Verify original/debug selection and repainting during both persistence processes')
 parser.add_argument('--failure-case',choices=('empty','save-open','unsupported','truncated','missing'))
 parser.add_argument('--population-profile',choices=('live','noncombat-opening'),default='live')
 parser.add_argument('--video-driver',choices=('dummy','x11','wayland'),default='dummy')
@@ -84,12 +85,12 @@ class SaveOwnership(gdb.Breakpoint):
 ownership=SaveOwnership('FUN_00453920',internal=True)
 from e2_save_load_steps import run,run_failure
 if FAILURE:run_failure(PREFIX,RUNTIME,GAME,SLOT,FAILURE)
-else:run(PREFIX,RUNTIME,GAME,SLOT,MODE,EQUIPMENT,EXPECTED)
+else:run(PREFIX,RUNTIME,GAME,SLOT,MODE,EQUIPMENT,EXPECTED,HUD)
 end
 quit
 '''
         values=dict(SCRIPTS=str(ROOT/'scripts'),PREFIX=prefix,RUNTIME=str(runtime),GAME=str(game),
-                    SLOT=slot,MODE=mode,EQUIPMENT=args.equipment,EXPECTED=str(expected),FAILURE=args.failure_case)
+                    SLOT=slot,MODE=mode,EQUIPMENT=args.equipment,EXPECTED=str(expected),FAILURE=args.failure_case,HUD=args.hud)
         # Substitute tokens as Python literals, without shell interpolation.
         import re
         code=re.sub(r'\b('+ '|'.join(values) +r')\b',lambda match:repr(values[match.group()]),code)

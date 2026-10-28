@@ -1,3 +1,4 @@
+#include "e2recomp_hud.h"
 #include "E2Recomp_recon.h"
 #if E2R_ENABLE_RUNTIME_OPTIONS
 #include "EcstaticaLogBridge.h"
@@ -636,7 +637,8 @@ static int e2r_present_current_frame(HWND hwnd, int force_present)
         return 0;
     }
     presented = E2R_HostPresentIndexed8((E2R_HostWindow *)hwnd->ptr,
-                                        (const unsigned char *)framebuffer,
+                                        E2R_ComposeOriginalHud((const unsigned char *)framebuffer,
+                                                              width, height, width),
                                         width, height, width,
                                         E2R_active_palette_valid ? E2R_active_palette : NULL);
     if (!diag_initialized) {

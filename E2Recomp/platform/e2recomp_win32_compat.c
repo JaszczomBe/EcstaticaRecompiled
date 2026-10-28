@@ -1,3 +1,4 @@
+#include "e2recomp_hud.h"
 #include "e2recomp_win32_compat.h"
 #include "e2recomp_host_backend.h"
 #include "EcstaticaReplay.h"
@@ -301,6 +302,7 @@ static void e2r_queue_host_message(UINT msg, WPARAM wparam, LPARAM lparam, void 
     static unsigned message_diag_count;
 
     (void)user;
+    if (E2R_HandleDisplayKey(msg, (unsigned)wparam)) return;
     if ((msg==WM_KEYDOWN || msg==WM_KEYUP) && wparam==VK_F12) {
         if(msg==WM_KEYDOWN) E2R_InspectObserve("bookmark",0,0);
         if(msg==WM_KEYDOWN) E2R_RequestVisibilityDump();
@@ -347,6 +349,7 @@ static void e2r_replay_deliver(unsigned msg,uintptr_t key,intptr_t lparam)
 static void e2r_replay_physical(UINT msg,WPARAM key,LPARAM lp,void *user)
 {
     (void)lp; (void)user;
+    if (E2R_HandleDisplayKey(msg, (unsigned)key)) return;
     if(msg==WM_CLOSE || (msg==WM_KEYDOWN && key==0x7a)) E2R_ReplayAbort();
     if(msg==WM_KEYDOWN && key==VK_F12) { E2R_InspectObserve("bookmark",0,0); E2R_RequestVisibilityDump(); }
 }

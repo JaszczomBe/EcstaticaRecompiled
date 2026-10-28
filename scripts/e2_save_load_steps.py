@@ -283,7 +283,7 @@ class PersistenceJourney(MenuJourney):
         self.key(38,False);self.key(17,False);self.step(90)
 
 
-def run(prefix, runtime, game_data, slot, mode, equipment, expected_path):
+def run(prefix, runtime, game_data, slot, mode, equipment, expected_path, hud=False):
     journey=PersistenceJourney(prefix,{'checks':['Menus.Gameplay.SaveDialog']},False,'save-load',game_data,0,False)
     journey.runtime=runtime
     journey.frame=gdb.Breakpoint('FUN_00415d40',internal=True);journey.frame.condition=journey.HORSE
@@ -291,16 +291,29 @@ def run(prefix, runtime, game_data, slot, mode, equipment, expected_path):
     gdb.execute(command,to_string=True)
     journey.require(gdb.selected_frame().name()=='FUN_00415d40','Opening intro not reached')
     journey.frame.condition=None;journey.initial=journey.state('initial')
+    if hud:
+        from e2_hud_steps import HudChecks
+        hud_checks=HudChecks(journey)
+        hud_checks.check_default()
     if mode=='same':
         journey.reach_pedestal();journey.reach_gameplay()
         if equipment:journey.equipment(game_data)
+        if hud:
+            hud_checks.switches('gameplay')
+            hud_checks.menu_switches()
         for cycle in range(2):
+            if hud:hud_checks.select(cycle,'before-save')
             expected=journey.menu_save(slot,'E2RTEST',expected_path)
+            if hud:hud_checks.check_mode(cycle)
             if cycle==0:journey.cancel_previews(slot)
             journey.move();journey.menu_load(slot,expected);journey.move();journey.interact()
+            if hud:
+                hud_checks.check_mode(cycle)
+                hud_checks.switches('load-'+str(cycle))
     else:
         expected=json.loads(Path(expected_path).read_text())
         journey.menu_load(slot,expected);journey.move();journey.interact()
+        if hud:hud_checks.switches('fresh-load')
     journey.stage='Gameplay';journey.quit()
     journey.complete=True;journey.save()
     result=dict(probe_complete=True,mode=mode,slot=slot,native_exit_code=journey.exit_codes[-1],

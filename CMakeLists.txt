@@ -199,6 +199,7 @@ add_executable(e2recomp
     ${E2R_HOST_BACKEND_SOURCE}
     E2Recomp/platform/e2recomp_log.c
     E2Recomp/platform/e2recomp_win32_compat.c
+    E2Recomp/platform/e2recomp_hud.c
     E2Recomp/native/e2recomp_native_main.c
 )
 

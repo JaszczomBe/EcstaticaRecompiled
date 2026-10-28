@@ -61,6 +61,11 @@ for name in ('FUN_00422368', 'FUN_00422460', 'FUN_00422538',
     harness += function(recon, name) + '\n'
 harness += native[native.index('static void e2r_cue_name('):native.index('/* Host diagnostics only:')] + '\n'
 harness += function(native, 'E2R_GetActorCues') + '\n'
+hud = (root / 'E2Recomp/platform/e2recomp_hud.c').read_text()
+harness += 'static int e2r_debug_overlay;\n'
+for name in ('E2R_DebugOverlaySelected', 'E2R_HandleDisplayKey'):
+    from e2_original import function as extract
+    harness += extract(hud, name) + '\n'
 harness += '#include "' + str(root / 'E2Recomp/platform/e2recomp_host_backend_sdl.c') + '"\n'
 harness += r'''
 static byte *joe = (byte*)0x690000;
@@ -76,6 +81,8 @@ static unsigned pixels(SDL_Surface *s) {
 static void clear(SDL_Surface *s) { assert(SDL_FillSurfaceRect(s,NULL,0)); }
 int main(int argc,char **argv) {
     assert(argc==2);
+    assert(!E2R_DebugOverlaySelected());
+    assert(E2R_HandleDisplayKey(WM_KEYDOWN,0x71));
     assert(mmap((void*)0x470000,0x240000,PROT_READ|PROT_WRITE,
                 MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0) != MAP_FAILED);
     assert(mmap((void*)0x937000,0x1000,PROT_READ|PROT_WRITE,
@@ -289,6 +296,14 @@ int main(int argc,char **argv) {
     int object_x=state.actors[1].cylinder[0][0],object_y=state.actors[1].cylinder[0][1];
     assert(((Uint32*)((byte*)window->present_surface->pixels+object_y*window->present_surface->pitch))[object_x]==object_color);
     assert(E2R_HostDumpPresentation(window,argv[1])==2);
+    // Original mode hides HUD text and labels but retains scene fallback geometry.
+    assert(E2R_HandleDisplayKey(WM_KEYDOWN,0x70));
+    assert(E2R_HostPresentIndexed8(window,indexed,640,480,640,NULL));
+    assert(((Uint32*)((byte*)window->present_surface->pixels+object_y*window->present_surface->pitch))[object_x]==object_color);
+    for(int y=6;y<68;y++)for(int x=6;x<634;x++)
+        assert(((Uint32*)((byte*)window->present_surface->pixels+y*window->present_surface->pitch))[x]==plain);
+    assert(E2R_HandleDisplayKey(WM_KEYDOWN,0x71));
+
     // Modal requesters must remain legible with markers enabled.
     DAT_0047a45e=0x280000;
     assert(E2R_HostPresentIndexed8(window,indexed,640,480,640,NULL));
@@ -338,6 +353,16 @@ int main(int argc,char **argv) {
     DAT_0047a45e=0x280000;
     assert(E2R_HostPresentIndexed8(window,indexed,640,480,640,NULL));
     assert(((Uint32*)((byte*)present->pixels+438*present->pitch))[12]==plain);
+    // F2 also selects the status overlay in a bare launch; scene cues keep
+    // their separate environment ownership in both modes.
+    DAT_0047a45e=0;unsetenv("E2R_ACTOR_CYLINDERS");unsetenv("E2R_ACTOR_CUES");
+    E2R_HandleDisplayKey(WM_KEYDOWN,0x70);
+    assert(E2R_HostPresentIndexed8(window,indexed,640,480,640,NULL));
+    for(int y=0;y<480;y++)for(int x=0;x<640;x++)
+        assert(((Uint32*)((byte*)present->pixels+y*present->pitch))[x]==plain);
+    E2R_HandleDisplayKey(WM_KEYDOWN,0x71);
+    assert(E2R_HostPresentIndexed8(window,indexed,640,480,640,NULL));
+    assert(((Uint32*)((byte*)present->pixels+438*present->pitch))[12]==cyan);
     E2R_HostDestroyWindow(window); SDL_DestroySurface(s); free(indexed); free(before);
     puts("PASS: marker projection, door hinge/axes, living creature vectors, clipping, categories, visibility, read-only state and trail-free SDL presentation (synthetic actors)");
 }

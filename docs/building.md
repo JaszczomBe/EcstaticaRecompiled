@@ -47,13 +47,15 @@ F5 enables original player and enemy ellipsoid bodies/bone animations
 population (`E2R_DEFER_BACKGROUND_SPAWNS=0`). Character cylinders are hidden;
 original pixels use recovered camera, palette, depth and physical DirectDraw
 pages. Objects/equipment retain diagnostic shapes, NPC polygon/box leaves remain
-bypassed, and the existing health/potion panel replaces original HUD graphics.
+bypassed. Original HUD artwork is the default: **F1** selects original HUD and
+**F2** selects the existing health/potion/debug overlay. Mode selection remains
+local to the process across menus and Save/Load; it does not enter original saves.
 The [enemy recovery record](journal/entries/enemy-model-and-animation-2026-10-27.md)
 owns current evidence and limits. Set `E2R_NPC_MESH=0` for enemy diagnostic
 comparison or `E2R_PLAYER_MESH=0` for Joe's earlier cylinder.
 `E2R_ACTOR_CUES=1` retains the earlier crosses for baseline investigation.
 
-Cylinder labels describe runtime state: cyan `JOE`, amber `SPAWN` for terrain-generated actors, amber `ACTOR` for other represented/scripted actors, and neutral green-grey `OBJECT` for actors without an installed representation or owning script scene. They do not classify hostility. The overlay respects the original actor visibility flag; `ACTIVE` includes objects and hidden actors, while `GENERATED` separately counts terrain-generated actors. Diagnostic shapes have no wall occlusion or real mesh bounds; Joe's recovered pixels use original depth testing. The [workshop crash/visibility continuation](journal/entries/workshop-initialization-and-actor-visibility-2026-10-20.md) records the matching initialization crash repair and original four-generated-actor cap audit.
+In F2 mode, cylinder labels describe runtime state: cyan `JOE`, amber `SPAWN` for terrain-generated actors, amber `ACTOR` for other represented/scripted actors, and neutral green-grey `OBJECT` for actors without an installed representation or owning script scene. They do not classify hostility. The overlay respects the original actor visibility flag; `ACTIVE` includes objects and hidden actors, while `GENERATED` separately counts terrain-generated actors. Diagnostic shapes have no wall occlusion or real mesh bounds; Joe's recovered pixels use original depth testing. The [workshop crash/visibility continuation](journal/entries/workshop-initialization-and-actor-visibility-2026-10-20.md) records the matching initialization crash repair and original four-generated-actor cap audit.
 
 For persistent personal overrides, use the ignored `CMakeUserPresets.json`, for example:
 

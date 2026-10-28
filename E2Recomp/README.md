@@ -84,8 +84,9 @@ Equivalent direct Ghidra command:
 ## Current runtime and recovery work
 
 The current developer route is the single **Ecstatica Recompiled** VS Code F5
-entry with SDL/i386 Debug, diagnostic cylinders, action indexing, mesh/HUD bypass
-and original population enabled. Logging, replay, state/frame inspection and
+entry with SDL/i386 Debug, diagnostic scene shapes, action indexing, unrecovered mesh/legacy graphic
+bypasses and original population enabled. Original HUD is the default; F1 selects
+it and F2 selects diagnostic labels/panels without changing scene fallbacks. Logging, replay, state/frame inspection and
 matching-binary/debugger evidence are part of that launch. Follow
 [build and editor setup](../docs/building.md) and [debugging usage](../docs/debugging.md).
 
