@@ -8,6 +8,8 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Inner-castle register, clipping and presentation recovery — 2026-10-28](entries/inner-castle-crash-and-presentation-recovery-2026-10-28.md): reproduces the sprite event crash, recovers its original node/transform contract and signed rectangle clipping, and maps all eight findings to original models with bounded native/persistence evidence.
+
 - [Inner-castle progression crash and rendering handoff — 2026-10-28](entries/inner-castle-progression-handoff-2026-10-28.md): records extended human armour/key/wizardess/mace/lever progression, the saved incomplete-session SIGSEGV, eight presentation gaps and protected occupied saves; selects Task 04 without claiming reproduction or a fix.
 
 - [Tower sparkle, storage models and original-behavior boundary — 2026-10-28](entries/tower-storage-render-followup-2026-10-28.md): replays the next human session, enables original collection sparkle and storage gold sword/necklace, restores original static-depth copy arguments, and retains the unresolved door appearance without overriding possible original defects.

@@ -13,12 +13,13 @@ remaining models, broad gameplay fidelity and the 64-bit runtime remain incomple
 
 ## Start here
 
-The latest human run progressed through magic armour, the prison key, wizardess,
-magical mace and head-operated gates, then crashed. Start with
-[Step 12 Task 04](docs/implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md)
-and the [new handoff evidence](docs/journal/entries/inner-castle-progression-handoff-2026-10-28.md):
-reproduce the saved `FUN_0042d61c` crash, then recover the reported missing
-models/effects. The recording is incomplete; no crash repair is accepted yet.
+The inner-castle crash is reproduced and its original node argument recovered;
+negative rectangle clipping is also repaired. F5 includes the original teleport,
+head switches, armour, wizardess details, prison key, mace/sparkles and stairwell
+strike/explosion owners. Start with [Step 12 Task 04](docs/implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md)
+and the [recovery evidence](docs/journal/entries/inner-castle-crash-and-presentation-recovery-2026-10-28.md).
+All 3,190 recovered-prefix checkpoints match; the recording remains incomplete.
+Extended route, equipped-armour and full gate/effect visual acceptance remain open.
 
 The tower key/spike-trap/door route now passes bounded Debug/ASan progression
 and protected Save/Load checks. F5 includes its original key, head, spike and door

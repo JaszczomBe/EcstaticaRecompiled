@@ -13,22 +13,24 @@ diagnostic object markers alongside recovered animated character bodies.
 | --- | --- | --- |
 | Build and editor | Clang 21 i386 Debug/ASan, SDL/X11 builds, selected-target F5 | Debug is the everyday choice; optimized runtime and 64-bit execution remain experimental/incomplete |
 | Gameplay | Recovered movement, camera crossings, NPC/object population and bounded workshop activation | Human swimming, sword pickup, four kills and two broken doors verified; animation-cache stall repaired; Debug/ASan door passage and actual menu Quit pass; human random-potion pickup verified and delayed effects repaired with live Debug/ASan poison dispatch; bottle removal and subsequent sword use confirmed in the latest human run; visible health/potion diagnostics added; fresh Debug healing 85→100, poison onset, invisibility dispatch and conditional no-op verified; final effect expiry/cure remains open; latest alternate-target crash repaired with isolated generated Debug/ASan prefix evidence; extended stability remains a follow-up; animation-name parity restored for potion cleanup; natural effect summaries are optional; wider pickups/rendering remain deferred |
-| Rendering and audio | Original animated characters, 57 selected object/animal/effect owners and 16 representation families (251 original resources), independent F3 geometry modes, backgrounds and palette/depth/page presentation; diagnostic fallbacks for remaining objects/equipment | Bounded Debug/ASan pixels cover animals, intro lightning, courtyard pools, flames, doors, roof effects, collection sparkle, storage gold sword/necklace and collectible representatives; tower door appearance and broader natural pickup/combat lifetimes remain unqualified; audio and remaining rendering are incomplete; original HUD artwork/default and F1/F2 retain bounded original-code/native evidence |
+| Rendering and audio | Original animated characters, 76 selected object/animal/effect owners and 16 representation families (251 original resources), independent F3 geometry modes, backgrounds and palette/depth/page presentation; diagnostic fallbacks for remaining objects/equipment | Bounded Debug/ASan pixels cover animals, intro lightning, courtyard pools, flames, doors, roof effects, collection sparkle, storage gold sword/necklace and collectible representatives; tower door appearance and broader natural pickup/combat lifetimes remain unqualified; audio and remaining rendering are incomplete; original HUD artwork/default and F1/F2 retain bounded original-code/native evidence |
 | Persistence | Original-format gameplay Save/Load, writable runtime slots and original read fallback | Debug/ASan repeated same-process and fresh-process loads restore active actors and sword ownership, then resume input/animation/attacks; saved previews display at 160×120 without dirtying game pages, original menu geometry/font and title alignment are restored, successful Load dismisses the menu; installed saves remain intact; arbitrary original progressions and malformed-file recovery remain unqualified |
 | Investigation | Automatic F5 logging, replay, state timeline, rolling frames, pinned binary and debugger evidence | 16 MiB recording chunks and streaming replay remove the former 256 MiB ceiling; disk capacity, incomplete prefixes and strict replay divergence remain explicit |
 | Recovery tools | Original-x86 fixtures, crash export, state/report queries, route expectations, dependency-aware Debug/ASan gameplay suite with concurrent configurations, shared checkpoints, three-stage menu coverage, one/two visible windows, unarmed combat and host allocation-fault checks, recovery/diagnostic index | Headless menu labels, three-stage restarts and Load/Save dialog checks pass after original-backed menu/surface repairs; broader persistence, audio and exhaustive rendering remain unqualified; sampled/fixture evidence does not establish complete game behavior; rr is optional and currently absent |
 
 ## Current implementation and next work
 
-**Next: reproduce the extended inner-castle SIGSEGV, then recover its missing
-models/effects.** [Step 12 Task 04](implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md)
-and the [new handoff](journal/entries/inner-castle-progression-handoff-2026-10-28.md)
-record human armour/gargoyle/prison-key/wizardess/mace/head-lever progression,
-session **20261028_173846_961** and saved `FUN_0042d61c` crash evidence.
-Replay/inspection remain incomplete; no reproduction or fix is accepted yet.
-Teleport, head switches, armour/equipment, gates, wizardess details, prison key,
-mace/magic effects and stairwell lightning/rubble remain reported render gaps.
-Runtime slot **5/123** is now user-owned; protect it alongside **6/7/9**.
+**Inner-castle recovery now has original-backed repairs and model selection.**
+[Step 12 Task 04](implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md)
+and its [recovery journal](journal/entries/inner-castle-crash-and-presentation-recovery-2026-10-28.md)
+identify loaded slot 6, sprite **73**, node **14**, action **253**, event **0x23**.
+The original node/transform inputs and signed rectangle clipping are restored.
+Debug matches all **3,190** recovered-prefix checkpoints; the source recording
+remains incomplete. F5 selects **76** original owners, with all eight reported
+presentation paths mapped. Fresh Debug/ASan mace pickup/persistence and stairwell
+survival pass. Bounded post-event control/combat and same/fresh persistence also
+pass from an explicitly documented diagnostic checkpoint; uninterrupted route,
+equipped-armour human review and full gate/effect composition remain open. Runtime slots **5/123, 6, 7 and 9** remain protected.
 
 **Tower progression now has bounded Debug/ASan acceptance.** The original head
 hit drops key **264**, Space acquires it, the original door scene transfers it to

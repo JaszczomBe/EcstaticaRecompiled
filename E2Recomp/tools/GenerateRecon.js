@@ -8275,6 +8275,19 @@ patchRectangleFunction("FUN_0042efdc", body => replaceRectangleInput(replaceRect
 prototypes[prototypes.indexOf("undefined4 FUN_0042faf8(void);")] = "undefined4 FUN_0042faf8(int node);";
 prototypes[prototypes.indexOf("void FUN_0042efdc(void);")] = "void FUN_0042efdc(int node);";
 
+// Original action event 0x20 and its direction/roll helper retain node inputs.
+patchRectangleFunction("FUN_0042d554", () => "static void E2R_TransposeMatrix14(short out[9],const short in[9])\n{\n  for (int row = 0; row < 3; ++row)\n    for (int column = 0; column < 3; ++column)\n      out[row * 3 + column] = in[column * 3 + row];\n}\n\nstatic void E2R_MultiplyMatrix14(short out[9],const short left[9],const short right[9])\n{\n  /* Original 0x45dd04: signed products, 32-bit wrap, arithmetic Q14 shift. */\n  for (int row = 0; row < 3; ++row) {\n    for (int column = 0; column < 3; ++column) {\n      uint sum = 0;\n      for (int k = 0; k < 3; ++k)\n        sum += (uint)((int)left[row * 3 + k] * (int)right[k * 3 + column]);\n      out[row * 3 + column] = (short)((int)sum >> 14);\n    }\n  }\n}\n\nundefined4 FUN_0042d554(int node)\n{\n  /* Original 0x42c087 passes the selected node; 0x42d554 starts IK while\n   * preserving the current endpoint pose in owner-relative coordinates. */\n  int owner = *(int *)(node + 0x22);\n  int middle = *(int *)(node + 0x1e);\n  if (middle == 0) { FUN_00426f84(); return 0; }\n  int endpoint = *(int *)(middle + 0x1e);\n  if (endpoint == 0) { FUN_00426f84(); return 0; }\n  FUN_0042d948(node);\n  short inverse[9],relative[9],difference[3];\n  for (int i = 0; i < 3; ++i)\n    difference[i] = ((short *)(endpoint + 0x18))[i] - ((short *)(owner + 0x84))[i];\n  E2R_TransposeMatrix14(inverse,(short *)(owner + 6));\n  E2R_TransformVector14((short *)(endpoint + 0x110),difference,inverse);\n  E2R_MultiplyMatrix14(relative,inverse,(short *)(endpoint + 6));\n  FUN_0042d36c(endpoint,(ushort *)relative);\n  *(byte *)(node + 2) |= 0x20;\n  return (undefined4)node;\n}");
+patchRectangleFunction("FUN_0042d948", () => "void FUN_0042d948(int node)\n{\n  /* Original 0x42d948 aligns the endpoint direction in the parent's basis,\n   * then stores the node's relative roll (including its authored twist flag). */\n  int middle = *(int *)(node + 0x1e);\n  if (middle == 0) { FUN_00426f84(); return; }\n  int endpoint = *(int *)(middle + 0x1e);\n  if (endpoint == 0) { FUN_00426f84(); return; }\n  for (int cursor = endpoint; *(int *)(cursor + 0x44) != 0;\n       cursor = *(int *)(cursor + 0x44))\n    *(int *)(*(int *)(cursor + 0x44) + 0x48) = cursor;\n  *(int *)(endpoint + 0x48) = 0;\n  int entry_context = E2R_actor_calc_context;\n  E2R_actor_calc_context = *(int *)(endpoint + 0x22);\n  FUN_00424318();\n  E2R_actor_calc_context = entry_context;\n  short basis[9],inverse[9],difference[3],target[3];\n  memcpy(basis,(void *)((*(byte *)(node + 2) & 0x10) ?\n         node + 0xec : *(int *)(node + 0x44) + 6),sizeof basis);\n  for (int i = 0; i < 3; ++i)\n    difference[i] = ((short *)(endpoint + 0x18))[i] - ((short *)(node + 0x18))[i];\n  E2R_TransposeMatrix14(inverse,basis);\n  E2R_TransformVector14(target,difference,inverse);\n  short yaw = E2R_PolygonAngle16(target[0],target[2]);\n  if (yaw) E2R_RotatePolygonNormal(target,(short)-yaw,1);\n  short pitch = E2R_PolygonAngle16((short)-target[1],target[2]);\n  if (pitch) E2R_RotatePolygonNormal(target,(short)-pitch,0);\n  if (yaw) FUN_00422460((uint)(uintptr_t)basis,yaw);\n  if (pitch) FUN_00422368((uint)(uintptr_t)basis,pitch);\n  short twist = 0;\n  E2R_TransposeMatrix14(inverse,basis);\n  if ((*(byte *)(node + 2) & 0x80) != 0) {\n    for (int i = 0; i < 3; ++i)\n      difference[i] = ((short *)(endpoint + 6))[i * 3 + 2] -\n                      ((short *)(endpoint + 6))[i * 3 + 1];\n    E2R_TransformVector14(target,difference,inverse);\n    twist = E2R_PolygonAngle16(target[0],(short)-target[1]);\n  }\n  for (int i = 0; i < 3; ++i) difference[i] = ((short *)(node + 6))[i * 3 + 2];\n  E2R_TransformVector14(target,difference,inverse);\n  *(short *)(node + 0x2a) = E2R_PolygonAngle16(target[0],(short)-target[1]) - twist;\n}");
+source = replaceRectangleInput(source,"FUN_0042d554()","FUN_0042d554((int)unaff_ESI)");
+prototypes[prototypes.indexOf("undefined4 FUN_0042d554(void);")] = "undefined4 FUN_0042d554(int node);";
+prototypes[prototypes.indexOf("void FUN_0042d948(void);")] = "void FUN_0042d948(int node);";
+
+// Original action event 0x23 restores an IK chain, retaining node/pose/matrix inputs.
+patchRectangleFunction("FUN_0042d61c", () => "undefined4 FUN_0042d61c(int node)\n{\n  /* Original 0x42c098 supplies ESI in EAX. Restore the constrained chain's\n   * local rotations before clearing its inverse-kinematics flag. */\n  if ((*(byte *)(node + 2) & 0x20) == 0) return (undefined4)node;\n  int middle = *(int *)(node + 0x1e);\n  if (middle == 0) {\n    FUN_00426f84();\n    return 0;\n  }\n  int endpoint = *(int *)(middle + 0x1e);\n  if (endpoint == 0) {\n    FUN_00426f84();\n    return 0;\n  }\n  for (int cursor = endpoint; *(int *)(cursor + 0x44) != 0;\n       cursor = *(int *)(cursor + 0x44))\n    *(int *)(*(int *)(cursor + 0x44) + 0x48) = cursor;\n  *(int *)(endpoint + 0x48) = 0;\n  int entry_context = E2R_actor_calc_context;\n  E2R_actor_calc_context = *(int *)(endpoint + 0x22);\n  FUN_00424318();\n  E2R_actor_calc_context = entry_context;\n  int children[3] = {node,middle,endpoint};\n  int parents[3] = {*(int *)(node + 0x44),node,middle};\n  for (int i = 0; i < 3; ++i) {\n    short inverse[9],relative[9];\n    E2R_TransposeMatrix14(inverse,(short *)(parents[i] + 6));\n    E2R_MultiplyMatrix14(relative,inverse,(short *)(children[i] + 6));\n    FUN_0042d36c(children[i],(ushort *)relative);\n  }\n  *(byte *)(node + 2) &= 0xdf;\n  return 0;\n}");
+patchRectangleFunction("FUN_0042d36c", () => "void __fastcall FUN_0042d36c(undefined4 node,ushort *matrix)\n{\n  /* Original 0x42d36c shares 0x42d46c's decomposition, storing at node+0x26. */\n  FUN_0042d46c(node + 0x26,matrix);\n}");
+source = replaceRectangleInput(source,"FUN_0042d61c()","FUN_0042d61c((int)unaff_ESI)");
+prototypes[prototypes.indexOf("undefined4 FUN_0042d61c(void);")] = "undefined4 FUN_0042d61c(int node);";
+
 // Original 0x42f075..0x42f09d and 0x42f15f..0x42f188: node/actor XZ inputs
 // and separate polar outputs survive the hit-query prefilter.
 patchRectangleFunction("FUN_0042efdc", body => {
@@ -9741,6 +9754,19 @@ patchRectangleFunction("FUN_00421a14", body => replaceRectangleInput(body,
   "          FUN_0041868c(iVar9,0,((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,",
   "          /* Original 0x421bfa..0x421c23: EAX=1, EDX=0, EBX=x, ECX=y. */\n" +
   "          E2R_CopyDepthRect(1,0,(short)*piVar3,iVar9,((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,"));
+
+// Original 0x421aee..0x421b52 and 0x4221af..0x422213 compare signed
+// screen coordinates for static and dynamic owner rectangles.
+// Sparse clip globals are uintptr_t here; avoid unsigned promotion of negatives.
+for (const name of ["FUN_00421a14","FUN_00421f54"]) {
+  patchRectangleFunction(name, body => {
+    body = replaceRectangleInput(body,"< _DAT_00640124)","< (int)_DAT_00640124)");
+    body = replaceRectangleInput(body,"< _DAT_0064012c)","< (int)_DAT_0064012c)");
+    body = replaceRectangleInput(body,"if (_DAT_00640144 <=","if ((int)_DAT_00640144 <=");
+    body = replaceRectangleInput(body,"if (_DAT_00640120 <=","if ((int)_DAT_00640120 <=");
+    return body;
+  });
+}
 
 patchRectangleFunction("FUN_0044c4e4", body => {
   body = replaceRectangleInput(body,"FUN_0041868c(0,1,_DAT_006401ec,_DAT_006401d4);",

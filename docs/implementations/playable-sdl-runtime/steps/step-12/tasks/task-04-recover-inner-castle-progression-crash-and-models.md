@@ -4,7 +4,7 @@
 [Project README](../../../../../../README.md) · [Parent: Recover Item, Weapon, Door and Acid-Pool Models and Animations](../step-12-recover-object-models-and-animations.md)
 <!-- /docs-tree:parent -->
 
-Status: selected next continuation; human crash confirmed by saved debugger evidence; reproduction and fixes pending
+Status: active; pinned crash reproduced, original-backed repairs and 76-owner rendering implemented; extended route acceptance remains bounded
 Parent Step: [Object models and animations](../step-12-recover-object-models-and-animations.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
 Last Updated: 2026-10-28
@@ -21,6 +21,43 @@ The [handoff journal](../../../../../journal/entries/inner-castle-progression-ha
 owns the latest session identity, crash coordinates, save inventory and human
 observations. This handoff changes documentation only; it does not reproduce,
 diagnose conclusively or fix the new crash.
+
+## Current recovery evidence
+
+The [recovery journal](../../../../../journal/entries/inner-castle-crash-and-presentation-recovery-2026-10-28.md)
+records pinned reproduction: loaded slot **6**, camera **54**, actor
+**73/w_sprit3**, action **253**, node **14**, event **0x23**. Original code passes
+the selected node in EAX; reconstructed C lost it. The actual node has 0x20 clear,
+so original code returns. The repair retains the argument and the flagged
+three-node rotation/owner contract, with **8,192** original restoration cases
+and **256** caller cases per mode. No pointer guard or skipped action is used.
+
+A second proven mismatch restores signed clipping at static/dynamic rectangle
+owners, preventing negative edges from corrupting pixel/depth buffers. Expanded
+original comparisons fail before and pass after repair. Both repairs are mirrored
+in `GenerateRecon.js`. Debug matches every **3,190** checkpoint through sequence
+**9684450756**, then honestly reports the incomplete tail. Companion event
+**0x20** and the `0x42d948` direction/roll helper are also recovered, with original
+comparisons. ASan cross-build replay is not accepted; fresh ASan input/recordings are separate evidence.
+
+F5 now selects **76** owners. The journal maps all eight findings: teleport
+2863/2864; heads 2874–2877 and actual camera-50 dark head **806**; armour **255**;
+gates 2882/2911/3989/794; wizardess **2656** and her omitted polygon faces; key
+**278**; mace **1252** with sparkles **3839/3840**; stairwell strike **290** and
+explosion/debris **260**. Unqualified effects/step owners retain fallbacks.
+
+Fresh Debug/ASan slot-5 ascent, mace pickup, same/fresh menu persistence, F3/HUD
+and natural stairwell survival pass within the journal's limits. The prior tower
+regression passes again in both modes. Bounded post-event camera-54 control,
+combat and protected same/fresh persistence now pass in both modes (**762/777** main updates plus **591** fresh updates each).
+The journal distinguishes the diagnostic checkpoint from a completed replay.
+Uninterrupted human-route reproduction, equipped-armour human review and complete
+gate/effect composition remain open. Source session and all occupied saves are preserved; new persistence uses an isolated
+private game tree with a freshly empty slot **0**.
+
+The crash-starting-point and next-action sections below retain the original
+handoff context. Reproduction/contract steps now have the evidence above; next
+work must use the updated acceptance limits rather than repeat the old diagnosis.
 
 ## Human progression and presentation findings
 

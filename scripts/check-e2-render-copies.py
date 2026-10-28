@@ -58,7 +58,8 @@ for name in ('E2R_CopyGameRect', 'E2R_CopyDepthRect', 'FUN_00424b48'):
 static_caller = function(source, 'FUN_00421a14')
 for name in sorted(set(re.findall(r'\b_?DAT_[0-9a-f]+\b', static_caller))):
     if '#define ' + name + ' ' not in harness:
-        harness += f'#define {name} (*(int*)0x{name[-8:]})\n'
+        kind = 'uintptr_t' if name in ('_DAT_00640124','_DAT_0064012c','_DAT_00640144','_DAT_00640120') else 'int'
+        harness += f'#define {name} (*({kind}*)0x{name[-8:]})\n'
 harness += r'''
 #define CONCAT22(a,b) (((uint)(uint16_t)(a)<<16)|(uint16_t)(b))
 static short fixture_rect[4];
@@ -81,7 +82,12 @@ __attribute__((naked)) static void render_static_hook(void){__asm__("pushal;call
 __attribute__((naked)) static void ignore_pixel_copy(void){__asm__("ret $4");}
 '''
 harness += static_caller + '\n'
-for start, end in [(0x417b20, 0x417d3c), (0x41868c, 0x4186f8), (0x424b48, 0x424bd8), (0x421a14, 0x421f54)]:
+dynamic = function(source, 'FUN_00421f54')
+start = dynamic.index('      for (; iVar4 != 0; iVar4 = *(int *)(iVar4 + 0x4c)) {')
+end = dynamic.index('      return;',start)
+harness += 'static void dynamic_clip(int iVar4) {\n'+dynamic[start:end]+'}\n'
+
+for start, end in [(0x417b20, 0x417d3c), (0x41868c, 0x4186f8), (0x424b48, 0x424bd8), (0x421a14, 0x421f54), (0x42217f, 0x42222c)]:
     harness += f'static const byte code_{start:x}[]={{'+','.join(map(str, image.code(start, end)))+'};\n'
 harness += r'''
 static void map(uint at,uint size){assert(mmap((void*)at,size,7,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)at);}
@@ -150,8 +156,10 @@ int main(void){
  hook(0x424d98,render_static_hook);hook(0x418484,ignore_pixel_copy);
  cases=0;
  for(int page=0;page<2;page++)for(int seed=0;seed<128;seed++) {
-  fixture_rect[0]=seed%19;fixture_rect[1]=fixture_rect[0]+1+seed%20;
-  fixture_rect[2]=seed%7;fixture_rect[3]=fixture_rect[2]+seed%13;
+  fixture_rect[0]=(seed%4==0)?-78:seed%19;
+  fixture_rect[1]=fixture_rect[0]+1+seed%100;
+  fixture_rect[2]=(seed%4==1)?-31:seed%7;
+  fixture_rect[3]=fixture_rect[2]+seed%100;
   static byte initial[0x80000];
   setup(seed);memset((void*)0x900000,0,0x1000);memset((void*)0x47aa00,0,0x200);
   DAT_0047a279=page<<24;DAT_0047a43c=1;DAT_0047a34a=DAT_0047a3e0=DAT_0047a760=0;
@@ -168,6 +176,34 @@ int main(void){
   cases++;
  }
  printf("PASS: %d original-x86 static-owner depth promotion/coordinates/dirty rectangles (raster leaves intercepted)\n",cases);
+
+ memcpy((void*)0x42217f,code_42217f,sizeof code_42217f);*(byte*)0x42222c=0xc3;
+ cases=0;
+ for(int seed=0;seed<4096;seed++) {
+  static byte initial[0x1000],expected_dynamic[0x1000];
+  memset((void*)0x900000,0,0x1000);
+  for(int j=0;j<3;j++) {
+   uint actor=0x900000+j*0x200;
+   *(uint*)(actor+0x4c)=j<2?actor+0x200:0;
+   *(uint*)(actor+0xe4)=actor+0x112;
+   *(uint16_t*)(actor+2)=((seed>>j)&1)?8:0;
+   if((seed>>(j+3))&1)*(byte*)(actor+3)=8;
+   short *r=(short*)(actor+0x112);
+   r[0]=(short)(seed*7919+j*173);r[1]=(short)(seed*1973+j*337);
+   r[2]=(short)(seed*10457+j*733);r[3]=(short)(seed*917+j*211);
+  }
+  DAT_0047a3e0=seed&64;
+  _DAT_00640124=seed%7;_DAT_0064012c=seed%11;
+  _DAT_00640144=64;_DAT_00640120=48;
+  memcpy(initial,(void*)0x900000,sizeof initial);
+  struct E2R_Registers regs={.edx=0x900000};e2r_original_call(0x42217f,&regs);
+  memcpy(expected_dynamic,(void*)0x900000,sizeof initial);
+  memcpy((void*)0x900000,initial,sizeof initial);dynamic_clip(0x900000);
+  if(!e2r_memory_equal("dynamic signed clipping",expected_dynamic,(void*)0x900000,sizeof initial))return 1;
+  cases++;
+ }
+ printf("PASS: %d original-x86 dynamic signed clipping/actor flags/chain cases\n",cases);
+
 
 }
 '''

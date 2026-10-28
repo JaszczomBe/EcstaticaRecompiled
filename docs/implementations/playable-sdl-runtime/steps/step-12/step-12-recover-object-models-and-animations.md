@@ -84,14 +84,16 @@ newly enabled object rendering.
 
 ## Current tasks
 
-[Task 04](tasks/task-04-recover-inner-castle-progression-crash-and-models.md) is the
-immediate continuation after human armour/prison-key/wizardess/mace/head-lever
-progression. The [new handoff](../../../../journal/entries/inner-castle-progression-handoff-2026-10-28.md)
-records a saved `FUN_0042d61c` SIGSEGV and eight missing/incomplete presentation
-paths. First preserve and reproduce the incomplete crash recording, then recover
-original contracts and verify the fix before expanding model/effect coverage.
-Slot **5** is now occupied by the user's save; preserve it and **6/7/9**.
-No runtime fix or new longer-route replay acceptance is claimed by this handoff.
+[Task 04](tasks/task-04-recover-inner-castle-progression-crash-and-models.md) remains
+active after original-backed event/node and signed-clipping repairs. The
+[recovery evidence](../../../../journal/entries/inner-castle-crash-and-presentation-recovery-2026-10-28.md)
+records pinned crash reproduction, all **3,190** recovered-prefix checkpoints,
+original x86 comparisons and **76** selected owners covering the reported paths.
+Fresh Debug/ASan mace pickup/persistence and stairwell survival pass; bounded
+post-event control/combat and persistence also pass. Uninterrupted human-route
+reproduction, equipped-armour human review and complete gate/effect composition
+remain open. The source recording remains incomplete. Protect occupied slots
+**5/123, 6, 7 and 9**; persistence uses a separately isolated private game tree.
 
 [Task 03](tasks/task-03-recover-tower-key-trap-and-door-progression.md) now has
 bounded Debug/ASan acceptance for the loaded tower puzzle. The [recovery journal](../../../../journal/entries/tower-key-progression-recovery-2026-10-28.md)

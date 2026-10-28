@@ -98,6 +98,8 @@ parser.add_argument('--inspect-object-scene', type=int, default=-1,
                     help='After release, select the preloaded script scene\'s camera for an activation/presentation check, then restore the original view; this is not traversal')
 parser.add_argument('--inspect-load-scene', action='store_true',
                     help='Explicit diagnostic loading of --inspect-object-scene through the original resource loader; not gameplay traversal')
+parser.add_argument('--inspect-start-scene', action='store_true',
+                    help='Explicit asset fixture: install/start the selected original scene; not gameplay traversal')
 parser.add_argument('--inspect-approach-cameras', type=int, nargs='+', default=[],
                     help='Select these original views before --inspect-object-scene to exercise neighbouring object initialization; no actor coordinates are assigned')
 args = parser.parse_args()
@@ -134,7 +136,7 @@ if args.trace_queries < 0 or args.observe_seconds < 0 or args.population_frames 
     parser.error('query count and observation seconds must be nonnegative')
 if args.inspect_object_scene < -1 or args.inspect_object_scene >= 2500:
     parser.error('object scene must be an original script resource ID below 2500')
-if args.inspect_load_scene and args.inspect_object_scene < 0:
+if (args.inspect_load_scene or args.inspect_start_scene) and args.inspect_object_scene < 0:
     parser.error('--inspect-load-scene requires --inspect-object-scene')
 if args.inspect_approach_cameras and (args.inspect_object_scene < 0 or
         any(v < 0 or v >= 1200 for v in args.inspect_approach_cameras)):
@@ -571,6 +573,12 @@ if OBJECT_SCENE >= 0:
         require(value('DAT_0047a470')==actor,'Diagnostic scene load changed Joe ownership')
         scene=value(f'*(unsigned int*)(0x62e450+{OBJECT_SCENE}*4)')
     require(scene!=0,'Requested object scene was not preloaded by the original startup script')
+    if INSPECT_START_SCENE:
+        # Original scene installation/activation supplies authored children,
+        # poses and events. This is an explicit asset fixture, not traversal.
+        gdb.execute(f'call FUN_00452140({scene})',to_string=True)
+        gdb.execute(f'call FUN_004523f8({scene})',to_string=True)
+        require(value('DAT_0047a470')==actor,'Scene fixture changed Joe ownership')
     camera=value(f'*(short*)({scene}+2)')
     original_camera=observe_camera()
     original_position=[field(0x84+i*2) for i in range(3)]
@@ -616,9 +624,9 @@ if OBJECT_SCENE >= 0:
             'No active scene child has an on-screen diagnostic cylinder')
     object_view_sample=dict(scene_id=OBJECT_SCENE,camera=camera,record=scene,
                             approach_cameras=APPROACH_CAMERAS,
-                            diagnostic_view_selection=True,children=children,
+                            diagnostic_view_selection=True,diagnostic_scene_start=INSPECT_START_SCENE,children=children,
                             diagnostic_object_updates=bool(OBJECT_MESH_IDS or OBJECT_MESH_REPS),
-                            camera_selection_intercept=bool(OBJECT_MESH_IDS or OBJECT_MESH_REPS),preview_updates=36 if (OBJECT_MESH_IDS or OBJECT_MESH_REPS) else 0,
+                            camera_selection_intercept=bool(OBJECT_MESH_IDS or OBJECT_MESH_REPS),preview_updates=(120 if INSPECT_START_SCENE else 36) if (OBJECT_MESH_IDS or OBJECT_MESH_REPS) else 0,
                             joe_position=original_position,state=view_state)
     with open(prefix+'-object-view.json','w') as out:json.dump(object_view_sample,out,indent=2)
     # Bound this asset preview to the selected original view while the normal
@@ -629,13 +637,14 @@ if OBJECT_SCENE >= 0:
         preview_camera=gdb.Breakpoint('FUN_0044c224',internal=True)
         preview_camera.commands='silent\nreturn\ncontinue\n'
     for sample in range(3 if (OBJECT_MESH_IDS or OBJECT_MESH_REPS) else 0):
-        advance(12)
+        advance(40 if INSPECT_START_SCENE else 12)
         require(value('e2r_present_current_frame((HWND)_DAT_00ac4dac,1)')==1,'Object sample presentation failed')
         snapshot('object-view-'+str(sample))
     if preview_camera:preview_camera.delete()
     gdb.execute(f'call FUN_0044be20({original_camera})',to_string=True)
     require(observe_camera()==original_camera,'Object view did not restore the original camera')
-    require([field(0x84+i*2) for i in range(3)]==original_position,'Object view return moved Joe')
+    if not INSPECT_START_SCENE:
+        require([field(0x84+i*2) for i in range(3)]==original_position,'Object view return moved Joe')
 for modifier in TAP_MODIFIERS:
     modifier_vk={'shift':0x10,'ctrl':0x11,'alt':0x12}[modifier]
     key(modifier_vk,True);key(modifier_vk,False)
@@ -1125,7 +1134,7 @@ quit
     'RELEASE_TURN',repr(args.release_turn_first)).replace('SIMULTANEOUS_TURN',repr(args.simultaneous_turn)).replace('HOLD_THROUGH_RELEASE',repr(args.hold_through_release)).replace('VIDEO_DRIVER',repr(args.video_driver)).replace('CAMERA_ROUTE',repr(args.camera_round_trip)).replace(
     'QUERY_LIMIT',str(args.trace_queries)).replace('OBSERVE_SECONDS',str(args.observe_seconds)).replace(
     'POPULATION_COUNT',str(args.population_frames)).replace('POPULATION_ONLY',repr(args.population_only)).replace('REQUIRE_POPULATION',repr(args.require_background_population)).replace('BACKGROUND_SPAWNS',repr(args.background_spawns)).replace('CHECK_GUARDS',repr(args.pedestal_guards)).replace('NATURAL_INTRO',repr(args.natural_intro)).replace('INTRO_SKIP_ACTION',str(args.intro_skip_action)).replace('INTRO_SKIP_PROGRESS',str(args.intro_skip_progress))
-commands=commands.replace('OBJECT_MESH_REPS',repr(args.object_mesh_reps)).replace('OBJECT_MESH_IDS',repr(args.object_mesh_ids)).replace('INSPECT_LOAD_SCENE',repr(args.inspect_load_scene)).replace('GEOMETRY_CHECKS',repr(args.geometry_modes)).replace('OBJECT_EVENT_PREVIEW',repr(args.object_event_preview)).replace('OBJECT_RASTER_PROBE',repr(args.object_raster_probe))
+commands=commands.replace('OBJECT_MESH_REPS',repr(args.object_mesh_reps)).replace('OBJECT_MESH_IDS',repr(args.object_mesh_ids)).replace('INSPECT_LOAD_SCENE',repr(args.inspect_load_scene)).replace('INSPECT_START_SCENE',repr(args.inspect_start_scene)).replace('GEOMETRY_CHECKS',repr(args.geometry_modes)).replace('OBJECT_EVENT_PREVIEW',repr(args.object_event_preview)).replace('OBJECT_RASTER_PROBE',repr(args.object_raster_probe))
 if args.game_data:
     commands = commands.replace(repr('run --run-recon'),repr('run --game-data-dir '+json.dumps(str(args.game_data.resolve()))+' --run-recon'))
 if args.suite_scenario=='menu-matrix':

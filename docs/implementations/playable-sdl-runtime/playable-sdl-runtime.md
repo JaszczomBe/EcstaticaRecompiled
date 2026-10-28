@@ -30,17 +30,29 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 
 ## Selected next continuation — Object models and animations
 
-**The immediate priority is the extended inner-castle crash and presentation
-handoff in [Step 12 Task 04](steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md).**
-The [new journal](../../journal/entries/inner-castle-progression-handoff-2026-10-28.md)
-records human magic-armour/gargoyle/prison-key/wizardess/mace/head-lever progression
-and the saved `FUN_0042d61c` SIGSEGV in session **20261028_173846_961**.
-Replay/inspection are incomplete, with saved crash checkpoint **3190**; reproduction
-and source-backed repair remain pending. Teleport, head switches, loose/equipped
-armour, nearby gates, wizardess details, prison key, mace/sparkles and stairwell
-lightning/rubble require original-owner investigation. Runtime slot **5/123** is
-now occupied and must be preserved alongside **6/7/9**. Preserve possible original
-defects; change behavior only when a reconstruction mismatch is proven.
+**The immediate work remains [Step 12 Task 04](steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md),
+now with reproduced crash, original-backed repairs and bounded model evidence.**
+The [recovery journal](../../journal/entries/inner-castle-crash-and-presentation-recovery-2026-10-28.md)
+identifies slot **6**, sprite **73/w_sprit3**, node **14**, action **253** and
+event **0x23**. Original EAX/node and three-node pose contracts are recovered;
+signed clipping repairs prevent negative projected rectangles from corrupting
+pixel/depth buffers. Both changes are mirrored and compared against original x86.
+Debug strictly matches all **3,190** recovered-prefix checkpoints through
+**9684450756**, then reports the incomplete tail. ASan compatible replay of that
+Debug recording is not accepted; fresh native input and recordings are separate.
+
+F5 now selects **76 explicit owners**, adding original teleport, head/gate,
+armour, wizardess polygon detail, prison key, mace/sparkles and stairwell
+strike/explosion resources. Fresh Debug/ASan slot-5 ascent, mace pickup,
+same/fresh original-format persistence, F3/HUD and natural stairwell survival
+pass within the journal's bounds; the previous five-process tower regression
+also passes. Bounded post-event control/combat and same/fresh persistence also pass under
+Debug/ASan, from a documented original-format diagnostic checkpoint after the
+strictly matched event. Event **0x20** and its direction/roll helper required the
+same original register/pose recovery. Uninterrupted human-route reproduction,
+equipped-armour human review and full gate/effect composition remain open. Protect occupied runtime slots **5/123, 6, 7 and 9**;
+new tests use a private game tree and a freshly empty private slot **0**.
+Preserve possible original defects and require a proven reconstruction mismatch.
 
 **Tower key/trap/door progression passes bounded Debug/ASan checks.**
 [Step 12 Task 03](steps/step-12/tasks/task-03-recover-tower-key-trap-and-door-progression.md)

@@ -57,11 +57,20 @@ static void fake_angles(uint dest,ushort *src){record(dest,(int)src,0,0,7);}
 static int IsBadReadPtr(void *p,int n){return !p;}
 static int E2R_IsBadWritePtr(void *p,int n){return !p;}
 '''
-for f in ['E2R_SetIdentityMatrix','FUN_00422368','FUN_00422460','FUN_00422538','E2R_ApplyEulerMatrix','E2R_TransformVector14','E2R_PolygonAngle16','FUN_0042d46c','FUN_0045186c']:
+for f in ['E2R_SetIdentityMatrix','FUN_00422628','FUN_00422368','FUN_00422460','FUN_00422538','E2R_ApplyEulerMatrix','E2R_TransformVector14','E2R_PolygonAngle16','FUN_0042d46c','FUN_0045186c']:
  c+=function(f)+'\n'
 # Exercise the complete production reverse-chain pose, including endpoint/IK and attachment.
 c+='static short E2R_PoseAsin14(short ratio);\n'
 for f in ['E2R_RotatePolygonNormal','E2R_PoseAsin14','FUN_00423674','FUN_00424164','FUN_00420ec4']:
+ c+=function(f)+'\n'
+event23 = re.search(r'case 0x23:\s*(psVar7 = \(short \*\)FUN_0042d61c\([^;]*;)',s).group(1)
+c+='__attribute__((used)) static volatile int event23_node;\nstatic uint capture_event23(int node) {event23_node=node;return 0;}\n'
+c+='#define FUN_0042d61c capture_event23\nstatic void native_event23(short *unaff_ESI) {short *psVar7;'+event23+'}\n#undef FUN_0042d61c\n'
+event20 = re.search(r'case 0x20:\s*(psVar7 = \(short \*\)FUN_0042d554\([^;]*;)',s).group(1)
+c+='#define FUN_0042d554 capture_event23\nstatic void native_event20(short *unaff_ESI) {short *psVar7;'+event20+'}\n#undef FUN_0042d554\n'
+c+='__attribute__((naked)) static void event23_hook(void) {__asm__("mov %eax,event23_node; ret");}\n'
+c+='static void E2R_RotatePolygonNormal(short normal[3],short angle,int axis);\n'
+for f in ['E2R_TransposeMatrix14','E2R_MultiplyMatrix14','FUN_0042d36c','FUN_0042d948','FUN_0042d554','FUN_0042d61c']:
  c+=function(f)+'\n'
 c+=function('FUN_00424318').replace('FUN_00424318(void)','native_pose(void)').replace('undefined4 native_pose','void native_pose')+'\n'
 # Extract the repaired queued-action completion block itself, including list advancement.
@@ -78,7 +87,7 @@ static void native_queue(short *local_6c,uint uVar25) {
 c+='static void FUN_0042efdc(int node) {record(node,0,0,0,9); }\nstatic void FUN_00423858(int actor,int mode) {record(actor,mode,0,0,10); }\n'
 c+=function('FUN_0042faf8')+'\n'
 c+='#define FUN_0042d46c fake_angles\n'+function('FUN_0042f85c')+'\n'+function('FUN_0042f9c0')+'\n#undef FUN_0042d46c\n'
-ranges=[(0x42f85c,0x42f9c0),(0x4154ff,0x415553),(0x45f556,0x45f573),(0x42faf8,0x42fc0a),(0x427ade,0x427b50),(0x424318,0x424860),(0x45de8b,0x45df0e),(0x42f9c0,0x42faf8),(0x45186c,0x451880),(0x422330,0x42274c),(0x423674,0x423858),(0x424164,0x424318),(0x420ec4,0x421074),(0x432de4,0x432e08),(0x42274c,0x4228b8),(0x4228b8,0x422aa0),(0x42d46c,0x42d554),(0x432c64,0x432de4),(0x45dd04,0x45de8b)]
+ranges=[(0x42c087,0x42c08e),(0x42d554,0x42d61c),(0x42d948,0x42db6c),(0x42d36c,0x42d46c),(0x42d61c,0x42d72c),(0x42c098,0x42c09f),(0x42f85c,0x42f9c0),(0x4154ff,0x415553),(0x45f556,0x45f573),(0x42faf8,0x42fc0a),(0x427ade,0x427b50),(0x424318,0x424860),(0x45de8b,0x45df0e),(0x42f9c0,0x42faf8),(0x45186c,0x451880),(0x422330,0x42274c),(0x423674,0x423858),(0x424164,0x424318),(0x420ec4,0x421074),(0x432de4,0x432e08),(0x42274c,0x4228b8),(0x4228b8,0x422aa0),(0x42d46c,0x42d554),(0x432c64,0x432de4),(0x45dd04,0x45de8b)]
 for start,end in ranges:c+=f'static const byte code_{start:x}[]={{'+','.join(map(str,original(start,end)))+'};\n'
 c+=r'''
 static void map(int at,int size){assert(mmap((void*)at,size,7,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)!=MAP_FAILED);}
@@ -271,6 +280,83 @@ c+=r'''
   FUN_0042d46c(0x908200,(ushort*)0x908000);
   if(memcmp((void*)0x908100,(void*)0x908200,6)) {fprintf(stderr,"angles mismatch seed=%d original=%d,%d,%d native=%d,%d,%d\n",seed,*(short*)0x908100,*(short*)0x908102,*(short*)0x908104,*(short*)0x908200,*(short*)0x908202,*(short*)0x908204);abort();}
  }
+ // Event 0x23 must restore all three local rotations, reverse links and flag.
+ // Pose is intercepted here; its full FK/IK paths are compared above.
+ hook(0x424318,pose_hook);
+ for(int seed=0;seed<8192;seed++) {
+  static byte initial[0x1000],expected_ik[0x1000];int expected_calls[64][3];
+  memset((void*)0x900000,0,0x1000);
+  for(int j=0;j<5;j++) {
+   int node=0x900000+j*0x200;
+   *(int*)(node+0x22)=0x900c00;
+   if(j<4) *(int*)(node+0x44)=node+0x200;
+   *(int*)(node+0x48)=seed+j*7919;
+   short angles[3]={(short)(seed*1973+j*313),(short)(seed*7919+j*173),(short)(seed*10457+j*331)};
+   E2R_ApplyEulerMatrix((short*)(node+6),angles);
+   memset((void*)(node+0x26),0x5a,6);
+  }
+  *(byte*)0x900002=(seed&1)?0xa1:0x80;
+  *(int*)0x90001e=0x900200;*(int*)0x90021e=0x900400;
+  memcpy(initial,(void*)0x900000,sizeof initial);
+  calls=0;memset(trace,0,sizeof trace);
+  __asm__ volatile("pushal; mov $0x900000,%%eax; mov $0x42d61c,%%edx; call *%%edx; popal":::"memory","cc");
+  memcpy(expected_ik,(void*)0x900000,sizeof initial);int count=calls;
+  memcpy(expected_calls,trace,sizeof trace);
+  memcpy((void*)0x900000,initial,sizeof initial);calls=0;memset(trace,0,sizeof trace);
+  E2R_actor_calc_context=0x907000;FUN_0042d61c(0x900000);
+  if(memcmp(expected_ik,(void*)0x900000,sizeof initial)||calls!=count||memcmp(expected_calls,trace,sizeof trace)||E2R_actor_calc_context!=0x907000) {
+   fprintf(stderr,"IK restore mismatch seed=%d calls=%d/%d\n",seed,calls,count);abort();
+  }
+ }
+ puts("PASS: 8192 original event-0x23 three-node local rotations/reverse links/flags/owner-context cases (pose dependency intercepted)");
+ // Match direction/roll alignment and event-0x20 endpoint pinning.
+ for(int kind=0;kind<2;kind++)for(int seed=0;seed<4096;seed++) {
+  static byte initial[0x1000],expected_enable[0x1000];int expected_calls[64][3];
+  memset((void*)0x900000,0,0x1000);
+  for(int j=0;j<5;j++) {
+   int node=0x900000+j*0x200;
+   *(int*)(node+0x22)=0x900c00;
+   if(j<4)*(int*)(node+0x44)=node+0x200;
+   *(int*)(node+0x48)=seed+j*7919;
+   short angles[3]={(short)(seed*1973+j*313),(short)(seed*7919+j*173),(short)(seed*10457+j*331)};
+   E2R_ApplyEulerMatrix((short*)(node+6),angles);
+   memcpy((void*)(node+0xec),(void*)(node+6),18);
+   for(int i=0;i<3;i++) {
+    *(short*)(node+0x18+i*2)=seed*71%4096+j*173+i*337;
+    *(short*)(node+0x26+i*2)=seed*1973+j*313+i*211;
+   }
+  }
+  short root_angles[3]={(short)(seed*7919),(short)(seed*10457),(short)(seed*1973)};
+  E2R_ApplyEulerMatrix((short*)0x900c06,root_angles);
+  for(int i=0;i<3;i++)*(short*)(0x900c84+i*2)=seed*917%2048+i*211;
+  *(byte*)0x900002=(seed&1?0x10:0)|(seed&2?0x80:0)|(seed&4?0x20:0);
+  *(int*)0x90001e=0x900200;*(int*)0x90021e=0x900400;
+  memcpy(initial,(void*)0x900000,sizeof initial);calls=0;memset(trace,0,sizeof trace);
+  int entry=kind?0x42d554:0x42d948;
+  __asm__ volatile("pushal; mov %0,%%edx; mov $0x900000,%%eax; call *%%edx; popal"::"r"(entry):"memory","cc");
+  memcpy(expected_enable,(void*)0x900000,sizeof initial);int count=calls;memcpy(expected_calls,trace,sizeof trace);
+  memcpy((void*)0x900000,initial,sizeof initial);calls=0;memset(trace,0,sizeof trace);E2R_actor_calc_context=0x907000;
+  if(kind)FUN_0042d554(0x900000);else FUN_0042d948(0x900000);
+  if(memcmp(expected_enable,(void*)0x900000,sizeof initial)||calls!=count||memcmp(expected_calls,trace,sizeof trace)||E2R_actor_calc_context!=0x907000) {
+   for(int i=0;i<0x1000;i++)if(expected_enable[i]!=*(byte*)(0x900000+i)){fprintf(stderr,"enable mismatch kind=%d seed=%d offset=%x original=%02x native=%02x\n",kind,seed,i,expected_enable[i],*(byte*)(0x900000+i));break;}
+   abort();
+  }
+ }
+ puts("PASS: 4096 original direction/roll cases and 4096 original event-0x20 endpoint/rotation/flag/owner cases (pose dependency intercepted)");
+ hook(0x42d61c,event23_hook);*(byte*)0x42c09f=0xc3;
+ for(int node=0x900000;node<0x901000;node+=16) {
+  __asm__ volatile("pushal; mov %0,%%esi; mov $0x42c098,%%eax; call *%%eax; popal"::"r"(node):"memory","cc");
+  assert(event23_node==node);event23_node=0;native_event23((short*)node);assert(event23_node==node);
+ }
+ puts("PASS: 256 original event-0x23 selected-node caller handoffs");
+
+ hook(0x42d554,event23_hook);*(byte*)0x42c08e=0xc3;
+ for(int node=0x900000;node<0x901000;node+=16) {
+  __asm__ volatile("pushal; mov %0,%%esi; mov $0x42c087,%%eax; call *%%eax; popal"::"r"(node):"memory","cc");
+  assert(event23_node==node);event23_node=0;native_event20((short*)node);assert(event23_node==node);
+ }
+ puts("PASS: 256 original event-0x20 selected-node caller handoffs");
+
  hook(0x424318,pose_hook);hook(0x42efdc,node_query_hook);hook(0x423858,bones_hook);
  for(int kind=0;kind<4;kind++)for(int attached=0;attached<2;attached++)for(int seed=0;seed<32;seed++) {
   static byte initial[0x10000],expected_chain[0x10000];int trace_expected[64][3];

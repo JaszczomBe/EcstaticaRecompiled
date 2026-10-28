@@ -236,6 +236,14 @@ tested function contracts under those dependencies; real-map traversal has its
 own acceptance gate. Other existing fixtures remain independent and can adopt
 the framework incrementally.
 
+For a dormant scripted object, the motion probe's explicit asset fixture can
+install and start its authored scene with `--inspect-object-scene ID
+--inspect-load-scene --inspect-start-scene`. It calls original scene installation
+and activation, then bounds the selected-camera preview. This can run scripted
+children and authored poses; it is separate from ordinary-input traversal and
+natural event acceptance. Omit `--inspect-start-scene` for a visibility-only
+preview of an already active/static scene.
+
 ## Debug backward
 
 ```sh
