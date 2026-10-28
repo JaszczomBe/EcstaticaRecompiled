@@ -10807,8 +10807,9 @@ void E2R_GetOriginalHudState(E2R_HudState *state)
   memset(state,0,sizeof(*state));
   /* 0x4559c1..0x4559d6 and the modal/indexed-page ownership boundary. */
   state->high = DAT_0047a43c != 0;
-  if (actor == 0 || DAT_0047a76c != 0 || DAT_0047a448 != 0 ||
-      E2R_WORD_AT(DAT_0047a45e,2) != 0 || DAT_0047a34a != 0 ||
+  if (actor == 0 || DAT_0047a76c != 0 ||
+      (!E2R_InventoryPageActive() && (DAT_0047a448 != 0 ||
+       E2R_WORD_AT(DAT_0047a45e,2) != 0 || DAT_0047a34a != 0)) ||
       IsBadReadPtr((void *)(uintptr_t)actor,0x188)) return;
   state->visible = 1;
   state->life = *(short *)(actor + 0xec);
@@ -10955,6 +10956,127 @@ void E2R_DrawOriginalHudState(const E2R_HudState *state,const E2R_HudPainter *pa
   }
 }
 `;
+
+
+// Original Enter status page: live queue, modal lifecycle and explicit visual leaves.
+source = replaceRectangleInput(source,"  if ((DAT_004c39ac != '\\0') && (DAT_004c39ac = '\\0', DAT_0047a34a == 0)) {","  /* Original 0x4161c5 consumes the live one-byte Enter scan queue. */\n  if ((*(byte *)0x004c39ac != '\\0') && (*(byte *)0x004c39ac = '\\0', DAT_0047a34a == 0)) {");
+patchRectangleFunction("FUN_00455fe8", () => `void __fastcall FUN_00455fe8(undefined4 param_1)
+{
+  /* 0x455ff1..0x4561b6: synchronous page; only the input pump runs while open.
+   * Immutable host composition replaces the legacy dirty-page graphic table,
+   * just as for the recovered HUD. Scene/palette/input ownership stays here. */
+  int high = DAT_0047a43c;
+  if (DAT_0047a76c != 0) return;
+  if (!high) FUN_0043ac60();
+  _DAT_0073ccba = 0;
+  E2R_SyncSceneViewId();
+  FUN_0044add8(0,0);
+  if (E2R_BeginInventoryPage()) {
+    FUN_0044e5b0();
+    E2R_InventoryState state;
+    E2R_GetInventoryState(&state);
+    DAT_0047ab1c = state.progress;
+    FUN_0041af88(0x61c730,0);
+  }
+  do {
+    FUN_0041ba7c(0,0);
+  } while (DAT_00636844 == '\\0');
+  DAT_00636844 = '\\0';
+  FUN_0041af88(0x61cd30,0);
+  E2R_EndInventoryPage();
+  if (!high) {
+    FUN_0043acec();
+    FUN_0044e5b0();
+    FUN_004559bc();
+    FUN_00456f94();
+  }
+  /* The host page never dirties gameplay buffers; invalidate the scene so the
+   * original scheduler rebuilds its background/palette on the next update. */
+  _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
+  FUN_0041cfc0();
+}`);
+source = '#include "e2recomp_hud.h"\n' + source;
+source += `
+
+/* Original 0x4561c8..0x45684b: live status-page values and temporary graphics. */
+void E2R_GetInventoryState(E2R_InventoryState *state)
+{
+  static const char *names[] = {"ringicon","amuicon1","lampicon","shdicon1",
+    "shdicon2","scrlicon","amuicon2","kingicon","elder1","elder2","elder3",
+    "elder4","elder5","elder6","elder7"};
+  memset(state,0,sizeof(*state));
+  for (int i = 0; i < 15; ++i) {
+    int index = (int)FUN_00441ea4((undefined4)(uintptr_t)names[i],0);
+    state->items[i] = index >= 0 && (*(byte *)(0x670c38 + index * 2) & 8) != 0;
+  }
+  state->timer = DAT_0047ab20;
+  state->timer_total = DAT_0047ab24;
+  state->power = DAT_0047ab28;
+  state->kills = DAT_0047ab18;
+  state->gold = (int)((uint)DAT_0047ab14 * 10);
+  int visited = 0;
+  for (int i = 0; i < 150; ++i)
+    for (int bit = 0; bit < 8; ++bit)
+      if (*(byte *)(0xac4b00 + i) & (1 << bit)) ++visited;
+  state->progress = visited * 100 / 1001;
+  if (state->progress > 99) state->progress = 99;
+}
+
+static void E2R_InventoryNumber(int value,int digits,int x,int y,const E2R_InventoryPainter *painter)
+{
+  /* 0x456874: right alignment, ten-pixel advance, no leading zeroes;
+   * negative remainders select no graphic, exactly as the unsigned switch. */
+  for (int column = digits - 1; column >= 0; --column) {
+    int digit = value % 10;
+    if (digit >= 0 && digit <= 9) {
+      char name[] = "number0";
+      name[6] += digit;
+      painter->graphic(painter->context,name,x + column * 10,y);
+    }
+    value /= 10;
+    if (!value) break;
+  }
+}
+
+void E2R_DrawInventoryState(const E2R_InventoryState *state,const E2R_InventoryPainter *painter)
+{
+  static const struct { const char *name; int x,y; } icons[] = {
+    {"ringicon",224,123},{"amuicon1",307,121},{"lampicon",226,187},
+    {"shdicon1",307,196},{"shdicon2",225,272},{"scrlicon",307,270},
+    {"amuicon2",224,340},{"kingicon",306,346},{"elder1",122,125},
+    {"elder2",142,160},{"elder3",122,203},{"elder4",70,203},
+    {"elder5",62,159},{"elder6",69,125},{"elder7",102,167}};
+  for (int i = 0; i < 15; ++i)
+    if (state->items[i]) painter->graphic(painter->context,icons[i].name,icons[i].x,icons[i].y);
+  if (state->timer_total) {
+    painter->graphic(painter->context,"timer1",222,119);
+    int remaining = (int)((uint)state->timer * 29) / state->timer_total;
+    int boundary = (int)((uint)(state->timer_total - state->timer) * 29) / state->timer_total + 159;
+    for (int y = 159; y < boundary; ++y)
+      for (int x = 280; x < 311; ++x) painter->masked_pixel(painter->context,x,y,0);
+    for (int y = boundary; y < 189; ++y)
+      for (int x = 280; x < 311; ++x) painter->masked_pixel(painter->context,x,y,11);
+    for (int y = remaining + 189, end = 296; y < 218; ++y, ++end)
+      for (int x = 296 - ((y - 189) - remaining); x < end; ++x)
+        painter->masked_pixel(painter->context,x,y,11);
+    for (int y = 189; y < 218; ++y)
+      for (int x = 280; x < 311; ++x) painter->masked_pixel(painter->context,x,y,0);
+  }
+  if (state->power == 150) painter->graphic(painter->context,"powgem1",537,396);
+  else if (state->power == 200) {
+    painter->graphic(painter->context,"powgem1",532,396);
+    painter->graphic(painter->context,"powgem1",542,396);
+  }
+  E2R_InventoryNumber(state->kills,5,419,397,painter);
+  E2R_InventoryNumber(state->gold,5,92,394,painter);
+  E2R_InventoryNumber(state->progress,2,481,277,painter);
+}
+`;
+
+// Original status scalars share storage with the original-format serializer.
+// Keep strings intact; detached Ghidra exports must not split gameplay from Load.
+source = source.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|\bDAT_0047ab(?:14|18|28)\b/g,
+  token => token.startsWith("DAT_") ? `(*(int *)0x${token.slice(4)})` : token);
 
 fs.writeFileSync(outSrc, source);
 

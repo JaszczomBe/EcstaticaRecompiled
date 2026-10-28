@@ -22,6 +22,8 @@ parser.add_argument('--equipment',action='store_true')
 parser.add_argument('--object-mesh-ids',type=int,nargs='+',default=[])
 parser.add_argument('--object-mesh-reps',type=int,nargs='+',default=[])
 parser.add_argument('--hud',action='store_true',help='Verify original/debug selection and repainting during both persistence processes')
+parser.add_argument('--inventory',action='store_true',help='Verify original Enter/Escape status before and after protected persistence')
+parser.add_argument('--load-slot',type=int,choices=range(10),help='Begin from this occupied private source slot')
 parser.add_argument('--failure-case',choices=('empty','save-open','unsupported','truncated','missing'))
 parser.add_argument('--population-profile',choices=('live','noncombat-opening'),default='live')
 parser.add_argument('--video-driver',choices=('dummy','x11','wayland'),default='dummy')
@@ -39,6 +41,10 @@ originals={path.name:dict(size=path.stat().st_size,sha256=hashlib.sha256(path.re
 free=[i for i in range(9) if (game/'Saved'/f'{i:04d}.ECS').is_file() and
       (game/'Saved'/f'{i:04d}.ECS').read_bytes()==b'\r\n\r\n']
 if not free:raise SystemExit('No confirmed empty original menu slot; no files copied or overwritten')
+if args.load_slot is not None:
+    selected = game/'Saved'/f'{args.load_slot:04d}.ECS'
+    if not selected.is_file() or selected.read_bytes() == b'\r\n\r\n':
+        parser.error('--load-slot must identify an occupied source slot')
 slot=free[0]
 for name in originals:shutil.copy2(game/'Saved'/name,slots/name)
 if args.failure_case in ('unsupported','truncated','missing'):
@@ -69,7 +75,7 @@ if args.object_mesh_reps:env['E2R_OBJECT_MESH_REPS']=','.join(map(str,args.objec
 if args.population_profile!='live':env['E2R_TEST_POPULATION']=args.population_profile
 report=dict(probe_complete=False,slot=slot,initially_empty_slots=free,recording='off',
             object_mesh_ids=args.object_mesh_ids,object_mesh_reps=args.object_mesh_reps,
-            failure_case=args.failure_case,
+            failure_case=args.failure_case,inventory=args.inventory,load_slot=args.load_slot,
             population_profile=args.population_profile,
             executable=dict(path=str(executable),sha256=hashlib.sha256(executable.read_bytes()).hexdigest()),
             runtime=str(runtime),processes=[])
@@ -94,12 +100,12 @@ class SaveOwnership(gdb.Breakpoint):
 ownership=SaveOwnership('FUN_00453920',internal=True)
 from e2_save_load_steps import run,run_failure
 if FAILURE:run_failure(PREFIX,RUNTIME,GAME,SLOT,FAILURE)
-else:run(PREFIX,RUNTIME,GAME,SLOT,MODE,EQUIPMENT,EXPECTED,HUD)
+else:run(PREFIX,RUNTIME,GAME,SLOT,MODE,EQUIPMENT,EXPECTED,HUD,INVENTORY,LOAD_SLOT)
 end
 quit
 '''
         values=dict(SCRIPTS=str(ROOT/'scripts'),PREFIX=prefix,RUNTIME=str(runtime),GAME=str(game),
-                    SLOT=slot,MODE=mode,EQUIPMENT=args.equipment,EXPECTED=str(expected),FAILURE=args.failure_case,HUD=args.hud)
+                    SLOT=slot,MODE=mode,EQUIPMENT=args.equipment,EXPECTED=str(expected),FAILURE=args.failure_case,HUD=args.hud,INVENTORY=args.inventory,LOAD_SLOT=args.load_slot)
         # Substitute tokens as Python literals, without shell interpolation.
         import re
         code=re.sub(r'\b('+ '|'.join(values) +r')\b',lambda match:repr(values[match.group()]),code)

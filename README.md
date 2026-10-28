@@ -13,6 +13,15 @@ remaining models, broad gameplay fidelity and the 64-bit runtime remain incomple
 
 ## Start here
 
+The original **Enter inventory/status menu** is recovered:
+Enter opens inventory, progress, gold and kill statistics; Escape returns to
+gameplay. Read [Step 11 Task 02](docs/implementations/playable-sdl-runtime/steps/step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md)
+and its [screenshot and continuation handoff](docs/journal/entries/enter-inventory-menu-handoff-2026-10-28.md).
+Original-backed inventory/statistics, repeated Enter/Escape, protected Debug/ASan
+persistence and fresh recording/replay pass within the
+[recovery evidence](docs/journal/entries/enter-inventory-menu-recovery-2026-10-28.md).
+Human visual review and low-mode/hourglass gameplay remain open.
+
 The inner-castle crash is reproduced and its original node argument recovered;
 negative rectangle clipping is also repaired. F5 includes the original teleport,
 head switches, armour, wizardess details, prison key, mace/sparkles and stairwell
@@ -37,7 +46,7 @@ unless comparison proves a reconstruction error.
 1. Read [project state and capabilities](docs/capabilities.md).
 2. Follow the [handoff and working rules](docs/HANDOFF.md).
 3. Open the [active runtime implementation](docs/implementations/playable-sdl-runtime/playable-sdl-runtime.md)
-   and its [next object-model/animation step](docs/implementations/playable-sdl-runtime/steps/step-12/step-12-recover-object-models-and-animations.md).
+   and its [selected inventory/status menu task](docs/implementations/playable-sdl-runtime/steps/step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md).
 4. Use [build and VS Code setup](docs/building.md), then press F5 with
    **Ecstatica Recompiled** and the **Debug · Clang 21 · i386 · SDL** preset.
 

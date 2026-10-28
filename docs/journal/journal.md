@@ -8,6 +8,10 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Enter inventory/status menu recovery — 2026-10-28](entries/enter-inventory-menu-recovery-2026-10-28.md): restores real Enter/Escape, original page/HUD/icons/statistics, shared save scalar ownership, protected fresh/progressed Debug/ASan persistence and strict recording/replay; preserves numeric quirks and inner-castle limits.
+
+- [Enter inventory and progress menu handoff — 2026-10-28](entries/enter-inventory-menu-handoff-2026-10-28.md): selects Step 11 Task 02, records the original-game screenshot and Enter/Escape contract, and prepares original-backed recovery with protected saves; documentation only.
+
 - [Inner-castle register, clipping and presentation recovery — 2026-10-28](entries/inner-castle-crash-and-presentation-recovery-2026-10-28.md): reproduces the sprite event crash, recovers its original node/transform contract and signed rectangle clipping, and maps all eight findings to original models with bounded native/persistence evidence.
 
 - [Inner-castle progression crash and rendering handoff — 2026-10-28](entries/inner-castle-progression-handoff-2026-10-28.md): records extended human armour/key/wizardess/mace/lever progression, the saved incomplete-session SIGSEGV, eight presentation gaps and protected occupied saves; selects Task 04 without claiming reproduction or a fix.

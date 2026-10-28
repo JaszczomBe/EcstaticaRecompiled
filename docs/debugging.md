@@ -361,7 +361,9 @@ python3 scripts/check-e2-replay.py build/Debug/clang21-i386-sdl/e2recomp --inspe
 
 Repeat the final command with the ASan executable. The inspector regression
 records a real SDL menu route, checks independent replays with inspection on/off,
-and repeats after a debugger pause. Existing replay parser/lifecycle tests and
+and repeats after a debugger pause. Add `--inventory --character-meshes` to include
+a released-player Enter/Escape status-page transition; `--chunk-bytes 65536`
+also exercises chunk rotation on that bounded route. Existing replay parser/lifecycle tests and
 runtime/control regressions remain separate gates.
 
 <!-- docs-tree:children -->

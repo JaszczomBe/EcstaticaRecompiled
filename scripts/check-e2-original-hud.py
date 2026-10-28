@@ -31,6 +31,7 @@ typedef unsigned char byte;
 #define _DAT_00636588 WORD(0x636588)
 #define E2R_WORD_AT(v,n) (*(unsigned short *)((char *)&(v)+(n)))
 static int IsBadReadPtr(const void *p,unsigned n) {return !p;}
+int E2R_InventoryPageActive(void) {return 0;}
 '''
 h += '#include "'+str(root/'E2Recomp/platform/e2recomp_hud.h')+'"\n'
 for name in ('E2R_GetOriginalHudState', 'E2R_HudLifeLines', 'E2R_DrawOriginalHudState'):

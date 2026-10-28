@@ -28,10 +28,36 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 2. Replacing recovered logic with speculative shortcuts or direct SDL calls.
 3. Broad generated-file changes unrelated to a source-backed repair.
 
-## Selected next continuation — Object models and animations
+## Current recovery — Enter inventory and progress menu
 
-**The immediate work remains [Step 12 Task 04](steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md),
-now with reproduced crash, original-backed repairs and bounded model evidence.**
+[Step 11 Task 02](steps/step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md)
+now implements the original Enter inventory/status page and Escape dismissal.
+The [recovery journal](../../journal/entries/enter-inventory-menu-recovery-2026-10-28.md)
+owns source contracts, failed attempts and final evidence. Immutable original
+artwork and scene-flag item overlays retain the top gameplay HUD; kills, gold,
+power and visited-bit completion use original state. The live Enter queue and
+split mapped/exported statistic ownership are repaired and mirrored in the
+generator. Original five-digit truncation and the 99% progress cap remain.
+
+Four SDL/X11 builds and independent four-artifact parity pass. The focused matrix
+passes **22/22**; **67** runner contracts pass. Debug/ASan each pass fresh equipped
+and original progressed-slot-3 repeated same/fresh-process persistence: **eight
+clean native exits**, **24** status transitions, restored values and resumed
+movement/attacks. Four further fresh/runtime-slot-6 native processes cover repeated
+Enter, focus, Escape, HUD/F3 and menu return. Separate final Debug/ASan recordings
+each pass five strict replay variants with **26 checkpoints**. All **199** protected
+save/crash/evidence files retain their hashes. No occupied source save is written.
+
+Human F5 screenshot review, low-mode/planar gameplay, natural nonzero hourglass
+lifetime and exhaustive item acquisition remain open. The original screenshot
+[handoff](../../journal/entries/enter-inventory-menu-handoff-2026-10-28.md) remains
+reference evidence. Audio/music and the inner-castle route/armour/gate limits below
+stay deferred. No commit or push is requested or performed.
+
+## Retained continuation — Object models and animations
+
+[Step 12 Task 04](steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md)
+retains reproduced crash, original-backed repairs and bounded model evidence.
 The [recovery journal](../../journal/entries/inner-castle-crash-and-presentation-recovery-2026-10-28.md)
 identifies slot **6**, sprite **73/w_sprit3**, node **14**, action **253** and
 event **0x23**. Original EAX/node and three-node pose contracts are recovered;

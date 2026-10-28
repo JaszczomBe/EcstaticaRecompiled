@@ -92,14 +92,37 @@ pixels, F3, HUD/F1/F2, resumed control and actual menu Quit. `report.json`, phas
 states, object/raster samples, physical frames and GDB logs retain the evidence.
 Normal human review continues to use the single **Ecstatica Recompiled** F5 launch.
 
+## Original inventory/status page
+
+`Original.Inventory` compares bounded original-x86 icon predicates, numeric
+rendering, timer-mask pixels, live Enter gating and mapped statistic ownership in
+Debug and ASan. `Original.HudPixels` includes installed inventory sprites and
+immutable 640×512-to-640×480 page composition. Successful suite persistence
+journeys include real Enter/Escape checks, restored status values and modal
+F1/F2/F3 checks. Their original numeric limits remain intentional.
+
+For a bounded native status/persistence diagnostic:
+
+```sh
+python3 scripts/probe-e2-game-save-load.py build/Debug/clang21-i386-sdl/e2recomp \
+  --game-data /path/to/Ecstatica2 --output /tmp/e2-inventory-check --hud --inventory
+```
+
+Add `--load-slot N` to start from an occupied source slot; the probe copies it,
+writes only another verified empty private slot and checks source hashes. Use a
+new output directory for every run and repeat with the ASan executable. Human
+review uses the ordinary F5 launch. The
+[recovery record](journal/entries/enter-inventory-menu-recovery-2026-10-28.md)
+separates native, original-code and still-open visual/low-mode/hourglass coverage.
+
 ## Game persistence
 
 ```sh
 python3 scripts/run-e2-suite.py --build --block persistence --configurations debug asan
 ```
 
-Regression **11** runs seven source/host fixtures, two round-trip scenarios and a save-open failure
-scenario per configuration, plus the two build checks: **22** logical cases and
+Regression **11** runs eleven source/host fixtures, two round-trip scenarios and a save-open failure
+scenario per configuration, plus the two build checks: **30** logical cases and
 **ten** native process executions. `Persistence.World` uses live opening actors;
 `Persistence.Attachment` uses the established noncombat-opening workshop route to
 pick up the sword before saving. `Persistence.SaveFailure` verifies the error

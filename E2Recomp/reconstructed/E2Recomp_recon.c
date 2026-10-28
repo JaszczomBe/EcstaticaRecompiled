@@ -1,3 +1,4 @@
+#include "e2recomp_hud.h"
 /*
  * First-pass Ghidra decompilation of E2Recomp.exe.
  * This is reconstruction input, not original source.
@@ -9980,10 +9981,10 @@ LAB_00416112:
     DAT_00636848 = '\0';
   }
   if (DAT_0063684c != '\0') {
-    if ((3000 < DAT_0047ab14) &&
+    if ((3000 < (*(int *)0x0047ab14)) &&
        ((700 < _DAT_00636588 - _DAT_00479db0 || (_DAT_00636588 - _DAT_00479db0 < 0)))) {
       _DAT_00479db0 = _DAT_00636588;
-      DAT_0047ab14 = DAT_0047ab14 + -3000;
+      (*(int *)0x0047ab14) = (*(int *)0x0047ab14) + -3000;
       FUN_00457cf0(0,6,1);
       param_1 = extraout_ECX_01;
       param_2 = extraout_EDX_01;
@@ -9991,7 +9992,8 @@ LAB_00416112:
     param_1 = CONCAT22((short)((uint)param_1 >> 0x10),(ushort)(byte)param_1);
     DAT_0063684c = '\0';
   }
-  if ((DAT_004c39ac != '\0') && (DAT_004c39ac = '\0', DAT_0047a34a == 0)) {
+  /* Original 0x4161c5 consumes the live one-byte Enter scan queue. */
+  if ((*(byte *)0x004c39ac != '\0') && (*(byte *)0x004c39ac = '\0', DAT_0047a34a == 0)) {
     DAT_0047a788 = 1;
     FUN_00455fe8(param_1);
     param_1 = extraout_ECX_02;
@@ -19909,7 +19911,7 @@ void __fastcall FUN_004273cc(undefined4 param_1)
   if ((iVar2 != 0) &&
      (((-1 < *(short *)(iVar2 + 0xa2) || (-1 < *(short *)(iVar2 + 0x14))) &&
       (in_EAX != DAT_0047a470)))) {
-    DAT_0047ab18 = DAT_0047ab18 + 1;
+    (*(int *)0x0047ab18) = (*(int *)0x0047ab18) + 1;
   }
   in_EAX[0x41] = 0xb;
   if (*(int *)(in_EAX + 0x8f) != 0) {
@@ -25670,7 +25672,7 @@ int __fastcall FUN_0042ea00(undefined4 param_1,int param_2)
                 puVar8[0x41] = 8;
                 puVar1 = DAT_0047a470;
                 *(byte *)((int)puVar8 + 3) = *(byte *)((int)puVar8 + 3) | 0x20;
-                iVar7 = DAT_0047ab28;
+                iVar7 = (*(int *)0x0047ab28);
                 iVar5 = DAT_0047a4a4;
                 if ((((puVar8 != puVar1) || (iVar4 = (param_2 * 5) / 100, DAT_0047a44c != 0)) &&
                     (iVar4 = iVar3, puVar8 == DAT_0047a470)) && (DAT_0047a44c != 0)) {
@@ -25678,16 +25680,16 @@ int __fastcall FUN_0042ea00(undefined4 param_1,int param_2)
                 }
                 if (puVar8 == DAT_0047a470) {
                   if (DAT_0047a4a4 == 0) {
-                    iVar4 = (*(int *)(puVar8 + 0x75) >> 0x10) - (iVar4 * 0x32) / DAT_0047ab28;
+                    iVar4 = (*(int *)(puVar8 + 0x75) >> 0x10) - (iVar4 * 0x32) / (*(int *)0x0047ab28);
                     puVar8[0x76] = (ushort)iVar4;
                   }
                   else if (DAT_0047a4a4 == 1) {
-                    iVar4 = (*(int *)(DAT_0047a470 + 0x75) >> 0x10) - (iVar4 * 100) / DAT_0047ab28;
+                    iVar4 = (*(int *)(DAT_0047a470 + 0x75) >> 0x10) - (iVar4 * 100) / (*(int *)0x0047ab28);
                     ((undefined4 *)(uintptr_t)DAT_0047a470)[0x76] = (ushort)iVar4;
                     iVar5 = iVar7;
                   }
                   else {
-                    iVar4 = (*(int *)(puVar8 + 0x75) >> 0x10) - (iVar4 * 200) / DAT_0047ab28;
+                    iVar4 = (*(int *)(puVar8 + 0x75) >> 0x10) - (iVar4 * 200) / (*(int *)0x0047ab28);
                     puVar8[0x76] = (ushort)iVar4;
                   }
                 }
@@ -25998,20 +26000,20 @@ LAB_0042f2fc:
               iVar7 = extraout_ECX_04;
             }
           }
-          iVar5 = DAT_0047ab28;
+          iVar5 = (*(int *)0x0047ab28);
           if (puVar3 == DAT_0047a470) {
             if (DAT_0047a4a4 == 0) {
               puVar3[0x76] = (short)((uint)*(undefined4 *)(puVar3 + 0x75) >> 0x10) -
-                             (short)((iVar6 * 0x32) / DAT_0047ab28);
+                             (short)((iVar6 * 0x32) / (*(int *)0x0047ab28));
             }
             else if (DAT_0047a4a4 == 1) {
               puVar3[0x76] = (short)((uint)*(undefined4 *)(puVar3 + 0x75) >> 0x10) -
-                             (short)((iVar6 * 100) / DAT_0047ab28);
+                             (short)((iVar6 * 100) / (*(int *)0x0047ab28));
               iVar7 = iVar5;
             }
             else {
               puVar3[0x76] = (short)((uint)*(undefined4 *)(puVar3 + 0x75) >> 0x10) -
-                             (short)((iVar6 * 200) / DAT_0047ab28);
+                             (short)((iVar6 * 200) / (*(int *)0x0047ab28));
             }
           }
           else {
@@ -30590,9 +30592,9 @@ void __fastcall FUN_0043a39c(undefined4 param_1,undefined4 param_2)
     E2R_TraceStartGameStage("after-select-785");
   }
   E2R_TraceStartGameStage("before-return");
-  DAT_0047ab28 = 100;
-  DAT_0047ab18 = 0;
-  DAT_0047ab14 = 0;
+  (*(int *)0x0047ab28) = 100;
+  (*(int *)0x0047ab18) = 0;
+  (*(int *)0x0047ab14) = 0;
   DAT_0047a7ec = 0;
   return;
 }
@@ -46776,10 +46778,10 @@ LAB_0044f7a9:
         break;
       case 0x5b:
         if ((*local_2c & 0x8000000) == 0) {
-          DAT_0047ab28 = (uint)(short)(*(ushort *)((int)local_2c + 2) & 0xfff);
+          (*(int *)0x0047ab28) = (uint)(short)(*(ushort *)((int)local_2c + 2) & 0xfff);
         }
         else {
-          DAT_0047ab28 = *local_2c >> 0x10 | 0xf000;
+          (*(int *)0x0047ab28) = *local_2c >> 0x10 | 0xf000;
         }
         local_2c = local_2c + 1;
         uVar25 = CONCAT44(puVar18,_DAT_00ac4a54);
@@ -46815,7 +46817,7 @@ switchD_0044f573_caseD_40:
         else {
           uVar19 = *local_2c >> 0x10 | 0xf000;
         }
-        DAT_0047ab14 = DAT_0047ab14 + uVar19;
+        (*(int *)0x0047ab14) = (*(int *)0x0047ab14) + uVar19;
         local_2c = local_2c + 1;
         uVar25 = CONCAT44(puVar18,_DAT_00ac4a54);
         break;
@@ -50837,89 +50839,39 @@ void FUN_00455e84(void)
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
 void __fastcall FUN_00455fe8(undefined4 param_1)
-
 {
-  int iVar1;
-  int iVar2;
-  int iVar3;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 extraout_ECX_02;
-  undefined4 extraout_ECX_03;
-  undefined4 extraout_ECX_04;
-  undefined4 extraout_ECX_05;
-  undefined4 extraout_ECX_06;
-  undefined4 extraout_ECX_07;
-  undefined4 extraout_ECX_08;
-  undefined4 extraout_ECX_09;
-  undefined4 extraout_ECX_10;
-  undefined4 extraout_ECX_11;
-  undefined4 extraout_EDX;
-  undefined4 extraout_EDX_00;
-  undefined4 extraout_EDX_01;
-  undefined4 extraout_EDX_02;
-  undefined4 extraout_EDX_03;
-  undefined4 uVar4;
-  undefined8 uVar5;
-  uint in_stack_ffffffb4;
-
-  iVar1 = DAT_0047a43c;
-  if (DAT_0047a76c == 0) {
-    if (DAT_0047a43c == 0) {
-      FUN_0043ac60();
-      param_1 = extraout_ECX;
-    }
-    _DAT_0073ccba = 0;
+  /* 0x455ff1..0x4561b6: synchronous page; only the input pump runs while open.
+   * Immutable host composition replaces the legacy dirty-page graphic table,
+   * just as for the recovered HUD. Scene/palette/input ownership stays here. */
+  int high = DAT_0047a43c;
+  if (DAT_0047a76c != 0) return;
+  if (!high) FUN_0043ac60();
+  _DAT_0073ccba = 0;
   E2R_SyncSceneViewId();
-    FUN_0044add8(param_1,0);
-    FUN_0045fd2c(extraout_ECX_00,_DAT_006365f8);
-    FUN_0045fd4b(extraout_ECX_01,s_graphics__00475f74);
-    FUN_0045fd4b(extraout_ECX_02,s_iconpage_raw_00475f80);
-    uVar5 = FUN_0045e594(extraout_ECX_03,extraout_EDX,&stack_ffffffb4,0x200,in_stack_ffffffb4);
-    if ((int)uVar5 != -1) {
-      FUN_0045e76f((int)uVar5,_DAT_0063615c);
-      FUN_0045e76f(extraout_ECX_04,(char *)0x621030);
-      iVar2 = 0;
-      do {
-        iVar3 = iVar2 + 1;
-        *(byte *)(iVar2 + 0x621030) = *(byte *)(iVar2 + 0x621030) >> 2;
-        iVar2 = iVar3;
-      } while (iVar3 < 0x300);
-      FUN_0045e76f(extraout_ECX_05,_DAT_0063615c);
-      uVar5 = FUN_0045e8e6(extraout_ECX_06,extraout_EDX_00);
-      FUN_0041af88(0x621030,(int)((ulonglong)uVar5 >> 0x20));
-      FUN_0041760c(DAT_0047a279 >> 0x18,0,0,0,_DAT_006401ec,_DAT_006401d4);
-      FUN_0044e5b0();
-      FUN_004559bc();
-      FUN_00456f94();
-      FUN_004561c8(extraout_ECX_08,extraout_EDX_01);
-      FUN_0041af88(0x621030,extraout_EDX_02);
-      uVar5 = CONCAT44(extraout_EDX_03,extraout_ECX_10);
-    }
-    do {
-      uVar5 = FUN_0041ba7c((int)uVar5,(int)((ulonglong)uVar5 >> 0x20));
-      uVar4 = (undefined4)((ulonglong)uVar5 >> 0x20);
-      uVar5 = CONCAT44(uVar4,extraout_ECX_11);
-    } while (DAT_00636844 == '\0');
-    DAT_00636844 = '\0';
-    FUN_0041af88(0xab9fac,uVar4);
-    if (iVar1 == 0) {
-      FUN_0043acec();
-      FUN_0044e5b0();
-      FUN_004559bc();
-      FUN_00456f94();
-    }
-    _DAT_006366dc = 0;
-    FUN_0041ab4c((int)_DAT_006401ec,0,_DAT_006401d4);
-    _DAT_006366de = 0;
-    FUN_0041ab4c((int)_DAT_006401ec,0,_DAT_006401d4);
-    _DAT_006366e2 = 0;
-    FUN_0041ab4c((int)_DAT_006401ec,0,_DAT_006401d4);
-    _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
-    FUN_0041cfc0();
+  FUN_0044add8(0,0);
+  if (E2R_BeginInventoryPage()) {
+    FUN_0044e5b0();
+    E2R_InventoryState state;
+    E2R_GetInventoryState(&state);
+    DAT_0047ab1c = state.progress;
+    FUN_0041af88(0x61c730,0);
   }
-  return;
+  do {
+    FUN_0041ba7c(0,0);
+  } while (DAT_00636844 == '\0');
+  DAT_00636844 = '\0';
+  FUN_0041af88(0x61cd30,0);
+  E2R_EndInventoryPage();
+  if (!high) {
+    FUN_0043acec();
+    FUN_0044e5b0();
+    FUN_004559bc();
+    FUN_00456f94();
+  }
+  /* The host page never dirties gameplay buffers; invalidate the scene so the
+   * original scheduler rebuilds its background/palette on the next update. */
+  _DAT_0073cc3c = E2R_TraceScenePointerWrite("scene.clear",0);
+  FUN_0041cfc0();
 }
 
 
@@ -51179,12 +51131,12 @@ void __fastcall FUN_004561c8(undefined4 param_1,undefined4 param_2)
       iVar7 = iVar7 + 1;
     } while (iVar7 < 0xda);
   }
-  if (DAT_0047ab28 == 0x96) {
+  if ((*(int *)0x0047ab28) == 0x96) {
     uVar5 = 0x219;
     uVar4 = 0x96;
   }
   else {
-    if (DAT_0047ab28 != 200) goto LAB_004566d9;
+    if ((*(int *)0x0047ab28) != 200) goto LAB_004566d9;
     FUN_00455850(200,0x214);
     uVar5 = 0x21e;
     uVar4 = extraout_ECX_37;
@@ -65182,8 +65134,9 @@ void E2R_GetOriginalHudState(E2R_HudState *state)
   memset(state,0,sizeof(*state));
   /* 0x4559c1..0x4559d6 and the modal/indexed-page ownership boundary. */
   state->high = DAT_0047a43c != 0;
-  if (actor == 0 || DAT_0047a76c != 0 || DAT_0047a448 != 0 ||
-      E2R_WORD_AT(DAT_0047a45e,2) != 0 || DAT_0047a34a != 0 ||
+  if (actor == 0 || DAT_0047a76c != 0 ||
+      (!E2R_InventoryPageActive() && (DAT_0047a448 != 0 ||
+       E2R_WORD_AT(DAT_0047a45e,2) != 0 || DAT_0047a34a != 0)) ||
       IsBadReadPtr((void *)(uintptr_t)actor,0x188)) return;
   state->visible = 1;
   state->life = *(short *)(actor + 0xec);
@@ -65328,4 +65281,79 @@ void E2R_DrawOriginalHudState(const E2R_HudState *state,const E2R_HudPainter *pa
       }
     }
   }
+}
+
+
+/* Original 0x4561c8..0x45684b: live status-page values and temporary graphics. */
+void E2R_GetInventoryState(E2R_InventoryState *state)
+{
+  static const char *names[] = {"ringicon","amuicon1","lampicon","shdicon1",
+    "shdicon2","scrlicon","amuicon2","kingicon","elder1","elder2","elder3",
+    "elder4","elder5","elder6","elder7"};
+  memset(state,0,sizeof(*state));
+  for (int i = 0; i < 15; ++i) {
+    int index = (int)FUN_00441ea4((undefined4)(uintptr_t)names[i],0);
+    state->items[i] = index >= 0 && (*(byte *)(0x670c38 + index * 2) & 8) != 0;
+  }
+  state->timer = DAT_0047ab20;
+  state->timer_total = DAT_0047ab24;
+  state->power = (*(int *)0x0047ab28);
+  state->kills = (*(int *)0x0047ab18);
+  state->gold = (int)((uint)(*(int *)0x0047ab14) * 10);
+  int visited = 0;
+  for (int i = 0; i < 150; ++i)
+    for (int bit = 0; bit < 8; ++bit)
+      if (*(byte *)(0xac4b00 + i) & (1 << bit)) ++visited;
+  state->progress = visited * 100 / 1001;
+  if (state->progress > 99) state->progress = 99;
+}
+
+static void E2R_InventoryNumber(int value,int digits,int x,int y,const E2R_InventoryPainter *painter)
+{
+  /* 0x456874: right alignment, ten-pixel advance, no leading zeroes;
+   * negative remainders select no graphic, exactly as the unsigned switch. */
+  for (int column = digits - 1; column >= 0; --column) {
+    int digit = value % 10;
+    if (digit >= 0 && digit <= 9) {
+      char name[] = "number0";
+      name[6] += digit;
+      painter->graphic(painter->context,name,x + column * 10,y);
+    }
+    value /= 10;
+    if (!value) break;
+  }
+}
+
+void E2R_DrawInventoryState(const E2R_InventoryState *state,const E2R_InventoryPainter *painter)
+{
+  static const struct { const char *name; int x,y; } icons[] = {
+    {"ringicon",224,123},{"amuicon1",307,121},{"lampicon",226,187},
+    {"shdicon1",307,196},{"shdicon2",225,272},{"scrlicon",307,270},
+    {"amuicon2",224,340},{"kingicon",306,346},{"elder1",122,125},
+    {"elder2",142,160},{"elder3",122,203},{"elder4",70,203},
+    {"elder5",62,159},{"elder6",69,125},{"elder7",102,167}};
+  for (int i = 0; i < 15; ++i)
+    if (state->items[i]) painter->graphic(painter->context,icons[i].name,icons[i].x,icons[i].y);
+  if (state->timer_total) {
+    painter->graphic(painter->context,"timer1",222,119);
+    int remaining = (int)((uint)state->timer * 29) / state->timer_total;
+    int boundary = (int)((uint)(state->timer_total - state->timer) * 29) / state->timer_total + 159;
+    for (int y = 159; y < boundary; ++y)
+      for (int x = 280; x < 311; ++x) painter->masked_pixel(painter->context,x,y,0);
+    for (int y = boundary; y < 189; ++y)
+      for (int x = 280; x < 311; ++x) painter->masked_pixel(painter->context,x,y,11);
+    for (int y = remaining + 189, end = 296; y < 218; ++y, ++end)
+      for (int x = 296 - ((y - 189) - remaining); x < end; ++x)
+        painter->masked_pixel(painter->context,x,y,11);
+    for (int y = 189; y < 218; ++y)
+      for (int x = 280; x < 311; ++x) painter->masked_pixel(painter->context,x,y,0);
+  }
+  if (state->power == 150) painter->graphic(painter->context,"powgem1",537,396);
+  else if (state->power == 200) {
+    painter->graphic(painter->context,"powgem1",532,396);
+    painter->graphic(painter->context,"powgem1",542,396);
+  }
+  E2R_InventoryNumber(state->kills,5,419,397,painter);
+  E2R_InventoryNumber(state->gold,5,92,394,painter);
+  E2R_InventoryNumber(state->progress,2,481,277,painter);
 }

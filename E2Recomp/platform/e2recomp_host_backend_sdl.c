@@ -884,7 +884,7 @@ static void e2r_sdl_actor_cues(SDL_Surface *surface)
     unsigned drawn = 0, behind = 0, outside = 0, hidden = 0, objects = 0, generated = 0;
     if (!scene_cues && !E2R_DebugOverlaySelected()) return;
     E2R_GetActorCues(&state);
-    if (state.requester_id != 0) return; /* Keep modal controls unobscured. */
+    if (state.requester_id != 0 || E2R_InventoryPageActive()) return;
     if (!cylinders && (state.scene_slot < 0 || state.count == 0)) return;
     Uint32 cyan = SDL_MapSurfaceRGB(surface, 56, 224, 244);
     Uint32 amber = SDL_MapSurfaceRGB(surface, 255, 180, 65);

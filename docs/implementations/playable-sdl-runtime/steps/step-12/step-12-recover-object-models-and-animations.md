@@ -4,7 +4,7 @@
 [Project README](../../../../../README.md) · [Parent: Playable SDL Runtime](../../playable-sdl-runtime.md)
 <!-- /docs-tree:parent -->
 
-Status: active; Task 04 inner-castle crash/models selected; prior bounded tower acceptance retained
+Status: active with retained acceptance limits; Enter inventory/status menu selected next in Step 11
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-10-28
 
@@ -83,6 +83,10 @@ newly enabled object rendering.
    independent four-artifact parity. Keep host presentation below its boundary.
 
 ## Current tasks
+
+The user has selected [Step 11 Task 02: Enter inventory/status menu](../step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md)
+as the immediate next-context task. Step 12's remaining work stays open; this
+priority change does not extend or close the bounded acceptance below.
 
 [Task 04](tasks/task-04-recover-inner-castle-progression-crash-and-models.md) remains
 active after original-backed event/node and signed-clipping repairs. The

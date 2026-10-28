@@ -4,11 +4,21 @@
 [Project README](../../../../../README.md) · [Parent: Playable SDL Runtime](../../playable-sdl-runtime.md)
 <!-- /docs-tree:parent -->
 
-Status: implemented; bounded verification and remaining branches recorded
+Status: active; gameplay HUD and Task 02 inventory/status menu implemented within recorded bounds
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-10-28
 
 ## Goal
+
+The user now selects [Task 02: Enter inventory and progress menu](tasks/task-02-recover-enter-inventory-and-progress-menu.md)
+as the immediate continuation after inner-castle recovery. Enter opens the
+original status/inventory page and Escape closes it. The
+[handoff journal](../../../../journal/entries/enter-inventory-menu-handoff-2026-10-28.md)
+preserves the supplied original-game reference and continuation boundaries.
+Task 02 now has original-backed implementation and bounded Debug/ASan acceptance;
+its [recovery journal](../../../../journal/entries/enter-inventory-menu-recovery-2026-10-28.md)
+records current menu evidence. Retained gameplay-HUD evidence below belongs to Task 01. Remaining object/route work and audio/music
+stay deferred with their existing limits.
 
 Restore the original game HUD, starting with the player's life bar and recovering
 its other indicators from original assets and behavior. Make it the default
@@ -134,6 +144,8 @@ step and dated journal with fresh implementation evidence and limitations.
 1. Selected HUD recovery before sounds and music; recorded default original HUD,
    F1 original HUD and F2 debug overlay requirements for the next context.
 2. Prepared the original-code investigation task; runtime remains unchanged.
+3. After inner-castle recovery, selected Task 02 for the original Enter inventory/
+   progress page; added its screenshot handoff and verification requirements.
 
 ## Implementation evidence — 2026-10-28
 
@@ -174,3 +186,16 @@ original-code fixture evidence, with native gameplay journeys still unexercised.
 Low-mode selection is compared, but low-mode planar gameplay and exhaustive
 cinematic/translated/inventory UI are unqualified. Human F5 visual review and
 broader rendering/tower/persistence limits remain separate from bounded tests.
+
+## Inventory/status recovery — 2026-10-28
+
+Task 02 restores real Enter/Escape, original artwork/HUD, fifteen scene-based item
+predicates, kills, ten-times gold, power gems and visited-bit progress. Original
+99% progress and five-digit numeric limits remain. Shared mapped statistic
+storage fixes Save/Load disagreement without changing the format or occupied
+files. Generator parity and four builds pass; 22 focused fixtures and 67 runner
+contracts pass. Debug/ASan equipped and progressed persistence produce eight
+clean processes and 24 status transitions; four additional fresh/slot-6 processes
+verify repeated Enter and focus/HUD/F3. Each final recording passes five strict
+replays through 26 checkpoints. Human screenshot review, low mode and natural
+nonzero hourglass lifetime remain open; inner-castle limits are unchanged.

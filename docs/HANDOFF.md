@@ -27,14 +27,14 @@ F5 launch with recording, inspection, executable pinning and debugger evidence.
 See [build setup](building.md) and [debugging usage](debugging.md).
 
 For the selected next continuation, open the
-[object-model/animation step](implementations/playable-sdl-runtime/steps/step-12/step-12-recover-object-models-and-animations.md)
-and its [inner-castle crash and model recovery task](implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md).
-The user explicitly requested this next-context handoff after extended tower/
-inner-castle progression exposed a new crash and missing original presentation.
-This navigation replaces the earlier bounded tower-key task as the immediate
-continuation. Current baseline, session/save evidence, acceptance and
-remaining source questions stay owned by the active implementation/task and its
-linked journal; original object recovery and progression still precede audio.
+[original-HUD step](implementations/playable-sdl-runtime/steps/step-11/step-11-recover-original-hud.md)
+and its [Enter inventory/status menu task](implementations/playable-sdl-runtime/steps/step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md).
+The user explicitly requested this next-context handoff after inner-castle
+recovery, supplying an original-game inventory/progress screenshot. This
+navigation change makes the selected menu task discoverable from a blank context;
+the task and its [handoff journal](journal/entries/enter-inventory-menu-handoff-2026-10-28.md)
+own the changing source leads, reference and acceptance. Prior object/progression
+limits remain open; audio/music remain deferred.
 
 Read these sources in order:
 

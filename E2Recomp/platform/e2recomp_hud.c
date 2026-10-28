@@ -11,6 +11,7 @@ static int e2r_geometry_mode;
 static int e2r_geometry_key_down;
 static unsigned char *e2r_hud_pixels;
 static size_t e2r_hud_capacity;
+static int e2r_inventory_active;
 
 int E2R_DebugOverlaySelected(void)
 {
@@ -44,7 +45,7 @@ typedef struct E2R_HudGraphic {
 
 /* 3 life frames, 2 armour frames, 3 hand icons, 5 capacity frames,
  * 18 magic icons and one magic meter, in both original resolutions. */
-static E2R_HudGraphic e2r_hud_graphics[64];
+static E2R_HudGraphic e2r_hud_graphics[128];
 static unsigned e2r_hud_graphic_count;
 
 static const E2R_HudGraphic *e2r_hud_load(const char *name, int high)
@@ -75,7 +76,7 @@ static const E2R_HudGraphic *e2r_hud_load(const char *name, int high)
     graphic->width = (header[8] << 8) | header[9];
     graphic->height = (header[10] << 8) | header[11];
     if (graphic->width <= 0 || graphic->height <= 0 ||
-        graphic->width > 640 || graphic->height > 480) goto close_failed;
+        graphic->width > 640 || graphic->height > 512) goto close_failed;
     bytes = (size_t)graphic->width * graphic->height;
     graphic->pixels = malloc(bytes);
     if (!graphic->pixels || SetFilePointer(file, 800, NULL, 0) != 800 ||
@@ -98,6 +99,50 @@ typedef struct E2R_HudTarget {
     unsigned width, height, pitch;
     int high;
 } E2R_HudTarget;
+
+int E2R_BeginInventoryPage(void)
+{
+    const E2R_HudGraphic *page = e2r_hud_load("iconpage", 1);
+    e2r_inventory_active = page && page->pixels;
+    return e2r_inventory_active;
+}
+
+void E2R_EndInventoryPage(void)
+{
+    e2r_inventory_active = 0;
+}
+
+int E2R_InventoryPageActive(void)
+{
+    return e2r_inventory_active;
+}
+
+static void e2r_inventory_graphic(void *context, const char *name, int x, int y)
+{
+    E2R_HudTarget *target = context;
+    const E2R_HudGraphic *graphic = e2r_hud_load(name, 1);
+    if (!graphic || !graphic->pixels) return;
+    for (int row = 0; row < graphic->height; ++row) {
+        if (y + row < 0 || (unsigned)(y + row) >= target->height) continue;
+        for (int column = 0; column < graphic->width; ++column) {
+            unsigned char value = graphic->pixels[row * graphic->width + column];
+            /* 0x4558c6 normalizes only 1. Unlike registered HUD graphics,
+             * temporary inventory graphics retain opaque zero pixels. */
+            if (value != 1 && value != 255 && x + column >= 0 &&
+                (unsigned)(x + column) < target->width)
+                target->pixels[(y + row) * target->pitch + x + column] = value;
+        }
+    }
+}
+
+static void e2r_inventory_masked_pixel(void *context, int x, int y, int color)
+{
+    E2R_HudTarget *target = context;
+    if (x >= 0 && y >= 0 && (unsigned)x < target->width && (unsigned)y < target->height) {
+        unsigned char *pixel = target->pixels + y * target->pitch + x;
+        if (*pixel == 7) *pixel = color;
+    }
+}
 
 static void e2r_hud_graphic(void *context, const char *name, int x, int y, int centered)
 {
@@ -144,7 +189,7 @@ const unsigned char *E2R_ComposeOriginalHud(const unsigned char *pixels,
 {
     E2R_HudState state;
     E2R_GetOriginalHudState(&state);
-    if (e2r_debug_overlay || !state.visible || !pixels || !width || !height ||
+    if ((!e2r_inventory_active && (e2r_debug_overlay || !state.visible)) || !pixels || !width || !height ||
         width > 4096 || height > 4096 || pitch < width) return pixels;
     size_t bytes = (size_t)pitch * height;
     if (bytes > e2r_hud_capacity) {
@@ -156,6 +201,18 @@ const unsigned char *E2R_ComposeOriginalHud(const unsigned char *pixels,
     memcpy(e2r_hud_pixels, pixels, bytes);
     E2R_HudTarget target = {e2r_hud_pixels, width, height, pitch, state.high};
     E2R_HudPainter painter = {&target, e2r_hud_graphic, e2r_hud_line};
+    if (e2r_inventory_active) {
+        const E2R_HudGraphic *page = e2r_hud_load("iconpage", 1);
+        /* 0x456099..0x4560af reads screen width*height, although the original
+         * RAW is 640x512. Only the first 480 rows reach the high-mode screen. */
+        for (unsigned row = 0; row < height && row < (unsigned)page->height; ++row)
+            memcpy(e2r_hud_pixels + row * pitch, page->pixels + row * page->width,
+                   width < (unsigned)page->width ? width : (unsigned)page->width);
+        E2R_InventoryState inventory;
+        E2R_GetInventoryState(&inventory);
+        E2R_InventoryPainter items = {&target, e2r_inventory_graphic, e2r_inventory_masked_pixel};
+        E2R_DrawInventoryState(&inventory, &items);
+    }
     E2R_DrawOriginalHudState(&state, &painter);
     return e2r_hud_pixels;
 }

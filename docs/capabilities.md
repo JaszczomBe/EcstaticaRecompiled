@@ -20,6 +20,16 @@ diagnostic object markers alongside recovered animated character bodies.
 
 ## Current implementation and next work
 
+**The original Enter inventory/status menu is recovered.**
+[Step 11 Task 02](implementations/playable-sdl-runtime/steps/step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md)
+and its [recovery journal](journal/entries/enter-inventory-menu-recovery-2026-10-28.md)
+record original artwork, scene-based inventory icons, gold, kills, power and
+visited-bit progress. Real Enter/Escape, modal HUD/F3, protected same/fresh
+Debug/ASan persistence and separate strict recordings pass. The original
+99% completion cap and five-digit truncation remain. Human screenshot review,
+low-mode gameplay and natural nonzero hourglass lifetime remain open. Existing
+inner-castle acceptance limits are unchanged.
+
 **Inner-castle recovery now has original-backed repairs and model selection.**
 [Step 12 Task 04](implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md)
 and its [recovery journal](journal/entries/inner-castle-crash-and-presentation-recovery-2026-10-28.md)
@@ -83,8 +93,8 @@ Investigation session saving, replay and the
 gameplay regression suite remain closed milestones with minor limits deferred.
 
 The [runtime implementation](implementations/playable-sdl-runtime/playable-sdl-runtime.md)
-owns current acceptance. Current handoff HEAD is `990bdd9ea080ccdf434f626d4d20bf440f12a422`
-on `linux-e2-reconstructed-runtime`, containing object/F3 recovery; HUD recovery is in `44ebf8f`, chunked
+owns current acceptance. Current handoff HEAD is `969af3bfbdd6aefc7345fa07db3b415151f87a1a`
+on `linux-e2-reconstructed-runtime`, containing inner-castle recovery; object/F3 recovery is in `990bdd9`, HUD recovery is in `44ebf8f`, chunked
 recording/streaming replay in `a2a6043`, functional persistence in `35be1cc` and
 menu/layout refinements in `22c36a3`. The historical v0.2.0 tag
 remains at `ae54e6f8e4dc`; no newer release/push is inferred.

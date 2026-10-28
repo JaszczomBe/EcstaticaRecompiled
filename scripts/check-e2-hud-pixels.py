@@ -2,7 +2,7 @@
 """Compare installed HUD sprite raster and line pixels against bounded original x86."""
 import argparse
 from pathlib import Path
-from e2_original import OriginalImage, run_fixture, support
+from e2_original import OriginalImage, function, run_fixture, support
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('exe', type=Path)
@@ -12,6 +12,9 @@ a = p.parse_args()
 root = Path(__file__).resolve().parent.parent
 image = OriginalImage(a.exe)
 h = support() + '#include "'+str(root/'E2Recomp/platform/e2recomp_hud.c')+'"\n'
+source = (root/'E2Recomp/reconstructed/E2Recomp_recon.c').read_text()
+for name in ('E2R_InventoryNumber', 'E2R_DrawInventoryState'):
+    h += function(source, name) + '\n'
 h += r'''
 #include <assert.h>
 #include <ctype.h>
@@ -19,6 +22,8 @@ h += r'''
 typedef unsigned char byte;
 #include <sys/mman.h>
 static E2R_HudState test_state;
+static E2R_InventoryState inventory_state;
+void E2R_GetInventoryState(E2R_InventoryState *state) {*state=inventory_state;}
 void E2R_GetOriginalHudState(E2R_HudState *state) {*state=test_state;}
 void E2R_DrawOriginalHudState(const E2R_HudState *s,const E2R_HudPainter *p) {p->graphic(p->context,"life1",25,8,0);}
 HANDLE CreateFileA(LPCSTR path,DWORD access,DWORD share,LPVOID security,DWORD creation,DWORD flags,HANDLE template) {
@@ -92,6 +97,38 @@ int main(int argc,char **argv) {
  composed=E2R_ComposeOriginalHud(actual,640,480,704);assert(!memcmp(saved,composed,sizeof saved));
  test_state.visible=0;assert(E2R_ComposeOriginalHud(actual,640,480,704)==actual);
  puts("PASS: independent idempotent mode keys, untouched source pages, repeatable composition and modal suppression");
+ const char *items[]={"ringicon","amuicon1","lampicon","shdicon1","shdicon2","scrlicon",
+ "amuicon2","kingicon","elder1","elder2","elder3","elder4","elder5","elder6","elder7",
+ "timer1","powgem1","number0","number1","number2","number3","number4","number5",
+ "number6","number7","number8","number9"};
+ cases=0;
+ for(unsigned n=0;n<sizeof(items)/sizeof(*items);n++)for(int position=0;position<3;position++) {
+  const E2R_HudGraphic *g=e2r_hud_load(items[n],1);assert(g&&g->pixels);
+  byte *normalized=malloc(g->width*g->height);assert(normalized);
+  for(int i=0;i<g->width*g->height;i++)normalized[i]=g->pixels[i]==1?255:g->pixels[i];
+  memset(expected,73,sizeof expected);memset(actual,73,sizeof actual);
+  int x=position==0?224:position==1?640-g->width:0;
+  int y=position==0?123:position==1?480-g->height:0;
+  original_sprite(normalized,x,y,g->width,g->height);
+  E2R_HudTarget target={actual,640,480,704,1};e2r_inventory_graphic(&target,items[n],x,y);
+  assert(e2r_memory_equal(items[n],expected,actual,sizeof expected));free(normalized);cases++;
+ }
+ printf("PASS: %u installed original inventory sprite/padded-pitch pixel comparisons\n",cases);
+ memset(actual,73,sizeof actual);memcpy(before,actual,sizeof actual);
+ inventory_state=(E2R_InventoryState){.kills=70,.gold=74250,.progress=48,.power=200,.timer=51,.timer_total=103};
+ for(int i=0;i<15;i++)inventory_state.items[i]=i%2;
+ assert(E2R_BeginInventoryPage());assert(E2R_InventoryPageActive());
+ const E2R_HudGraphic *page=e2r_hud_load("iconpage",1);assert(page->width==640&&page->height==512);
+ composed=E2R_ComposeOriginalHud(actual,640,480,704);assert(composed!=actual);
+ memcpy(saved,composed,sizeof saved);assert(!memcmp(actual,before,sizeof actual));
+ E2R_HandleDisplayKey(WM_KEYDOWN,0x71);composed=E2R_ComposeOriginalHud(actual,640,480,704);
+ assert(!memcmp(saved,composed,sizeof saved));
+ E2R_HandleDisplayKey(WM_KEYDOWN,0x72);E2R_HandleDisplayKey(WM_KEYUP,0x72);
+ composed=E2R_ComposeOriginalHud(actual,640,480,704);assert(!memcmp(saved,composed,sizeof saved));
+ E2R_EndInventoryPage();assert(!E2R_InventoryPageActive());
+ assert(E2R_ComposeOriginalHud(actual,640,480,704)==actual);
+ puts("PASS: 640x512 original page crop, untouched sources, modal F1/F2/F3 composition and dismissal");
+
 }
 '''
 # Use the fixture runner's isolated process; the data directory is an explicit

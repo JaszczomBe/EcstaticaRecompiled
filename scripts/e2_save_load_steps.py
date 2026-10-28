@@ -144,7 +144,11 @@ class PersistenceJourney(MenuJourney):
                             progress=s(0xac)&65535,phase=s(0xb2)&65535) if action else None,
                 timers=timers,attachment=attachment)
             cursor=w(0x4c)
-        return dict(tick=current_tick,actors=actors,player=self.state('player'))
+        result = dict(tick=current_tick,actors=actors,player=self.state('player'))
+        if getattr(self, 'inventory_checks', False):
+            from e2_inventory_steps import observe
+            result['inventory'] = observe(self)
+        return result
 
     def compare_world(self, expected, actual):
         self.require(set(expected['actors'])==set(actual['actors']),'Restored active actor identities differ')
@@ -152,6 +156,8 @@ class PersistenceJourney(MenuJourney):
             after=actual['actors'][identity]
             for field in ('fields','matrix','actions','script','timers','attachment'):
                 self.require(before[field]==after[field],f'Actor {identity} restored {field} differs: expected {before[field]}, actual {after[field]}')
+        if 'inventory' in expected:
+            self.require(expected['inventory'] == actual['inventory'], 'Loaded status-page values differ from the saved state')
         self.details['restored_actor_count']=len(actual['actors'])
         self.details['restored_timer_count']=sum(len(row['timers']) for row in actual['actors'].values())
         self.details['restored_attachments']={identity:row['attachment'] for identity,row in actual['actors'].items() if row['attachment']}
@@ -283,9 +289,10 @@ class PersistenceJourney(MenuJourney):
         self.key(38,False);self.key(17,False);self.step(90)
 
 
-def run(prefix, runtime, game_data, slot, mode, equipment, expected_path, hud=False):
+def run(prefix, runtime, game_data, slot, mode, equipment, expected_path, hud=False, inventory=False, load_slot=None):
     journey=PersistenceJourney(prefix,{'checks':['Menus.Gameplay.SaveDialog']},False,'save-load',game_data,0,False)
     journey.runtime=runtime
+    journey.inventory_checks=inventory
     journey.frame=gdb.Breakpoint('FUN_00415d40',internal=True);journey.frame.condition=journey.HORSE
     command='run --game-data-dir '+json.dumps(game_data)+' --data-dir '+json.dumps(runtime)+' --record off --run-recon'
     gdb.execute(command,to_string=True)
@@ -296,7 +303,15 @@ def run(prefix, runtime, game_data, slot, mode, equipment, expected_path, hud=Fa
         hud_checks=HudChecks(journey)
         hud_checks.check_default()
     if mode=='same':
-        journey.reach_pedestal();journey.reach_gameplay()
+        if load_slot is not None:
+            from e2_tower_steps import TowerJourney
+            TowerJourney.load_initial(journey, load_slot)
+        else:
+            journey.reach_pedestal();journey.reach_gameplay()
+        if inventory:
+            from e2_inventory_steps import check
+            check(journey, 'before-save')
+            check(journey, 'repeated-before-save', False)
         if equipment:journey.equipment(game_data)
         if hud:
             hud_checks.switches('gameplay')
@@ -306,13 +321,20 @@ def run(prefix, runtime, game_data, slot, mode, equipment, expected_path, hud=Fa
             expected=journey.menu_save(slot,'E2RTEST',expected_path)
             if hud:hud_checks.check_mode(cycle)
             if cycle==0:journey.cancel_previews(slot)
-            journey.move();journey.menu_load(slot,expected);journey.move();journey.interact()
+            journey.move();journey.menu_load(slot,expected)
+            if inventory:check(journey, 'same-load-' + str(cycle))
+            journey.move();journey.interact()
             if hud:
                 hud_checks.check_mode(cycle)
                 hud_checks.switches('load-'+str(cycle))
     else:
         expected=json.loads(Path(expected_path).read_text())
-        journey.menu_load(slot,expected);journey.move();journey.interact()
+        journey.menu_load(slot,expected)
+        if inventory:
+            from e2_inventory_steps import check
+            check(journey, 'fresh-load')
+            check(journey, 'repeated-fresh-load', False)
+        journey.move();journey.interact()
         if hud:hud_checks.switches('fresh-load')
     journey.stage='Gameplay';journey.quit()
     journey.complete=True;journey.save()

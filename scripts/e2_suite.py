@@ -530,6 +530,7 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
             ('ScriptNames','script-names',[]),('Menus','menu-contracts',[]),
             ('MenuLayout','menu-layout',[]),
             ('Hud','original-hud',[]),('HudPixels','hud-pixels',[]),
+            ('Inventory','inventory',[]),
             ('PlayerMesh','player-mesh',[]),('EllipsoidPixels','ellipsoid-pixels',[]),
             ('InterpolatedNodeEvents','interpolated-node-events',[]),('RenderCopies','render-copies',[]),
             ('PoseEvents','action-pose-events',[]),('BitmapRecords','bitmap-records',[]),
@@ -556,7 +557,7 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
                 ('Attachment',True,'noncombat-opening',None),('SaveFailure',False,'live','save-open')]:
             cases.append(Case(prefix+'Persistence.'+label,kind='persistence',configuration=configuration,
                 requires=tuple(prefix+name for name in ('Build','Host.SaveStorage','Host.SaveStreams',
-                    'Original.SaveContracts','Original.SaveWriter','Original.SaveSlotCallbacks','Original.SaveRestoreTimers',
+                    'Original.SaveContracts','Original.SaveWriter','Original.SaveSlotCallbacks','Original.SaveRestoreTimers','Original.Inventory',
                     'Original.Menus','Original.MenuLayout','Original.Hud','Original.HudPixels')),
                 timeout=180 if failure else 600,
                 options=dict(equipment=equipment,population_profile=profile,failure_case=failure)))
@@ -704,7 +705,7 @@ def executor(game_data, video_driver='dummy'):
                 '--population-profile',case.options['population_profile']]
             if case.options['equipment']:command+=['--equipment']
             if case.options.get('failure_case'):command+=['--failure-case',case.options['failure_case']]
-            else:command+=['--hud']
+            else:command+=['--hud','--inventory']
             result=execute(command,directory,case.timeout,environment)
             report_path=directory/'probe/report.json'
             if report_path.is_file():
