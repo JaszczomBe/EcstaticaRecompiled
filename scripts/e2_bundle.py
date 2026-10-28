@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from e2_replay_storage import inventory
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_FILE = 256 * 1024 * 1024
@@ -48,15 +49,16 @@ def session_path(source):
     return source.parent if source.name in ('replay', 'inspection') else source
 
 
-def copy_file(source, destination, budget):
+def copy_file(source, destination, budget, *, replay=False):
     if source.is_symlink() or not source.is_file():
         raise ValueError(f'Expected regular evidence file: {source}')
     size = source.stat().st_size
-    if size > MAX_FILE or size > MAX_BUNDLE-budget[0]:
+    if not replay and (size > MAX_FILE or size > MAX_BUNDLE-budget[0]):
         raise ValueError(f'Evidence exceeds bundle limit: {source}')
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, destination)
-    budget[0] += size
+    if not replay:
+        budget[0] += size
 
 
 def freeze_session(source, destination, budget):
@@ -73,10 +75,14 @@ def freeze_session(source, destination, budget):
                             raise ValueError('Symlinked investigation artifact')
                         if path.is_file():
                             paths.append(path)
+                elif directory == 'replay':
+                    replay_files, _ = inventory(parent)
+                    paths.extend(replay_files)
                 else:
                     paths.extend(parent.iterdir())
         for path in paths:
-            copy_file(path, destination/path.relative_to(source), budget)
+            copy_file(path, destination/path.relative_to(source), budget,
+                      replay=path.parent == source/'replay')
 
 
 def source_context(destination, budget):
@@ -146,7 +152,8 @@ def publish(destination, executable, session=None, result=None, diagnostic=None,
             path = build/name
             if path.is_file():
                 copy_file(path, stage/'context/build'/name, budget)
-        copy_file(ROOT/'scripts/replay-e2.py', stage/'tools/replay-e2.py', budget)
+        for name in ('replay-e2.py', 'e2_replay_storage.py'):
+            copy_file(ROOT/'scripts'/name, stage/'tools'/name, budget)
         (stage/'manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
         sums = []
         for path in sorted(stage.rglob('*')):

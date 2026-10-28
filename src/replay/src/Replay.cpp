@@ -1,10 +1,10 @@
 #include "EcstaticaReplay.h"
 #ifndef E2R_REPLAY_DISABLED
-#include "LogSupport/IO/FileSystemIO.h"
 #include "RunArtifacts.h"
 #endif
 #include "ReplayIdentity.h"
 #include "Sha256.h"
+#include "ReplayStorage.h"
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -45,16 +45,18 @@ constexpr const char *stateHeader =
 struct Runtime {
   int mode = 0; // 0 off, 1 capture, 2 replay
   bool failed = false, complete = false, compatible = false, finished = false;
-  FILE *events = nullptr, *states = nullptr;
-  size_t eventBytesWritten = 0, stateBytesWritten = 0;
-  std::string metadataBytes, eventBytes, stateBytes;
+  replay::ChunkWriter events, states;
+  replay::File manifest{nullptr, std::fclose};
+  replay::File eventSpool{nullptr, std::fclose}, stateSpool{nullptr, std::fclose};
+  std::unique_ptr<replay::CsvReader> eventReader, stateReader;
+  std::string metadataBytes;
+  bool prepared = false, eventTruncated = false;
   fs::path incompleteMarker;
   bool sourceIncomplete = false;
   std::map<std::string, std::string> metadata;
-  std::vector<Event> input;
-  std::map<uint64_t, std::vector<Field>> checkpoints;
+  Event input;
+  bool inputReady = false;
   std::vector<Field> observed;
-  size_t cursor = 0;
   uint64_t expanded = 0, seq = 0, pump = 0, checkpoint = 0, stop = 0,
            stopCheckpoint = 0;
   std::vector<uint64_t> pumps;
@@ -200,35 +202,64 @@ void fail(const std::string &reason) {
   }
 }
 void write(FILE *f, const std::string &bytes) {
-  if (r.failed)
-    return;
-  size_t *written = f == r.events
-                        ? &r.eventBytesWritten
-                        : (f == r.states ? &r.stateBytesWritten : nullptr);
-  if (written) {
-    constexpr size_t limit = 256u * 1024u * 1024u;
-    if (bytes.size() > limit - *written) {
-      fail("capture file limit reached; retained prefix remains replayable");
-      return;
+  if (!r.failed)
+    try {
+      replay::put(f, bytes);
+    } catch (const std::exception &e) {
+      fail(e.what());
     }
-    *written += bytes.size();
-  }
-  if (!f || std::fwrite(bytes.data(), 1, bytes.size(), f) != bytes.size())
-    fail("write failed (gameplay continues)");
+}
+void write(replay::ChunkWriter &file, const std::string &bytes) {
+  if (!r.failed)
+    try {
+      file.write(bytes);
+    } catch (const std::exception &e) {
+      fail(e.what());
+    }
 }
 void flush(bool sync = false) {
-  for (FILE *f : {r.states, r.events})
-    if (f) {
-      if (std::fflush(f))
-        fail("flush failed");
-#ifndef E2R_REPLAY_DISABLED
-      if (sync &&
-          !Ecstatica::Recompiled::LogSupport::IO::FileSystemIO::SyncFile(f))
-        fail("sync failed");
-#else
-      (void)sync;
-#endif
+  try {
+    r.states.flush(sync);
+    r.events.flush(sync);
+  } catch (const std::exception &e) {
+    fail(e.what());
+  }
+}
+Event event(const Row &row) {
+  if (row.size() != 13)
+    throw std::runtime_error("event columns");
+  Event e;
+  e.seq = positive(row[0]);
+  e.count = positive(row[1]);
+  e.kind = row[2];
+  auto pump = number(row[3]);
+  if (pump < 0)
+    throw std::runtime_error("pump range");
+  e.pump = pump;
+  for (int j = 0; j < 8; ++j)
+    e.v[j] = number(row[4 + j]);
+  e.detail = row[12];
+  return e;
+}
+const Event &pending() {
+  if (!r.inputReady) {
+    Row row;
+    try {
+      if (!r.eventReader->next(row))
+        stop(75, "INCOMPLETE: recovered prefix exhausted");
+      r.input = event(row);
+      r.inputReady = true;
+    } catch (const std::exception &e) {
+      stop(73, std::string("REJECTED: immutable replay read: ") + e.what());
     }
+  }
+  return r.input;
+}
+void advance(const Event &e) {
+  if (++r.expanded == e.count) {
+    r.expanded = 0;
+    r.inputReady = false;
+  }
 }
 void raw(const Event &e) {
   Row row{std::to_string(e.seq), std::to_string(e.count), e.kind,
@@ -259,9 +290,7 @@ void emit(const std::string &kind, Values v = {},
   E2R_replay_sequence = r.seq;
 }
 const Event &next() {
-  if (r.cursor >= r.input.size())
-    stop(75, "INCOMPLETE: recovered prefix exhausted");
-  const auto &e = r.input[r.cursor];
+  const auto &e = pending();
   if ((r.stop && e.seq + r.expanded >= r.stop) ||
       (r.stopCheckpoint && e.kind == "checkpoint" &&
        uint64_t(e.v[0]) >= r.stopCheckpoint))
@@ -283,10 +312,7 @@ Event consume(const std::string &kind) {
     stop(74, "DIVERGED: expected " + e.kind + " actual " + kind);
   r.seq = e.seq + r.expanded;
   E2R_replay_sequence = r.seq;
-  if (++r.expanded == e.count) {
-    r.expanded = 0;
-    ++r.cursor;
-  }
+  advance(e);
   return e;
 }
 void checkpoint() {
@@ -302,21 +328,28 @@ void checkpoint() {
                   std::to_string(f.value)});
   auto signature = replay::hash(bytes);
   if (r.mode == 1) {
-    write(r.states, bytes);
-    if (r.states && std::fflush(r.states))
-      fail("checkpoint flush failed");
+    for (const auto &f : r.observed)
+      write(r.states, csv({std::to_string(id), f.scope, std::to_string(f.id),
+                           f.name, std::to_string(f.value)}));
+    try {
+      r.states.flush(false);
+    } catch (const std::exception &e) {
+      fail(e.what());
+    }
     emit("checkpoint", {int64_t(id), int64_t(r.observed.size())}, signature);
   } else {
     auto e = consume("checkpoint");
-    auto it = r.checkpoints.find(id);
-    if (e.v[0] != int64_t(id) || it == r.checkpoints.end())
-      stop(74, "DIVERGED: checkpoint identity");
-    const auto &expected = it->second;
-    for (size_t i = 0; i < expected.size() || i < r.observed.size(); ++i) {
-      if (i >= expected.size() || i >= r.observed.size())
-        stop(74, "DIVERGED: checkpoint field count");
-      const auto &a = expected[i];
-      const auto &b = r.observed[i];
+    if (e.v[0] != int64_t(id) || e.v[1] != int64_t(r.observed.size()))
+      stop(74, "DIVERGED: checkpoint identity/field count");
+    for (const auto &b : r.observed) {
+      Row row;
+      try {
+        if (!r.stateReader->next(row) || positive(row[0]) != id)
+          stop(74, "DIVERGED: checkpoint identity");
+      } catch (const std::exception &error) {
+        stop(73, std::string("REJECTED: immutable state read: ") + error.what());
+      }
+      Field a{row[1], row[3], int(number(row[2])), number(row[4])};
       if (a.scope != b.scope || a.id != b.id || a.name != b.name ||
           a.value != b.value)
         stop(74, "DIVERGED: " + a.scope + "[" + std::to_string(a.id) + "]." +
@@ -329,7 +362,7 @@ void checkpoint() {
   }
   E2R_replay_last_checkpoint = id;
 }
-void validate() {
+void validateMetadata() {
   auto meta = parse(r.metadataBytes, false);
   if (meta.empty() || meta[0] != Row{"key", "value"})
     throw std::runtime_error("metadata header");
@@ -346,26 +379,119 @@ void validate() {
     throw std::runtime_error("unsupported startup command");
   if (r.metadata["schema"] != "e2replay.csv.1")
     throw std::runtime_error("unsupported replay schema");
-  size_t stateRow = 0;
-  parseRows(r.stateBytes, true, [&](Row &row) {
-    if (stateRow++ == 0) {
-      if (csv(row) != stateHeader) throw std::runtime_error("checkpoint header");
-      return;
+}
+
+// Freeze to anonymous disk spools while holding the source lease. Retention can
+// delete the original after preparation; playback never reopens mutable input.
+void freezeChunk(const fs::path &path, FILE *spool, const char *header,
+                 bool recover, const std::string &checksum = "",
+                 uint64_t size = 0, bool *truncated = nullptr) {
+  if (!fs::is_regular_file(fs::symlink_status(path)) ||
+      (!checksum.empty() && fs::file_size(path) != size))
+    throw std::runtime_error("missing, symlinked or resized replay chunk: " + path.string());
+  replay::File file(std::fopen(path.c_str(), "rb"), std::fclose);
+  if (!file)
+    throw std::runtime_error("cannot open replay chunk");
+  replay::CsvReader reader(file.get());
+  Row row;
+  if (!reader.next(row, recover)) {
+    if (!recover)
+      throw std::runtime_error("replay chunk header: " + path.string());
+    if (truncated)
+      *truncated = reader.truncated;
+    return; // Rotation may have created a tail before publishing its header.
+  }
+  if (csv(row) != header)
+    throw std::runtime_error("replay chunk header: " + path.string());
+  while (reader.next(row, recover))
+    replay::put(spool, csv(row));
+  if (!checksum.empty() && reader.checksum() != checksum)
+    throw std::runtime_error("replay chunk checksum mismatch: " + path.string());
+  if (truncated)
+    *truncated = reader.truncated;
+}
+void rewindInput() {
+  for (FILE *file : {r.eventSpool.get(), r.stateSpool.get()}) {
+    if (std::fflush(file) || ::fseeko(file, 0, SEEK_SET))
+      throw std::runtime_error("cannot rewind immutable replay spool");
+  }
+  r.eventReader = std::make_unique<replay::CsvReader>(r.eventSpool.get());
+  r.stateReader = std::make_unique<replay::CsvReader>(r.stateSpool.get());
+  Row header;
+  if (!r.eventReader->next(header) || csv(header) != eventHeader ||
+      !r.stateReader->next(header) || csv(header) != stateHeader)
+    throw std::runtime_error("immutable replay header");
+}
+void freeze(const fs::path &directory) {
+  r.eventSpool = replay::temporary();
+  r.stateSpool = replay::temporary();
+  replay::put(r.eventSpool.get(), eventHeader);
+  replay::put(r.stateSpool.get(), stateHeader);
+  if (!r.metadata.count("storage")) {
+    freezeChunk(directory / "events.csv", r.eventSpool.get(), eventHeader,
+                true, "", 0, &r.eventTruncated);
+    freezeChunk(directory / "checkpoints.csv", r.stateSpool.get(), stateHeader, true);
+  } else {
+    if (r.metadata.at("storage") != "chunked.csv.1")
+      throw std::runtime_error("unsupported replay storage");
+    auto path = directory / "chunks.csv";
+    if (!fs::is_regular_file(fs::symlink_status(path)))
+      throw std::runtime_error("missing or symlinked replay manifest");
+    replay::File file(std::fopen(path.c_str(), "rb"), std::fclose);
+    if (!file)
+      throw std::runtime_error("cannot open replay manifest");
+    replay::CsvReader manifest(file.get());
+    Row row;
+    if (!manifest.next(row) || csv(row) != replay::chunkHeader)
+      throw std::runtime_error("replay manifest header");
+    uint64_t indices[2]{};
+    const char *names[] = {"events", "checkpoints"};
+    const char *headers[] = {eventHeader, stateHeader};
+    FILE *spools[] = {r.eventSpool.get(), r.stateSpool.get()};
+    while (manifest.next(row, r.sourceIncomplete)) {
+      if (row.size() != 5 || (row[0] != names[0] && row[0] != names[1]))
+        throw std::runtime_error("replay manifest columns/stream");
+      int stream = row[0] == names[0] ? 0 : 1;
+      auto index = number(row[1]);
+      if (index < 0 || uint64_t(index) != indices[stream] ||
+          row[2] != replay::chunkName(names[stream], indices[stream]) ||
+          row[4].size() != 64 || row[4].find_first_not_of("0123456789abcdef") != std::string::npos)
+        throw std::runtime_error("replay manifest order/name/checksum");
+      freezeChunk(directory / row[2], spools[stream], headers[stream], false,
+                  row[4], positive(row[3]));
+      ++indices[stream];
     }
-    if (row.size() != 5) throw std::runtime_error("checkpoint columns");
-    auto id = positive(row[0]);
-    auto entity = number(row[2]);
-    if (entity < INT32_MIN || entity > INT32_MAX)
-      throw std::runtime_error("entity range");
-    r.checkpoints[id].push_back({std::move(row[1]), std::move(row[3]), int(entity), number(row[4])});
-  });
-  if (!stateRow) throw std::runtime_error("checkpoint header");
-  std::string().swap(r.stateBytes);
-  bool truncated = false;
+    for (int stream = 0; stream < 2; ++stream) {
+      path = directory / replay::chunkName(names[stream], indices[stream]);
+      if (fs::exists(fs::symlink_status(path))) {
+        if (!r.sourceIncomplete)
+          throw std::runtime_error("unsealed chunk in complete replay");
+        freezeChunk(path, spools[stream], headers[stream], true, "", 0,
+                    stream == 0 ? &r.eventTruncated : nullptr);
+      } else if (!indices[stream])
+        throw std::runtime_error("missing initial replay chunk");
+    }
+    // Unknown numbered chunks can hide a deleted manifest entry or a gap.
+    // Never silently recover around them.
+    for (const auto &entry : fs::directory_iterator(directory)) {
+      auto name = entry.path().filename().string();
+      for (int stream = 0; stream < 2; ++stream) {
+        std::string prefix = std::string(names[stream]) + ".";
+        if (name == std::string(names[stream]) + ".csv" ||
+            !name.starts_with(prefix) || !name.ends_with(".csv"))
+          continue;
+        auto digits = name.substr(prefix.size(), name.size() - prefix.size() - 4);
+        auto index = number(digits);
+        if (index < 1 || uint64_t(index) > indices[stream] ||
+            name != replay::chunkName(names[stream], index))
+          throw std::runtime_error("orphan or misnamed replay chunk");
+      }
+    }
+  }
+  rewindInput();
+}
+void validate() {
   size_t eventRow = 0;
-  // Avoid both a complete vector of CSV strings and repeated reallocations of
-  // millions of events in the i386 address space. Event fields remain owned.
-  r.input.reserve(std::count(r.eventBytes.begin(), r.eventBytes.end(), '\n'));
   replay::Sha256 eventHash;
   eventHash.add(eventHeader);
   uint64_t seq = 1, cp = 0;
@@ -374,31 +500,32 @@ void validate() {
   const std::vector<std::string> kinds = {
       "clock", "localtime",  "pump_begin", "pump_end",   "input", "queued",
       "sleep", "cursor_set", "cursor_get", "checkpoint", "end"};
-  parseRows(r.eventBytes, true, [&](Row &row) {
-    if (eventRow++ == 0) {
-      if (csv(row) != eventHeader) throw std::runtime_error("event header");
-      return;
-    }
+  Row row, state;
+  bool haveState = r.stateReader->next(state);
+  uint64_t stateId = 0;
+  auto checkState = [&] {
+    if (state.size() != 5)
+      throw std::runtime_error("checkpoint columns");
+    auto id = positive(state[0]);
+    if (id < stateId || id > stateId + 1)
+      throw std::runtime_error("checkpoint order");
+    stateId = id;
+    auto entity = number(state[2]);
+    if (entity < INT32_MIN || entity > INT32_MAX)
+      throw std::runtime_error("entity range");
+    number(state[4]);
+    return id;
+  };
+  while (r.eventReader->next(row)) {
+    ++eventRow;
     if (r.complete) throw std::runtime_error("invalid completion marker");
-    if (row.size() != 13)
-      throw std::runtime_error("event columns");
-    Event e;
-    e.seq = positive(row[0]);
-    e.count = positive(row[1]);
-    e.kind = row[2];
-    auto p = number(row[3]);
-    if (p < 0)
-      throw std::runtime_error("pump range");
-    e.pump = p;
+    auto e = event(row);
     if (std::find(kinds.begin(), kinds.end(), e.kind) == kinds.end())
       throw std::runtime_error("unknown event kind");
     if (e.seq != seq || e.count > 65536 ||
         (e.kind != "clock" && e.count != 1) || seq > INT64_MAX - e.count)
       throw std::runtime_error("sequence/count discontinuity");
     seq += e.count;
-    for (int j = 0; j < 8; ++j)
-      e.v[j] = number(row[4 + j]);
-    e.detail = row[12];
     if (e.kind == "pump_begin") {
       if (e.pump != ++pump)
         throw std::runtime_error("pump identity");
@@ -423,15 +550,19 @@ void validate() {
       throw std::runtime_error("input range");
     if (e.kind == "checkpoint") {
       auto id = ++cp;
-      auto it = r.checkpoints.find(id);
-      if (e.v[0] != int64_t(id) || it == r.checkpoints.end() ||
-          int64_t(it->second.size()) != e.v[1])
+      if (e.v[0] != int64_t(id) || e.v[1] < 1)
         throw std::runtime_error("missing checkpoint fields");
-      std::string bytes;
-      for (const auto &f : it->second)
-        bytes += csv({std::to_string(id), f.scope, std::to_string(f.id), f.name,
-                      std::to_string(f.value)});
-      if (replay::hash(bytes) != e.detail)
+      replay::Sha256 stateHash;
+      int64_t fields = 0;
+      while (haveState && positive(state[0]) == id) {
+        checkState();
+        stateHash.add(csv(state));
+        ++fields;
+        haveState = r.stateReader->next(state);
+      }
+      if (fields != e.v[1])
+        throw std::runtime_error("missing checkpoint fields");
+      if (stateHash.finish() != e.detail)
         throw std::runtime_error("checkpoint checksum mismatch");
     }
     if (e.kind == "end") {
@@ -442,14 +573,19 @@ void validate() {
       r.complete = true;
     }
     eventHash.add(csv(row));
-    r.input.push_back(std::move(e));
-  }, &truncated);
-  if (!eventRow) throw std::runtime_error("event header");
-  if (r.complete && truncated) throw std::runtime_error("invalid completion marker");
-  std::string().swap(r.eventBytes);
-  if (r.input.empty())
+  }
+  while (haveState) {
+    checkState();
+    haveState = r.stateReader->next(state);
+  }
+  if (r.complete && r.eventTruncated)
+    throw std::runtime_error("invalid completion marker");
+  if (!eventRow)
     throw std::runtime_error("no recoverable events");
+  rewindInput();
+  r.prepared = true;
 }
+
 std::map<std::string, std::string> identity(const char *game, int argc,
                                             char **argv) {
   std::map<std::string, std::string> m;
@@ -514,8 +650,8 @@ extern "C" int E2R_ReplayPrepare(const char *path) {
 #endif
     r.sourceIncomplete = fs::exists(directory / "recording.incomplete");
     r.metadataBytes = read(directory / "metadata.csv", 1024 * 1024);
-    r.eventBytes = read(directory / "events.csv", 256 * 1024 * 1024);
-    r.stateBytes = read(directory / "checkpoints.csv", 256 * 1024 * 1024);
+    validateMetadata();
+    freeze(directory);
     validate();
     if (r.sourceIncomplete)
       r.complete = false;
@@ -533,21 +669,21 @@ extern "C" int E2R_ReplayStart(const char *record, int gameplay,
                                char **argv, int compatible, uint64_t stopSeq,
                                uint64_t stopCp, E2R_ReplaySampler sampler) {
   try {
-    if (r.input.empty() &&
+    if (!r.prepared &&
         (!gameplay || !record || std::string(record) == "off"))
       return 1;
     auto current = identity(game, argc, argv);
     r.sampler = sampler;
     r.stop = stopSeq;
     r.stopCheckpoint = stopCp;
-    if (!r.input.empty()) {
+    if (r.prepared) {
       r.mode = 2;
       r.compatible = compatible;
       for (const auto &[key, value] : r.metadata) {
         bool exactOnly = key == "executable_sha256" || key == "revision" ||
                          key == "asan" || key == "build";
         bool descriptive = key == "recording_id" || key == "wall_utc" ||
-                           key == "game_data_path" ||
+                           key == "game_data_path" || key == "storage" ||
                            key.starts_with("argument.");
         if (!descriptive && (!exactOnly || !compatible) &&
             current[key] != value)
@@ -584,6 +720,7 @@ extern "C" int E2R_ReplayStart(const char *record, int gameplay,
       gmtime_r(&now, &utc);
       char stamp[32];
       std::strftime(stamp, sizeof stamp, "%Y-%m-%dT%H:%M:%SZ", &utc);
+      current["storage"] = "chunked.csv.1";
       current["wall_utc"] = stamp;
       current["recording_id"] = fs::path(session).filename().string();
       FILE *meta = std::fopen((dir / "metadata.csv").c_str(), "wb");
@@ -594,17 +731,24 @@ extern "C" int E2R_ReplayStart(const char *record, int gameplay,
         write(meta, csv({k, v}));
       if (std::fclose(meta))
         fail("metadata close failed");
-      r.events = std::fopen((dir / "events.csv").c_str(), "wb");
-      r.states = std::fopen((dir / "checkpoints.csv").c_str(), "wb");
-      write(r.events, eventHeader);
+      uint64_t chunkLimit = 16u * 1024u * 1024u;
+      if (const char *setting = std::getenv("E2R_REPLAY_CHUNK_BYTES")) {
+        chunkLimit = positive(setting);
+        if (chunkLimit < 512 || chunkLimit > 256u * 1024u * 1024u)
+          throw std::runtime_error("E2R_REPLAY_CHUNK_BYTES must be 512..268435456");
+      }
+      r.manifest.reset(std::fopen((dir / "chunks.csv").c_str(), "wbx"));
+      replay::put(r.manifest.get(), replay::chunkHeader);
+      replay::sync(r.manifest.get());
+      r.events.start(dir, "events", eventHeader, r.manifest.get(), chunkLimit);
+      r.states.start(dir, "checkpoints", stateHeader, r.manifest.get(), chunkLimit);
       r.eventHash.add(eventHeader);
-      write(r.states, stateHeader);
       flush(true);
       report("recording " + dir.string());
     }
     return 1;
   } catch (const std::exception &e) {
-    if (!r.input.empty()) {
+    if (r.prepared) {
       report(std::string("REJECTED: ") + e.what());
       r.mode = 0;
       return 0;
@@ -632,11 +776,9 @@ extern "C" uint32_t E2R_ReplayClock(uint32_t value) {
   if (r.mode == 2) {
     // Poll loops can contain hundreds of millions of identical clock calls.
     // Expand in place: copying Event strings here dominates playback cost.
-    if (r.cursor >= r.input.size())
-      stop(75, "INCOMPLETE: clock prefix exhausted");
     if ((r.seq & 65535) == 0 && r.hostControl)
       r.hostControl();
-    const Event &e = r.input[r.cursor];
+    const Event &e = pending();
     if (e.kind != "clock")
       return uint32_t(consume("clock").v[0]);
     if (r.stop && e.seq + r.expanded >= r.stop)
@@ -644,10 +786,7 @@ extern "C" uint32_t E2R_ReplayClock(uint32_t value) {
     r.seq = e.seq + r.expanded;
     E2R_replay_sequence = r.seq;
     uint32_t result = uint32_t(e.v[0]);
-    if (++r.expanded == e.count) {
-      r.expanded = 0;
-      ++r.cursor;
-    }
+    advance(e);
     return result;
   }
   if (r.mode != 1 || r.failed)
@@ -786,10 +925,17 @@ extern "C" void E2R_ReplayFinish(void) {
     if (next().kind != "end")
       stop(74, "DIVERGED: game exited before recording end");
   }
-  for (FILE *file : {r.events, r.states})
-    if (file && std::fclose(file))
-      fail("close failed");
-  r.events = r.states = nullptr;
+  if (r.mode == 1) {
+    for (auto *file : {&r.states, &r.events}) {
+      try {
+        file->finish(!r.failed);
+      } catch (const std::exception &e) {
+        fail(e.what());
+      }
+    }
+    if (r.manifest && std::fclose(r.manifest.release()))
+      fail("manifest close failed");
+  }
   if (r.mode == 1 && !r.failed) {
     std::error_code error;
     fs::remove(r.incompleteMarker, error);

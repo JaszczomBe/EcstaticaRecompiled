@@ -52,6 +52,12 @@ and suppressed during replay, including while expanding long clock runs.
 
 ## Status and current acceptance
 
+The [2026-10-28 storage recovery](journal/entries/chunked-recording-and-streaming-replay-2026-10-28.md)
+verifies Debug/ASan recording and exact playback beyond 256 MiB in each logical
+stream, legacy inputs, chunk integrity, interrupted publication, exports and
+fresh SDL intro/menu captures with rotation. This extends recording duration;
+existing gameplay divergence and route acceptance below remain separate.
+
 The [latest extended-gameplay crash](journal/entries/alternate-target-crash-2026-10-24.md)
 reproduces with its pinned executable at sequence **2,260,310,849**, checkpoint
 **204**. Isolated generated Debug/ASan repairs return a valid target at that
@@ -115,6 +121,34 @@ all archives every launch. Any root `e_config`/`E_CONFIG` present is fingerprint
 changed settings are rejected and must currently be restored manually. Save/load
 reconstruction and automatic restoration of mutable settings are separate work;
 metadata explicitly identifies fresh-process startup, never a savestate.
+
+## Physical storage
+
+New captures rotate each event/checkpoint file at **16 MiB**, between complete
+CSV records. They start with `events.csv` and `checkpoints.csv`, then continue as
+`events.000001.csv`, `checkpoints.000001.csv`, and increasing numbered files.
+Each file repeats its stream header; a checkpoint may span files. There is no
+fixed total recording-size or duration cap. Available disk space still applies.
+
+Metadata declares `storage,chunked.csv.1`. The append-only `chunks.csv` manifest
+has `stream,index,file,bytes,sha256` columns. A chunk is flushed, synchronized
+and closed before its ordered size/checksum entry is published and synchronized.
+Only the last unsealed file of each stream can be recovered without that entry,
+and only while `recording.incomplete` is present. Missing/reordered/misnamed
+chunks, symlinks, sealed-file changes and malformed complete records are rejected.
+An interrupted final manifest row is recoverable with that marker. An empty or
+unfinished new header after rotation preserves the preceding prefix.
+
+`E2R_REPLAY_CHUNK_BYTES` optionally changes the physical threshold
+(512..268435456 bytes); it is excluded from gameplay identity. The default needs
+no launch changes. Existing recordings without `storage` retain their two-file
+layout and remain readable; their retained prefixes cannot recover data that the
+old writer never recorded. The logical CSV schema and signatures below remain
+unchanged: repeated physical headers are excluded from logical hashes.
+
+Inspection, replay export and investigation bundles include every chunk and the
+manifest, with streaming checksums. Replay bytes no longer count against the
+investigation bundle's separate non-replay export budget.
 
 ## CSV schema 1
 
@@ -182,13 +216,17 @@ and can still be lost before publication. Filesystem synchronization runs at
 pump exits roughly once per real second and at completion. Other buffered tails
 can be lost, especially without a following pump. Only completed newline-terminated rows are recoverable; an
 unfinished final row is excluded. Malformed complete rows, gaps, missing referenced
-state and invalid checksums are rejected, not skipped. Event/state files are currently bounded
-to 256 MiB each (metadata 1 MiB at preparation); reaching the capture limit marks
-recording incomplete and retains the usable prefix. Parsing freezes the input
-in memory. Larger complete captures require a future streaming-reader change.
+state and invalid checksums are rejected, not skipped. Metadata remains limited
+to 1 MiB. Event/state streams rotate rather than stopping at the old 256 MiB cap.
+Preparation freezes and validates rows into anonymous temporary disk files under
+the source lease, then replays them sequentially. It retains one pending event,
+CSV record buffers and the current sampled checkpoint, instead of the entire
+recording in memory. Preparation needs temporary disk space approximately equal
+to the logical input; the Python runner also creates its own frozen snapshot.
 
 `recording.incomplete` remains present while active, interrupted or failed.
-Successful event/state sync and close plus a clean `end` precede its removal.
+Successful event/state sync and close, final manifest publication and a clean
+`end` precede its removal.
 Write/flush/sync/close failure leaves this marker and gameplay continues. SDL
 shows **RECORDING INCOMPLETE** in the window title and cylinder overlay. Absence of
 `end`, or presence of this marker, never produces a matching completion. These
@@ -213,8 +251,9 @@ Tests:
 cmake --preset linux-clang32-sdl-debug -DE2R_REPLAY_BUILD_TESTS=ON
 cmake --build --preset linux-clang32-sdl-debug --target e2recomp e2r-replay-contract
 python3 scripts/check-e2-replay-contracts.py build/Debug/clang21-i386-sdl/src/replay/e2r-replay-contract
+python3 scripts/check-e2-replay-chunks.py build/Debug/clang21-i386-sdl/src/replay/e2r-replay-contract --large
 python3 scripts/check-e2-replay-lifecycle.py build/Debug/clang21-i386-sdl/e2recomp
-python3 scripts/check-e2-replay.py build/Debug/clang21-i386-sdl/e2recomp
+python3 scripts/check-e2-replay.py build/Debug/clang21-i386-sdl/e2recomp --inspect --chunk-bytes 65536
 # Broader, currently unaccepted movement/population gates:
 python3 scripts/check-e2-replay.py build/Debug/clang21-i386-sdl/e2recomp --released-player --background-spawns
 ```

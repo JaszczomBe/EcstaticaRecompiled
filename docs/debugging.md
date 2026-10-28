@@ -110,8 +110,10 @@ that every context file produced the binary. The executable hash pins that binar
 Files and directories are published read-only with a recursive `SHA256SUMS` and
 manifest. Verification detects missing, changed and extra files. If export fails,
 the raw capture is retained in the reported `.e2-capture-*` directory beside the
-destination. Bundles sit outside automatic session retention. Export is bounded
-to 256 MiB per file and 768 MiB total, excluding original game assets.
+destination. Bundles sit outside automatic session retention. Non-replay evidence
+is bounded to 256 MiB per file and 768 MiB total. Replay exports include all
+manifest-listed chunks and recoverable tails without that aggregate cap;
+original game assets remain external.
 
 Export an existing **inactive** session with its matching executable:
 
@@ -317,17 +319,18 @@ Frequent `42b004` action events and `42ad60` action completions are
 `Runtime.Actor` Trace records. Session files retain them at Trace level, while
 the console hides them by default. Set `E2R_GAMEPLAY_CONSOLE_VERBOSE=1` and keep
 the Trace threshold to show them in the console. Input summaries and critical
-messages keep their existing behavior. Recording-limit notices are warnings.
+messages keep their existing behavior. Recording-failure notices are warnings.
 
 ## Large recordings and missing message text
 
-Replay event/checkpoint files now allow 256 MiB each. The reader validates rows
-without retaining an additional complete collection of CSV strings, and releases
-raw checkpoint text after constructing its expectations. This makes the reported
-2.88-million-event human capture readable in i386. Logical events and snapshots
-still reside in memory; streaming/compressed storage remains a further improvement.
-The cap still marks a recording incomplete and does not promise arbitrary route
-length or a clean completion. A larger retention budget does not extend recording.
+Replay events and checkpoints now rotate into 16 MiB CSV files with an ordered,
+checksummed manifest. Recording continues beyond the former 256 MiB ceiling.
+The reader validates into anonymous temporary disk files and plays sequentially,
+keeping memory independent of the recording's total length. Older single-file
+recordings remain readable. Export/inspection tools include all chunks; disk
+failures still retain incomplete status and continue gameplay. See the
+[storage/recovery contract](replay.md#physical-storage) and
+[fresh Debug/ASan evidence](journal/entries/chunked-recording-and-streaming-replay-2026-10-28.md).
 
 An empty/unreadable game message now shows "Internal game error. See the session
 log." and emits an Error with native call-site evidence. This is a hosted

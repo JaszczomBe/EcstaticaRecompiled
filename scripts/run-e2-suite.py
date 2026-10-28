@@ -93,7 +93,7 @@ def main():
                           ROOT/'scripts/e2_scene_navigation.py',
                           ROOT/'scripts/e2_probe_diagnostics.py',
                           ROOT/'scripts/replay-e2.py',ROOT/'scripts/e2_scenarios.py',ROOT/'scripts/e2-debug.py',
-                          ROOT/'scripts/e2_bundle.py',ROOT/'scripts/e2_inspection.py',ROOT/'scripts/scenarios/intro-menu.json',
+                          ROOT/'scripts/e2_bundle.py',ROOT/'scripts/e2_replay_storage.py',ROOT/'scripts/e2_inspection.py',ROOT/'scripts/scenarios/intro-menu.json',
                           ROOT/'scripts/check-e2-test-population.py',ROOT/'scripts/check-e2-npc-spawn.py',
                           ROOT/'scripts/check-e2-menu-contracts.py',
                           ROOT/'scripts/check-e2-menu-layout.py',

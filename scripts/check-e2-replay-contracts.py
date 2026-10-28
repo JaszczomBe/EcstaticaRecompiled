@@ -23,6 +23,14 @@ with tempfile.TemporaryDirectory(prefix='e2-replay-contracts-') as temporary:
     assert (crash/'session/replay/recording.incomplete').exists()
     assert 'reached crash-triggering changed clock' in run('play-clock-crash',crash,42)
     print('PASS: changed clock retained before abrupt exit without a following pump')
+    # The same logical schema remains readable from legacy single-file captures.
+    legacy = fixture/'session/replay'
+    with (legacy/'metadata.csv').open(newline='') as stream:
+        rows = [row for row in csv.reader(stream) if row[0] != 'storage']
+    with (legacy/'metadata.csv').open('w', newline='') as stream:
+        csv.writer(stream, lineterminator='\n').writerows(rows)
+    (legacy/'chunks.csv').unlink()
+    print(run('play', fixture, 0).strip())
     meta=dict(list(csv.reader((fixture/'session/replay/metadata.csv').open()))[1:])
     assert meta['executable_sha256']==hashlib.sha256(exe.read_bytes()).hexdigest()
     data=(fixture/'session/replay/events.csv').read_bytes()

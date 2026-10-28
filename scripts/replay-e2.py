@@ -7,15 +7,14 @@ Examples:
 """
 import argparse
 from contextlib import contextmanager
-import csv
 import fcntl
-import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+from e2_replay_storage import digest, event_rows, inventory, metadata
 
 parser=argparse.ArgumentParser(description=__doc__)
 sub=parser.add_subparsers(dest='command',required=True)
@@ -46,20 +45,9 @@ def protected_source():
 
 def copy_input(destination):
     destination.mkdir()
-    names=['metadata.csv','events.csv','checkpoints.csv']
-    if (source/'recording.incomplete').exists():names.append('recording.incomplete')
-    for name in names:
-        path=source/name
-        if path.is_symlink() or not path.is_file() or path.stat().st_size>256*1024*1024:raise ValueError('Invalid replay input: '+str(path))
-        shutil.copyfile(path,destination/name)
-
-def metadata(directory):
-    with (directory/'metadata.csv').open(newline='') as f:
-        rows=list(csv.reader(f,strict=True))
-    if not rows or rows[0]!=['key','value']:raise ValueError('Invalid metadata header')
-    result=dict(rows[1:])
-    if result.get('schema')!='e2replay.csv.1':raise ValueError('Unsupported schema')
-    return result
+    files, _ = inventory(source)
+    for path in files:
+        shutil.copyfile(path, destination/path.name)
 
 if a.command=='export':
     destination=a.destination.absolute()
@@ -72,7 +60,7 @@ if a.command=='export':
             copy_input(staging)
             for path in source.parent.glob('e2recomp*.log'):shutil.copyfile(path,staging/path.name)
             if (source.parent/'session.meta').is_file():shutil.copyfile(source.parent/'session.meta',staging/'session.meta')
-        hashes={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in staging.iterdir()}
+        hashes={p.name:digest(p) for p in staging.iterdir()}
         (staging/'SHA256SUMS').write_text(''.join(f'{digest}  {name}\n' for name,digest in sorted(hashes.items())))
         for path in staging.iterdir():path.chmod(0o444)
         staging.rename(destination);destination.chmod(0o555)
@@ -80,10 +68,15 @@ if a.command=='export':
 elif a.command=='inspect':
     with protected_source():
         meta=metadata(source)
-        with (source/'events.csv').open(newline='') as f:
-            rows=list(csv.DictReader(f,strict=True))
-    print(json.dumps(dict(metadata=meta,physical_rows=len(rows),last_sequence=rows[-1]['seq'] if rows else None,
-                         completion='end-marker-present; native parser verifies integrity' if rows and rows[-1]['kind']=='end' else 'incomplete'),indent=2))
+        count = 0
+        last = None
+        for row in event_rows(source):
+            count += 1
+            last = row
+    print(json.dumps(dict(metadata=meta, physical_rows=count,
+                         last_sequence=last['seq'] if last else None,
+                         completion='end-marker-present; native parser verifies integrity'
+                         if last and last['kind']=='end' else 'incomplete'), indent=2))
 else:
     if a.timeout<=0:parser.error('--timeout must be positive')
     # Snapshot before starting any executable, including future startup cleanup.

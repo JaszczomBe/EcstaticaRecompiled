@@ -5,7 +5,7 @@
 <!-- /docs-tree:parent -->
 
 Status: initial tool set implemented
-Last Updated: 2026-10-24
+Last Updated: 2026-10-28
 Usage: [Debugging the reconstructed runtime](../../debugging.md)
 
 ## Goal
@@ -66,8 +66,13 @@ retain debugger stops and finalize their report inside ordinary session retentio
 The [human-run retention assessment](../../journal/entries/investigation-retention-2026-10-23.md)
 adds a newest-five floor, separate 2 GiB older budget, failed/pending capture
 protection and durable signal evidence. The surviving human replay matches
-1,158 checkpoints, but its event-file limit demonstrates that longer recording
-duration needs further work. The absent reported crash awaits a new capture.
+1,158 checkpoints. Its event-file ceiling is addressed by the
+[chunked recording and streaming replay repair](../../journal/entries/chunked-recording-and-streaming-replay-2026-10-28.md):
+16 MiB rotation, ordered chunk checksums, bounded-memory replay from immutable
+disk spools, legacy compatibility and full-chunk exports. Debug/ASan exact
+fixtures exceed 256 MiB in each stream; fresh rotated SDL menu routes pass.
+Disk capacity, interrupted tails and gameplay divergence remain explicit limits.
+The absent reported crash awaits a new capture.
 
 ## Verification
 

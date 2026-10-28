@@ -10,11 +10,12 @@ import signal
 import subprocess
 import tempfile
 import time
+from e2_replay_storage import event_rows, inventory
 p=argparse.ArgumentParser(description=__doc__);p.add_argument('exe',type=Path);a=p.parse_args();exe=a.exe.resolve()
 env=os.environ.copy()
 for key in list(env):
     if key.startswith('E2R_'):env.pop(key)
-env.update(SDL_VIDEODRIVER='dummy',SDL_AUDIODRIVER='dummy',E2R_STARTUP_LOGO_DELAY_MS='0',E2R_ACTOR_CYLINDERS='1',E2R_ACTION_INDEX_PROBE='1',E2R_PROXY_MESH_BYPASS='1',E2R_DEFER_BACKGROUND_SPAWNS='1',ASAN_OPTIONS='detect_leaks=0')
+env.update(E2R_REPLAY_CHUNK_BYTES='65536',SDL_VIDEODRIVER='dummy',SDL_AUDIODRIVER='dummy',E2R_STARTUP_LOGO_DELAY_MS='0',E2R_ACTOR_CYLINDERS='1',E2R_ACTION_INDEX_PROBE='1',E2R_PROXY_MESH_BYPASS='1',E2R_DEFER_BACKGROUND_SPAWNS='1',ASAN_OPTIONS='detect_leaks=0')
 with tempfile.TemporaryDirectory(prefix='e2-replay-lifecycle-') as directory:
     root=Path(directory)
     with (root/'capture.log').open('w') as log:
@@ -22,10 +23,12 @@ with tempfile.TemporaryDirectory(prefix='e2-replay-lifecycle-') as directory:
         time.sleep(2);assert process.poll() is None,'capture did not remain alive';process.kill();process.wait()
     source=next((root/'data/logs').glob('*/replay'))
     assert (source/'recording.incomplete').exists()
-    with (source/'events.csv').open(newline='') as f:rows=list(csv.DictReader(f))
+    rows = list(event_rows(source))
+    _, streams = inventory(source)
+    assert len(streams['events']) > 1 or len(streams['checkpoints']) > 1, 'no rotation exercised'
     assert not rows or rows[-1]['kind']!='end'
     # Appending an unfinished CSV row emulates an interrupted write at the tail.
-    with (source/'events.csv').open('ab') as f:f.write(b'99999999,1,"unfinished')
+    with streams['events'][-1].open('ab') as f:f.write(b'99999999,1,"unfinished')
     limited=env|{'E2R_LOG_MAX_SESSIONS':'1'}
     # Retention always keeps the newest five; make this source older than them.
     for index in range(5):

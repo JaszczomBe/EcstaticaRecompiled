@@ -157,6 +157,7 @@ Use [journal.template.md](../templates/journal.template.md) for new journal entr
 <!-- docs-tree:children -->
 ## Related documents
 
+- [Chunked recording and streaming replay — 2026-10-28](entries/chunked-recording-and-streaming-replay-2026-10-28.md)
 - [Courtyard Camera Traversal — 2026-10-19](entries/courtyard-camera-traversal-2026-10-19.md)
 - [Courtyard Steering Replay And Sustained Observation — 2026-10-19](entries/courtyard-steering-audit-2026-10-19.md)
 - [Game save/load recovery — 2026-10-27](entries/game-save-load-recovery-2026-10-27.md)

@@ -12,12 +12,14 @@ import os
 from pathlib import Path
 import subprocess
 import time
+from e2_replay_storage import event_rows
 
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('exe',type=Path)
 p.add_argument('--released-player',action='store_true',help='Wait for release before movement; broader gameplay fidelity gate')
 p.add_argument('--background-spawns',action='store_true',help='Also exercise populated gameplay; divergence is a failing fidelity check')
 p.add_argument('--inspect',action='store_true',help='Also verify observational capture and replay with inspection disabled')
+p.add_argument('--chunk-bytes', type=int, help='Exercise physical chunk rotation during the route')
 p.add_argument('--output',type=Path,default=Path('/tmp/e2-replay-route'))
 a=p.parse_args();exe=a.exe.resolve();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True)
 env=os.environ.copy()
@@ -25,6 +27,8 @@ for key in list(env):
     if key.startswith('E2R_'):env.pop(key)
 env.update(SDL_VIDEODRIVER='dummy',SDL_AUDIODRIVER='dummy',E2R_STARTUP_LOGO_DELAY_MS='0',E2R_ACTOR_CYLINDERS='1',E2R_ACTION_INDEX_PROBE='1',E2R_PROXY_MESH_BYPASS='1',E2R_DEFER_BACKGROUND_SPAWNS='0' if a.background_spawns else '1',ASAN_OPTIONS='detect_leaks=0')
 if a.inspect:env['E2R_INSPECT']='1'
+if a.chunk_bytes:
+    env['E2R_REPLAY_CHUNK_BYTES'] = str(a.chunk_bytes)
 body=r'''
 import gdb
 value=lambda s:int(gdb.parse_and_eval(s))
@@ -102,7 +106,7 @@ def run(name,command,timeout=100,expected=0):
     return dict(seconds=time.monotonic()-start,exit=result.returncode)
 run('record',['gdb','--nx','-q','--batch','-x',str(out/'record.gdb'),'--args',str(exe),'--record','auto','--data-dir',str(out/'capture'),'--run-recon'],timeout=150)
 source=max((out/'capture/logs').glob('session_*/replay'),key=lambda p:p.parent.name)
-rows=list(csv.DictReader((source/'events.csv').open()))
+rows=list(event_rows(source))
 assert rows[-1]['kind']=='end'
 inputs=[x for x in rows if x['kind']=='input']
 assert sum(x['message_or_result']=='256' and x['wparam']=='38' for x in inputs)>=2
