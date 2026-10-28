@@ -539,7 +539,8 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
             ('AttackTarget','attack-target',[]),('Pickup','pickup',[]),
             ('Attachment','pickup-attachment',[]),('Detach','attachment-detach',[]),
             ('Timers','potion-timers',[]),('CacheReclamation','action-reclamation',[]),
-            ('ScriptFlow','script-flow',[]),('WaterIdentity','water-entry',[str(game_data/'Files/ECSTATIC')])]:
+            ('ScriptFlow','script-flow',[]),('TowerConditions','tower-conditions',[]),
+            ('WaterIdentity','water-entry',[str(game_data/'Files/ECSTATIC')])]:
             command=[py,str(ROOT/f'scripts/check-e2-{script}.py')]
             if extra is not None: command += [original,*extra]
             if asan: command += ['--asan']

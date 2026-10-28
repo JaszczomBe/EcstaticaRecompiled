@@ -67,6 +67,31 @@ the former 1000-byte bound. The [human-play follow-up](journal/entries/enemy-pla
 records native consumption and the fixture/replay limits.
 
 
+## Tower key progression
+
+The checks block includes `Original.TowerConditions` in Debug and ASan. Its
+bounded original-x86 cases cover scene-phase/negation, facing and held-key tests.
+The user's tower save is external, so the full native puzzle journey is an
+explicit fixture probe rather than an implicit dependency of the ordinary suite:
+
+```sh
+python3 scripts/probe-e2-tower-progression.py build/Debug/clang21-i386-sdl/e2recomp \
+  --game-data /path/to/Ecstatica2 --saves /private/copied/Saved \
+  --load-slot 6 --output /tmp/e2-tower-check
+```
+
+Repeat with the ASan executable and a new output directory. The selected fixture
+must be the pre-acquisition tower state identified by [Task 03](implementations/playable-sdl-runtime/steps/step-12/tasks/task-03-recover-tower-key-trap-and-door-progression.md).
+Recording is off. The probe copies installed and supplied saves, uses only a
+confirmed empty private slot 0–8, guards the writer, and hash-checks the sources
+and every unowned private slot. Five bounded processes cover locked-door refusal,
+head hit → key drop → Space pickup → actual keyed-door passage, same-process
+Save/Load at three stages, then independent fresh-process restoration of each.
+It checks actor/script/scene/attachment ownership, blocker movement, original
+pixels, F3, HUD/F1/F2, resumed control and actual menu Quit. `report.json`, phase
+states, object/raster samples, physical frames and GDB logs retain the evidence.
+Normal human review continues to use the single **Ecstatica Recompiled** F5 launch.
+
 ## Game persistence
 
 ```sh

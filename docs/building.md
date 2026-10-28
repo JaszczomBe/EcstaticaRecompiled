@@ -45,13 +45,18 @@ An explicit/nonempty `ECSTATICA2_DATA_DIR` cache value takes precedence. When th
 F5 enables original player and enemy ellipsoid bodies/bone animations
 (`E2R_PLAYER_MESH=1`, `E2R_NPC_MESH=1`), recovered action indexing and background
 population (`E2R_DEFER_BACKGROUND_SPAWNS=0`). F5 also selects original object IDs
-`5,536,537,601,603,608,663,710,711,908,909,912,963,980,1085,1100,1101,1122,1123,1124,1125,1127,1128,1129,1130,1131,1153,1188,1190,1191,1192,1193,3551,3717,3737,3820,3821,3822,3986,3994,3995,3996,3997,3998,3999,4000,4001`
+`5,259,264,265,266,536,537,601,603,608,663,710,711,737,908,909,912,963,980,1028,1085,1100,1101,1122,1123,1124,1125,1127,1128,1129,1130,1131,1153,1188,1190,1191,1192,1193,2628,3199,3251,3551,3717,3737,3782,3820,3821,3822,3986,3994,3995,3996,3997,3998,3999,4000,4001`
 through `E2R_OBJECT_MESH_IDS`. `E2R_OBJECT_MESH_REPS=66,67,86,102,103,126,133,134,135,153,271,277,279,282,287,349`
 selects 16 source-audited families (251 original actor resources): potion,
 small/large flame, six stationary pool styles, red/blue doors, coin/gem/trophy/
 crown and chalice. The selector reads original requested/base representation IDs
 across action changes. The [courtyard/intro/decorative recovery record](journal/entries/courtyard-acid-flames-and-roof-effects-2026-10-28.md)
-owns current source mapping, pixels and limits. Unselected objects retain their
+owns that source mapping, pixels and limits. The [tower recovery](journal/entries/tower-key-progression-recovery-2026-10-28.md)
+adds **259/pike, 264/key3, 265/keyhed3 and 266/door3**. The
+[tower/storage follow-up](journal/entries/tower-storage-render-followup-2026-10-28.md)
+adds original collection sparkle **2628**, necklace **3199**, gold sword **3251**,
+gas **737/1028** and chest **3782**, for **57 explicit owners**.
+Unselected objects retain their
 diagnostic fallbacks and selective bypasses. Original pixels use recovered camera, palette, depth and
 physical DirectDraw pages. **F3** cycles original models with unrecovered boxes
 (default), models plus all boxes, and boxes only. Original background artwork

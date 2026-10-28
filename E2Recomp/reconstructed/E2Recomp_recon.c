@@ -16618,7 +16618,8 @@ void FUN_00421a14(void)
           }
           piVar3 = *(int **)(iVar10 + 0xe4);
           iVar9 = *(int *)((int)piVar3 + 2) >> 0x10;
-          FUN_0041868c(iVar9,0,((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,
+          /* Original 0x421bfa..0x421c23: EAX=1, EDX=0, EBX=x, ECX=y. */
+          E2R_CopyDepthRect(1,0,(short)*piVar3,iVar9,((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,
                        ((piVar3[1] >> 0x10) + 1) - iVar9);
         }
         iVar4 = 1 - (DAT_0047a279 >> 0x18);

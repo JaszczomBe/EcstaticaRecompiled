@@ -8,6 +8,14 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Inner-castle progression crash and rendering handoff — 2026-10-28](entries/inner-castle-progression-handoff-2026-10-28.md): records extended human armour/key/wizardess/mace/lever progression, the saved incomplete-session SIGSEGV, eight presentation gaps and protected occupied saves; selects Task 04 without claiming reproduction or a fix.
+
+- [Tower sparkle, storage models and original-behavior boundary — 2026-10-28](entries/tower-storage-render-followup-2026-10-28.md): replays the next human session, enables original collection sparkle and storage gold sword/necklace, restores original static-depth copy arguments, and retains the unresolved door appearance without overriding possible original defects.
+
+- [Tower key progression and original models — 2026-10-28](entries/tower-key-progression-recovery-2026-10-28.md): identifies slot 6 by exact replay, qualifies original head-hit/key-drop/pickup/door passage and three-stage protected persistence in Debug/ASan, and enables the four missing tower models without gameplay logic changes.
+
+- [Tower key progression handoff — 2026-10-28](entries/tower-key-progression-handoff-2026-10-28.md): prioritizes the user-reported loaded tower key/trap/door blocker, identifies the latest session and original owners, and records protected saves plus next-context acceptance requirements without changing runtime behavior.
+
 - [Courtyard acid, flames and roof effects — 2026-10-28](entries/courtyard-acid-flames-and-roof-effects-2026-10-28.md): replays the next human recording, maps the two newly visited pool groups, restores intro lightning/flames/coloured doors and omitted shelf/roof effects, and distinguishes mixed-mode boxes from missing geometry.
 
 - [Animals, collectibles and courtyard projectiles — 2026-10-28](entries/animals-collectibles-and-projectiles-2026-10-28.md): follows the next gameplay report, maps rats/horse and omitted effects/traps, qualifies five collectible families and retains all diagnostic boxes under F3 with fresh Debug/ASan evidence.

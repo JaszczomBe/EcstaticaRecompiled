@@ -13,6 +13,26 @@ remaining models, broad gameplay fidelity and the 64-bit runtime remain incomple
 
 ## Start here
 
+The latest human run progressed through magic armour, the prison key, wizardess,
+magical mace and head-operated gates, then crashed. Start with
+[Step 12 Task 04](docs/implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md)
+and the [new handoff evidence](docs/journal/entries/inner-castle-progression-handoff-2026-10-28.md):
+reproduce the saved `FUN_0042d61c` crash, then recover the reported missing
+models/effects. The recording is incomplete; no crash repair is accepted yet.
+
+The tower key/spike-trap/door route now passes bounded Debug/ASan progression
+and protected Save/Load checks. F5 includes its original key, head, spike and door
+models. Strike the head, collect the fallen key with **Space**, then approach the
+keyed door. [Step 12 Task 03](docs/implementations/playable-sdl-runtime/steps/step-12/tasks/task-03-recover-tower-key-trap-and-door-progression.md)
+and the [recovery evidence](docs/journal/entries/tower-key-progression-recovery-2026-10-28.md)
+retain human visual-review and wider gameplay limits. Remaining object/acid work
+precedes audio.
+
+The [latest tower/storage follow-up](docs/journal/entries/tower-storage-render-followup-2026-10-28.md)
+adds original collection sparkle and storage models, including the gold sword.
+The reported translucent door remains unresolved; preserve original behavior
+unless comparison proves a reconstruction error.
+
 1. Read [project state and capabilities](docs/capabilities.md).
 2. Follow the [handoff and working rules](docs/HANDOFF.md).
 3. Open the [active runtime implementation](docs/implementations/playable-sdl-runtime/playable-sdl-runtime.md)

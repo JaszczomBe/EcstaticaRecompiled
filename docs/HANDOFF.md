@@ -28,11 +28,13 @@ See [build setup](building.md) and [debugging usage](debugging.md).
 
 For the selected next continuation, open the
 [object-model/animation step](implementations/playable-sdl-runtime/steps/step-12/step-12-recover-object-models-and-animations.md)
-and its [first task](implementations/playable-sdl-runtime/steps/step-12/tasks/task-01-recover-object-rendering-and-animation-contracts.md).
-The user explicitly requested this handoff navigation update after HUD and
-recording recovery: items, weapons, doors and acid pools now precede audio.
-These links replace the previous HUD continuation; current baseline, evidence,
-acceptance and remaining source questions stay owned by the active step/task.
+and its [inner-castle crash and model recovery task](implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md).
+The user explicitly requested this next-context handoff after extended tower/
+inner-castle progression exposed a new crash and missing original presentation.
+This navigation replaces the earlier bounded tower-key task as the immediate
+continuation. Current baseline, session/save evidence, acceptance and
+remaining source questions stay owned by the active implementation/task and its
+linked journal; original object recovery and progression still precede audio.
 
 Read these sources in order:
 

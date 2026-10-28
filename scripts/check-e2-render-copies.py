@@ -3,8 +3,11 @@
 
 Cursor leaves are intercepted with the cursor hidden; original copy loops and
 surface-selector ownership execute. Physical-to-physical COM blits are excluded.
+Static-owner promotion executes its original caller with raster leaves
+intercepted to supply a bounded rectangle.
 """
 import argparse
+import re
 from pathlib import Path
 from e2_original import OriginalImage, function, run_fixture, support
 
@@ -22,7 +25,7 @@ harness = support()+r'''
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-typedef uint8_t byte;typedef uint32_t uint;
+typedef uint8_t byte,undefined1;typedef uint16_t undefined2;typedef uint32_t uint,undefined4;
 #define _DAT_00636668 (*(uint*)0x636668)
 #define _DAT_0063666c (*(uint*)0x63666c)
 #define _DAT_00636670 (*(uint*)0x636670)
@@ -51,7 +54,34 @@ __attribute__((noinline)) static void depth_original(int source,int destination,
 '''
 for name in ('E2R_CopyGameRect', 'E2R_CopyDepthRect', 'FUN_00424b48'):
     harness += function(source, name)+'\n'
-for start, end in [(0x417b20, 0x417d3c), (0x41868c, 0x4186f8), (0x424b48, 0x424bd8)]:
+# The real static-owner caller must retain both coordinates and depth banks.
+static_caller = function(source, 'FUN_00421a14')
+for name in sorted(set(re.findall(r'\b_?DAT_[0-9a-f]+\b', static_caller))):
+    if '#define ' + name + ' ' not in harness:
+        harness += f'#define {name} (*(int*)0x{name[-8:]})\n'
+harness += r'''
+#define CONCAT22(a,b) (((uint)(uint16_t)(a)<<16)|(uint16_t)(b))
+static short fixture_rect[4];
+__attribute__((regparm(1),noinline,used)) static void render_static(uint actor) {
+ memcpy((void*)(actor+0x112),fixture_rect,sizeof fixture_rect);
+}
+static void FUN_004249f4(uint actor){}
+static void FUN_00424d58(uint actor){}
+static void FUN_00424d14(uint actor){}
+static void FUN_00424dd8(uint unused,uint actor){}
+static void FUN_00424d98(uint actor){render_static(actor);}
+static void FUN_00418484(int surface,int x,int y,int w,int h){}
+static void FUN_0041760c(int a,int b,int c,int d,void *e,int f){abort();}
+static void FUN_0041868c(int a,int b,int c,int d){abort();}
+static void FUN_00426f70(void){abort();}
+static void FUN_00455094(void){abort();}
+static void FUN_0041b078(int a,int b){abort();}
+static void FUN_004194a8(int a,int b){abort();}
+__attribute__((naked)) static void render_static_hook(void){__asm__("pushal;call render_static;popal;ret");}
+__attribute__((naked)) static void ignore_pixel_copy(void){__asm__("ret $4");}
+'''
+harness += static_caller + '\n'
+for start, end in [(0x417b20, 0x417d3c), (0x41868c, 0x4186f8), (0x424b48, 0x424bd8), (0x421a14, 0x421f54)]:
     harness += f'static const byte code_{start:x}[]={{'+','.join(map(str, image.code(start, end)))+'};\n'
 harness += r'''
 static void map(uint at,uint size){assert(mmap((void*)at,size,7,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void*)at);}
@@ -65,7 +95,7 @@ static void setup(int seed){
  nl=nu=0;
 }
 int main(void){
- map(0x410000,0x10000);map(0x420000,0x10000);map(0x470000,0x10000);map(0x630000,0x20000);map(0x900000,0x80000);
+ map(0x410000,0x10000);map(0x420000,0x10000);map(0x470000,0x10000);map(0x630000,0x50000);map(0x900000,0x80000);
  memcpy((void*)0x417b20,code_417b20,sizeof code_417b20);memcpy((void*)0x41868c,code_41868c,sizeof code_41868c);
  memcpy((void*)0x424b48,code_424b48,sizeof code_424b48);
  hook(0x418a04,lock_hook);hook(0x418b00,unlock_hook);
@@ -115,6 +145,30 @@ int main(void){
   cases++;
  }
  printf("PASS: %d original-x86 dirty depth list/page/invalid-rectangle cases\n",cases);
+ memcpy((void*)0x421a14,code_421a14,sizeof code_421a14);
+ *(byte*)0x4249f4=*(byte*)0x424d58=*(byte*)0x424d14=*(byte*)0x424dd8=0xc3;
+ hook(0x424d98,render_static_hook);hook(0x418484,ignore_pixel_copy);
+ cases=0;
+ for(int page=0;page<2;page++)for(int seed=0;seed<128;seed++) {
+  fixture_rect[0]=seed%19;fixture_rect[1]=fixture_rect[0]+1+seed%20;
+  fixture_rect[2]=seed%7;fixture_rect[3]=fixture_rect[2]+seed%13;
+  static byte initial[0x80000];
+  setup(seed);memset((void*)0x900000,0,0x1000);memset((void*)0x47aa00,0,0x200);
+  DAT_0047a279=page<<24;DAT_0047a43c=1;DAT_0047a34a=DAT_0047a3e0=DAT_0047a760=0;
+  _DAT_0063726c=0x900000;*(short*)0x900002=0x408;
+  _DAT_00640124=_DAT_0064012c=0;_DAT_00640144=64;_DAT_00640120=64;
+  *(int*)0x47a29c=*(int*)0x47a2a0=0;
+  memcpy(initial,(void*)0x900000,sizeof initial);
+  ((void(*)(void))0x421a14)();memcpy(expected,(void*)0x900000,sizeof expected);
+  short original_list[4];memcpy(original_list,(void*)(0x6368e0+(1-page)*0x4b0),8);
+  memcpy((void*)0x900000,initial,sizeof initial);*(int*)0x47a29c=*(int*)0x47a2a0=0;
+  FUN_00421a14();
+  if(!e2r_memory_equal("static owner depth/rectangle",expected,(void*)0x900000,sizeof expected)||
+     memcmp(original_list,(void*)(0x6368e0+(1-page)*0x4b0),8))return 1;
+  cases++;
+ }
+ printf("PASS: %d original-x86 static-owner depth promotion/coordinates/dirty rectangles (raster leaves intercepted)\n",cases);
+
 }
 '''
 run_fixture(harness, asan=args.asan, keep=args.keep_harness, image=image,

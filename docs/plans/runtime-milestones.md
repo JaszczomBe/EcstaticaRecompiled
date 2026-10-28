@@ -28,6 +28,19 @@ recording, not game-state persistence. Existing step/task numbers stay stable.
 The [active implementation](../implementations/playable-sdl-runtime/playable-sdl-runtime.md)
 owns current evidence and acceptance.
 
+The loaded tower puzzle now passes bounded Debug/ASan key acquisition, keyed-door
+passage and three-stage protected persistence in [Step 12 Task 03](../implementations/playable-sdl-runtime/steps/step-12/tasks/task-03-recover-tower-key-trap-and-door-progression.md).
+F5 includes its original head/key/spike/door models and subsequent storage/sparkle
+coverage. The reported translucent door remains unresolved; preserve possible
+original defects until a reconstruction mismatch is proven. Wider tower journeys
+and Task 02's remaining object/acid coverage precede audio.
+
+The latest extended human run supersedes that bounded route as the immediate
+frontier: [Task 04](../implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md)
+owns the saved inner-castle `FUN_0042d61c` crash and missing original armour,
+key/mace, switches/gates, wizardess details and scripted effects. Reproduction
+and repair remain pending; preserve original behavior and occupied saves.
+
 1. Original player model/animation (Step 08, Task 02): accepted by the user after
    the projection correction on 2026-10-27; retain recorded equipment/video limits.
 2. Original enemies' bodies and animations (Step 08, Task 03): accepted direction
@@ -43,8 +56,9 @@ owns current evidence and acceptance.
    with bounded original-code and Debug/ASan native verification; Step 11 retains
    indicator-branch and visual-review limits.
 5. Recover [item, weapon, door and acid-pool models and animations](../implementations/playable-sdl-runtime/steps/step-12/step-12-recover-object-models-and-animations.md)
-   (Step 12), selected next with implementation not started. Establish original
-   asset/owner/primitive/material and action contracts; retain fallbacks until
+   (Step 12), with selected rendering/F3 slices and bounded tower progression
+   implemented in Task 03. Establish original asset/owner/primitive/material
+   and action contracts for remaining classes; retain fallbacks until
    each recovered class has original-code and fresh native visual evidence.
 6. Recover game sounds and their original event, volume and channel ownership.
 7. Recover music and its original track selection, looping and transitions.

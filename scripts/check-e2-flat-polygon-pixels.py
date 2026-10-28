@@ -4,6 +4,8 @@
 Lighting indices are fixed in both implementations (their arithmetic has a
 separate original-x86 fixture). Palette ownership and DirectDraw Lock/Unlock are
 intercepted. Original column raster instructions execute, including pitch patch.
+Integrated opaque boxes also compare paired triangles with fixed affine
+projection; this does not qualify the complete camera/background composition.
 """
 import argparse
 from pathlib import Path
@@ -25,7 +27,7 @@ harness = support() + r'''
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-typedef uint8_t byte;typedef uint16_t ushort;typedef uint32_t uint,undefined4;
+typedef uint8_t byte,undefined1;typedef uint16_t ushort,undefined2;typedef uint32_t uint,undefined4;typedef uint64_t undefined8,ulonglong;
 #define __fastcall
 static int IsBadReadPtr(const void *p,int n){return !p;}
 static void FUN_00457818(uint p,int mode){}
@@ -47,7 +49,25 @@ for symbol in sorted(set(re.findall(r'\b_?DAT_[0-9a-f]{8}\b', body))):
     address = int(symbol[-8:], 16)
     harness += f'#define {symbol} (*(int*)0x{address:x})\n'
 harness += body + '\n'
-ranges = [(0x431a7c, 0x432bd7), (0x45d92a, 0x45d954)]
+box = function(source, 'FUN_00425018')
+for symbol in sorted(set(re.findall(r'\b_?DAT_[0-9a-f]{8}\b', box))):
+    if '#define ' + symbol + ' ' not in harness:
+        harness += f'#define {symbol} (*(int*)0x{symbol[-8:]})\n'
+harness += r'''
+static int sRam0047a380;
+#define E2R_READ2(p,o) (*(ushort*)((uint)(p)+(o)))
+static int E2R_UseProxyMesh(int actor,int ellipsoids){return 0;}
+static undefined8 FUN_004525f0(int a,int b){abort();}
+static void FUN_00433e9c(int a,int b){abort();}
+__attribute__((regparm(2),noinline,used)) static void project(uint out,uint input){
+ short *d=(short*)out,*s=(short*)input;d[0]=s[0]*2;d[1]=s[1]*2;d[2]=s[2];
+}
+static void FUN_00422fd8(uint out,int input){project(out,input);}
+__attribute__((naked)) static void project_hook(void){__asm__("pushal;call project;popal;ret");}
+'''
+harness += function(source, 'E2R_TransformVector14') + '\n' + box + '\n'
+
+ranges = [(0x431a7c, 0x432bd7), (0x45d92a, 0x45d954), (0x425018,0x425536), (0x45de8b,0x45df0e), (0x47a2b8,0x47a348)]
 for start, end in ranges:
     harness += f'static const byte code_{start:x}[]={{' + ','.join(map(str, image.code(start, end))) + '};\n'
 harness += r'''
@@ -83,7 +103,7 @@ static void setup(int seed,int flags,int surface){
  locked=unlocked=0;
 }
 int main(void){
- map(0x410000,0x10000);map(0x430000,0x10000);map(0x450000,0x10000);
+ map(0x410000,0x10000);map(0x420000,0x20000);map(0x450000,0x10000);
  map(0x470000,0x10000);map(0x500000,0x150000);map(0x900000,0x120000);
 '''
 for start, _ in ranges:
@@ -107,6 +127,28 @@ harness += r'''
   cases++;
  }
  assert(drawn>100);printf("PASS: %d original-x86 flat polygon pixel/depth/rectangle/lock cases (%d draw pixels)\n",cases,drawn);
+ hook(0x422fd8,project_hook);
+ cases=0;
+ for(int narrow=0;narrow<3;narrow++)for(int orientation=0;orientation<4;orientation++)for(int seed=0;seed<32;seed++) {
+  static byte initial[0x112000];
+  setup(seed,0,1);DAT_0047a279=0;DAT_0047a34a=DAT_0047a434=DAT_0047a3e0=0;
+  uint node=0x900800;*(uint*)(node+0x22)=0x900400;*(short*)(node+0xce)=1;*(short*)(node+0xd0)=0x4000;*(short*)(node+0x156)=-1;
+  short matrix[4][9]={{16384,0,0,0,16384,0,0,0,16384},{0,0,16384,0,16384,0,-16384,0,0},
+    {-16384,0,0,0,16384,0,0,0,-16384},{0,0,-16384,0,16384,0,16384,0,0}};
+  memcpy((void*)(node+6),matrix[orientation],18);
+  *(short*)(node+0x68)=narrow==0?14:67;*(short*)(node+0x6a)=452;*(short*)(node+0x6c)=narrow==2?14:67;
+  *(short*)(node+0x80)=seed*3-48;*(short*)(node+0x82)=seed*3-48;*(short*)(node+0x84)=2000+seed*7;
+  memcpy(initial,(void*)0x900000,sizeof initial);
+  struct E2R_Registers regs={.eax=node};e2r_original_call(0x425018,&regs);
+  memcpy(expected,(void*)0x900000,sizeof expected);
+  memcpy((void*)0x900000,initial,sizeof initial);FUN_00425018(node);
+  if(!e2r_memory_equal("opaque box paired-triangle pixels/depth",expected,(void*)0x900000,sizeof expected)) {
+   fprintf(stderr,"box narrow=%d orientation=%d seed=%d\n",narrow,orientation,seed);return 1;
+  }
+  cases++;
+ }
+ printf("PASS: %d original-x86 opaque door-box integrated pixel/depth cases\n",cases);
+
 }
 '''
 run_fixture(harness, asan=args.asan, keep=args.keep_harness, image=image,

@@ -4,7 +4,7 @@
 [Project README](../../../../../README.md) · [Parent: Playable SDL Runtime](../../playable-sdl-runtime.md)
 <!-- /docs-tree:parent -->
 
-Status: active; selected objects/effects, representation families and F3 implemented within recorded bounds
+Status: active; Task 04 inner-castle crash/models selected; prior bounded tower acceptance retained
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-10-28
 
@@ -84,6 +84,28 @@ newly enabled object rendering.
 
 ## Current tasks
 
+[Task 04](tasks/task-04-recover-inner-castle-progression-crash-and-models.md) is the
+immediate continuation after human armour/prison-key/wizardess/mace/head-lever
+progression. The [new handoff](../../../../journal/entries/inner-castle-progression-handoff-2026-10-28.md)
+records a saved `FUN_0042d61c` SIGSEGV and eight missing/incomplete presentation
+paths. First preserve and reproduce the incomplete crash recording, then recover
+original contracts and verify the fix before expanding model/effect coverage.
+Slot **5** is now occupied by the user's save; preserve it and **6/7/9**.
+No runtime fix or new longer-route replay acceptance is claimed by this handoff.
+
+[Task 03](tasks/task-03-recover-tower-key-trap-and-door-progression.md) now has
+bounded Debug/ASan acceptance for the loaded tower puzzle. The [recovery journal](../../../../journal/entries/tower-key-progression-recovery-2026-10-28.md)
+records original head-hit/key-drop, Space pickup, locked-door refusal, keyed-door
+passage, blocker tracks and same/fresh-process persistence at three stages.
+The missing model selection obscured the existing mechanism. F5 now includes
+owners **259/264/265/266**. The [tower/storage follow-up](../../../../journal/entries/tower-storage-render-followup-2026-10-28.md)
+adds collection sparkle, storage necklace/gold sword and nearby gas/chest models,
+for **57 explicit owners** plus the existing 16 representation families. Original
+pixels, F3, HUD/menu/save preservation and recording checks pass. The reported
+partly translucent door remains unresolved; preserve original behavior, including
+possible original defects, unless a reconstruction mismatch is proven. Full
+original-game composition and broader tower coverage remain unqualified.
+
 [Task 01](tasks/task-01-recover-object-rendering-and-animation-contracts.md) completes
 the original asset/owner map and first bounded rendering slice: explicit child
 owner selection, flat columns/Lock/depth and original box vertices/face tables.
@@ -95,6 +117,10 @@ pass. This does not qualify all variants or a naturally reached acid-room lifecy
 [Task 02](tasks/task-02-qualify-object-variants-and-natural-acid-lifecycle.md) owns
 remaining object coverage and natural pool activation/hazard/camera transitions. The [selection journal](../../../../journal/entries/object-models-and-animations-handoff-2026-10-28.md)
 records the priority change without claiming runtime work.
+
+Source-backed repairs required by Task 03's progression and Task 04's demonstrated
+inner-castle crash are in scope. Earlier exclusions of arbitrary tower work refer
+to unrelated stability/physics changes, not these explicitly requested paths.
 
 ## Out Of Scope
 

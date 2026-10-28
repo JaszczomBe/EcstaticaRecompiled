@@ -13,12 +13,40 @@ diagnostic object markers alongside recovered animated character bodies.
 | --- | --- | --- |
 | Build and editor | Clang 21 i386 Debug/ASan, SDL/X11 builds, selected-target F5 | Debug is the everyday choice; optimized runtime and 64-bit execution remain experimental/incomplete |
 | Gameplay | Recovered movement, camera crossings, NPC/object population and bounded workshop activation | Human swimming, sword pickup, four kills and two broken doors verified; animation-cache stall repaired; Debug/ASan door passage and actual menu Quit pass; human random-potion pickup verified and delayed effects repaired with live Debug/ASan poison dispatch; bottle removal and subsequent sword use confirmed in the latest human run; visible health/potion diagnostics added; fresh Debug healing 85→100, poison onset, invisibility dispatch and conditional no-op verified; final effect expiry/cure remains open; latest alternate-target crash repaired with isolated generated Debug/ASan prefix evidence; extended stability remains a follow-up; animation-name parity restored for potion cleanup; natural effect summaries are optional; wider pickups/rendering remain deferred |
-| Rendering and audio | Original animated characters, 47 selected object/animal/effect owners and 16 representation families (251 original resources), independent F3 geometry modes, backgrounds and palette/depth/page presentation; diagnostic fallbacks for remaining objects/equipment | Bounded Debug/ASan pixels cover animals, intro lightning, courtyard pool groups, flames, coloured doors, roof effects and collectible representatives; natural pickup/combat lifetimes and exhaustive species/actions remain unqualified; audio and remaining rendering are incomplete; original HUD artwork/default and F1/F2 retain bounded original-code/native evidence |
+| Rendering and audio | Original animated characters, 57 selected object/animal/effect owners and 16 representation families (251 original resources), independent F3 geometry modes, backgrounds and palette/depth/page presentation; diagnostic fallbacks for remaining objects/equipment | Bounded Debug/ASan pixels cover animals, intro lightning, courtyard pools, flames, doors, roof effects, collection sparkle, storage gold sword/necklace and collectible representatives; tower door appearance and broader natural pickup/combat lifetimes remain unqualified; audio and remaining rendering are incomplete; original HUD artwork/default and F1/F2 retain bounded original-code/native evidence |
 | Persistence | Original-format gameplay Save/Load, writable runtime slots and original read fallback | Debug/ASan repeated same-process and fresh-process loads restore active actors and sword ownership, then resume input/animation/attacks; saved previews display at 160×120 without dirtying game pages, original menu geometry/font and title alignment are restored, successful Load dismisses the menu; installed saves remain intact; arbitrary original progressions and malformed-file recovery remain unqualified |
 | Investigation | Automatic F5 logging, replay, state timeline, rolling frames, pinned binary and debugger evidence | 16 MiB recording chunks and streaming replay remove the former 256 MiB ceiling; disk capacity, incomplete prefixes and strict replay divergence remain explicit |
 | Recovery tools | Original-x86 fixtures, crash export, state/report queries, route expectations, dependency-aware Debug/ASan gameplay suite with concurrent configurations, shared checkpoints, three-stage menu coverage, one/two visible windows, unarmed combat and host allocation-fault checks, recovery/diagnostic index | Headless menu labels, three-stage restarts and Load/Save dialog checks pass after original-backed menu/surface repairs; broader persistence, audio and exhaustive rendering remain unqualified; sampled/fixture evidence does not establish complete game behavior; rr is optional and currently absent |
 
 ## Current implementation and next work
+
+**Next: reproduce the extended inner-castle SIGSEGV, then recover its missing
+models/effects.** [Step 12 Task 04](implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md)
+and the [new handoff](journal/entries/inner-castle-progression-handoff-2026-10-28.md)
+record human armour/gargoyle/prison-key/wizardess/mace/head-lever progression,
+session **20261028_173846_961** and saved `FUN_0042d61c` crash evidence.
+Replay/inspection remain incomplete; no reproduction or fix is accepted yet.
+Teleport, head switches, armour/equipment, gates, wizardess details, prison key,
+mace/magic effects and stairwell lightning/rubble remain reported render gaps.
+Runtime slot **5/123** is now user-owned; protect it alongside **6/7/9**.
+
+**Tower progression now has bounded Debug/ASan acceptance.** The original head
+hit drops key **264**, Space acquires it, the original door scene transfers it to
+door **266**, and blocker **443** follows its authored track to permit passage.
+F5 includes tower owners **259/264/265/266**. [Step 12 Task 03](implementations/playable-sdl-runtime/steps/step-12/tasks/task-03-recover-tower-key-trap-and-door-progression.md)
+and the [recovery journal](journal/entries/tower-key-progression-recovery-2026-10-28.md)
+record exact replay of session **20261028_161516_514**, identification of loaded
+slot **6**, original-code conditions, locked-door refusal, real pixels, same/fresh
+persistence at three puzzle stages and protected source saves. The needed change
+was model selection; no puzzle logic or save repair was required. The subsequent
+[tower/storage follow-up](journal/entries/tower-storage-render-followup-2026-10-28.md)
+raises selection to **57 owners**, adding original collection sparkle, storage
+gold sword/necklace and nearby gas/chest assets. Its **1,803-checkpoint** recording
+replays exactly; Debug/ASan checks pass. A source-backed static-owner depth-copy
+argument repair is included. The partly translucent door remains unresolved;
+matching leaf comparisons do not prove full original-game appearance. Preserve
+possible original defects and require a proven reconstruction mismatch before
+changing rendering or pickup behavior. Broader tower journeys remain open.
 
 The user selected **item, weapon, door and acid-pool models/animations → game
 sounds → music** after HUD and recording recovery on 2026-10-28.
@@ -53,8 +81,8 @@ Investigation session saving, replay and the
 gameplay regression suite remain closed milestones with minor limits deferred.
 
 The [runtime implementation](implementations/playable-sdl-runtime/playable-sdl-runtime.md)
-owns current acceptance. Observed HEAD is `a2a6043ed2def4ca6babf9cc8a6ef45587e0431b`
-on `linux-e2-reconstructed-runtime`; HUD recovery is in `44ebf8f`, chunked
+owns current acceptance. Current handoff HEAD is `990bdd9ea080ccdf434f626d4d20bf440f12a422`
+on `linux-e2-reconstructed-runtime`, containing object/F3 recovery; HUD recovery is in `44ebf8f`, chunked
 recording/streaming replay in `a2a6043`, functional persistence in `35be1cc` and
 menu/layout refinements in `22c36a3`. The historical v0.2.0 tag
 remains at `ae54e6f8e4dc`; no newer release/push is inferred.

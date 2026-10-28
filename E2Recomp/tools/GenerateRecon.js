@@ -9737,6 +9737,11 @@ patchRectangleFunction("FUN_00421684", body => {
     "  E2R_CopyDepthRect(2,1,(short)*piVar3,iVar4,((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,");
 });
 
+patchRectangleFunction("FUN_00421a14", body => replaceRectangleInput(body,
+  "          FUN_0041868c(iVar9,0,((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,",
+  "          /* Original 0x421bfa..0x421c23: EAX=1, EDX=0, EBX=x, ECX=y. */\n" +
+  "          E2R_CopyDepthRect(1,0,(short)*piVar3,iVar9,((*piVar3 >> 0x10) + 1) - (int)(short)*piVar3,"));
+
 patchRectangleFunction("FUN_0044c4e4", body => {
   body = replaceRectangleInput(body,"FUN_0041868c(0,1,_DAT_006401ec,_DAT_006401d4);",
     "E2R_CopyDepthRect(0,1,0,0,_DAT_006401ec,_DAT_006401d4);");

@@ -30,6 +30,47 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 
 ## Selected next continuation — Object models and animations
 
+**The immediate priority is the extended inner-castle crash and presentation
+handoff in [Step 12 Task 04](steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md).**
+The [new journal](../../journal/entries/inner-castle-progression-handoff-2026-10-28.md)
+records human magic-armour/gargoyle/prison-key/wizardess/mace/head-lever progression
+and the saved `FUN_0042d61c` SIGSEGV in session **20261028_173846_961**.
+Replay/inspection are incomplete, with saved crash checkpoint **3190**; reproduction
+and source-backed repair remain pending. Teleport, head switches, loose/equipped
+armour, nearby gates, wizardess details, prison key, mace/sparkles and stairwell
+lightning/rubble require original-owner investigation. Runtime slot **5/123** is
+now occupied and must be preserved alongside **6/7/9**. Preserve possible original
+defects; change behavior only when a reconstruction mismatch is proven.
+
+**Tower key/trap/door progression passes bounded Debug/ASan checks.**
+[Step 12 Task 03](steps/step-12/tasks/task-03-recover-tower-key-trap-and-door-progression.md)
+and its [recovery journal](../../journal/entries/tower-key-progression-recovery-2026-10-28.md)
+identify the original mechanism: strike head **265**, pick up the fallen key
+**264** with Space, then approach door **266** holding it. Original scene **68**
+transfers the key to the door and moves blocker **443** along its authored track;
+Joe actually crosses the doorway. The existing loaded-state logic works.
+The subsequent [tower/storage follow-up](../../journal/entries/tower-storage-render-followup-2026-10-28.md)
+adds original collection sparkle, necklace, gold sword and nearby gas/chest owners:
+F5 now selects **57 explicit owners** plus 16 families. A narrow static-owner
+depth-copy repair restores original register arguments and is mirrored in the
+generator. Collision, pickup reach, trap timing and save format stay original.
+
+The exact pinned human recording matches all **964 checkpoints** using private
+copies of runtime saves, with loaded slot **6** established at the original menu
+loader. Fresh Debug/ASan journeys verify locked-door refusal, original pixel
+writes for all four owners, acquisition, door passage, three same/fresh-process
+Save/Load stages, F3, HUD/F1/F2, menus and clean Quit. Source/user saves remain
+unchanged. **2,720** original-x86 cases per mode cover scene phase/negation,
+facing and held-key conditions. Four builds, four-artifact generation parity and
+separate chunked recording/replay checks pass. The new human recording matches
+all **1,803 checkpoints**; fresh Debug/ASan tower persistence and storage pixel
+checks pass. The reported partly translucent door remains unresolved: captured
+triangle comparisons match original x86, without establishing full original-game
+composition. Preserve possible original defects; change behavior only on a
+proven reconstruction mismatch. Difficult pickup, unarmed head interaction and
+wider tower traversal remain unqualified. Task 02 retains
+remaining decorative/acid coverage; sounds and music remain deferred.
+
 The user selected original **item, weapon, door and acid-pool models/animations**
 after HUD recovery and the recording repair. The revised next order is
 **object models/animations → game sounds → music**.
@@ -90,8 +131,9 @@ attempts remain failures; fresh final-configuration persistence and recording
 checks have separate evidence. Unknown decorative owners, sparks **1189** and
 unsupported paths keep their fallbacks. Audio remains deferred.
 
-Observed baseline is `a2a6043ed2def4ca6babf9cc8a6ef45587e0431b` on
-`linux-e2-reconstructed-runtime`. HUD recovery is committed in `44ebf8f` and
+Current handoff baseline is `990bdd9ea080ccdf434f626d4d20bf440f12a422` on
+`linux-e2-reconstructed-runtime`, containing the preceding object/F3 recovery.
+Its earlier implementation baseline was `a2a6043`. HUD recovery is committed in `44ebf8f` and
 chunked recording/streaming replay in `a2a6043`. Preserve subsequent worktree
 changes; no new commit, push or tag action is requested. The
 [selection journal](../../journal/entries/object-models-and-animations-handoff-2026-10-28.md)

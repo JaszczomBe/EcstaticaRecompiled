@@ -4,12 +4,21 @@
 [Project README](../../../../../../README.md) · [Parent: Recover Item, Weapon, Door and Acid-Pool Models and Animations](../step-12-recover-object-models-and-animations.md)
 <!-- /docs-tree:parent -->
 
-Status: active follow-on
+Status: remaining variants/acid work retained; Task 04 crash/models takes priority
 Parent Step: [Object models and animations](../step-12-recover-object-models-and-animations.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
 Last Updated: 2026-10-28
 
 ## Goal
+
+The later inner-castle crash and route-specific rendering findings now take
+priority in [Task 04](task-04-recover-inner-castle-progression-crash-and-models.md).
+This task retains the remaining variant/acid work after that demonstrated crash.
+
+The loaded tower puzzle now has bounded Debug/ASan progression, rendering and
+persistence acceptance in [Task 03](task-03-recover-tower-key-trap-and-door-progression.md).
+Human F5 review remains open there. This task continues to own remaining
+variant/acid acceptance before sounds and music.
 
 Extend the eight-asset first slice without promoting it to exhaustive class or
 natural gameplay acceptance. Original models/animations still precede sounds
@@ -100,6 +109,17 @@ actual selected rendering. Preserve the failed live/controlled navigation and
 ASan equipped-following attempt rather than treating them as passing gameplay.
 
 ## Scope and acceptance
+
+The [tower/storage follow-up](../../../../../journal/entries/tower-storage-render-followup-2026-10-28.md)
+adds exact owners **737/gas, 1028/gastube3, 2628/girlsprk, 3199/nec2,
+3251/golsord1 and 3782/gchest**, bringing current selection to **57 explicit
+owners**, with the same 16 families. The necklace and gold sword have original
+Debug/ASan pixels in scene **1479**, camera **299**; the trophy was already
+selected through family **277**. Gas/chest checks are isolated source-scene
+previews. Natural collection creates the original sparkle during the protected
+tower route. Wider storage traversal/pickup/combat and acid lifecycle remain
+unqualified. The door's observed appearance is not a license to change original
+rendering or interaction behavior.
 
 1. Expand the read-only resource inventory to reachable keys/coins/other items,
    additional loose/held weapon assets and door variants. Recover each actual
