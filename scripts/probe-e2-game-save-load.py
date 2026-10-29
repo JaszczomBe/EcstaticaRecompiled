@@ -18,6 +18,7 @@ parser.add_argument('executable',type=Path)
 parser.add_argument('--game-data',type=Path,required=True)
 parser.add_argument('--output',type=Path,required=True)
 parser.add_argument('--timeout',type=int,default=240)
+parser.add_argument('--music',action='store_true',help='Verify saved current music track and original Load restart')
 parser.add_argument('--equipment',action='store_true')
 parser.add_argument('--object-mesh-ids',type=int,nargs='+',default=[])
 parser.add_argument('--object-mesh-reps',type=int,nargs='+',default=[])
@@ -100,16 +101,17 @@ class SaveOwnership(gdb.Breakpoint):
 ownership=SaveOwnership('FUN_00453920',internal=True)
 from e2_save_load_steps import run,run_failure
 if FAILURE:run_failure(PREFIX,RUNTIME,GAME,SLOT,FAILURE)
-else:run(PREFIX,RUNTIME,GAME,SLOT,MODE,EQUIPMENT,EXPECTED,HUD,INVENTORY,LOAD_SLOT)
+else:run(PREFIX,RUNTIME,GAME,SLOT,MODE,EQUIPMENT,EXPECTED,HUD,INVENTORY,LOAD_SLOT,MUSIC)
 end
 quit
 '''
         values=dict(SCRIPTS=str(ROOT/'scripts'),PREFIX=prefix,RUNTIME=str(runtime),GAME=str(game),
-                    SLOT=slot,MODE=mode,EQUIPMENT=args.equipment,EXPECTED=str(expected),FAILURE=args.failure_case,HUD=args.hud,INVENTORY=args.inventory,LOAD_SLOT=args.load_slot)
+                    SLOT=slot,MODE=mode,EQUIPMENT=args.equipment,EXPECTED=str(expected),FAILURE=args.failure_case,HUD=args.hud,INVENTORY=args.inventory,LOAD_SLOT=args.load_slot,MUSIC=args.music)
         # Substitute tokens as Python literals, without shell interpolation.
         import re
         code=re.sub(r'\b('+ '|'.join(values) +r')\b',lambda match:repr(values[match.group()]),code)
         commands=output/(mode+'.gdb');commands.write_text(code)
+        if args.music:env.update(E2R_MUSIC_TRACE=str(output/(mode+'.music.trace')),E2R_MUSIC_TAP=str(output/(mode+'.music.s16')))
         process=subprocess.Popen(['gdb','-nx','-batch','-x',str(commands),str(executable)],
                                  stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,env=env,start_new_session=True)
         try:

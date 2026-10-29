@@ -1,3 +1,4 @@
+#include "e2recomp_music.h"
 #include "e2recomp_hud.h"
 #include "e2recomp_win32_compat.h"
 #include "e2recomp_host_backend.h"
@@ -1443,11 +1444,15 @@ BOOL TlsSetValue(DWORD index, LPVOID value)
 }
 LPVOID TlsGetValue(DWORD index) { return index < 64 ? e2r_tls[index] : NULL; }
 
-UINT midiOutGetNumDevs(void) { return 0; }
+UINT midiOutGetNumDevs(void) { return E2R_MusicAvailable() ? 1 : 0; }
 MMRESULT midiOutGetDevCapsA(UINT_PTR device_id, LPMIDIOUTCAPSA caps, UINT size)
 {
-    (void)device_id;
-    if (caps) memset(caps, 0, size);
+    if (device_id != 0 || !caps || size < sizeof(*caps) || !E2R_MusicAvailable()) return 1;
+    memset(caps, 0, size);
+    snprintf(caps->szPname, sizeof(caps->szPname), "Ecstatica General MIDI");
+    caps->wTechnology = 1;
+    caps->wVoices = caps->wNotes = 256;
+    caps->wChannelMask = 0xffff;
     return 0;
 }
 

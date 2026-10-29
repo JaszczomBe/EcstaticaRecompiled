@@ -13,12 +13,29 @@ diagnostic object markers alongside recovered animated character bodies.
 | --- | --- | --- |
 | Build and editor | Clang 21 i386 Debug/ASan, SDL/X11 builds, selected-target F5 | Debug is the everyday choice; optimized runtime and 64-bit execution remain experimental/incomplete |
 | Gameplay | Recovered movement, camera crossings, NPC/object population and bounded workshop activation | Human swimming, sword pickup, four kills and two broken doors verified; animation-cache stall repaired; Debug/ASan door passage and actual menu Quit pass; human random-potion pickup verified and delayed effects repaired with live Debug/ASan poison dispatch; bottle removal and subsequent sword use confirmed in the latest human run; visible health/potion diagnostics added; fresh Debug healing 85→100, poison onset, invisibility dispatch and conditional no-op verified; final effect expiry/cure remains open; latest alternate-target crash repaired with isolated generated Debug/ASan prefix evidence; extended stability remains a follow-up; animation-name parity restored for potion cleanup; natural effect summaries are optional; wider pickups/rendering remain deferred |
-| Rendering and audio | Original animated characters, 76 selected object/animal/effect owners and 16 representation families (251 original resources), independent F3 geometry modes, backgrounds and palette/depth/page presentation; diagnostic fallbacks for remaining objects/equipment | Bounded Debug/ASan pixels cover animals, intro lightning, courtyard pools, flames, doors, roof effects, collection sparkle, storage gold sword/necklace and collectible representatives; tower door appearance and broader natural pickup/combat lifetimes remain unqualified; audio and remaining rendering are incomplete; original HUD artwork/default and F1/F2 retain bounded original-code/native evidence |
+| Rendering and audio | Original animated characters, 76 selected object/animal/effect owners and 16 representation families (251 original resources), independent F3 geometry modes, backgrounds and palette/depth/page presentation; diagnostic fallbacks for remaining objects/equipment | Bounded Debug/ASan pixels cover animals, intro lightning, courtyard pools, flames, doors, roof effects, collection sparkle, storage gold sword/necklace and collectible representatives; tower door appearance and broader natural pickup/combat lifetimes remain unqualified; game sounds have bounded original/PCM/SDL-device coverage; software GM music has bounded original/MIDI/PCM coverage; human listening, broad audio events/transitions and remaining rendering are incomplete; original HUD artwork/default and F1/F2 retain bounded original-code/native evidence |
 | Persistence | Original-format gameplay Save/Load, writable runtime slots and original read fallback | Debug/ASan repeated same-process and fresh-process loads restore active actors and sword ownership, then resume input/animation/attacks; saved previews display at 160×120 without dirtying game pages, original menu geometry/font and title alignment are restored, successful Load dismisses the menu; installed saves remain intact; arbitrary original progressions and malformed-file recovery remain unqualified |
 | Investigation | Automatic F5 logging, replay, state timeline, rolling frames, pinned binary and debugger evidence | 16 MiB recording chunks and streaming replay remove the former 256 MiB ceiling; disk capacity, incomplete prefixes and strict replay divergence remain explicit |
 | Recovery tools | Original-x86 fixtures, crash export, state/report queries, route expectations, dependency-aware Debug/ASan gameplay suite with concurrent configurations, shared checkpoints, three-stage menu coverage, one/two visible windows, unarmed combat and host allocation-fault checks, recovery/diagnostic index | Headless menu labels, three-stage restarts and Load/Save dialog checks pass after original-backed menu/surface repairs; broader persistence, audio and exhaustive rendering remain unqualified; sampled/fixture evidence does not establish complete game behavior; rr is optional and currently absent |
 
 ## Current implementation and next work
+
+**Original music now plays through software General MIDI and SDL.**
+[Step 05 Task 05](implementations/playable-sdl-runtime/steps/step-05/tasks/task-05-recover-original-music.md)
+and the [music journal](journal/entries/music-recovery-2026-10-29.md) record original
+DLL equivalence for 91 GM tracks, all 960 loader entries, music-only PCM,
+independent settings, protected persistence and strict recording/replay. An
+external SoundFont supplies instruments. Human listening, broader transitions,
+hardware timbre and focus/device-loss recovery remain open; earlier limits remain.
+
+**Original game sounds now play through SDL.** [Step 05 Task 04](implementations/playable-sdl-runtime/steps/step-05/tasks/task-04-recover-original-game-sounds.md)
+and the [recovery journal](journal/entries/game-sounds-recovery-2026-10-29.md)
+record exact original conversion for all 404 assets, real PulseAudio output,
+Debug/ASan sound toggles and lifecycle, protected persistence, HUD/F3/inventory,
+generation parity and six strict sound-event replay variants per configuration.
+Human F5 listening, broader natural event classes and device-loss recovery remain
+open. Music continues in Task 05 above; existing gameplay/visual limits and protected evidence
+remain. No commit or push is made.
 
 **The original Enter inventory/status menu is recovered.**
 [Step 11 Task 02](implementations/playable-sdl-runtime/steps/step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md)
@@ -93,8 +110,9 @@ Investigation session saving, replay and the
 gameplay regression suite remain closed milestones with minor limits deferred.
 
 The [runtime implementation](implementations/playable-sdl-runtime/playable-sdl-runtime.md)
-owns current acceptance. Current handoff HEAD is `969af3bfbdd6aefc7345fa07db3b415151f87a1a`
-on `linux-e2-reconstructed-runtime`, containing inner-castle recovery; object/F3 recovery is in `990bdd9`, HUD recovery is in `44ebf8f`, chunked
+owns current acceptance. Current handoff HEAD is `a1898a8745e8d42cec9741d25ca37433db2a3a57`
+on `linux-e2-reconstructed-runtime`, containing inventory/status recovery.
+Inner-castle recovery is in `969af3b`; object/F3 recovery is in `990bdd9`, HUD recovery is in `44ebf8f`, chunked
 recording/streaming replay in `a2a6043`, functional persistence in `35be1cc` and
 menu/layout refinements in `22c36a3`. The historical v0.2.0 tag
 remains at `ae54e6f8e4dc`; no newer release/push is inferred.

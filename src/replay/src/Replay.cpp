@@ -624,7 +624,8 @@ std::map<std::string, std::string> identity(const char *game, int argc,
     auto name = entry.substr(0, eq);
     if ((name.starts_with("E2R_") && !name.starts_with("E2R_REPLAY") &&
          name != "E2R_RECORD" && name != "E2R_DATA_DIR" &&
-         !name.starts_with("E2R_LOG") && !name.starts_with("E2R_INSPECT")) ||
+         !name.starts_with("E2R_LOG") && !name.starts_with("E2R_INSPECT") &&
+         name != "E2R_AUDIO" && name != "E2R_AUDIO_TAP" && name != "E2R_AUDIO_TRACE" && name != "E2R_MUSIC_TRACE" && name != "E2R_MUSIC_TAP") ||
         name == "SDL_VIDEODRIVER" || name == "SDL_AUDIODRIVER" ||
         name == "ASAN_OPTIONS" || name == "TZ")
       m["env." + name] = entry.substr(eq + 1);

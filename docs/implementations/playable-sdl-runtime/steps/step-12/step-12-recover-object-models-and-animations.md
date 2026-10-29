@@ -4,16 +4,16 @@
 [Project README](../../../../../README.md) · [Parent: Playable SDL Runtime](../../playable-sdl-runtime.md)
 <!-- /docs-tree:parent -->
 
-Status: active with retained acceptance limits; Enter inventory/status menu selected next in Step 11
+Status: follow-ups retained; game sounds selected next in Step 05
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-10-28
+Last Updated: 2026-10-29
 
 ## Goal
 
 Recover the original visible representations and animations of items, weapons,
 doors and acid pools. The user selected this work after HUD recovery and the
-recording repair. The next order is **object models/animations → game sounds →
-music**. The first bounded slice now has original-code and Debug/ASan evidence;
+recording repair. That selection established **object models/animations → game sounds →
+music**; the current sound continuation is linked below. The first bounded slice now has original-code and Debug/ASan evidence;
 remaining variants and natural acid-room gameplay are still open.
 
 ## Why This Step Exists
@@ -84,9 +84,10 @@ newly enabled object rendering.
 
 ## Current tasks
 
-The user has selected [Step 11 Task 02: Enter inventory/status menu](../step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md)
-as the immediate next-context task. Step 12's remaining work stays open; this
-priority change does not extend or close the bounded acceptance below.
+After [inventory/status recovery](../step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md),
+the user selected [Step 05 Task 04: Original Game Sounds](../step-05/tasks/task-04-recover-original-game-sounds.md)
+on 2026-10-29 as the next focus. Step 12's remaining work stays open; this priority
+change does not extend or close the bounded acceptance below.
 
 [Task 04](tasks/task-04-recover-inner-castle-progression-crash-and-models.md) remains
 active after original-backed event/node and signed-clipping repairs. The

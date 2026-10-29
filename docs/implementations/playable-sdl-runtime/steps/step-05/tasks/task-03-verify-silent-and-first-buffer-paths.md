@@ -4,10 +4,25 @@
 [Project README](../../../../../../README.md) · [Parent: Begin DirectSound Compatibility](../step-05-begin-directsound-compatibility.md)
 <!-- /docs-tree:parent -->
 
-Status: planned
+Status: recovered and verified within Task 04; bounded acceptance
 Parent Step: [Begin DirectSound Compatibility](../step-05-begin-directsound-compatibility.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-07-28
+Last Updated: 2026-10-29
+
+## Current continuation
+
+The user selected [Task 04: Recover Original Game Sounds](task-04-recover-original-game-sounds.md)
+on 2026-10-29. This task remains a dependency within that recovery. Silent or
+first-buffer-safe behavior does not complete the selected audible-sound objective;
+music remains separate later work. Follow Task 04 for current scope and protection.
+
+## Recovered result
+
+[Task 04](task-04-recover-original-game-sounds.md) and its
+[recovery journal](../../../../../journal/entries/game-sounds-recovery-2026-10-29.md)
+now record original startup/secondary-buffer calls, compatibility/host ownership,
+real PCM/device output and bounded regression evidence. Human listening, wider
+event coverage and music remain outside this dependency's acceptance.
 
 ## Goal
 

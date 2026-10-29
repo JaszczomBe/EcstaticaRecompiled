@@ -9,6 +9,7 @@ import argparse
 import csv
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import time
@@ -24,6 +25,8 @@ p.add_argument('--chunk-bytes', type=int, help='Exercise physical chunk rotation
 p.add_argument('--object-mesh-ids', type=int, nargs='+', default=[])
 p.add_argument('--object-mesh-reps', type=int, nargs='+', default=[])
 p.add_argument('--character-meshes', action='store_true', help='Record/replay with original player and NPC rendering')
+p.add_argument('--music',action='store_true',help='Verify original music resource/start/stop sequence and isolated PCM across strict replay')
+p.add_argument('--audio', action='store_true', help='Verify original sound requests, captured PCM and device-disabled replay')
 p.add_argument('--output',type=Path,default=Path('/tmp/e2-replay-route'))
 a=p.parse_args()
 if a.inventory:a.released_player=True
@@ -37,6 +40,7 @@ env.update(SDL_VIDEODRIVER='dummy',SDL_AUDIODRIVER='dummy',E2R_STARTUP_LOGO_DELA
 if a.object_mesh_ids:env['E2R_OBJECT_MESH_IDS']=','.join(map(str,a.object_mesh_ids))
 if a.object_mesh_reps:env['E2R_OBJECT_MESH_REPS']=','.join(map(str,a.object_mesh_reps))
 if a.character_meshes:env.update(E2R_PLAYER_MESH='1',E2R_NPC_MESH='1')
+if a.audio:env['E2R_AUDIO_TRACE']='1'
 if a.inspect:env['E2R_INSPECT']='1'
 if a.chunk_bytes:
     env['E2R_REPLAY_CHUNK_BYTES'] = str(a.chunk_bytes)
@@ -127,12 +131,30 @@ assert value('E2R_InventoryPageActive()')==0
 body=body.replace('READY_CONDITION',repr(('DAT_0047a76c == 0 && ' if a.released_player else '')+'_DAT_0073cc3c == 0x67da4c && DAT_0047a470 != 0'))
 (out/'record.py').write_text(body)
 (out/'record.gdb').write_text('set pagination off\nset confirm off\npython\nexec(compile(open('+repr(str(out/'record.py'))+').read(),"replay-route","exec"),{"__name__":"__replay_route__"})\nend\n')
+sound_requests=[]
+music_requests=[]
 def run(name,command,timeout=100,expected=0):
+    if a.music:env.update(E2R_MUSIC_TRACE=str(out/(name+'.music.trace')),E2R_MUSIC_TAP=str(out/(name+'.music.s16')))
+    if a.audio:env['E2R_AUDIO_TAP']=str(out/(name+'.s16'))
     start=time.monotonic()
     result=subprocess.run(command,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=timeout,cwd=exe.parent)
     (out/(name+'.log')).write_text(result.stdout)
     assert result.returncode==expected,(name,result.returncode,result.stdout[-2500:])
     assert 'ERROR: AddressSanitizer' not in result.stdout,(name,result.stdout[-2500:])
+    if a.audio:
+        requests=re.findall(r'sound play: id=(\d+) bytes=(\d+) volume=(\d+)',result.stdout)
+        assert requests,(name,'No original sound events reached playback')
+        if name=='record':sound_requests.extend(requests)
+        else:assert requests==sound_requests,(name,'Sound identity/length/volume sequence changed')
+        if env.get('E2R_AUDIO')!='off':
+            pcm=(out/(name+'.s16')).read_bytes()
+            assert any(pcm),(name,'No nonzero backend PCM')
+    if a.music:
+        requests=(out/(name+'.music.trace')).read_text().splitlines()
+        assert any(x.startswith('play ') and 'result=0' in x for x in requests),(name,'No natural music playback')
+        if name=='record':music_requests.extend(requests)
+        else:assert requests==music_requests,(name,'Music resource/start/stop sequence changed')
+        if env.get('E2R_AUDIO')!='off':assert any((out/(name+'.music.s16')).read_bytes()),(name,'No isolated music PCM')
     return dict(seconds=time.monotonic()-start,exit=result.returncode)
 run('record',['gdb','--nx','-q','--batch','-x',str(out/'record.gdb'),'--args',str(exe),'--record','auto','--data-dir',str(out/'capture'),'--run-recon'],timeout=150)
 source=max((out/'capture/logs').glob('session_*/replay'),key=lambda p:p.parent.name)
@@ -155,6 +177,10 @@ if a.inspect:
 # Pause after a real checkpoint; wall time must not influence game-visible clocks.
 (out/'pause.gdb').write_text('set pagination off\nset confirm off\nbreak E2R_ReplayPumpBegin\nignore 1 100\nrun\npython\nimport time\ntime.sleep(2)\nend\ndisable 1\ncontinue\n')
 results.append(run('pause',['gdb','--nx','-q','--batch','-x',str(out/'pause.gdb'),'--args',*command]))
+if a.audio or a.music:
+    env['E2R_AUDIO']='off'
+    results.append(run('play-audio-off',command))
+    env.pop('E2R_AUDIO')
 report=dict(source=str(source),object_mesh_ids=a.object_mesh_ids,object_mesh_reps=a.object_mesh_reps,
-            character_meshes=a.character_meshes,replays=results,inputs=len(inputs),checkpoints=sum(x['kind']=='checkpoint' for x in rows),clock_calls=sum(int(x['repeat']) for x in rows if x['kind']=='clock'),clock_rows=sum(x['kind']=='clock' for x in rows),bytes=sum(x.stat().st_size for x in source.iterdir()))
+            character_meshes=a.character_meshes,sound_requests=sound_requests,music_requests=music_requests,replays=results,inputs=len(inputs),checkpoints=sum(x['kind']=='checkpoint' for x in rows),clock_calls=sum(int(x['repeat']) for x in rows if x['kind']=='clock'),clock_rows=sum(x['kind']=='clock' for x in rows),bytes=sum(x.stat().st_size for x in source.iterdir()))
 (out/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))

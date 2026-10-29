@@ -16,6 +16,23 @@ the display picker defaults to headless and can show either configuration or
 both windows. Each configuration runs its journeys sequentially. Use the
 ordinary gameplay launch for human F5 investigation.
 
+## Game sound diagnostics
+
+Normal **Ecstatica Recompiled** F5 gameplay now opens SDL audio on the system
+playback device. Settings sound off/on retains original request gating; existing
+samples finish naturally. Music output remains deferred. Human listening and
+broader event/device coverage remain qualified in the
+[sound recovery journal](journal/entries/game-sounds-recovery-2026-10-29.md).
+
+For bounded agent probes, `E2R_AUDIO=off` disables device output,
+`SDL_AUDIODRIVER=dummy` exercises consumption without speakers, and
+`E2R_AUDIO_TRACE=1` reports original sample identity, length, volume and playback
+result. `E2R_AUDIO_TAP=/absolute/new-file.s16` captures signed 16-bit little-endian
+stereo mixer output at 22,050 Hz, capped at 8 MiB; it never overwrites an existing
+file. Audio callbacks own copied PCM and never drive deterministic game state.
+Audio mode/tap/trace are host-only replay settings; game checkpoints and sound
+request identities remain strict.
+
 ## Normal gameplay investigation in VS Code
 
 Use the existing **Ecstatica Recompiled** launch with the SDL/i386 Debug preset.

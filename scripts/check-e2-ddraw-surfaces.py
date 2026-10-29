@@ -10,7 +10,7 @@ parser.add_argument('--asan', action='store_true')
 parser.add_argument('--keep-harness', type=Path)
 args = parser.parse_args()
 source = Path('E2Recomp/reconstructed/E2Recomp_stubs.c').read_text()
-provider = source[source.index('static void *E2R_dd_obj[64];'):source.index('\nHRESULT DirectSoundCreate')]
+provider = source[source.index('static void *E2R_dd_obj[64];'):source.index('\nint acmMetrics')]
 recon = Path('E2Recomp/reconstructed/E2Recomp_recon.c').read_text()
 harness = r'''
 #include <assert.h>

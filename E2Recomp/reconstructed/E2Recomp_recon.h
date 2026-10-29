@@ -571,7 +571,7 @@ void FUN_00458bd0(void);
 void __fastcall FUN_00458bec(undefined4 param_1,undefined4 param_2);
 undefined4 __fastcall FUN_00458c24(undefined4 param_1,int param_2);
 HGLOBAL __fastcall FUN_00458d18(undefined4 param_1,undefined4 param_2);
-char * __fastcall FUN_00458e7c(undefined4 param_1,uint param_2);
+char * __fastcall FUN_00458e7c(undefined4 param_1,uint param_2,undefined4 stream_arg);
 undefined8 __fastcall FUN_00459190(undefined4 param_1,undefined4 param_2);
 WPARAM __fastcall FUN_00459214(undefined4 param_1,undefined4 param_2,HINSTANCE param_3,int param_4,undefined4 param_5, int param_6);
 void __fastcall FUN_00459304(undefined4 param_1,uint param_2);

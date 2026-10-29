@@ -1,3 +1,4 @@
+#include "e2recomp_music.h"
 #include "E2Recomp_recon.h"
 #include <stdint.h>
 #include <stdarg.h>
@@ -840,8 +841,6 @@ typedef struct E2R_DDSurface {
 static E2R_DDSurface E2R_dd_surfaces[16];
 static unsigned E2R_dd_width = 640, E2R_dd_height = 480;
 static void *E2R_palette_obj[16];
-static void *E2R_ds_obj[64];
-static void *E2R_dsbuf_obj[64];
 uint32_t E2R_active_palette[256];
 uintptr_t E2R_active_palette_valid;
 uintptr_t E2R_active_palette_update_count;
@@ -1041,10 +1040,6 @@ static int E2R_DDP_SetEntries(void *self, unsigned int flags, unsigned int start
     E2R_DD_CopyPaletteEntries(entries, start, count);
     return 0;
 }
-static int E2R_DS_CreateSoundBuffer(void) {
-    _DAT_00ac4eb8 = (uintptr_t)E2R_dsbuf_obj;
-    return 0;
-}
 
 HRESULT DirectDrawCreate(void *guid, void **ddraw, void *outer) {
     int i;
@@ -1079,37 +1074,15 @@ HRESULT DirectDrawCreate(void *guid, void **ddraw, void *outer) {
     return 0;
 }
 
-HRESULT DirectSoundCreate(void) {
-    int i;
-    for (i = 0; i < 64; i++) {
-        E2R_ds_obj[i] = (void *)E2R_DD_Generic;
-        E2R_dsbuf_obj[i] = (void *)E2R_DD_Generic;
-    }
-    E2R_ds_obj[0] = E2R_ds_obj;
-    E2R_dsbuf_obj[0] = E2R_dsbuf_obj;
-    E2R_ds_obj[3] = (void *)E2R_DS_CreateSoundBuffer;
-    DAT_0047d1f0 = (uintptr_t)E2R_ds_obj;
-    return 0;
-}
-
 int acmMetrics(void) {
     return 0;
 }
 
 short SIMD_InitDriver(unsigned int flags, GUID *guid, short device) {
-    (void)flags; (void)guid; (void)device;
-    return 0;
+    (void)guid; (void)device;
+    return E2R_MusicInit(flags);
 }
 
-short SIMD_PlayTune(char *path, short mode) {
-    (void)path; (void)mode;
-    return 0;
-}
-
-short SIMD_StopTune(void) {
-    return 0;
-}
-
-short SIMD_RemoveDriver(void) {
-    return 0;
-}
+short SIMD_PlayTune(char *data, short tune) { return E2R_MusicPlay(data, tune); }
+short SIMD_StopTune(short tune) { return E2R_MusicStop(tune); }
+short SIMD_RemoveDriver(void) { return E2R_MusicRemove(); }

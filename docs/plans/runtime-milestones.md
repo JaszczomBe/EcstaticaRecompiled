@@ -7,7 +7,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-10-28
+Last Updated: 2026-10-29
 
 ## Goal
 
@@ -19,27 +19,32 @@ The [Linux reconstruction record](../implementations/linux-e2-reconstructed-runt
 
 ## Recommended Order
 
-The user's latest 2026-10-28 refinement selects original item, weapon, door and
-acid-pool models/animations next, after HUD and recording recovery and before
-audio. This follows the 2026-10-27 character/persistence sequence. Session
-saving, session replay and the gameplay regression suite are closed milestones;
-their recorded minor gaps remain follow-ups. Session saving means investigation
-recording, not game-state persistence. Existing step/task numbers stay stable.
-The [active implementation](../implementations/playable-sdl-runtime/playable-sdl-runtime.md)
-owns current evidence and acceptance.
+The user's latest selection on **2026-10-29** is **game sounds → music**, after
+[Enter inventory/status recovery](../implementations/playable-sdl-runtime/steps/step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md).
+[Step 05 Task 04](../implementations/playable-sdl-runtime/steps/step-05/tasks/task-04-recover-original-game-sounds.md)
+owns the original event/resource/decoding/buffer/playback contracts and actual
+audible-sound objective. Silent/first-buffer compatibility is an intermediate
+milestone. The [sound handoff](../journal/entries/game-sounds-handoff-2026-10-29.md)
+records baseline, source leads and preserved limits. The subsequent
+[Task 05 music recovery](../implementations/playable-sdl-runtime/steps/step-05/tasks/task-05-recover-original-music.md)
+owns the current original SIMD/General MIDI continuation and its bounded acceptance.
 
-The loaded tower puzzle now passes bounded Debug/ASan key acquisition, keyed-door
-passage and three-stage protected persistence in [Step 12 Task 03](../implementations/playable-sdl-runtime/steps/step-12/tasks/task-03-recover-tower-key-trap-and-door-progression.md).
-F5 includes its original head/key/spike/door models and subsequent storage/sparkle
-coverage. The reported translucent door remains unresolved; preserve possible
-original defects until a reconstruction mismatch is proven. Wider tower journeys
-and Task 02's remaining object/acid coverage precede audio.
+Earlier object-model and inner-castle priorities retain their recorded bounded
+acceptance. Tower key/drop/door passage and protected persistence pass within
+[Task 03](../implementations/playable-sdl-runtime/steps/step-12/tasks/task-03-recover-tower-key-trap-and-door-progression.md).
+The partly translucent door remains unresolved. [Task 04](../implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md)
+has original-backed crash/rendering repairs and 3,190 matching recovered-prefix
+checkpoints, while its source recording is incomplete and extended route,
+equipped-armour human review and full gate/effect composition remain open.
+Remaining object/acid work stays tracked without blocking the selected music
+continuation. Preserve possible original defects until a reconstruction mismatch
+is proven.
 
-The latest extended human run supersedes that bounded route as the immediate
-frontier: [Task 04](../implementations/playable-sdl-runtime/steps/step-12/tasks/task-04-recover-inner-castle-progression-crash-and-models.md)
-owns the saved inner-castle `FUN_0042d61c` crash and missing original armour,
-key/mace, switches/gates, wizardess details and scripted effects. Reproduction
-and repair remain pending; preserve original behavior and occupied saves.
+Session saving, replay and the gameplay regression suite remain closed milestones
+with recorded limits. Session saving means investigation recording, not game-state
+persistence. Existing step/task numbers stay stable. The
+[active implementation](../implementations/playable-sdl-runtime/playable-sdl-runtime.md)
+owns current acceptance. The retained recovery sequence and current sound focus are:
 
 1. Original player model/animation (Step 08, Task 02): accepted by the user after
    the projection correction on 2026-10-27; retain recorded equipment/video limits.
@@ -60,8 +65,8 @@ and repair remain pending; preserve original behavior and occupied saves.
    implemented in Task 03. Establish original asset/owner/primitive/material
    and action contracts for remaining classes; retain fallbacks until
    each recovered class has original-code and fresh native visual evidence.
-6. Recover game sounds and their original event, volume and channel ownership.
-7. Recover music and its original track selection, looping and transitions.
+6. **Implemented with bounded acceptance:** recover [game sounds](../implementations/playable-sdl-runtime/steps/step-05/tasks/task-04-recover-original-game-sounds.md) and original event, resource/PCM, buffer, volume and channel ownership.
+7. **Selected continuation:** [recover music](../implementations/playable-sdl-runtime/steps/step-05/tasks/task-05-recover-original-music.md) and its original track selection, looping and transitions. Bounded General MIDI output is implemented; the task owns acceptance limits.
 
 Timing, remaining gameplay defects and portability remain tracked follow-ups.
 Take one up sooner when it blocks the active milestone. Preserve the completed
@@ -84,6 +89,13 @@ Linux/i386 is the proving ground. Packed 32-bit pointers, legacy calling convent
 7. Diagnostic playability and original visual fidelity have separate acceptance. A useful first playable result is genuine input-driven cylinder movement, floor/stair checks and camera traversal with continuous actor state.
 
 ## Change Log
+
+### 2026-10-29
+
+1. Selected original game sounds after inventory/status recovery, followed by
+   music. Activated Step 05 Task 04 with an audible-playback objective.
+2. Preserved object/acid, inventory visual/low-mode/hourglass and inner-castle
+   acceptance limits; no new audio implementation is claimed.
 
 ### 2026-10-28
 

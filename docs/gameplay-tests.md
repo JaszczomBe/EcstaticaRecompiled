@@ -38,6 +38,30 @@ Reports distinguish this watchdog interruption from a spontaneous native fault;
 completed checkpoints retain their results while interrupted journeys fail.
 See the [Regression 08 investigation](journal/entries/regression-08-freeze-and-event-callback-2026-10-26.md).
 
+## Sound verification
+
+The catalogue includes `Host.DirectSound` and `Original.GameSounds` for both
+configurations. Standalone bounded input-only coverage includes sound off/on,
+original sample bytes, focus, Enter inventory, HUD/F3 and actual Quit:
+
+```sh
+python3 scripts/probe-e2-game-sounds.py build/Debug/clang21-i386-sdl/e2recomp \
+  --game-data /path/to/Ecstatica2 --output /tmp/e2-sounds --audio-driver default
+python3 scripts/check-e2-replay.py build/Debug/clang21-i386-sdl/e2recomp \
+  --inventory --inspect --character-meshes --background-spawns --audio \
+  --output /tmp/e2-sound-replay
+```
+
+The probe defaults to SDL dummy audio; `--audio-driver default` opens the system
+device. Both use private runtime storage. Recording remains off in the native
+sound probe; the replay check explicitly creates a fresh bounded recording and
+verifies six strict variants, including audio disabled. Output directories must
+be fresh. Original-x86/resource and production mixer fixtures are
+`check-e2-game-sounds.py` and `check-e2-dsound.py`, each with `--asan` support.
+See the [sound journal](journal/entries/game-sounds-recovery-2026-10-29.md) for
+provenance, live persistence counterexamples, protected evidence and remaining
+human listening/event-coverage limits. Music output remains later.
+
 ## Character rendering coverage
 
 Gameplay journeys pass `--player-mesh --npc-mesh`, matching F5's character flags.
@@ -812,3 +836,19 @@ compatibility and visible launch/picker forwarding. The native
 reporter into the real cleanup worker, then verify recovery and clean shutdown.
 Current runtime results belong to the [active gameplay task](implementations/playable-sdl-runtime/steps/step-09/tasks/task-09-recover-scene-population-and-interaction.md)
 and its linked journal, rather than a permanently green claim in this guide.
+
+## Music checks
+
+`check-e2-music.py` compares the installed original SIMD DLL against the recovered
+sequencer; `check-e2-music-loader.py` checks all original archive-directory entries;
+`check-e2-music-output.py` verifies software instruments and callback-owned bytes.
+Each accepts `--asan` and is registered in the suite. A usable external SoundFont
+is required for the output check; see [music setup](building.md#music-instruments).
+
+`probe-e2-game-sounds.py --music` adds original music resource/PCM checks and
+independent Settings stop/restart to its bounded input-only route. Use
+`--audio-driver default` for system output. `probe-e2-game-save-load.py --music`
+checks current-track/settings persistence in its private save journey.
+`check-e2-replay.py --audio --music` checks original resource/start/stop calls and
+music-only PCM alongside strict game checkpoints, including physical-output-off
+replay. These are explicit bounded agent probes; normal human investigation uses F5.

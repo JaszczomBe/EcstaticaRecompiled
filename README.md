@@ -8,10 +8,27 @@ families against SDL backgrounds.
 Other objects retain diagnostic fallbacks. **F3** cycles
 original models with unrecovered fallbacks, models plus boxes, and boxes only.
 Original HUD artwork is the default; **F1** selects it and **F2** selects the debug overlay.
-Original-format menu save/load has bounded Debug/ASan round-trip verification. Audio,
+Original-format menu save/load has bounded Debug/ASan round-trip verification. Original game sounds and original-sequence General MIDI music now play through SDL;
 remaining models, broad gameplay fidelity and the 64-bit runtime remain incomplete.
 
 ## Start here
+
+**Original music now plays through software General MIDI.** Start with
+[Step 05 Task 05](docs/implementations/playable-sdl-runtime/steps/step-05/tasks/task-05-recover-original-music.md)
+and the [music recovery evidence](docs/journal/entries/music-recovery-2026-10-29.md).
+The sequencer matches the original DLL across all 91 GM tracks; bounded native
+output, independent Music/Sound settings, protected persistence and strict replay
+are verified. An external SoundFont supplies instruments; see the task for bank
+selection. Human listening, broader transitions and hardware-specific timbre remain open.
+
+**Original game sounds now play through SDL.** Start with
+[Step 05 Task 04](docs/implementations/playable-sdl-runtime/steps/step-05/tasks/task-04-recover-original-game-sounds.md)
+and the [sound recovery evidence](docs/journal/entries/game-sounds-recovery-2026-10-29.md).
+All 404 indexed assets match original sample conversion; bounded real PulseAudio
+Debug and dummy-device ASan routes cover playback, Settings, HUD/F3/inventory,
+protected persistence and strict recording/replay. Human F5 listening, broader
+natural event coverage and device-loss behavior remain open. Music continues in Task 05 above;
+prior gameplay and visual acceptance limits remain.
 
 The original **Enter inventory/status menu** is recovered:
 Enter opens inventory, progress, gold and kill statistics; Escape returns to
@@ -36,7 +53,7 @@ models. Strike the head, collect the fallen key with **Space**, then approach th
 keyed door. [Step 12 Task 03](docs/implementations/playable-sdl-runtime/steps/step-12/tasks/task-03-recover-tower-key-trap-and-door-progression.md)
 and the [recovery evidence](docs/journal/entries/tower-key-progression-recovery-2026-10-28.md)
 retain human visual-review and wider gameplay limits. Remaining object/acid work
-precedes audio.
+stays open alongside the selected sound recovery.
 
 The [latest tower/storage follow-up](docs/journal/entries/tower-storage-render-followup-2026-10-28.md)
 adds original collection sparkle and storage models, including the gold sword.
@@ -46,7 +63,7 @@ unless comparison proves a reconstruction error.
 1. Read [project state and capabilities](docs/capabilities.md).
 2. Follow the [handoff and working rules](docs/HANDOFF.md).
 3. Open the [active runtime implementation](docs/implementations/playable-sdl-runtime/playable-sdl-runtime.md)
-   and its [selected inventory/status menu task](docs/implementations/playable-sdl-runtime/steps/step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md).
+   and its [selected music task](docs/implementations/playable-sdl-runtime/steps/step-05/tasks/task-05-recover-original-music.md).
 4. Use [build and VS Code setup](docs/building.md), then press F5 with
    **Ecstatica Recompiled** and the **Debug · Clang 21 · i386 · SDL** preset.
 

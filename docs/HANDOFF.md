@@ -27,14 +27,14 @@ F5 launch with recording, inspection, executable pinning and debugger evidence.
 See [build setup](building.md) and [debugging usage](debugging.md).
 
 For the selected next continuation, open the
-[original-HUD step](implementations/playable-sdl-runtime/steps/step-11/step-11-recover-original-hud.md)
-and its [Enter inventory/status menu task](implementations/playable-sdl-runtime/steps/step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md).
-The user explicitly requested this next-context handoff after inner-castle
-recovery, supplying an original-game inventory/progress screenshot. This
-navigation change makes the selected menu task discoverable from a blank context;
-the task and its [handoff journal](journal/entries/enter-inventory-menu-handoff-2026-10-28.md)
-own the changing source leads, reference and acceptance. Prior object/progression
-limits remain open; audio/music remain deferred.
+[audio step](implementations/playable-sdl-runtime/steps/step-05/step-05-begin-directsound-compatibility.md)
+and [Task 04: Recover Original Game Sounds](implementations/playable-sdl-runtime/steps/step-05/tasks/task-04-recover-original-game-sounds.md).
+The user explicitly requested this navigation update on 2026-10-29 after the
+inventory/status recovery, so a blank context can resume game-sound work.
+The task and its [handoff journal](journal/entries/game-sounds-handoff-2026-10-29.md)
+own source leads, current scope and protection. Audible original game sounds
+are the objective; music remains later. Prior inventory/object/inner-castle
+acceptance limits stay open and do not override the selected continuation.
 
 Read these sources in order:
 

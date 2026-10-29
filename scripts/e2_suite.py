@@ -121,8 +121,8 @@ MENU_ACTIONS = ('ShowHide','Settings','MusicToggle','SoundToggle','Difficulty','
 MENU_CHECKS = tuple('Menus.'+stage+'.'+action for stage in MENU_STAGES for action in (*MENU_ACTIONS,'StartGame')) + (
     'Menus.CancelResumeQuit',)
 MENU_UNFINISHED = {
-    'MusicPlayback': 'Audible MIDI playback is not implemented; a control toggle is not audio acceptance',
-    'SoundPlayback': 'Audible sound-effect output lacks implemented/accepted backend coverage',
+    'MusicPlayback': 'Step 05 Task 05 has bounded original sequencer/software MIDI output coverage; human listening and broader transitions remain open',
+    'SoundPlayback': 'Step 05 Task 04 has bounded PCM/device coverage; human audible review and broad event coverage remain open',
     'ResolutionRendering': 'Resolution resource reload and rendered dimensions lack accepted end-to-end coverage',
     'LoadState': 'Functional saved-game loading and restored scene/actor state are unproven',
     'SaveState': 'Functional game-state serialization/round-trip is unproven; quick-save is a no-op',
@@ -521,6 +521,11 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
         cases.append(Case(prefix+'Host.DirectDrawSurfaces',
             (py,str(ROOT/'scripts/check-e2-ddraw-surfaces.py'),*(['--asan'] if asan else [])),
             configuration=configuration,timeout=100))
+        cases.append(Case(prefix+'Host.DirectSound',
+            (py,str(ROOT/'scripts/check-e2-dsound.py'),'--sdl-library',
+             str(ROOT/'build/Debug'/('clang21-i386-sdl-asan' if asan else 'clang21-i386-sdl')/'dep/SDL-build/libSDL3.a'),
+             *(['--asan'] if asan else [])),
+            requires=(prefix+'Build',),configuration=configuration,timeout=100))
         for label,script in [('SaveStorage','save-storage'),('SaveStreams','save-streams')]:
             cases.append(Case(prefix+'Host.'+label,
                 (py,str(ROOT/f'scripts/check-e2-{script}.py'),*(['--asan'] if asan else [])),
@@ -530,7 +535,8 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
             ('ScriptNames','script-names',[]),('Menus','menu-contracts',[]),
             ('MenuLayout','menu-layout',[]),
             ('Hud','original-hud',[]),('HudPixels','hud-pixels',[]),
-            ('Inventory','inventory',[]),
+            ('Inventory','inventory',[]),('GameSounds','game-sounds',[]),
+            ('MusicLoader','music-loader',[]),('MusicOutput','music-output',[]),
             ('PlayerMesh','player-mesh',[]),('EllipsoidPixels','ellipsoid-pixels',[]),
             ('InterpolatedNodeEvents','interpolated-node-events',[]),('RenderCopies','render-copies',[]),
             ('PoseEvents','action-pose-events',[]),('BitmapRecords','bitmap-records',[]),
@@ -546,6 +552,9 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
             if extra is not None: command += [original,*extra]
             if asan: command += ['--asan']
             cases.append(Case(prefix+'Original.'+label,tuple(command),timeout=100,configuration=configuration))
+        cases.append(Case(prefix+'Original.MusicSequence',
+            (py,str(ROOT/'scripts/check-e2-music.py'),str(game_data/'SIMD_W95.DLL'),*(['--asan'] if asan else [])),
+            configuration=configuration,timeout=100))
         cases.append(Case(prefix+'Original.NoncombatPopulation',
             (py,str(ROOT/'scripts/check-e2-test-population.py'),str(game_data/'Files/ECSTATIC'),*(['--asan'] if asan else [])),
             configuration=configuration,timeout=100))

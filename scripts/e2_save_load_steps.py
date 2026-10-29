@@ -145,6 +145,9 @@ class PersistenceJourney(MenuJourney):
                 timers=timers,attachment=attachment)
             cursor=w(0x4c)
         result = dict(tick=current_tick,actors=actors,player=self.state('player'))
+        if getattr(self, 'music_checks', False):
+            result['music']=dict(track=self.value('DAT_0047ab0c'),mapped=self.value('*(int*)0x47ab0c'),enabled=self.value('DAT_0047a49c'))
+            self.require(result['music']['track']==result['music']['mapped'],'Current music/save address ownership differs')
         if getattr(self, 'inventory_checks', False):
             from e2_inventory_steps import observe
             result['inventory'] = observe(self)
@@ -158,6 +161,13 @@ class PersistenceJourney(MenuJourney):
                 self.require(before[field]==after[field],f'Actor {identity} restored {field} differs: expected {before[field]}, actual {after[field]}')
         if 'inventory' in expected:
             self.require(expected['inventory'] == actual['inventory'], 'Loaded status-page values differ from the saved state')
+        if 'music' in expected:
+            self.require(expected['music']==actual['music'],'Saved music track/setting changed on Load')
+            if actual['music']['enabled'] and actual['music']['track']:
+                self.require(self.value('registered_id')==actual['music']['track'],'Load did not restart the saved original music resource')
+            if not actual['music']['enabled']:
+                self.require(sum(self.value('sequence.tracks[%d].active'%i) for i in range(16))==0,'Disabled saved music resumed on Load')
+            self.details.setdefault('music_restore',[]).append(actual['music'])
         self.details['restored_actor_count']=len(actual['actors'])
         self.details['restored_timer_count']=sum(len(row['timers']) for row in actual['actors'].values())
         self.details['restored_attachments']={identity:row['attachment'] for identity,row in actual['actors'].items() if row['attachment']}
@@ -289,10 +299,11 @@ class PersistenceJourney(MenuJourney):
         self.key(38,False);self.key(17,False);self.step(90)
 
 
-def run(prefix, runtime, game_data, slot, mode, equipment, expected_path, hud=False, inventory=False, load_slot=None):
+def run(prefix, runtime, game_data, slot, mode, equipment, expected_path, hud=False, inventory=False, load_slot=None, music=False):
     journey=PersistenceJourney(prefix,{'checks':['Menus.Gameplay.SaveDialog']},False,'save-load',game_data,0,False)
     journey.runtime=runtime
     journey.inventory_checks=inventory
+    journey.music_checks=music
     journey.frame=gdb.Breakpoint('FUN_00415d40',internal=True);journey.frame.condition=journey.HORSE
     command='run --game-data-dir '+json.dumps(game_data)+' --data-dir '+json.dumps(runtime)+' --record off --run-recon'
     gdb.execute(command,to_string=True)
@@ -317,6 +328,9 @@ def run(prefix, runtime, game_data, slot, mode, equipment, expected_path, hud=Fa
             hud_checks.switches('gameplay')
             hud_checks.menu_switches()
         for cycle in range(2):
+            if music and cycle == 1:
+                journey.settings();journey.click(0x643998);journey.pump();journey.close_settings()
+                journey.require(journey.value('DAT_0047a49c')==0,'Music did not disable before the second persistence cycle')
             if hud:hud_checks.select(cycle,'before-save')
             expected=journey.menu_save(slot,'E2RTEST',expected_path)
             if hud:hud_checks.check_mode(cycle)

@@ -17,6 +17,15 @@ Current pinned release: SDL 3.4.12 (`release-3.4.12`).
 
 The default X11 backend does not require SDL.
 
+## TinySoundFont
+
+Music synthesis uses the unmodified MIT single-header
+[TinySoundFont](https://github.com/schellingb/TinySoundFont) implementation pinned
+in [UPSTREAM](TinySoundFont/UPSTREAM); its [license](TinySoundFont/LICENSE) is retained.
+The header is vendored for the i386 build and requires no system synthesizer library.
+Instrument banks remain external. See [original music recovery](../docs/implementations/playable-sdl-runtime/steps/step-05/tasks/task-05-recover-original-music.md)
+for SoundFont selection and the original SIMD sequencer boundary.
+
 ## Ghidra
 
 Ghidra is intentionally optional for normal compile/run work.

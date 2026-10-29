@@ -6,12 +6,19 @@
 
 Status: active; gameplay HUD and Task 02 inventory/status menu implemented within recorded bounds
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
-Last Updated: 2026-10-28
+Last Updated: 2026-10-29
+
+## Current continuation
+
+After Task 02 inventory/status recovery, the user selected
+[Step 05 Task 04: Original Game Sounds](../step-05/tasks/task-04-recover-original-game-sounds.md)
+on 2026-10-29. This step retains HUD/inventory acceptance and open visual,
+low-mode/hourglass limits. Music remains later.
 
 ## Goal
 
-The user now selects [Task 02: Enter inventory and progress menu](tasks/task-02-recover-enter-inventory-and-progress-menu.md)
-as the immediate continuation after inner-castle recovery. Enter opens the
+[Task 02: Enter inventory and progress menu](tasks/task-02-recover-enter-inventory-and-progress-menu.md)
+was selected after inner-castle recovery and now retains its bounded acceptance. Enter opens the
 original status/inventory page and Escape closes it. The
 [handoff journal](../../../../journal/entries/enter-inventory-menu-handoff-2026-10-28.md)
 preserves the supplied original-game reference and continuation boundaries.

@@ -8,6 +8,12 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Original music recovery — 2026-10-29](entries/music-recovery-2026-10-29.md): original SIMD DLL sequencing and archive-loader parity, software General MIDI/SDL output, independent settings, protected persistence and strict music/sound replay; preserves authored behavior and earlier limits.
+
+- [Original game sound recovery — 2026-10-29](entries/game-sounds-recovery-2026-10-29.md): original resource/PCM/pool/playback repairs, SDL/PulseAudio output, bounded Debug/ASan regression and protected evidence; human listening and wider events open, music later.
+
+- [Game sounds continuation handoff — 2026-10-29](entries/game-sounds-handoff-2026-10-29.md): selects Step 05 Task 04 after inventory recovery, records source leads and an audible-sound objective, preserves prior acceptance and protected saves/crash evidence; music remains later and this turn changes documentation only.
+
 - [Enter inventory/status menu recovery — 2026-10-28](entries/enter-inventory-menu-recovery-2026-10-28.md): restores real Enter/Escape, original page/HUD/icons/statistics, shared save scalar ownership, protected fresh/progressed Debug/ASan persistence and strict recording/replay; preserves numeric quirks and inner-castle limits.
 
 - [Enter inventory and progress menu handoff — 2026-10-28](entries/enter-inventory-menu-handoff-2026-10-28.md): selects Step 11 Task 02, records the original-game screenshot and Enter/Escape contract, and prepares original-backed recovery with protected saves; documentation only.

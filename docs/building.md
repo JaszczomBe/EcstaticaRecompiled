@@ -238,3 +238,14 @@ Focused C++ logger checks, including real-time pooling/deferred formatting, mask
 ## Gameplay recordings
 
 SDL human launches record automatically; agent helpers explicitly disable capture. See [CSV recording and replay](replay.md) for controls, recovery, retention and the current gameplay fidelity limits.
+
+## Music instruments
+
+Original music uses the recovered SIMD sequencer and software General MIDI.
+Set `E2R_SOUNDFONT` to an external `.sf2` bank if the default Linux
+`/usr/share/sounds/sf2/TimGM6mb.sf2` or `FluidR3_GM.sf2` bank is unavailable.
+A missing bank leaves sound effects available and music disabled. No SoundFont
+or original music data is distributed in the repository. `E2R_AUDIO=off` keeps
+logical MIDI calls available while suppressing device output. The existing
+**Ecstatica Recompiled** F5 launch needs no additional music-specific launch.
+See [music recovery and limits](implementations/playable-sdl-runtime/steps/step-05/tasks/task-05-recover-original-music.md).

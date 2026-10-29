@@ -7,7 +7,7 @@
 Status: active
 Priority: top
 Owner: mixed
-Last Updated: 2026-10-28
+Last Updated: 2026-10-29
 Parent Plan: [Runtime Milestones](../../plans/runtime-milestones.md)
 
 ## Goal
@@ -28,7 +28,48 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 2. Replacing recovered logic with speculative shortcuts or direct SDL calls.
 3. Broad generated-file changes unrelated to a source-backed repair.
 
-## Current recovery — Enter inventory and progress menu
+## Current continuation — Original music
+
+[Step 05 Task 05](steps/step-05/tasks/task-05-recover-original-music.md) restores
+original SIMD sequencing through a software General MIDI port and SDL output.
+The [music journal](../../journal/entries/music-recovery-2026-10-29.md) owns
+original DLL/loader comparisons, native music-only PCM, independent Music/Sound
+settings, protected persistence and fresh strict music/sound replay evidence.
+All 91 GM sequences match 10,000 original ticks each; all 960 directory entries
+match original loading, including missing/oversized entries. Original timer,
+loop and repeated-track-zero defects remain. C repairs have generator mirrors.
+
+An external SoundFont supplies host instruments. Four builds, four-artifact
+parity, Debug PulseAudio/ASan dummy output, HUD/F3/inventory and same/fresh private
+persistence pass within the journal's bounds. Human listening, broader transitions,
+hardware-specific timbre, legacy focus/surface-loss recovery and device loss remain
+open. Existing staged changes, occupied saves and prior crash evidence are preserved;
+no commit or push is made. Earlier gameplay and visual limits below remain.
+
+## Retained recovery — Original game sounds
+
+[Step 05 Task 04](steps/step-05/tasks/task-04-recover-original-game-sounds.md)
+now restores original game sounds through SDL and actual PulseAudio output.
+The [recovery journal](../../journal/entries/game-sounds-recovery-2026-10-29.md)
+records source-backed directory, stream, parser, pool, playback and cleanup
+repairs, mirrored in the generator. All **404** assets / **15,303,877** sample
+bytes match original x86; event attenuation, volume, retrigger, allocation and
+cleanup fixtures pass in Debug/ASan. Original `SIMD`-labelled payload treatment
+is preserved rather than replaced by a guessed decoder.
+
+Real-device Debug and dummy-device ASan probes each validate **49** natural
+requests, exact submitted sample bytes, sound off/on, focus, inventory, HUD/F3,
+menus and Quit. Four builds, four-artifact parity, isolated protected same/fresh
+persistence and **six** strict sound-event replay variants per configuration
+pass. All **5,843** protected files retain their hashes. The initial live
+persistence combat deaths remain failures, distinct from isolated persistence.
+
+Human audible F5 review, wider natural event classes and device-loss behavior
+remain open. Music recovery continues above. Prior visual, inventory, castle-route and
+incomplete-recording limits below remain. Existing staged changes are preserved;
+no commit or push is made.
+
+## Retained recovery — Enter inventory and progress menu
 
 [Step 11 Task 02](steps/step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md)
 now implements the original Enter inventory/status page and Escape dismissal.
@@ -51,8 +92,8 @@ save/crash/evidence files retain their hashes. No occupied source save is writte
 Human F5 screenshot review, low-mode/planar gameplay, natural nonzero hourglass
 lifetime and exhaustive item acquisition remain open. The original screenshot
 [handoff](../../journal/entries/enter-inventory-menu-handoff-2026-10-28.md) remains
-reference evidence. Audio/music and the inner-castle route/armour/gate limits below
-stay deferred. No commit or push is requested or performed.
+reference evidence. Game sound/music recovery continues above; the inner-castle
+route/armour/gate limits below stay deferred. No commit or push is requested or performed.
 
 ## Retained continuation — Object models and animations
 
@@ -537,10 +578,10 @@ historical completions.
 | [08 — Recover scene-175 actors](steps/step-08/step-08-recover-scene-175-actors.md) | follow-ups retained | Player/enemy body and animation direction accepted; exhaustive animation, equipment and other rendering remain separate |
 | [10 — Functional game save/load](steps/step-10/step-10-recover-game-save-load.md) | implemented within recorded bounds | Original writer/reader/menu recovery, repeated same-process and fresh-process restoration; corrupt-file recovery and broad progression remain limited |
 | [11 — Original HUD](steps/step-11/step-11-recover-original-hud.md) | implemented within recorded bounds | Original-default/F1/F2 presentation, original-code/raster and bounded native evidence; unexercised indicators remain recorded |
-| [12 — Object models and animations](steps/step-12/step-12-recover-object-models-and-animations.md) | active; first slice verified | Eight original item/weapon/door/pool assets; source map, flat/box recovery and Debug/ASan evidence; Task 02 retains variants and natural pool lifecycle before audio |
+| [12 — Object models and animations](steps/step-12/step-12-recover-object-models-and-animations.md) | follow-ups retained | Selected original models, source-backed render/progression repairs and bounded Debug/ASan evidence; variants and natural pool lifecycle remain open |
 | [03 — Gameplay control and camera proofs](steps/step-03/step-03-expand-gameplay-control-and-camera-proofs.md) | partially deferred | Input mapping/matrix complete; basic locomotion/camera proofs join 09, broader controls follow readiness |
 | [04 — Timing and frame pacing](steps/step-04/step-04-define-runtime-timing-and-frame-pacing.md) | planned | Recover game timing ownership after visible control proofs |
-| [05 — DirectSound compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) | planned | Map sound calls before implementing an audio boundary |
+| [05 — DirectSound compatibility](steps/step-05/step-05-begin-directsound-compatibility.md) | selected next; Task 04 | Recover original game sounds through event/resource/PCM/buffer/playback contracts; music later |
 | [06 — Developer runtime packaging](steps/step-06/step-06-package-reproducible-developer-runtime.md) | planned | Consolidate existing setup docs, add unified validation, define release gate |
 
 ## Earlier gameplay frontier — historical evidence

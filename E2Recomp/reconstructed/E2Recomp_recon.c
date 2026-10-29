@@ -1,4 +1,6 @@
 #include "e2recomp_hud.h"
+#include "e2recomp_audio.h"
+#include "e2recomp_music.h"
 /*
  * First-pass Ghidra decompilation of E2Recomp.exe.
  * This is reconstruction input, not original source.
@@ -1962,7 +1964,11 @@ static int E2R_InvokeRequesterAction(uintptr_t action)
     return 1;
   }
   if (action == (uintptr_t)&LAB_0043d728) {
-    DAT_0047a49c = DAT_0047a49c == 0;
+    if (DAT_00479dbc != 0 && DAT_00479dbc != 6) {
+      DAT_0047a49c = DAT_0047a49c == 0;
+      if (!DAT_0047a49c) FUN_004598b4();
+      else if (DAT_0047ab0c && (uint)FUN_004142e4(DAT_0047ab0c,0)) FUN_004598a0();
+    }
     FUN_0043d934();
     E2R_RedrawActiveRequesterItem();
     return 1;
@@ -8693,30 +8699,10 @@ void __fastcall FUN_00413ea4(int resource,int close,int volume,int channel)
 /* 004142b8 */
 
 undefined8 __fastcall FUN_004142b8(undefined4 param_1,undefined4 param_2)
-
 {
-  undefined4 in_EAX;
-  undefined4 extraout_ECX;
-  undefined8 uVar1;
-
   (void)param_1;
-  (void)in_EAX;
-  (void)extraout_ECX;
-  if (DAT_00479e3c == 0) {
-    DAT_00479e3c = (int)LocalAlloc(0x40,0xc350);
-  }
+  if (!DAT_00479e3c) DAT_00479e3c = (uintptr_t)LocalAlloc(0x40,50000);
   return CONCAT44(param_2,DAT_00479e3c);
-  uVar1 = CONCAT44(param_2,in_EAX);
-  if (DAT_00479e3c == 0) {
-    uVar1 = FUN_0045f0d1(param_1,param_2);
-    DAT_00479e3c = (int)uVar1;
-    param_1 = extraout_ECX;
-  }
-  if (DAT_00479e3c == 0) {
-    uVar1 = FUN_0043cac0(param_1,(int)((ulonglong)uVar1 >> 0x20));
-    return uVar1;
-  }
-  return uVar1;
 }
 
 
@@ -8726,318 +8712,59 @@ undefined8 __fastcall FUN_004142b8(undefined4 param_1,undefined4 param_2)
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
 longlong __fastcall FUN_004142e4(undefined4 param_1,uint param_2)
-
 {
-  char cVar1;
-  byte *pbVar2;
-  int *piVar3;
-  int in_EAX;
-  uint uVar4;
-  undefined4 uVar5;
-  int iVar6;
-  int extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 extraout_ECX_02;
-  undefined4 extraout_ECX_03;
-  undefined4 extraout_ECX_04;
-  undefined4 extraout_ECX_05;
-  undefined4 extraout_ECX_06;
-  byte *extraout_ECX_07;
-  undefined4 extraout_ECX_08;
-  byte *extraout_ECX_09;
-  byte *pbVar7;
-  byte *extraout_ECX_10;
-  undefined4 extraout_EDX;
-  undefined4 extraout_EDX_00;
-  undefined4 extraout_EDX_01;
-  undefined4 extraout_EDX_02;
-  undefined4 extraout_EDX_03;
-  undefined4 extraout_EDX_04;
-  undefined4 extraout_EDX_05;
-  char *extraout_EDX_06;
-  char *pcVar8;
-  char *pcVar9;
-  char *pcVar10;
-  int iVar11;
-  undefined8 uVar12;
-  uint in_stack_ffffff0c;
-  char local_c0 [52];
-  undefined1 local_8c [52];
-  undefined1 local_58 [52];
-  char local_24 [8];
-  undefined1 local_1c;
-
-  (void)param_1;
-  if (DAT_00479e3c == (char *)0x0) {
-    FUN_004142b8(0xc350,param_2);
+  int id = (int)param_1;
+  unsigned bytes;
+  if (!DAT_00479e3c) FUN_004142b8(0,param_2);
+  if (!DAT_00479e3c) return CONCAT44(param_2,0);
+  if (DAT_0047ab10) {
+    /* 0x414599: classes are one-based; track zero precedes each bank. */
+    if (id < 0 || id > 96 || DAT_00479dbc < 1 || DAT_00479dbc > 10)
+      return CONCAT44(param_2,0);
+    int offset = *(int *)(0x6458a4 + (DAT_00479dbc - 1) * 384 + id * 4);
+    if (offset < 0) return CONCAT44(param_2,1); /* Original keeps the previous buffer. */
+    int *stream = (int *)(uintptr_t)DAT_0047a724;
+    const byte *base = (const byte *)(uintptr_t)stream[5];
+    unsigned size = (unsigned)((const byte *)(uintptr_t)stream[2] - base);
+    if ((unsigned)offset > size || size - offset < 4) return CONCAT44(param_2,0);
+    const byte *data = base + offset;
+    bytes = ((uint)data[0] << 24) | ((uint)data[1] << 16) | ((uint)data[2] << 8) | data[3];
+    stream[0] = (uintptr_t)(data + 4);
+    stream[1] = size - offset - 4;
+    if (bytes > 48000) {
+      char message[80];
+      snprintf(message,sizeof(message),"Music file %d/%d too large",(int)DAT_00479dbc,id);
+      FUN_0043cac0((uintptr_t)message,param_2);
+      return CONCAT44(param_2,0);
+    }
+    if (bytes > size - offset - 4) return CONCAT44(param_2,0);
+    memcpy((void *)(uintptr_t)DAT_00479e3c,data + 4,bytes);
+    stream[0] = (uintptr_t)(data + 4 + bytes);
+    stream[1] = size - offset - 4 - bytes;
+  } else {
+    const char *extension;
+    switch (DAT_00479dbc) {
+    case 1: extension = (char *)0x471094; break;
+    case 2: extension = (char *)0x47109c; break;
+    case 4: extension = (char *)0x4710a4; break;
+    case 3: extension = (char *)0x4710ac; break;
+    case 5: extension = (char *)0x4710b4; break;
+    default: return CONCAT44(param_2,0);
+    }
+    char path[512], name[9];
+    snprintf(name,sizeof(name),"%.8s",(char *)(0x479f68 + id * 8));
+    snprintf(path,sizeof(path),"%sMusic\\%s%s",(char *)_DAT_006365d4,name,extension);
+    undefined4 handle = E2R_OpenReadStream(path);
+    if (!handle) return CONCAT44(param_2,0);
+    int *stream = (int *)(uintptr_t)handle;
+    bytes = stream[1];
+    if (bytes < 50000) memcpy((void *)(uintptr_t)DAT_00479e3c,(void *)(uintptr_t)stream[0],bytes);
+    LocalFree((HLOCAL)(uintptr_t)stream[5]);
+    LocalFree((HLOCAL)stream);
+    if (bytes >= 50000) return CONCAT44(param_2,0);
   }
+  E2R_MusicData((void *)(uintptr_t)DAT_00479e3c,bytes,id);
   return CONCAT44(param_2,1);
-  if (DAT_0047ab10 == 0) {
-    pcVar9 = local_c0;
-    pcVar8 = _DAT_006365d4;
-    do {
-      cVar1 = *pcVar8;
-      *pcVar9 = cVar1;
-      if (cVar1 == '\0') break;
-      cVar1 = pcVar8[1];
-      pcVar8 = pcVar8 + 2;
-      pcVar9[1] = cVar1;
-      pcVar9 = pcVar9 + 2;
-    } while (cVar1 != '\0');
-    pcVar8 = &DAT_0047108c;
-    iVar6 = -1;
-    pcVar9 = local_c0;
-    do {
-      pcVar10 = pcVar9;
-      if (iVar6 == 0) break;
-      iVar6 = iVar6 + -1;
-      pcVar10 = pcVar9 + 1;
-      cVar1 = *pcVar9;
-      pcVar9 = pcVar10;
-    } while (cVar1 != '\0');
-    pcVar10 = pcVar10 + -1;
-    do {
-      cVar1 = *pcVar8;
-      *pcVar10 = cVar1;
-      if (cVar1 == '\0') break;
-      cVar1 = pcVar8[1];
-      pcVar8 = pcVar8 + 2;
-      pcVar10[1] = cVar1;
-      pcVar10 = pcVar10 + 2;
-    } while (cVar1 != '\0');
-    pcVar9 = local_24;
-    FUN_0045f22f(iVar6,(char *)(in_EAX * 8 + 0x479f68));
-    local_1c = 0;
-    iVar6 = -1;
-    pcVar8 = local_c0;
-    do {
-      pcVar10 = pcVar8;
-      if (iVar6 == 0) break;
-      iVar6 = iVar6 + -1;
-      pcVar10 = pcVar8 + 1;
-      cVar1 = *pcVar8;
-      pcVar8 = pcVar10;
-    } while (cVar1 != '\0');
-    pcVar10 = pcVar10 + -1;
-    do {
-      cVar1 = *pcVar9;
-      *pcVar10 = cVar1;
-      if (cVar1 == '\0') break;
-      cVar1 = pcVar9[1];
-      pcVar9 = pcVar9 + 2;
-      pcVar10[1] = cVar1;
-      pcVar10 = pcVar10 + 2;
-    } while (cVar1 != '\0');
-    uVar5 = extraout_EDX;
-    if (DAT_00479dbc == 1) {
-      pcVar8 = &DAT_00471094;
-      iVar6 = -1;
-      pcVar9 = local_c0;
-      do {
-        pcVar10 = pcVar9;
-        if (iVar6 == 0) break;
-        iVar6 = iVar6 + -1;
-        pcVar10 = pcVar9 + 1;
-        cVar1 = *pcVar9;
-        pcVar9 = pcVar10;
-      } while (cVar1 != '\0');
-      pcVar10 = pcVar10 + -1;
-      do {
-        cVar1 = *pcVar8;
-        *pcVar10 = cVar1;
-        if (cVar1 == '\0') break;
-        cVar1 = pcVar8[1];
-        pcVar8 = pcVar8 + 2;
-        pcVar10[1] = cVar1;
-        pcVar10 = pcVar10 + 2;
-      } while (cVar1 != '\0');
-    }
-    else if (DAT_00479dbc == 2) {
-      pcVar8 = &DAT_0047109c;
-      iVar6 = -1;
-      pcVar9 = local_c0;
-      do {
-        pcVar10 = pcVar9;
-        if (iVar6 == 0) break;
-        iVar6 = iVar6 + -1;
-        pcVar10 = pcVar9 + 1;
-        cVar1 = *pcVar9;
-        pcVar9 = pcVar10;
-      } while (cVar1 != '\0');
-      pcVar10 = pcVar10 + -1;
-      do {
-        cVar1 = *pcVar8;
-        *pcVar10 = cVar1;
-        if (cVar1 == '\0') break;
-        cVar1 = pcVar8[1];
-        pcVar8 = pcVar8 + 2;
-        pcVar10[1] = cVar1;
-        pcVar10 = pcVar10 + 2;
-      } while (cVar1 != '\0');
-    }
-    else if (DAT_00479dbc == 4) {
-      pcVar8 = &DAT_004710a4;
-      iVar6 = -1;
-      pcVar9 = local_c0;
-      do {
-        pcVar10 = pcVar9;
-        if (iVar6 == 0) break;
-        iVar6 = iVar6 + -1;
-        pcVar10 = pcVar9 + 1;
-        cVar1 = *pcVar9;
-        pcVar9 = pcVar10;
-      } while (cVar1 != '\0');
-      pcVar10 = pcVar10 + -1;
-      do {
-        cVar1 = *pcVar8;
-        *pcVar10 = cVar1;
-        if (cVar1 == '\0') break;
-        cVar1 = pcVar8[1];
-        pcVar8 = pcVar8 + 2;
-        pcVar10[1] = cVar1;
-        pcVar10 = pcVar10 + 2;
-      } while (cVar1 != '\0');
-    }
-    else if (DAT_00479dbc == 3) {
-      pcVar8 = &DAT_004710ac;
-      iVar6 = -1;
-      pcVar9 = local_c0;
-      do {
-        pcVar10 = pcVar9;
-        if (iVar6 == 0) break;
-        iVar6 = iVar6 + -1;
-        pcVar10 = pcVar9 + 1;
-        cVar1 = *pcVar9;
-        pcVar9 = pcVar10;
-      } while (cVar1 != '\0');
-      pcVar10 = pcVar10 + -1;
-      do {
-        cVar1 = *pcVar8;
-        *pcVar10 = cVar1;
-        if (cVar1 == '\0') break;
-        cVar1 = pcVar8[1];
-        pcVar8 = pcVar8 + 2;
-        pcVar10[1] = cVar1;
-        pcVar10 = pcVar10 + 2;
-      } while (cVar1 != '\0');
-    }
-    else if (DAT_00479dbc == 5) {
-      pcVar8 = &DAT_004710b4;
-      iVar6 = -1;
-      pcVar9 = local_c0;
-      do {
-        pcVar10 = pcVar9;
-        if (iVar6 == 0) break;
-        iVar6 = iVar6 + -1;
-        pcVar10 = pcVar9 + 1;
-        cVar1 = *pcVar9;
-        pcVar9 = pcVar10;
-      } while (cVar1 != '\0');
-      pcVar10 = pcVar10 + -1;
-      do {
-        cVar1 = *pcVar8;
-        *pcVar10 = cVar1;
-        if (cVar1 == '\0') break;
-        cVar1 = pcVar8[1];
-        pcVar8 = pcVar8 + 2;
-        pcVar10[1] = cVar1;
-        pcVar10 = pcVar10 + 2;
-      } while (cVar1 != '\0');
-    }
-    else {
-      FUN_00414e68();
-      iVar6 = extraout_ECX;
-      uVar5 = extraout_EDX_00;
-    }
-    uVar12 = FUN_0045e594(iVar6,uVar5,local_c0,0x200,in_stack_ffffff0c);
-    if ((int)uVar12 == -1) {
-      iVar6 = -1;
-      pcVar9 = (char *)0x0047108c;
-      do {
-        if (iVar6 == 0) break;
-        iVar6 = iVar6 + -1;
-        cVar1 = *pcVar9;
-        pcVar9 = pcVar9 + 1;
-      } while (cVar1 != '\0');
-      FUN_0045f0a1((int)&stack_ffffff0c,(byte *)s_Can_t_find_music_file__s_00471128);
-      FUN_0043cac0(extraout_ECX_05,extraout_EDX_03);
-      uVar5 = 0;
-    }
-    else {
-      uVar5 = extraout_ECX_00;
-      if (DAT_00479e3c == (char *)0x0) {
-        FUN_00414e68();
-        uVar5 = extraout_ECX_01;
-      }
-      uVar4 = FUN_0045e76f(uVar5,DAT_00479e3c);
-      if (uVar4 != 50000) {
-        FUN_0045e8e6(extraout_ECX_02,extraout_EDX_01);
-        return CONCAT44(param_2,1);
-      }
-      iVar6 = -1;
-      pcVar9 = (char *)0x0047108c;
-      do {
-        if (iVar6 == 0) break;
-        iVar6 = iVar6 + -1;
-        cVar1 = *pcVar9;
-        pcVar9 = pcVar9 + 1;
-      } while (cVar1 != '\0');
-      FUN_0045f0a1((int)local_58,(byte *)s_Music_file__s_too_large_00471110);
-      uVar12 = FUN_0043cac0(extraout_ECX_03,extraout_EDX_02);
-      FUN_0045e8e6(extraout_ECX_04,(int)((ulonglong)uVar12 >> 0x20));
-      uVar5 = 0;
-    }
-  }
-  else {
-    iVar6 = *(int *)((DAT_00479dbc + -1) * 0x180 + in_EAX * 4 + 0x6458a4);
-    if (-1 < iVar6) {
-      FUN_0045f296(param_1,iVar6);
-      uVar12 = FUN_00441444(extraout_ECX_06,extraout_EDX_04);
-      pcVar9 = (char *)((ulonglong)uVar12 >> 0x20);
-      iVar6 = (int)uVar12;
-      if (48000 < iVar6) {
-        FUN_0045f0a1((int)local_8c,(byte *)s_Music_file__d__d_too_large_00471144);
-        FUN_0043cac0(extraout_ECX_08,extraout_EDX_05);
-        return (ulonglong)param_2 << 0x20;
-      }
-      pbVar7 = extraout_ECX_07;
-      if (DAT_00479e3c == (char *)0x0) {
-        FUN_00414e68();
-        pbVar7 = extraout_ECX_09;
-        pcVar9 = extraout_EDX_06;
-      }
-      iVar11 = 0;
-      pcVar8 = DAT_00479e3c;
-      if (0 < iVar6) {
-        do {
-          piVar3 = DAT_0047a724;
-          if ((((undefined4 *)(uintptr_t)DAT_0047a724)[1] < 1) || ((*(byte *)(DAT_0047a724 + 3) & 4) != 0)) {
-LAB_00414656:
-            uVar12 = FUN_0045f38a(pbVar7,pcVar9);
-            pbVar7 = extraout_ECX_10;
-          }
-          else {
-            pcVar9 = (char *)*(undefined4 *)(uintptr_t)DAT_0047a724;
-            cVar1 = *pcVar9;
-            pbVar7 = (byte *)CONCAT31((int3)((uint)pbVar7 >> 8),cVar1);
-            if ((cVar1 == '\r') || (cVar1 == '\x1a')) goto LAB_00414656;
-            ((undefined4 *)(uintptr_t)DAT_0047a724)[1] = ((undefined4 *)(uintptr_t)DAT_0047a724)[1] + -1;
-            pbVar2 = (byte *)*piVar3;
-            pbVar7 = pbVar2 + 1;
-            *piVar3 = (int)pbVar7;
-            uVar12 = CONCAT44(pbVar2,(uint)*pbVar2);
-          }
-          pcVar9 = (char *)((ulonglong)uVar12 >> 0x20);
-          iVar11 = iVar11 + 1;
-          *pcVar8 = (char)uVar12;
-          pcVar8 = pcVar8 + 1;
-        } while (iVar11 < iVar6);
-      }
-    }
-    uVar5 = 1;
-  }
-  return CONCAT44(param_2,uVar5);
 }
 
 
@@ -9487,9 +9214,9 @@ void __fastcall FUN_00414e5c(undefined4 param_1)
   uVar3 = extraout_ECX;
   iVar2 = _DAT_00637258;
   while (iVar2 != 0) {
-    FUN_00458bec(uVar3,iVar2);
+    FUN_00458bec(iVar2,0);
     uVar3 = extraout_ECX_00;
-    iVar2 = *(int *)(extraout_EDX + 2);
+    iVar2 = *(int *)(iVar2 + 2);
   }
   FUN_00458bd0();
   uVar3 = extraout_ECX_01;
@@ -9552,9 +9279,9 @@ undefined4 FUN_00414e68(void)
 
   iVar2 = _DAT_00637258;
   while (iVar2 != 0) {
-    FUN_00458bec(in_ECX,iVar2);
+    FUN_00458bec(iVar2,0);
     in_ECX = extraout_ECX;
-    iVar2 = *(int *)(extraout_EDX + 2);
+    iVar2 = *(int *)(iVar2 + 2);
   }
   FUN_00458bd0();
   uVar3 = extraout_ECX_00;
@@ -19256,7 +18983,7 @@ undefined4 __fastcall FUN_004269d4(undefined4 param_1,undefined4 param_2)
   *(undefined2 **)(puVar1 + 1) = _DAT_00637258;
   _DAT_00637258 = puVar1;
   *(undefined4 *)(puVar1 + 9) = _DAT_00636588;
-  return;
+  return (undefined4)(uintptr_t)puVar1;
 }
 
 
@@ -37579,158 +37306,34 @@ void __fastcall FUN_00444c10(undefined4 param_1,undefined4 param_2)
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
 void __fastcall FUN_00445000(undefined4 param_1,undefined4 param_2)
-
 {
-  byte *pbVar1;
-  char cVar2;
-  byte *pbVar3;
-  int iVar4;
-  short sVar5;
-  int *in_EAX;
-  short *psVar6;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 extraout_ECX_02;
-  undefined4 extraout_ECX_03;
-  undefined4 extraout_ECX_04;
-  undefined4 extraout_ECX_05;
-  undefined4 extraout_ECX_06;
-  undefined4 extraout_ECX_07;
-  undefined4 extraout_ECX_08;
-  undefined4 extraout_ECX_09;
-  undefined4 extraout_ECX_10;
-  undefined4 extraout_ECX_11;
-  undefined4 extraout_ECX_12;
-  undefined4 extraout_ECX_13;
-  undefined4 extraout_ECX_14;
-  undefined4 extraout_ECX_15;
-  undefined4 extraout_ECX_16;
-  undefined4 extraout_ECX_17;
-  undefined4 extraout_ECX_18;
-  undefined4 uVar7;
-  undefined4 uVar8;
-  uint uVar9;
-  undefined4 extraout_EDX;
-  undefined8 uVar10;
-
-  in_EAX = E2R_fan_parse_stream;
-  if (in_EAX == (int *)0x0) {
-    in_EAX = (int *)(uintptr_t)param_1;
+  /* 0x445000: tail presence byte, LE words, 32-byte sample header. */
+  int *stream = E2R_fan_parse_stream;
+  if (!stream) stream = (int *)(uintptr_t)param_1;
+  (void)param_2;
+  FUN_0041ba7c(param_1,param_2);
+  while (E2R_ReadFanWordByte(stream) != 0) {
+    short *sound = (short *)(uintptr_t)FUN_004269d4(0,0);
+    if (!sound) return;
+    short id = (short)FUN_004173c8((uintptr_t)stream,0);
+    if (id >= 0) id = *(short *)(0x6625c0 + id * 2);
+    *sound = id;
+    if (id < 0) { FUN_0043cac0(0,0); return; }
+    if (*(int *)(0x62d960 + id * 4)) { FUN_0043cbb4(0); return; }
+    *(short **)(0x62d960 + id * 4) = sound;
+    sound[3] = (short)FUN_004173c8((uintptr_t)stream,0) | 1;
+    sound[8] = (short)FUN_004173c8((uintptr_t)stream,0);
+    unsigned low = (ushort)FUN_004173c8((uintptr_t)stream,0);
+    unsigned high = (ushort)FUN_004173c8((uintptr_t)stream,0);
+    int bytes = (int)(low | (high << 16));
+    sound[11] = 75;
+    if (_DAT_0067bc92 >= 53) sound[11] = (short)FUN_004173c8((uintptr_t)stream,0);
+    else if (_DAT_0067bc92 >= 27) FUN_004173c8((uintptr_t)stream,0);
+    *(int *)(sound + 6) = bytes - 32;
+    FUN_00452958(0,bytes - 32);
+    FUN_00458d18((uintptr_t)sound,(uintptr_t)stream);
+    if (DAT_0047a34a) _DAT_0047a488 = sound;
   }
-  if ((uintptr_t)in_EAX < 0x10000u || IsBadReadPtr(in_EAX,0x1c)) {
-    return;
-  }
-  uVar10 = FUN_0041ba7c(param_1,param_2);
-  uVar7 = (undefined4)((ulonglong)uVar10 >> 0x20);
-  uVar8 = extraout_ECX;
-  do {
-    if ((in_EAX[1] < 1) || ((*(byte *)(in_EAX + 3) & 4) != 0)) {
-LAB_00445024:
-      uVar10 = FUN_0045f38a((undefined4)(uintptr_t)in_EAX,(undefined4)(uintptr_t)in_EAX);
-      uVar8 = extraout_ECX_00;
-    }
-    else {
-      cVar2 = *(char *)*in_EAX;
-      uVar7 = CONCAT31((int3)((uint)uVar7 >> 8),cVar2);
-      if ((cVar2 == '\r') || (cVar2 == '\x1a')) goto LAB_00445024;
-      pbVar3 = (byte *)*in_EAX;
-      pbVar1 = pbVar3 + 1;
-      in_EAX[1] = in_EAX[1] + -1;
-      *in_EAX = (int)pbVar1;
-      uVar10 = CONCAT44(pbVar1,(uint)*pbVar3);
-    }
-    uVar7 = (undefined4)((ulonglong)uVar10 >> 0x20);
-    if ((int)uVar10 == 0) {
-      return;
-    }
-    if (_DAT_0067b824 != 0) {
-      uVar10 = FUN_0043cbb4(uVar8);
-      uVar7 = (undefined4)((ulonglong)uVar10 >> 0x20);
-      uVar8 = extraout_ECX_01;
-    }
-    if (_DAT_0067b82c != 0) {
-      uVar10 = FUN_0043cbb4(uVar8);
-      uVar7 = (undefined4)((ulonglong)uVar10 >> 0x20);
-      uVar8 = extraout_ECX_02;
-    }
-    if (_DAT_0067b838 != 0) {
-      uVar10 = FUN_0043cbb4(uVar8);
-      uVar7 = (undefined4)((ulonglong)uVar10 >> 0x20);
-      uVar8 = extraout_ECX_03;
-    }
-    if (_DAT_0067b81c != 0) {
-      uVar10 = FUN_0043cbb4(uVar8);
-      uVar7 = (undefined4)((ulonglong)uVar10 >> 0x20);
-      uVar8 = extraout_ECX_04;
-    }
-    if (_DAT_0067b820 != 0) {
-      uVar10 = FUN_0043cbb4(uVar8);
-      uVar7 = (undefined4)((ulonglong)uVar10 >> 0x20);
-      uVar8 = extraout_ECX_05;
-    }
-    _DAT_0067b820 = 1;
-    uVar10 = FUN_004269d4(uVar8,uVar7);
-    psVar6 = (short *)uVar10;
-    if (psVar6 == (short *)0x0) {
-      return;
-    }
-    uVar10 = FUN_004173c8(extraout_ECX_06,(int)((ulonglong)uVar10 >> 0x20));
-    sVar5 = (short)uVar10;
-    if (-1 < sVar5) {
-      sVar5 = (short)((uint)*(undefined4 *)(sVar5 * 2 + 0x6625be) >> 0x10);
-    }
-    *psVar6 = sVar5;
-    if (sVar5 < 0) {
-      uVar10 = FUN_0043cac0(extraout_ECX_07,(int)((ulonglong)uVar10 >> 0x20));
-      uVar8 = (undefined4)((ulonglong)uVar10 >> 0x20);
-      uVar7 = extraout_ECX_10;
-    }
-    else {
-      iVar4 = *(int *)(sVar5 * 4 + 0x62d960);
-      uVar8 = 0;
-      uVar7 = extraout_ECX_07;
-      if (iVar4 != 0) {
-        FUN_0044248c(extraout_ECX_07,iVar4);
-        uVar10 = FUN_0043cbb4(extraout_ECX_08);
-        uVar8 = (undefined4)((ulonglong)uVar10 >> 0x20);
-        uVar7 = extraout_ECX_09;
-      }
-      *(short **)(*psVar6 * 4 + 0x62d960) = psVar6;
-    }
-    uVar10 = FUN_004173c8(uVar7,uVar8);
-    psVar6[3] = (ushort)uVar10 | 1;
-    uVar10 = FUN_004173c8(extraout_ECX_11,(int)((ulonglong)uVar10 >> 0x20));
-    psVar6[8] = (short)uVar10;
-    uVar10 = FUN_004173c8(extraout_ECX_12,0);
-    uVar10 = FUN_004173c8(extraout_ECX_13,CONCAT22((short)((ulonglong)uVar10 >> 0x30),(short)uVar10)
-                         );
-    psVar6[0xb] = 0x4b;
-    sVar5 = _DAT_0067bc92;
-    uVar9 = (uint)((ulonglong)uVar10 >> 0x20) | (int)uVar10 << 0x10;
-    *(uint *)(psVar6 + 6) = uVar9;
-    if (sVar5 < 0x35) {
-      uVar8 = extraout_ECX_14;
-      if (0x1a < sVar5) {
-        FUN_004173c8(extraout_ECX_14,uVar9);
-        uVar8 = extraout_ECX_16;
-      }
-    }
-    else {
-      uVar10 = FUN_004173c8(extraout_ECX_14,uVar9);
-      psVar6[0xb] = (short)uVar10;
-      uVar8 = extraout_ECX_15;
-    }
-    iVar4 = *(int *)(psVar6 + 6);
-    *(int *)(psVar6 + 6) = iVar4 + -0x20;
-    FUN_00452958(uVar8,iVar4 + -0x20);
-    FUN_00458d18((undefined4)(uintptr_t)psVar6,(undefined4)(uintptr_t)in_EAX);
-    uVar8 = extraout_ECX_18;
-    uVar7 = extraout_EDX;
-    if (DAT_0047a34a != 0) {
-      _DAT_0047a488 = psVar6;
-    }
-  } while( true );
 }
 
 
@@ -41157,6 +40760,64 @@ LAB_0044796b:
 /* The loose Files/ECSTATIC starts at the first FAN resource; OFFSETS carries
  * the original 0x447d94 index separately. Keep the working actor/scene lookup
  * boundary and recover its missing final visibility table, with archive checks. */
+static int E2R_IndexFlatArchiveMusic(const byte *base,const byte *end)
+{
+  enum { start = (2500 + 5000 + 2000 + 500 + 700) * 4 };
+  undefined4 *stream = (undefined4 *)(uintptr_t)E2R_OpenReadStream("OFFSETS");
+  if (!stream) return 0;
+  const byte *data = (const byte *)(uintptr_t)stream[5];
+  int valid = stream[1] >= start + 960 * 4, count = 0;
+  for (int id = 0; valid && id < 960; ++id) {
+    const byte *entry = data + start + id * 4;
+    uint offset = ((uint)entry[0] << 24) | ((uint)entry[1] << 16) | ((uint)entry[2] << 8) | entry[3];
+    if ((int)offset < 0) continue;
+    if (offset > (uint)(end - base) || (uint)(end - base) - offset < 4) valid = 0;
+    else {
+      const byte *p = base + offset;
+      uint bytes = ((uint)p[0] << 24) | ((uint)p[1] << 16) | ((uint)p[2] << 8) | p[3];
+      if (bytes > (uint)(end - base) - offset - 4) valid = 0;
+      else count++;
+    }
+  }
+  if (valid) for (int id = 0; id < 960; ++id) {
+    const byte *entry = data + start + id * 4;
+    *(uint *)(0x6458a8 + id * 4) = ((uint)entry[0] << 24) | ((uint)entry[1] << 16) |
+        ((uint)entry[2] << 8) | entry[3];
+  }
+  LocalFree((HLOCAL)(uintptr_t)stream[5]);
+  LocalFree((HLOCAL)stream);
+  return valid ? count : 0;
+}
+
+static int E2R_IndexFlatArchiveSounds(const byte *base,const byte *end)
+{
+  enum { start = (2500 + 5000 + 2000 + 500) * 4 };
+  undefined4 *stream = (undefined4 *)(uintptr_t)E2R_OpenReadStream("OFFSETS");
+  if (!stream) return 0;
+  const byte *data = (const byte *)(uintptr_t)stream[5];
+  int valid = stream[1] >= start + 700 * 4;
+  int count = 0;
+  for (int id = 0; valid && id < 700; ++id) {
+    const byte *entry = data + start + id * 4;
+    uint offset = ((uint)entry[0] << 24) | ((uint)entry[1] << 16) |
+                  ((uint)entry[2] << 8) | entry[3];
+    if (offset == 0xffffffffu || (offset & 0x80000000u)) continue;
+    if (offset > (uint)(end - base) || (uint)(end - base) - offset < 0x58 ||
+        memcmp(base + offset,"FANT",4) != 0 || base[offset + 0x4c] != 'S') valid = 0;
+    else count++;
+  }
+  if (valid) {
+    for (int id = 0; id < 700; ++id) {
+      const byte *entry = data + start + id * 4;
+      *(uint *)(0x662f20 + id * 4) = ((uint)entry[0] << 24) |
+          ((uint)entry[1] << 16) | ((uint)entry[2] << 8) | entry[3];
+    }
+  }
+  LocalFree((HLOCAL)(uintptr_t)stream[5]);
+  LocalFree((HLOCAL)stream);
+  return valid ? count : 0;
+}
+
 static int E2R_IndexFlatArchiveVisibility(const byte *base,const byte *end)
 {
   enum { visibility_start = (2500 + 5000 + 2000 + 500 + 700 + 960 + 1200) * 4,
@@ -41256,6 +40917,8 @@ undefined8 __fastcall FUN_00447d94(undefined4 param_1,undefined4 param_2)
       *(int *)(0x6445e8 + offset * 4) = -1;
       *(int *)(0x6467a8 + offset * 4) = -1;
     }
+    E2R_IndexFlatArchiveSounds(base,end);
+    E2R_IndexFlatArchiveMusic(base,end);
     action_count = 0;
     actor_count = 0;
     rep_count = 0;
@@ -46138,11 +45801,11 @@ LAB_0044f7a9:
           uVar10 = uVar19;
           if (((DAT_00479dbc != 0) && (DAT_0047a49c != 0)) && (uVar19 != DAT_0047ab0c)) {
             _DAT_0047aa2c = 1;
-            lVar26 = FUN_004142e4(puVar13,uVar19);
+            lVar26 = FUN_004142e4(uVar19,uVar19);
             puVar13 = extraout_ECX_45;
             if ((int)lVar26 != 0) {
               FUN_004598a0();
-              lVar26 = (ulonglong)extraout_EDX_22 << 0x20;
+              lVar26 = (ulonglong)uVar10 << 0x20;
               puVar13 = extraout_ECX_46;
             }
             uVar19 = (uint)((ulonglong)lVar26 >> 0x20);
@@ -46156,13 +45819,13 @@ LAB_0044f7a9:
           puVar13 = extraout_ECX_44;
           uVar10 = DAT_0047ab0c;
         }
-        DAT_0047ab0c = uVar10;
+        DAT_0047ab0c = *(int *)0x47ab0c = uVar10;
         uVar25 = CONCAT44(uVar19,_DAT_00ac4a54);
         local_2c = local_2c + 1;
         break;
       case 0x26:
         puVar13 = (ushort *)0x0;
-        DAT_0047ab0c = 0;
+        DAT_0047ab0c = *(int *)0x47ab0c = 0;
         if (DAT_00479dbc != 0) {
           FUN_004598b4();
           puVar13 = extraout_ECX_47;
@@ -46321,7 +45984,7 @@ LAB_0044f7a9:
         break;
       case 0x32:
         puVar13 = (ushort *)0x0;
-        DAT_0047ab0c = 0;
+        DAT_0047ab0c = *(int *)0x47ab0c = 0;
         if (DAT_00479dbc != 0) {
           FUN_004598b4();
           puVar13 = extraout_ECX_48;
@@ -47306,75 +46969,43 @@ undefined8 __fastcall FUN_00451998(int param_1,undefined4 param_2)
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
 undefined8 __fastcall FUN_00451a54(undefined4 param_1,undefined4 param_2)
-
 {
-  uint uVar1;
-  int in_EAX;
-  int iVar2;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 extraout_ECX_02;
-  undefined4 extraout_ECX_03;
-  undefined4 extraout_ECX_04;
-  undefined4 extraout_ECX_05;
-  undefined4 extraout_ECX_06;
-  undefined4 extraout_ECX_07;
-  undefined4 extraout_ECX_08;
-  undefined4 extraout_ECX_09;
-  undefined8 uVar4;
-  undefined1 local_44 [40];
-  undefined1 local_1c;
-  undefined4 uVar3;
-
-  in_EAX = (int)(uintptr_t)param_2;
-  iVar2 = in_EAX;
-  uVar3 = DAT_0047a470;
-  if ((-1 < (short)in_EAX) && (iVar2 = (short)in_EAX * 4, *(int *)(iVar2 + 0x62d960) == 0)) {
+  int id = (short)param_2;
+  undefined4 current = DAT_0047a470;
+  int result = id;
+  if (id >= 0 && *(int *)(0x62d960 + id * 4) == 0) {
     DAT_0047a788 = 1;
     if (DAT_0047ab10 == 0) {
-      uVar4 = FUN_0044248c(DAT_0047a470,in_EAX);
-      FUN_0045f22f(extraout_ECX,(char *)uVar4);
-      local_1c = 0;
-      FUN_0045f0a1((int)local_44,(byte *)s__ssounds__s_fan_00475548);
-      iVar2 = FUN_00445378(extraout_ECX_00,1);
-      uVar3 = extraout_ECX_01;
-      if (iVar2 == 0) {
-        FUN_0045f0a1((int)local_44,(byte *)s__ssounds__s_fan_00475548);
-        iVar2 = FUN_00445378(extraout_ECX_02,1);
-        uVar3 = extraout_ECX_03;
-        if (iVar2 == 0) {
-          uVar4 = FUN_0043cbb4(extraout_ECX_03);
-          DAT_0047a470 = E2R_TraceCurrentActorWrite("51a54.direct_missing",
-                                                    (uintptr_t)extraout_ECX_04);
-          return CONCAT44(param_2,(int)uVar4);
-        }
+      char path[260], name[9];
+      const char *source = (const char *)(uintptr_t)(uint)FUN_0044248c(0,id);
+      snprintf(name,sizeof(name),"%.8s",source);
+      snprintf(path,sizeof(path),"%ssounds\\%s.fan",(char *)_DAT_006365e8,name);
+      result = FUN_00445378((uintptr_t)path,1);
+      if (!result) {
+        snprintf(path,sizeof(path),"%ssounds\\%s.fan",(char *)_DAT_006365d0,name);
+        result = FUN_00445378((uintptr_t)path,1);
+        if (!result) FUN_0043cbb4(0);
       }
-    }
-    else {
-      uVar1 = *(uint *)(iVar2 + 0x662f20);
-      if ((int)uVar1 < 0) {
-        if ((DAT_0047a728 == 0) || (uVar1 == 0xffffffff)) {
-          E2R_GameStateLog("sound archive missing ignored id=%d archive=0x%x current=0x%lx scene=0x%lx",
-                           (int)(short)in_EAX,(unsigned int)uVar1,
-                           (unsigned long)DAT_0047a470,(unsigned long)_DAT_0073cc3c);
-          DAT_0047a470 = E2R_TraceCurrentActorWrite("51a54.archive_missing",
-                                                    (uintptr_t)uVar3);
-          return CONCAT44(param_2,0);
-        }
-        FUN_0045f296(DAT_0047a470,uVar1 & 0x7fffffff);
-        uVar3 = extraout_ECX_05;
+    } else {
+      uint offset = *(uint *)(0x662f20 + id * 4);
+      undefined4 archive = offset & 0x80000000u ? DAT_0047a728 : DAT_0047a724;
+      /* Retain the pre-existing missing-secondary diagnostic guard. */
+      if (!archive || offset == 0xffffffffu) {
+        E2R_GameStateLog("sound archive missing ignored id=%d archive=0x%x current=0x%lx scene=0x%lx",
+                        id,offset,(unsigned long)current,(unsigned long)_DAT_0073cc3c);
+        result = 0;
+      } else {
+        FUN_0045f296(archive,offset & 0x7fffffffu);
+        undefined4 main_archive = DAT_0047a724;
+        DAT_0047a724 = archive;
+        result = E2R_ParseArchiveFanResource();
+        DAT_0047a724 = main_archive;
       }
-      else {
-        FUN_0045f296(DAT_0047a470,uVar1);
-        uVar3 = extraout_ECX_08;
-      }
-      iVar2 = E2R_ParseArchiveFanResource();
-      uVar3 = extraout_ECX_09;
     }
   }
-  DAT_0047a470 = E2R_TraceCurrentActorWrite("51a54.exit",(uintptr_t)uVar3);
-  return CONCAT44(param_2,iVar2);
+  DAT_0047a470 = current; /* ECX is saved across every original parser call. */
+  (void)param_1;
+  return CONCAT44(param_2,result);
 }
 
 
@@ -48349,28 +47980,14 @@ undefined8 __fastcall FUN_0045282c(undefined4 param_1,undefined4 param_2)
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
 undefined8 __fastcall FUN_00452958(undefined4 param_1,undefined4 param_2)
-
 {
-  int in_EAX;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  int extraout_EDX;
-  int iVar1;
-  undefined8 uVar2;
-
-  while (0xfffff < DAT_00479e44 + in_EAX) {
-    uVar2 = FUN_004531bc(param_1,in_EAX);
-    in_EAX = (int)((ulonglong)uVar2 >> 0x20);
-    param_1 = extraout_ECX;
-    if ((int)uVar2 == 0) {
-      FUN_00414e68();
-      param_1 = extraout_ECX_00;
-      in_EAX = extraout_EDX;
-    }
+  int bytes = param_2;
+  while (DAT_00479e44 + bytes >= 0x100000) {
+    if (!(uint)FUN_004531bc(param_1,bytes)) { FUN_00414e68(); return 0; }
   }
-  iVar1 = _DAT_006365b4 + DAT_00479e44;
-  DAT_00479e44 = DAT_00479e44 + in_EAX;
-  return CONCAT44(param_2,iVar1);
+  int result = _DAT_006365b4 + DAT_00479e44;
+  DAT_00479e44 += bytes;
+  return CONCAT44(param_2,result);
 }
 
 
@@ -48380,60 +47997,21 @@ undefined8 __fastcall FUN_00452958(undefined4 param_1,undefined4 param_2)
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
 void __fastcall FUN_00452994(undefined4 param_1,undefined4 param_2)
-
 {
-  short *psVar1;
-  short *psVar2;
-  short *psVar3;
-  short *in_EAX;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 uVar4;
-  undefined4 extraout_ECX_02;
-  undefined4 extraout_ECX_03;
-  undefined2 extraout_var;
-  undefined4 uVar5;
-  undefined4 extraout_EDX;
-  undefined4 extraout_EDX_00;
-  undefined1 local_48 [52];
-
-  FUN_0044248c(param_1,param_2);
-  FUN_0045f0a1((int)local_48,(byte *)s_Removing_sound___s__00475814);
-  uVar5 = CONCAT22(extraout_var,*in_EAX);
-  uVar4 = extraout_ECX;
-  if (*in_EAX < 0) {
-    FUN_00414e68();
-    uVar4 = extraout_ECX_00;
-    uVar5 = extraout_EDX;
-  }
-  if (699 < *in_EAX) {
-    FUN_00414e68();
-    uVar4 = extraout_ECX_01;
-    uVar5 = extraout_EDX_00;
-  }
-  if (in_EAX != *(short **)(*in_EAX * 4 + 0x62d960)) {
-    FUN_0044248c(uVar4,uVar5);
-    FUN_00414e5c(extraout_ECX_02);
-  }
-  psVar3 = _DAT_00637258;
-  if (in_EAX == _DAT_00637258) {
-    _DAT_00637258 = *(short **)(_DAT_00637258 + 1);
-  }
+  short *sound = (short *)(uintptr_t)param_1;
+  (void)param_2;
+  if (*sound < 0 || *sound >= 700) { FUN_00414e68(); return; }
+  if (sound != *(short **)(0x62d960 + *sound * 4)) { FUN_00414e5c(0); return; }
+  if (sound == _DAT_00637258) _DAT_00637258 = *(short **)(sound + 1);
   else {
-    psVar1 = *(short **)(_DAT_00637258 + 1);
-    psVar2 = _DAT_00637258;
-    while (in_EAX != psVar1) {
-      psVar2 = *(short **)(psVar2 + 1);
-      psVar1 = *(short **)(psVar2 + 1);
-    }
-    *(undefined4 *)(psVar2 + 1) = *(undefined4 *)(in_EAX + 1);
+    short *previous = _DAT_00637258;
+    while (*(short **)(previous + 1) != sound) previous = *(short **)(previous + 1);
+    *(short **)(previous + 1) = *(short **)(sound + 1);
   }
-  *(undefined4 *)(*in_EAX * 4 + 0x62d960) = 0;
-  DAT_00479e44 = DAT_00479e44 - *(int *)(in_EAX + 6);
-  FUN_00458bec(psVar3,DAT_00479e44);
-  FUN_004537bc(extraout_ECX_03);
-  return;
+  *(int *)(0x62d960 + *sound * 4) = 0;
+  DAT_00479e44 -= *(int *)(sound + 6);
+  FUN_00458bec((uintptr_t)sound,0);
+  FUN_004537bc((uintptr_t)sound);
 }
 
 
@@ -48715,6 +48293,9 @@ void __fastcall FUN_00452d3c(undefined4 param_1)
     *(undefined2 *)(iVar1 + 2) = 1;
     iVar1 = iVar2;
   } while (iVar2 != 0x84b34c);
+  /* 0x452e5e..0x452e75 frees every original sound slot. */
+  for (int offset = 0; offset < 12000; offset += 60)
+    FUN_004537bc(0x73ccbc + offset);
   (void)extraout_ECX_00;
   (void)extraout_EDX_00;
   iVar1 = 0x86916c;
@@ -49617,50 +49198,18 @@ void __fastcall FUN_004537bc(undefined4 param_1)
 /* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
 
 undefined8 __fastcall FUN_004537d8(undefined4 param_1,undefined4 param_2)
-
 {
-  ushort uVar1;
-  int iVar2;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined1 *puVar3;
-  uint extraout_EDX;
-  undefined1 *puVar4;
-  longlong lVar5;
-
-  do {
-    puVar3 = (undefined1 *)0x0;
-    param_1 = CONCAT22((short)((uint)param_1 >> 0x10),_DAT_0073ccc2);
-    iVar2 = 0;
-    uVar1 = _DAT_0073ccc2;
-    while ((uVar1 & 0x8000) == 0) {
-      if (11999 < iVar2 + 0x3c) goto LAB_0045381e;
-      uVar1 = *(ushort *)(iVar2 + 0x73ccfe);
-      iVar2 = iVar2 + 0x3c;
-    }
-    puVar3 = (undefined1 *)(iVar2 + 0x73ccbc);
-    puVar4 = puVar3;
-    for (iVar2 = 0x3c; iVar2 != 0; iVar2 = iVar2 + -1) {
-      *puVar4 = 0;
-      puVar4 = puVar4 + 1;
-    }
-    param_1 = 0;
-LAB_0045381e:
-    lVar5 = ZEXT48(puVar3) << 0x20;
-    if ((puVar3 == (undefined1 *)0x0) &&
-       (lVar5 = FUN_004531bc(param_1,0), param_1 = extraout_ECX, (int)lVar5 == 0)) {
-      puVar3 = (undefined1 *)FUN_0045f1ff(1,0x3c);
-      if (puVar3 == (undefined1 *)0x0) {
-        return CONCAT44(param_2,0);
+  (void)param_1;
+  for (;;) {
+    for (int offset = 0; offset < 12000; offset += 60) {
+      byte *slot = (byte *)(0x73ccbc + offset);
+      if (*(ushort *)(slot + 6) & 0x8000) {
+        memset(slot,0,60);
+        return CONCAT44(param_2,(uintptr_t)slot);
       }
-      memset(puVar3,0,0x3c);
-      lVar5 = ZEXT48(puVar3) << 0x20;
     }
-    iVar2 = (int)((ulonglong)lVar5 >> 0x20);
-    if (iVar2 != 0) {
-      return CONCAT44(param_2,iVar2);
-    }
-  } while( true );
+    if (!(uint)FUN_004531bc(0,0)) { FUN_00414e68(); return CONCAT44(param_2,0); }
+  }
 }
 
 
@@ -50085,6 +49634,7 @@ undefined8 __fastcall FUN_004544a4(undefined4 param_1,undefined4 param_2)
   }
   static const uintptr_t globals[] = {0x47ab0c,0x47ab28,0x47ab18,0x47ab14,0x47ab2c,0x47a4a4};
   for (uint i = 0; i < sizeof(globals)/sizeof(globals[0]); ++i) *(int *)globals[i] = (short)E2R_ReadSaveWord(stream);
+  DAT_0047ab0c = *(int *)0x47ab0c;
   DAT_0047ab20 = E2R_ReadSaveDword(stream);
   DAT_0047ab24 = E2R_ReadSaveDword(stream);
   for (int i = 0; i < 150; ++i) *(byte *)(0xac4b00 + i) = E2R_ReadHostedStreamByte((undefined4 *)stream);
@@ -52311,67 +51861,24 @@ void __fastcall FUN_00458bec(undefined4 param_1,undefined4 param_2)
 /* 00458c24 */
 
 undefined4 __fastcall FUN_00458c24(undefined4 param_1,int param_2)
-
 {
-  int in_EAX = (int)param_1;
-  int iVar1;
-  undefined4 extraout_ECX;
-  undefined4 extraout_ECX_00;
-  undefined4 extraout_ECX_01;
-  undefined4 extraout_ECX_02;
-  undefined4 extraout_ECX_03;
-  undefined4 extraout_ECX_04;
-  undefined4 extraout_ECX_05;
-  undefined4 extraout_ECX_06;
-  undefined4 uVar2;
-  undefined8 uVar3;
-  int *piVar4;
-  int *piStack_1c;
-  int iStack_18;
-  undefined4 local_14;
-
-  local_14 = 0;
-  piStack_1c = *(int **)(in_EAX + 0x38);
-  if (piStack_1c == (int *)0x0) {
-    iStack_18 = 0x458c43;
-    FUN_0044248c(param_1,param_2);
-    iStack_18 = 0x458c4f;
-    uVar3 = FUN_0043cbb4(extraout_ECX);
-    return (int)uVar3;
+  int resource = param_1;
+  int *buffer = *(int **)(resource + 0x38);
+  unsigned status = 0;
+  if (!buffer) { FUN_0043cbb4(0); return 0; }
+  int result = (**(code **)(*buffer + 0x3c))(buffer,(param_2 - 127) * 50);
+  if (result) FUN_0043cac0(0,0);
+  result = (**(code **)(*buffer + 0x24))(buffer,&status);
+  if (!result && (status & 1)) {
+    result = (**(code **)(*buffer + 0x34))(buffer,0);
+  } else {
+    result = (**(code **)(*buffer + 0x30))(buffer,0,0,0);
   }
-  iStack_18 = (param_2 + -0x7f) * 0x32;
-  uVar3 = (**(code **)(*piStack_1c + 0x3c))();
-  if ((int)uVar3 != 0) {
-    uVar3 = FUN_0044248c(extraout_ECX_00,(int)((ulonglong)uVar3 >> 0x20));
-    FUN_0043cac0(extraout_ECX_01,(int)uVar3);
-  }
-  piVar4 = *(int **)(in_EAX + 0x38);
-  iVar1 = (**(code **)(*piVar4 + 0x24))(piVar4,&piStack_1c);
-  if (iVar1 == 0) {
-    if (((uint)piVar4 & 1) == 1) {
-      iVar1 = (**(code **)(**(int **)(in_EAX + 0x38) + 0x34))(*(int **)(in_EAX + 0x38),0);
-      if (iVar1 == 0) {
-        return 0;
-      }
-      FUN_0044248c(extraout_ECX_02,s_Direct_Sound_Error_00476590);
-      uVar2 = extraout_ECX_03;
-      goto LAB_00458d08;
-    }
-    iVar1 = (**(code **)(**(int **)(in_EAX + 0x38) + 0x30))(*(int **)(in_EAX + 0x38),0,0,0);
-    uVar2 = extraout_ECX_04;
-  }
-  else {
-    iVar1 = (**(code **)(**(int **)(in_EAX + 0x38) + 0x30))(*(int **)(in_EAX + 0x38),0,0,0);
-    uVar2 = extraout_ECX_05;
-  }
-  if (iVar1 == 0) {
-    return 0;
-  }
-  FUN_0044248c(uVar2,s_Direct_Sound_Error_00476590);
-  uVar2 = extraout_ECX_06;
-LAB_00458d08:
-  uVar3 = FUN_0043cbd0(uVar2);
-  return (int)uVar3;
+  if (getenv("E2R_AUDIO_TRACE"))
+    fprintf(stderr,"sound play: id=%d bytes=%d volume=%d status=%u result=%d\n",
+            *(short *)resource,*(int *)(resource + 12),param_2,status,result);
+  if (result) FUN_0043cbd0(0);
+  return result;
 }
 
 
@@ -52382,7 +51889,7 @@ HGLOBAL __fastcall FUN_00458d18(undefined4 param_1,undefined4 param_2)
 
 {
   undefined4 uVar1;
-  uint in_EAX;
+  uint in_EAX = param_1;
   HGLOBAL pvVar2;
   undefined4 *pMem;
   undefined2 *puVar3;
@@ -52424,7 +51931,7 @@ HGLOBAL __fastcall FUN_00458d18(undefined4 param_1,undefined4 param_2)
     *(undefined2 *)(pMem[2] + 0xc) = 1;
     *(undefined2 *)(pMem[2] + 0xe) = 8;
     *(undefined2 *)(pMem[2] + 0x10) = 0;
-    pcVar4 = FUN_00458e7c(extraout_ECX_01,in_EAX);
+    pcVar4 = FUN_00458e7c((uintptr_t)pMem,in_EAX,param_2);
     if (pcVar4 != (char *)0x0) {
       FUN_0044248c(extraout_ECX_02,s_Direct_Sound_Error_00476590);
       uVar5 = FUN_0043cbd0(extraout_ECX_03);
@@ -52453,140 +51960,35 @@ HGLOBAL __fastcall FUN_00458d18(undefined4 param_1,undefined4 param_2)
 
 /* 00458e7c */
 
-char * __fastcall FUN_00458e7c(undefined4 param_1,uint param_2)
-
+char * __fastcall FUN_00458e7c(undefined4 param_1,uint param_2,undefined4 stream_arg)
 {
-  char cVar1;
-  byte *pbVar2;
-  int *piVar3;
-  int in_EAX;
-  char *pcVar4;
-  byte *extraout_ECX;
-  byte *pbVar5;
-  byte *extraout_ECX_00;
-  byte *extraout_ECX_01;
-  uint uVar6;
-  int *unaff_EBX;
-  char *pcVar8;
-  undefined8 uVar9;
-  int *piStack_5c;
-  undefined1 *puStack_58;
-  int iStack_54;
-  undefined4 uStack_50;
-  undefined1 local_38 [4];
-  undefined4 local_34;
-  undefined4 local_30;
-  undefined1 auStack_2c [4];
-  char *local_28;
-  int iStack_24;
-  undefined4 local_1c;
-  undefined4 local_18;
-  int local_14;
-  int iVar7;
-
-  local_18 = 0;
-  local_1c = 0;
-  uStack_50 = 0x458ead;
-  local_14 = in_EAX;
-  FUN_0045f8d0(0x14,0);
-  uStack_50 = 0;
-  local_34 = 0xe2;
-  local_30 = *(undefined4 *)(local_14 + 4);
-  iStack_54 = local_14 + 0x98;
-  puStack_58 = local_38;
-  local_28 = *(char **)(local_14 + 8);
-  piStack_5c = DAT_0047d1f0;
-  pcVar4 = (char *)(**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d1f0 + 0xc))();
-  if ((pcVar4 == (char *)0x0) &&
-     (pcVar4 = (char *)(**(code **)(**(int **)(iStack_24 + 0x98) + 0x2c))
-                                 (*(int **)(iStack_24 + 0x98),0,*(undefined4 *)(iStack_24 + 4),
-                                  &local_28,&local_30,auStack_2c,&local_34,0), pcVar8 = local_28,
-     pcVar4 == (char *)0x0)) {
-    *(char **)(param_2 + 8) = local_28;
-    pbVar5 = extraout_ECX;
-    uVar6 = param_2;
-    do {
-      if ((unaff_EBX[1] < 1) || ((*(byte *)(unaff_EBX + 3) & 4) != 0)) {
-LAB_00458f54:
-        uVar9 = FUN_0045f38a(pbVar5,uVar6);
-        pbVar5 = extraout_ECX_00;
-      }
-      else {
-        cVar1 = *(char *)*unaff_EBX;
-        pbVar5 = (byte *)CONCAT31((int3)((uint)pbVar5 >> 8),cVar1);
-        if ((cVar1 == '\r') || (cVar1 == '\x1a')) goto LAB_00458f54;
-        pbVar2 = (byte *)*unaff_EBX;
-        unaff_EBX[1] = unaff_EBX[1] + -1;
-        pbVar5 = pbVar2 + 1;
-        *unaff_EBX = (int)pbVar5;
-        uVar9 = CONCAT44(uVar6,(uint)*pbVar2);
-      }
-      iVar7 = (int)((ulonglong)uVar9 >> 0x20);
-      uVar6 = iVar7 + 1;
-      *(char *)(iVar7 + 0x18) = (char)uVar9;
-    } while (uVar6 != param_2 + 0x20);
-    uVar6 = uVar6 ^ param_2 + 0x20;
-    if (0 < *(int *)(param_2 + 0xc)) {
-      do {
-        if ((unaff_EBX[1] < 1) || ((*(byte *)(unaff_EBX + 3) & 4) != 0)) {
-LAB_00458f9c:
-          uVar9 = FUN_0045f38a(pbVar5,uVar6);
-          pbVar5 = extraout_ECX_01;
-        }
-        else {
-          cVar1 = *(char *)*unaff_EBX;
-          pbVar5 = (byte *)CONCAT31((int3)((uint)pbVar5 >> 8),cVar1);
-          if ((cVar1 == '\r') || (cVar1 == '\x1a')) goto LAB_00458f9c;
-          pbVar2 = (byte *)*unaff_EBX;
-          unaff_EBX[1] = unaff_EBX[1] + -1;
-          pbVar5 = pbVar2 + 1;
-          *unaff_EBX = (int)pbVar5;
-          uVar9 = CONCAT44(uVar6,(uint)*pbVar2);
-        }
-        *pcVar8 = (char)uVar9 + -0x80;
-        uVar6 = (int)((ulonglong)uVar9 >> 0x20) + 1;
-        pcVar8 = pcVar8 + 1;
-      } while ((int)uVar6 < *(int *)(param_2 + 0xc));
-    }
-    pcVar4 = (char *)(**(code **)(**(int **)(iStack_24 + 0x98) + 0x4c))
-                               (*(int **)(iStack_24 + 0x98),local_28,*(undefined4 *)(iStack_24 + 4),
-                                0,0);
-    if ((pcVar4 == (char *)0x0) &&
-       (local_28 = pcVar4,
-       pcVar4 = (char *)(**(code **)(**(int **)(iStack_24 + 0x98) + 0x3c))
-                                  (*(int **)(iStack_24 + 0x98),0), pcVar4 == (char *)0x0)) {
-      pcVar4 = (char *)(**(code **)(**(int **)(iStack_24 + 0x98) + 0x40))
-                                 (*(int **)(iStack_24 + 0x98),0);
-      if (pcVar4 == (char *)0x0) {
-        piStack_5c = (int *)0x14;
-        pcVar4 = (char *)(**(code **)(**(int **)(iStack_24 + 0x98) + 0xc))
-                                   (*(int **)(iStack_24 + 0x98),&piStack_5c);
-        if (pcVar4 == (char *)0x0) {
-          if (((uint)puStack_58 & 4) != 0) {
-            *(undefined4 *)(iStack_24 + 0x24) = 1;
-            return (char *)0x0;
-          }
-          *(undefined4 *)(iStack_24 + 0x24) = 0;
-          return (char *)0x0;
-        }
-      }
-    }
+  undefined4 *context = (undefined4 *)(uintptr_t)param_1;
+  int *stream = (int *)(uintptr_t)stream_arg;
+  E2R_SoundDesc desc = {20,0xe2,context[1],0,(E2R_WaveFormat *)(uintptr_t)context[2]};
+  void *first = NULL, *second = NULL;
+  unsigned first_bytes = 0, second_bytes = 0;
+  int result = (**(code **)(*(int *)(uintptr_t)DAT_0047d1f0 + 0xc))
+      (DAT_0047d1f0,&desc,context + 0x26,0);
+  int *buffer = (int *)(uintptr_t)context[0x26];
+  if (!result) result = (**(code **)(*buffer + 0x2c))
+      (buffer,0,context[1],&first,&first_bytes,&second,&second_bytes,0);
+  if (!result) {
+    *(void **)(param_2 + 8) = first;
+    for (unsigned i = 0; i < 32; ++i)
+      *(byte *)(param_2 + 0x18 + i) = (byte)E2R_ReadFanWordByte(stream);
+    for (int i = 0; i < *(int *)(param_2 + 12); ++i)
+      ((byte *)first)[i] = (byte)(E2R_ReadFanWordByte(stream) + 128);
+    result = (**(code **)(*buffer + 0x4c))(buffer,first,context[1],0,0);
+    first = NULL;
+    if (!result) result = (**(code **)(*buffer + 0x3c))(buffer,0);
+    if (!result) result = (**(code **)(*buffer + 0x40))(buffer,0);
+    unsigned caps[5] = {20,0,0,0,0};
+    if (!result) result = (**(code **)(*buffer + 0xc))(buffer,caps);
+    if (!result) { context[9] = (caps[1] & 4) != 0; return NULL; }
   }
-  if (local_28 != (char *)0x0) {
-    pcVar4 = (char *)(**(code **)(**(int **)(iStack_24 + 0x98) + 0x4c))
-                               (*(int **)(iStack_24 + 0x98),local_28,*(undefined4 *)(iStack_24 + 4),
-                                0,0);
-    local_28 = (char *)0x0;
-  }
-  piVar3 = *(int **)(iStack_24 + 0x98);
-  if (piVar3 != (int *)0x0) {
-    (**(code **)(*piVar3 + 8))(piVar3);
-    local_28[0x98] = '\0';
-    local_28[0x99] = '\0';
-    local_28[0x9a] = '\0';
-    local_28[0x9b] = '\0';
-  }
-  return pcVar4;
+  if (first) result = (**(code **)(*buffer + 0x4c))(buffer,first,context[1],0,0);
+  if (buffer) { (**(code **)(*buffer + 8))(buffer); context[0x26] = 0; }
+  return (char *)(uintptr_t)result;
 }
 
 
@@ -52715,7 +52117,7 @@ void __fastcall FUN_00459440(undefined4 param_1,undefined4 param_2)
   (void)param_2;
   local_caps[0] = 0x60;
   if (DAT_0047d1f0 != 0) {
-    (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d1f0 + 0x10))();
+    (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d1f0 + 0x10))(DAT_0047d1f0,local_caps);
   }
   wsprintfA(local_status,(LPCSTR)&DAT_004766c0,s_Ecstatica_II_0047d141);
   SendMessageA(DAT_0047d150,0xc,0,(LPARAM)local_status);
@@ -52783,21 +52185,22 @@ void FUN_004594a0(void)
     puVar3[6] = 4;
     puVar3[7] = 0x10;
     puVar3[8] = 0;
-    iVar2 = DirectSoundCreate();
+    iVar2 = DirectSoundCreate(0,(void **)&DAT_0047d1f0,0);
     if (iVar2 != 0) {
       MessageBoxA(in_EAX,s_No_Sound_Device___Music___sound_e_00476744,s_ECSTATICA_00476738,0x10);
       DAT_00479dbc = 0;
       return;
     }
-    iVar2 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d1f0 + 0x18))();
+    iVar2 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d1f0 + 0x18))(DAT_0047d1f0,in_EAX,2);
     if (iVar2 != 0) {
       MessageBoxA(in_EAX,s_Direct_Sound_Set_Cooperative_Lev_00476790,s_Critical_Error_00476780,0x10)
       ;
       DAT_00479dbc = 0;
       return;
     }
-    FUN_0045f8d0(extraout_ECX,0);
-    iVar2 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d1f0 + 0xc))();
+    E2R_SoundDesc primary_desc = {20,1,0,0,NULL};
+    iVar2 = (**(code **)(*(undefined4 *)(uintptr_t)DAT_0047d1f0 + 0xc))
+        (DAT_0047d1f0,&primary_desc,&_DAT_00ac4eb8,0);
     if (iVar2 != 0) {
       MessageBoxA(in_EAX,s_Cannot_create_primary_buffer_004767bc,s_Direct_Sound_Error_00476590,0x10)
       ;
@@ -52805,7 +52208,7 @@ void FUN_004594a0(void)
       return;
     }
     piVar6 = _DAT_00ac4eb8;
-    (**(code **)(*(undefined4 *)(uintptr_t)_DAT_00ac4eb8 + 0x30))();
+    (**(code **)(*(undefined4 *)(uintptr_t)_DAT_00ac4eb8 + 0x30))(_DAT_00ac4eb8,0,0,1);
     FUN_00459440(extraout_ECX_00,extraout_EDX);
     UVar4 = midiOutGetNumDevs();
     iVar2 = 0;
@@ -52819,17 +52222,13 @@ void FUN_004594a0(void)
     if (0 < (int)UVar4) {
       do {
         if (9 < (int)uDeviceID) break;
-        midiOutGetDevCapsA(uDeviceID,(LPMIDIOUTCAPSA)&stack_ffffff70,0x34);
-        uVar5 = 0;
-        if (((short)piVar6 == 2) && ((WORD)((uint)piVar6 >> 0x10) == 0x12f)) {
-          uVar5 = 1;
-        }
-        FUN_0045f22f(uVar5,&stack_ffffff78);
-        iVar2 = _DAT_00ac4fd8 * 0x33;
-        *(UINT_PTR *)((undefined1 *)0x00ac4db0 + _DAT_00ac4fd8 * 4) = uDeviceID;
-        *(undefined4 *)((undefined1 *)0x00ac4dd8 + _DAT_00ac4fd8 * 4) = extraout_ECX_01;
-        _DAT_00ac4fd8 = _DAT_00ac4fd8 + 1;
-        E2R_midi_device_labels[iVar2 / 0x33][0x32] = 0;
+        tagMIDIOUTCAPSA caps;
+        midiOutGetDevCapsA(uDeviceID,&caps,sizeof(caps));
+        iVar2 = _DAT_00ac4fd8;
+        snprintf(E2R_midi_device_labels[iVar2],0x33,"%s",caps.szPname);
+        *(UINT_PTR *)(0xac4db0 + iVar2 * 4) = uDeviceID;
+        *(undefined4 *)(0xac4dd8 + iVar2 * 4) = caps.wMid == 2 && caps.wPid == 0x12f;
+        _DAT_00ac4fd8 = iVar2 + 1;
         uDeviceID = uDeviceID + 1;
       } while ((int)uDeviceID < (int)UVar4);
     }
@@ -52849,7 +52248,7 @@ void FUN_004594a0(void)
 void FUN_004597dc(void)
 
 {
-  uint in_EAX;
+  uint in_EAX = DAT_00479dac;
   UINT UVar1;
   tagMIDIOUTCAPSA local_48;
 
