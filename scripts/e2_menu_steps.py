@@ -143,14 +143,24 @@ class MenuJourney:
     def click(self, address):
         item=self.item(address);x1,x2,y1,y2=item['bounds'];x,y=(x1+x2)//2,(y1+y2)//2
         self.require(x2>x1 and y2>y1,'Menu item has no live hit rectangle: '+hex(address))
-        gdb.execute(f'call SetCursorPos({x},{y})',to_string=True)
+        # Invert the host's active letterbox mapping, including resized windows.
+        # Logical menu coordinates are not SDL window coordinates.
+        rect=[self.value('e2r_sdl_backend.presentation_rect.'+name) for name in ('x','y','w','h')]
+        size=[self.value('e2r_sdl_backend.present_'+name) for name in ('width','height')]
+        mapped=bool(self.value('e2r_sdl_backend.has_presentation_rect')) and min(*rect[2:],*size)>0
+        host_x=rect[0]+(x+.5)*rect[2]/size[0] if mapped else x
+        host_y=rect[1]+(y+.5)*rect[3]/size[1] if mapped else y
         gdb.execute('set $menu_event=(SDL_Event*)calloc(1,sizeof(SDL_Event))',to_string=True)
-        for member,number in [('type',0x401),('down',1),('button',1),('x',x),('y',y+80)]:
-            gdb.execute(f'set $menu_event->button.{member}={number}',to_string=True)
-        gdb.execute('set $menu_event->button.windowID=SDL_GetWindowID(e2r_sdl_backend.window)',to_string=True)
-        self.require(self.value('SDL_PushEvent($menu_event)')==1,'SDL mouse injection failed')
+        for kind,fields in [('motion',[('type',0x400),('x',host_x),('y',host_y)]),
+                            ('button',[('type',0x401),('down',1),('button',1),('x',host_x),('y',host_y)]),
+                            ('button',[('type',0x402),('down',0),('button',1),('x',host_x),('y',host_y)])]:
+            for member,number in fields:
+                gdb.execute(f'set $menu_event->{kind}.{member}={number}',to_string=True)
+            gdb.execute(f'set $menu_event->{kind}.windowID=SDL_GetWindowID(e2r_sdl_backend.window)',to_string=True)
+            self.require(self.value('SDL_PushEvent($menu_event)')==1,'SDL mouse injection failed')
         gdb.execute('call (void)free($menu_event)',to_string=True)
-        self.inputs.append(dict(update=self.updates,click=item,stage=self.stage));self.save()
+        self.inputs.append(dict(update=self.updates,click=item,stage=self.stage,
+                                window_point=[host_x,host_y],presentation_rect=rect,presentation_size=size));self.save()
 
     def settings(self):
         self.open();self.click(0x6439d8);self.pump();self.requester(0x31)

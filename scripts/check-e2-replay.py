@@ -37,6 +37,7 @@ env=os.environ.copy()
 for key in list(env):
     if key.startswith('E2R_'):env.pop(key)
 env.update(SDL_VIDEODRIVER='dummy',SDL_AUDIODRIVER='dummy',E2R_STARTUP_LOGO_DELAY_MS='0',E2R_ACTOR_CYLINDERS='1',E2R_ACTION_INDEX_PROBE='1',E2R_PROXY_MESH_BYPASS='1',E2R_DEFER_BACKGROUND_SPAWNS='0' if a.background_spawns else '1',ASAN_OPTIONS='detect_leaks=0')
+env['E2R_AUDIO']='on' if a.audio or a.music else 'off'
 if a.object_mesh_ids:env['E2R_OBJECT_MESH_IDS']=','.join(map(str,a.object_mesh_ids))
 if a.object_mesh_reps:env['E2R_OBJECT_MESH_REPS']=','.join(map(str,a.object_mesh_reps))
 if a.character_meshes:env.update(E2R_PLAYER_MESH='1',E2R_NPC_MESH='1')
@@ -180,7 +181,7 @@ results.append(run('pause',['gdb','--nx','-q','--batch','-x',str(out/'pause.gdb'
 if a.audio or a.music:
     env['E2R_AUDIO']='off'
     results.append(run('play-audio-off',command))
-    env.pop('E2R_AUDIO')
+    env['E2R_AUDIO']='on'
 report=dict(source=str(source),object_mesh_ids=a.object_mesh_ids,object_mesh_reps=a.object_mesh_reps,
             character_meshes=a.character_meshes,sound_requests=sound_requests,music_requests=music_requests,replays=results,inputs=len(inputs),checkpoints=sum(x['kind']=='checkpoint' for x in rows),clock_calls=sum(int(x['repeat']) for x in rows if x['kind']=='clock'),clock_rows=sum(x['kind']=='clock' for x in rows),bytes=sum(x.stat().st_size for x in source.iterdir()))
 (out/'report.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))

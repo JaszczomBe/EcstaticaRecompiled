@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the opening test fixture against original actor/scene identities.
+"""Check opening/ladder test fixtures against original actor/scene identities.
 
 The fixture intentionally changes population, not recovered game behavior.
 Execute its production load gate and verify all other IDs remain eligible.
@@ -63,19 +63,19 @@ harness += '#include "' + str(ROOT / 'E2Recomp/platform/e2recomp_test_population
 harness += 'static void load(void) { undefined4 in_EAX=0,uVar3; int actor_id;\n' + gate + '\nallocations++;}\n'
 harness += r'''
 int main(void) {
-  const char *profiles[]={NULL,"","live","noncombat-opening"};
-  for(unsigned p=0;p<4;p++) {
+  const char *profiles[]={NULL,"","live","noncombat-opening","noncombat-ladder"};
+  for(unsigned p=0;p<5;p++) {
     if(profiles[p])setenv("E2R_TEST_POPULATION",profiles[p],1);else unsetenv("E2R_TEST_POPULATION");
     E2R_test_suppressed_mask=0;
     for(int id=0;id<5000;id++) {
-      int blocked=p==3 && (id==284 || id==293 || id==602);
+      int blocked=p>=3 && (id==284 || id==293 || id==602);
       E2R_actor_load_id_override=id;DAT_0047a470=0x12345678;allocations=0;
       load();
       assert(allocations==!blocked && DAT_0047a470==0x12345678 && E2R_actor_load_id_override==-1);
     }
-    assert(E2R_test_suppressed_mask==(p==3?7u:0u));
+    assert(E2R_test_suppressed_mask==(p>=3?7u:0u));
   }
-  puts("PASS: original guard/smith identities; 20,000 production load-gate cases; Joe/props/items retained");
+  puts("PASS: original guard/smith identities; 25,000 production load-gate cases; opening/ladder fixtures retain Joe/props/items");
 }
 '''
 run_fixture(harness, asan=args.asan)

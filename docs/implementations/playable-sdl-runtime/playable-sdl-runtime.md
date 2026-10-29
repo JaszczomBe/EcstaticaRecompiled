@@ -55,9 +55,24 @@ The [ladder journal](../../journal/entries/stables-ladder-interaction-recovery-2
 retains original Space-predicate proof and its generator mirror, including
 4,768 original condition comparisons per configuration. Its previous traversal,
 landing persistence and 92-checkpoint results derive from invalid COURT150
-state and are withdrawn as gameplay acceptance. Requalify the stables/kitchen
-route from valid progression. Source recordings remain diagnostic history;
-the zero-life controllable state, other ladders, visuals and wider play remain open.
+state and are withdrawn as gameplay acceptance. The [new ladder regression](../../journal/entries/ladder-regression-and-headless-audio-policy-2026-10-29.md)
+now verifies both directions from fresh gameplay, using controlled population and
+continuous shared traversal through session-guided position waypoints. The
+[visible-run correction](../../journal/entries/ladder-regression-continuous-traversal-2026-10-29.md)
+removes per-point stops and fixes the complete SDL menu gesture used for Quit.
+Debug/ASan observe original761→762 and763→764,
+living landings with unchanged climb health, resumed turning and normal Quit.
+The user confirms working interaction. The required `Interaction.StablesLadder`
+case is included in the full suite and new `ladders` block/Regression12 launch.
+No Save/Load is called: valid-state landing persistence remains open. Source
+recordings remain diagnostic history; zero-life control, other ladders, visuals
+and wider play retain their limits.
+
+Headless SDL dummy/offscreen runs now suppress host audio output unless
+`E2R_AUDIO=on` is explicit. Non-audio suite/agent runs set `E2R_AUDIO=off`;
+audio-specific tests opt in and use dummy audio by default. Game Sound/Music
+settings and human F5 output remain unchanged. Debug/ASan output, PCM and six
+strict sound/music replay variants pass.
 
 Earlier tower/castle and occupied-slot inventory routes based on the other
 quarantined zero-power saves5/123 and6/DFGSDRG also require valid-state

@@ -26,6 +26,117 @@ class SuiteContracts(unittest.TestCase):
         with redirect_stdout(io.StringIO()):
             return run_cases(cases,callback,self.root/'report',patterns)
 
+    def test_shared_traversal_keeps_forward_held_between_waypoints_and_bounds_stalls(self):
+        import importlib.util
+        from types import SimpleNamespace
+        spec=importlib.util.spec_from_file_location('walk_contract',ROOT/'scripts/e2_gameplay_steps.py')
+        module=importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules,{'gdb':SimpleNamespace(GdbError=RuntimeError)}):spec.loader.exec_module(module)
+        for stuck in (False,True):
+            journey=module.Journey.__new__(module.Journey)
+            position=[0,4096,0];held={};events=[];reached=[];updates=0
+            def advance(count):
+                nonlocal updates
+                updates+=count
+                if held.get(38) and not stuck:position[2]+=count*50
+            def key(vk,down):
+                if held.get(vk,False)!=down:events.append((updates,vk,down))
+                held[vk]=down
+            journey.alive=lambda:None;journey.position=lambda:list(position)
+            journey.field=lambda _:0;journey.key=key;journey.advance=advance
+            journey.release=lambda:[key(vk,False) for vk in list(held)]
+            if stuck:
+                with self.assertRaisesRegex(RuntimeError,'missed waypoint 0'):
+                    journey.walk([(0,600)],tolerance=60,attempts=5)
+                self.assertLessEqual(updates,15)
+            else:
+                journey.walk([(0,600),(0,1200),(0,1800)],tolerance=60,
+                             on_waypoint=lambda index:reached.append((index,updates,held[38])))
+                self.assertEqual([row[0] for row in reached],[0,1,2])
+                self.assertTrue(all(row[2] for row in reached))
+                self.assertEqual(events,[(0,38,True),(reached[-1][1],38,False)])
+                self.assertEqual(updates,reached[-1][1]+8)
+
+    def test_menu_mouse_gesture_inverts_actual_presentation_mapping(self):
+        import importlib.util
+        from types import SimpleNamespace
+        commands=[];events=[];event={}
+        def execute(command,**_):
+            commands.append(command)
+            if command.startswith('set $menu_event->') and 'windowID' not in command:
+                member,value=command.split('->',1)[1].split('=',1)
+                event[member.split('.',1)[1]]=float(value)
+        def value(expression):
+            if expression=='SDL_PushEvent($menu_event)':events.append(dict(event));return 1
+            return values[expression]
+        gdb=SimpleNamespace(execute=execute,GdbError=RuntimeError)
+        spec=importlib.util.spec_from_file_location('mouse_contract',ROOT/'scripts/e2_menu_steps.py')
+        module=importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules,{'gdb':gdb}):spec.loader.exec_module(module)
+        for rect in ([0,80,640,480],[160,0,960,720],[0,0,320,240]):
+            commands.clear();events.clear();event.clear()
+            values={'e2r_sdl_backend.presentation_rect.'+name:number for name,number in zip(('x','y','w','h'),rect)}
+            values.update({'e2r_sdl_backend.present_width':640,'e2r_sdl_backend.present_height':480,
+                           'e2r_sdl_backend.has_presentation_rect':1})
+            journey=module.MenuJourney.__new__(module.MenuJourney)
+            journey.value=value;journey.item=lambda _:dict(bounds=[150,490,300,315])
+            journey.inputs=[];journey.updates=10;journey.stage='Gameplay';journey.save=lambda:None
+            journey.click(123)
+            self.assertEqual([row['type'] for row in events],[0x400,0x401,0x402])
+            self.assertEqual([row['down'] for row in events[1:]],[1,0])
+            for row in events:
+                self.assertAlmostEqual((row['x']-rect[0])*640/rect[2],320.5)
+                self.assertAlmostEqual((row['y']-rect[1])*480/rect[3],307.5)
+            self.assertFalse(any('SetCursorPos' in command for command in commands))
+
+    def test_non_audio_executions_override_inherited_audible_output(self):
+        case=Case('debug.Check',command=('private-check',),configuration='debug')
+        with patch.dict('os.environ',E2R_AUDIO='on',SDL_AUDIODRIVER='pulseaudio'), \
+             patch('e2_suite.execute',return_value=dict(status='PASS',reason='')) as call:
+            executor(Path('/external'))(case,self.root,{})
+        environment=call.call_args.args[3]
+        self.assertEqual(environment['E2R_AUDIO'],'off')
+        self.assertEqual(environment['SDL_VIDEODRIVER'],'dummy')
+        self.assertNotIn('SDL_AUDIODRIVER',environment)
+
+    def test_ladder_is_required_fresh_independent_and_rejects_partial_acceptance(self):
+        import copy
+        cases=self.shared_catalogue()
+        case=next(case for case in cases if case.name=='debug.Interaction.StablesLadder')
+        self.assertTrue(case.required)
+        self.assertEqual(case.kind,'ladder')
+        self.assertEqual(case.population_profile,'noncombat-ladder')
+        self.assertIn('debug.Original.TowerConditions',case.requires)
+        units=journey_plan(cases,[case.name])
+        self.assertEqual([unit.name for unit in units if unit.kind=='ladder'],[case.name])
+        pinned=self.root/'debug.Build/e2recomp';pinned.parent.mkdir();pinned.write_bytes(b'valid build')
+        results={'debug.Build':dict(binary=dict(sha256=digest(pinned)))}
+        destination=self.root/case.name/'probe';destination.mkdir(parents=True)
+        good=dict(probe_complete=True,installed_saves_unchanged=True,no_save_files_created=True,
+                  audio_output='off',seed='fresh game',population_profile='noncombat-ladder',
+                  result=dict(native_exit_code=0,details={
+                      leg:dict(passed=True,control_resumed=True,scenes=scenes,starting_health=95,
+                               landing=dict(camera=camera,position=[0,height,0],health=95))
+                      for leg,camera,height,scenes in [('descent',723,6656,[761,762]),('ascent',725,4096,[763,764])]}))
+        for fault in (None,'ascent','scene','camera','control','health','saved-state','audio'):
+            report=copy.deepcopy(good)
+            if fault=='ascent':del report['result']['details']['ascent']
+            if fault=='scene':report['result']['details']['ascent']['scenes']=[763]
+            if fault=='camera':report['result']['details']['descent']['landing']['camera']=725
+            if fault=='control':report['result']['details']['ascent']['control_resumed']=False
+            if fault=='health':report['result']['details']['ascent']['landing']['health']=0
+            if fault=='saved-state':report['seed']='patched recovery'
+            if fault=='audio':report['audio_output']='on'
+            (destination/'report.json').write_text(json.dumps(report))
+            with patch('e2_suite.execute',return_value=dict(status='PASS',reason='')) as call:
+                result=executor(Path('/external'))(case,self.root,results)
+            self.assertEqual(result['status'],'PASS' if fault is None else 'FAIL',fault)
+            command=call.call_args.args[0]
+            self.assertTrue(any(str(part).endswith('probe-e2-ladder.py') for part in command))
+            for forbidden in ('--load-slot','--saves','--replay'):
+                self.assertNotIn(forbidden,command)
+            self.assertEqual(result['population_profile'],'noncombat-ladder')
+
     def test_population_profiles_keep_combat_live_and_do_not_change_after_blocking(self):
         from dataclasses import replace
         from e2_population_profile import profile_for
@@ -42,6 +153,7 @@ class SuiteContracts(unittest.TestCase):
             reduced=replace(unit,options=dict(checks=['Movement.ControlsAndRelease']))
             self.assertEqual(journey_population(reduced),expected,check)
         self.assertEqual(profile_for('menu-matrix'),'noncombat-opening')
+        self.assertEqual(profile_for('ladder'),'noncombat-ladder')
         self.assertEqual(profile_for('enemy'),'live')
 
     def test_population_census_rejects_leaks_and_preserves_evidence(self):
@@ -481,7 +593,7 @@ destination=Path(sys.argv[sys.argv.index('--data-dir')+1]);destination.mkdir(par
                 self.assertIn('--display ${input:e2SuiteDisplay}',launches[0]['command'])
             self.assertIn('--execution shared',launches[0]['command'])
         suites=[c for c in config['configurations'] if 'run-e2-suite.py' in c.get('command','')]
-        expected=['checks','startup','menus','movement','unarmed','workshop','swimming','potions','stability','replay','persistence']
+        expected=['checks','startup','menus','movement','unarmed','workshop','swimming','potions','stability','replay','persistence','ladders']
         self.assertEqual(len(suites),len(expected)+1)
         self.assertNotIn('--block ',suites[0]['command'])
         self.assertIn('--display ${input:e2SuiteDisplay}',suites[0]['command'])
@@ -509,7 +621,7 @@ destination=Path(sys.argv[sys.argv.index('--data-dir')+1]);destination.mkdir(par
         units=journey_plan(cases)
         names=[name for unit in units for name in unit.checkpoints or (unit.name,)]
         self.assertEqual(set(names),{case.name for case in cases})
-        self.assertEqual(len(names),253)
+        self.assertEqual(len(names),255)
         for configuration in ('debug','asan'):
             self.assertIn(configuration+'.Host.DirectSound',names)
             self.assertIn(configuration+'.Original.GameSounds',names)

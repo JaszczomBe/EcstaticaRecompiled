@@ -163,6 +163,13 @@
       "request": "launch",
       "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block persistence --display ${input:e2SuiteDisplay}",
       "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Regression 12: Ladders (down and up)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "python3 \"${workspaceFolder}/scripts/run-e2-suite.py\" --build --configurations debug asan --execution shared --block ladders --display ${input:e2SuiteDisplay}",
+      "cwd": "${workspaceFolder}"
     }
   ],
   "inputs": [

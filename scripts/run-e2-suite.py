@@ -46,7 +46,7 @@ def main():
         if args.list:
             chosen=selection(cases,patterns)
             units=journey_plan(cases,patterns) if args.execution=='shared' else isolated_plan(cases,patterns)
-            print(f'{len(chosen)} logical cases; {sum((1 if unit.options.get('failure_case') else 2) if unit.kind=='persistence' else unit.kind=='journey' for unit in units)} gameplay processes ({args.execution})')
+            print(f'{len(chosen)} logical cases; {sum((1 if unit.options.get('failure_case') else 2) if unit.kind=='persistence' else unit.kind in ('journey','ladder') for unit in units)} gameplay processes ({args.execution})')
             for unit in units:
                 if unit.checkpoints:
                     print(unit.name+' => '+', '.join(unit.checkpoints))
@@ -56,16 +56,16 @@ def main():
                       (' [SKIPPED: '+case.skip+']' if case.skip else ''))
             return 0
         chosen=selection(cases,patterns)
-        has_gameplay=any(case.name in chosen and case.kind in ('journey','replay','persistence') for case in cases)
+        has_gameplay=any(case.name in chosen and case.kind in ('journey','replay','persistence','ladder') for case in cases)
         if has_gameplay:
-            has_visible=any(case.name in chosen and case.kind in ('journey','replay','persistence') and
+            has_visible=any(case.name in chosen and case.kind in ('journey','replay','persistence','ladder') and
                             configuration_display(args.display,case.configuration)=='visible' for case in cases)
             driver=display_driver('visible' if has_visible else 'headless',args.video_driver)
         else:
             driver='dummy'
             print('[ INFO     ] No gameplay executions selected: no game process or SDL window will open. '
                   '--display applies to gameplay journeys.',flush=True)
-        needs_data=any(case.name in chosen and (case.kind in ('journey','replay','persistence') or '.Original.' in case.name) for case in cases)
+        needs_data=any(case.name in chosen and (case.kind in ('journey','replay','persistence','ladder') or '.Original.' in case.name) for case in cases)
         if needs_data and not (data/'E2WIN95.EXE').is_file():
             parser.error('Original game installation not found; use --game-data')
         stamp=datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')
@@ -89,6 +89,10 @@ def main():
                           ROOT/'E2Recomp/platform/e2recomp_win32_compat.c',
                           ROOT/'E2Recomp/native/e2recomp_native_main.c',
                           ROOT/'scripts/e2_population_profile.py',ROOT/'scripts/e2_startup_steps.py',
+                          ROOT/'scripts/probe-e2-ladder.py',ROOT/'scripts/e2_ladder_steps.py',
+                          ROOT/'E2Recomp/platform/e2recomp_audio.c',
+                          ROOT/'scripts/check-e2-dsound.py',ROOT/'scripts/check-e2-replay.py',
+                          ROOT/'scripts/probe-e2-game-sounds.py',
                           ROOT/'scripts/e2_navigation.py',ROOT/'scripts/check-e2-navigation.py',
                           ROOT/'scripts/e2_scene_navigation.py',
                           ROOT/'scripts/e2_probe_diagnostics.py',

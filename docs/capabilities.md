@@ -42,11 +42,17 @@ Save/Load now also preserves live difficulty and poison duration; fresh-game
 and untouched g3 Debug/ASan same/fresh-process checks compare real state and
 stored bytes. These checks retain broader progression/malformed-file limits.
 
-The [stables ladder repair](journal/entries/stables-ladder-interaction-recovery-2026-10-29.md)
-retains its original-x86 signed Space predicate and 4,768 condition comparisons
-per configuration. The historical 92-checkpoint traversal used descendants of
-the invalid COURT150 seed and no longer qualifies gameplay or persistence.
-Requalify both directions from valid progression. The
+The [fresh-game ladder regression](journal/entries/ladder-regression-and-headless-audio-policy-2026-10-29.md)
+qualifies stables/kitchen descent761→762 and ascent763→764 with living landings,
+unchanged climb health, restored input and normal Quit in Debug/ASan. The required
+`Interaction.StablesLadder` case uses controlled opening/terrain population and
+continuous shared traversal through session-guided waypoints; it does not replay
+a session or load saves. The [visible-run follow-up](journal/entries/ladder-regression-continuous-traversal-2026-10-29.md)
+records the navigation and SDL menu-gesture correction.
+Headless host sound/music output defaults off; explicit audio tests can opt in.
+The user reports that ladder interaction works. Other variants, visuals, landing
+persistence and zero-life control remain open. The historical COURT150-derived
+92-checkpoint results remain withdrawn. The
 [COURT journal](journal/entries/court-recovery-150-and-repeat-spider-2026-10-29.md)
 retains diagnostic reports of the crash and abandoned experiment only.
 

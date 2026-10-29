@@ -16,7 +16,19 @@ h=r'''
 void E2R_MusicRender(float *p,unsigned n) {memset(p,0,n*2*sizeof(*p));}
 void E2R_MusicClose(void) {}
 int main(void) {
+    unsetenv("E2R_AUDIO");
+    assert(!audio_output_enabled("dummy") && !audio_output_enabled("offscreen"));
+    assert(audio_output_enabled("x11") && audio_output_enabled("wayland"));
+    setenv("SDL_VIDEODRIVER","dummy",1);
+    assert(E2R_HostAudioOpen() && output==NULL && !SDL_WasInit(SDL_INIT_AUDIO));
+    E2R_HostAudioClose();
+    setenv("E2R_AUDIO","on",1);
+    assert(audio_output_enabled("dummy") && audio_output_enabled("offscreen"));
+    setenv("SDL_AUDIODRIVER","dummy",1);
+    assert(E2R_HostAudioOpen() && output!=NULL);
+    E2R_HostAudioClose();
     setenv("E2R_AUDIO","off",1);
+    assert(!audio_output_enabled("x11") && !audio_output_enabled("dummy"));
     void *device=NULL;assert(!DirectSoundCreate(NULL,&device,NULL));
     E2R_WaveFormat format={1,1,22050,22050,1,8,0};
     E2R_SoundDesc desc={20,0xe2,8,0,&format};

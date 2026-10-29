@@ -13,6 +13,7 @@ current step/task and relevant journal evidence before changing runtime behavior
 - Malformed, corrupted or manually patched saves and their descendants MUST NOT be used to decompile game functionality or accept progression. Diagnose persistence faults, repair and verify Save/Load from fresh gameplay or unmodified original saves; re-saving a patched file does not recover lost state.
 - Mirror reconstructed C repairs in `E2Recomp/tools/GenerateRecon.js`; verify generated parity without unrelated churn.
 - Use the single **Ecstatica Recompiled** VS Code launch for normal human gameplay investigation. Agent probes retain explicit bounded input and recording policies.
+- Headless agent work and non-audio regressions must disable host sound/music output (`E2R_AUDIO=off`). Only sound/music tests opt in (`E2R_AUDIO=on`); use dummy audio unless an audible check is requested. Do not mute by changing saved game settings.
 - Follow [code formatting and style](docs/style/README.md) and [contribution workflow](CONTRIBUTING.md).
 - Keep new Markdown connected to the README tree. Follow [documentation maintenance](docs/documentation.md), run `python3 scripts/check-docs-tree.py --update`, and check it again without `--update`.
 - Record new acceptance evidence and limits in the owning implementation and journal. Historical probe success is not current gameplay acceptance.

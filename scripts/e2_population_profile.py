@@ -13,6 +13,8 @@ LIVE_CHECKS = {'Combat.UnarmedContact', 'Combat.KillSmith', 'Combat.TakeDamage',
 
 
 def profile_for(scenario, checks=()):
+    if scenario == 'ladder':
+        return 'noncombat-ladder'
     if scenario == 'shared':
         # Startup-only journeys retain the original populated opening. Sharing
         # a startup assertion with controlled movement proves only that assertion.
@@ -31,7 +33,8 @@ def observe(prefix, label):
     flags = bytes(inferior.read_memory(0x64a178, 10000))
     loaded = [identity for identity, pointer in enumerate(slots) if pointer]
     generated = [identity for identity in loaded if flags[identity * 2] & 8]
-    row = dict(label=label, profile=profile, suppressed_actors=list(NONCOMBAT_ACTORS) if profile != 'live' else [],
+    controlled = profile in ('noncombat-opening', 'noncombat-ladder')
+    row = dict(label=label, profile=profile, suppressed_actors=list(NONCOMBAT_ACTORS) if controlled else [],
                loaded_actors=loaded, generated_actors=generated,
                blocked_requests_mask=int(gdb.parse_and_eval("E2R_test_suppressed_mask")) if profile != 'live' else 0)
     path = Path(prefix + '-population-profile.json')
@@ -40,7 +43,7 @@ def observe(prefix, label):
     temporary = path.with_suffix('.json.tmp')
     temporary.write_text(json.dumps(rows, indent=2) + '\n')
     temporary.replace(path)
-    if profile == 'noncombat-opening':
+    if controlled:
         unexpected = set(loaded).intersection(NONCOMBAT_ACTORS)
         if unexpected or generated:
             raise gdb.GdbError(f'Noncombat fixture leaked actors: scripted={sorted(unexpected)}, terrain={generated}')

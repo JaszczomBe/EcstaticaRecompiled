@@ -103,7 +103,7 @@ vals=dict(SCRIPTS=str(root/'scripts'),PREFIX=str(d/'probe'),RUNTIME=str(runtime)
 body=re.sub(r'\b('+'|'.join(vals)+r')\b',lambda m:repr(vals[m[0]]),body)
 (d/'probe.gdb').write_text(body)
 env={k:v for k,v in os.environ.items() if not k.startswith('E2R_')}
-env.update(E2R_AUDIO_TRACE='1',E2R_AUDIO_TAP=str(d/'mix.s16'),E2R_RECORD='off',E2R_STARTUP_LOGO_DELAY_MS='0',E2R_DEFER_BACKGROUND_SPAWNS='0',E2R_ACTION_INDEX_PROBE='1',E2R_PROXY_MESH_BYPASS='1',E2R_PLAYER_MESH='1',E2R_NPC_MESH='1',E2R_ACTOR_CYLINDERS='1',SDL_VIDEODRIVER='dummy',ASAN_OPTIONS='detect_leaks=0')
+env.update(E2R_AUDIO='on',E2R_AUDIO_TRACE='1',E2R_AUDIO_TAP=str(d/'mix.s16'),E2R_RECORD='off',E2R_STARTUP_LOGO_DELAY_MS='0',E2R_DEFER_BACKGROUND_SPAWNS='0',E2R_ACTION_INDEX_PROBE='1',E2R_PROXY_MESH_BYPASS='1',E2R_PLAYER_MESH='1',E2R_NPC_MESH='1',E2R_ACTOR_CYLINDERS='1',SDL_VIDEODRIVER='dummy',ASAN_OPTIONS='detect_leaks=0')
 if args.music:env.update(E2R_MUSIC_TRACE=str(d/'music.trace'),E2R_MUSIC_TAP=str(d/'music.s16'))
 if args.audio_driver!='default':env['SDL_AUDIODRIVER']=args.audio_driver
 else:env.pop('SDL_AUDIODRIVER',None)

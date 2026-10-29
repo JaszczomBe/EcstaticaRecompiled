@@ -67,6 +67,7 @@ env=os.environ.copy()
 for key in list(env):
     if key.startswith('E2R_'):env.pop(key)
 env.update(E2R_RECORD='off',E2R_DATA_DIR=str(runtime),E2R_STARTUP_LOGO_DELAY_MS='0',
+           E2R_AUDIO='on' if args.music else 'off',SDL_AUDIODRIVER='dummy',
            E2R_ACTION_INDEX_PROBE='1',E2R_ACTOR_CYLINDERS='1',E2R_PROXY_MESH_BYPASS='1',
            E2R_PLAYER_MESH='1',E2R_NPC_MESH='1',E2R_DEFER_BACKGROUND_SPAWNS='0',
            E2R_POPULATION_PROBE='1',SDL_VIDEODRIVER=args.video_driver,ASAN_OPTIONS='detect_leaks=0')

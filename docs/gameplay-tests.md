@@ -38,6 +38,50 @@ Reports distinguish this watchdog interruption from a spontaneous native fault;
 completed checkpoints retain their results while interrupted journeys fail.
 See the [Regression 08 investigation](journal/entries/regression-08-freeze-and-event-callback-2026-10-26.md).
 
+## Headless audio policy
+
+Headless SDL `dummy`/`offscreen` runs open no audio output device by default.
+Non-audio suite and agent probes explicitly set `E2R_AUDIO=off`, which suppresses
+host sound and music together without changing the game's Sound/Music settings,
+saved preferences, source recordings or human F5 launch.
+
+Only tests whose subject is sound/music should opt in with `E2R_AUDIO=on`.
+Automated PCM tests use `SDL_AUDIODRIVER=dummy`; real speakers are used only for
+an explicitly selected audible check. The sound probe, music persistence option
+and sound/music replay checks set their own opt-in. Replay's output-disabled
+variant remains explicit and must match the same strict gameplay checkpoints.
+See the [policy evidence](journal/entries/ladder-regression-and-headless-audio-policy-2026-10-29.md).
+
+## Stables/kitchen ladder regression
+
+The required `Interaction.StablesLadder` case runs in the full suite and the
+**Regression 12: Ladders (down and up)** launch. Run it alone with:
+
+```sh
+python3 scripts/run-e2-suite.py --build --configurations debug asan --block ladders
+```
+
+Each configuration starts a **fresh game**, navigates through the courtyard to
+the stables, descends original scenes761→762 into kitchen camera723/y6656, and
+ascends763→764 to camera725/y4096. Both landings must retain positive arrival
+health, finish scene/wait ownership and restore turning control, followed by
+normal Quit. A partial direction, wrong camera/height, missing scene, dead player
+or lost control fails the case. Save/Load calls are forbidden in this regression.
+
+The old ladder session supplies position waypoints only. The existing continuous
+`Journey.walk` helper follows one connected route using observed position/yaw,
+keeping movement held across intermediate points. Combat loops are omitted;
+the final target leaves braking room inside the original upper ladder tile.
+See the [visible-run correction](journal/entries/ladder-regression-continuous-traversal-2026-10-29.md).
+No exact recording inputs, timestamps,
+RNG state, saved game or forced actor fields are used. The explicit
+`noncombat-ladder` profile blocks the audited opening guard/smith IDs284/293/602
+and random terrain-generated population. Population census checks reject leaks;
+Joe, props, items, animals and scene scripts remain. Environmental projectiles
+remain active, so arrival health can vary; each climb must preserve its starting
+health. This fixture qualifies the ladder interaction under controlled population,
+not combat, enemy spawning, arbitrary routes, landing persistence or other ladders.
+
 ## Sound verification
 
 The catalogue includes `Host.DirectSound` and `Original.GameSounds` for both

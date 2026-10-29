@@ -24,6 +24,14 @@ uint64_t E2R_audio_frames, E2R_audio_nonzero_frames;
 static int opened;
 #ifdef E2R_HOST_BACKEND_SDL
 static SDL_AudioStream *output;
+static int audio_output_enabled(const char *video_driver)
+{
+    const char *mode = getenv("E2R_AUDIO");
+    if (mode && strcmp(mode, "off") == 0) return 0;
+    if (mode && strcmp(mode, "on") == 0) return 1;
+    return !video_driver || (strcmp(video_driver, "dummy") != 0 &&
+                             strcmp(video_driver, "offscreen") != 0);
+}
 #define AUDIO_LOCK() do { if (output) SDL_LockAudioStream(output); } while (0)
 #define AUDIO_UNLOCK() do { if (output) SDL_UnlockAudioStream(output); } while (0)
 
@@ -77,8 +85,9 @@ int E2R_HostAudioOpen(void)
     opened = 1;
     atexit(E2R_HostAudioClose);
 #ifdef E2R_HOST_BACKEND_SDL
-    const char *mode = getenv("E2R_AUDIO");
-    if (mode && strcmp(mode, "off") == 0) return 1;
+    const char *video_driver = SDL_GetCurrentVideoDriver();
+    if (!video_driver) video_driver = getenv("SDL_VIDEODRIVER");
+    if (!audio_output_enabled(video_driver)) return 1;
     SDL_AudioSpec spec = { SDL_AUDIO_S16, 2, 22050 };
     if (SDL_InitSubSystem(SDL_INIT_AUDIO))
         output = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,

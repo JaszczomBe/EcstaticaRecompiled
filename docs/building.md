@@ -175,6 +175,14 @@ Workspace settings show the configure preset, Build, and launch target in the st
 
 Cylinders are host diagnostics tied to validated actor coordinates. Movement, populated courtyard crossings and bounded workshop activation are verified; manual workshop re-entry, sword pickup and full experimental ASan acceptance remain open. Follow [Step 09 Task 09](implementations/playable-sdl-runtime/steps/step-09/tasks/task-09-recover-scene-population-and-interaction.md) for the current gameplay frontier. Restart F5 after rebuilding.
 
+## Headless and agent audio
+
+Headless SDL dummy/offscreen output defaults silent. Non-audio agent/suite runs
+use `E2R_AUDIO=off`; sound/music tests opt in with `E2R_AUDIO=on` and normally
+`SDL_AUDIODRIVER=dummy`. Game Sound/Music preferences are unchanged. Human F5
+keeps normal output. See [regression policies](gameplay-tests.md) for the new
+**Regression12: Ladders** block and explicit audio-test commands.
+
 ## Game save storage
 
 Menu Save writes original-format slots to `--data-dir/Saved`, normally

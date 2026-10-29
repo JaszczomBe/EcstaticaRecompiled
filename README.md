@@ -27,11 +27,16 @@ power150 copies and derived checkpoints are removed; recovery tooling/profile
 selection is retired. F5 uses normal runtime storage. Resume from a fresh game
 or a verified, unmodified original save. Current Save/Load also repairs live
 difficulty and poison-duration ownership, with Debug/ASan checks from valid seeds.
-The [ladder repair](docs/journal/entries/stables-ladder-interaction-recovery-2026-10-29.md)
-retains its original-x86 Space-predicate proof; traversal and landing persistence
-must be requalified from valid progression. Other ladders, visual review and
-the recorded zero-life controllable state remain open.
-The
+The [fresh-game ladder regression](docs/journal/entries/ladder-regression-and-headless-audio-policy-2026-10-29.md)
+now verifies stables/kitchen descent and ascent in Debug/ASan with controlled
+population and observed navigation, using the recorded session only as a guide.
+The [visible-run follow-up](docs/journal/entries/ladder-regression-continuous-traversal-2026-10-29.md)
+replaces the separate stop/start walker with continuous shared traversal through
+session waypoints and corrects the SDL menu gesture used to Quit.
+The user confirms the ladder interaction works. Run **Regression 12: Ladders**
+or `--block ladders`; the required case also runs in the full suite. Headless
+output is silent by default; sound/music tests explicitly opt in. Landing
+persistence, other ladders, visual review and zero-life control remain open.
 The
 [first session investigation](docs/journal/entries/garden-teleport-and-boots-session-2026-10-29.md)
 matches all 1,386 checkpoints and adds original garden pad/glow, courtyard gold

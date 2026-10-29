@@ -1,0 +1,515 @@
+{
+  "schema": "e2suite.stables-ladder-waypoints.1",
+  "source": {
+    "session": "20261029_182427_259",
+    "inspection_complete": true,
+    "inspection_sha256": {
+      "timeline.csv": "aebf4f11fc98e98d862035e8b47aeb31731b9f08a5b8d5653370e93332d5daac",
+      "state.csv": "964064b0d6994abac3b68ac4b2db655136780c1126a32e053092cf878594d90c"
+    },
+    "note": "Position guidance only. Combat pauses, loops and input timing omitted. The regression starts fresh; no recorded health, state, RNG or save is restored."
+  },
+  "waypoints": [
+    {
+      "snapshot": 107,
+      "camera": 175,
+      "position": [
+        9796,
+        3312,
+        -17336
+      ]
+    },
+    {
+      "snapshot": 126,
+      "camera": 175,
+      "position": [
+        9783,
+        3328,
+        -16932
+      ]
+    },
+    {
+      "snapshot": 332,
+      "camera": 175,
+      "position": [
+        9466,
+        3456,
+        -16870
+      ]
+    },
+    {
+      "snapshot": 340,
+      "camera": 175,
+      "position": [
+        8761,
+        3840,
+        -16541
+      ]
+    },
+    {
+      "snapshot": 387,
+      "camera": 175,
+      "position": [
+        8048,
+        4096,
+        -16569
+      ]
+    },
+    {
+      "snapshot": 654,
+      "camera": 166,
+      "position": [
+        7550,
+        4096,
+        -16639
+      ]
+    },
+    {
+      "snapshot": 658,
+      "camera": 166,
+      "position": [
+        6813,
+        4096,
+        -16401
+      ]
+    },
+    {
+      "snapshot": 666,
+      "camera": 166,
+      "position": [
+        5605,
+        4096,
+        -15462
+      ]
+    },
+    {
+      "snapshot": 674,
+      "camera": 166,
+      "position": [
+        5337,
+        4096,
+        -16102
+      ]
+    },
+    {
+      "snapshot": 679,
+      "camera": 166,
+      "position": [
+        4936,
+        4096,
+        -16686
+      ]
+    },
+    {
+      "snapshot": 684,
+      "camera": 169,
+      "position": [
+        4699,
+        4096,
+        -16658
+      ]
+    },
+    {
+      "snapshot": 690,
+      "camera": 169,
+      "position": [
+        4209,
+        3968,
+        -16561
+      ]
+    },
+    {
+      "snapshot": 698,
+      "camera": 169,
+      "position": [
+        3641,
+        4096,
+        -16182
+      ]
+    },
+    {
+      "snapshot": 703,
+      "camera": 169,
+      "position": [
+        2985,
+        4096,
+        -15572
+      ]
+    },
+    {
+      "snapshot": 706,
+      "camera": 166,
+      "position": [
+        2770,
+        4096,
+        -14828
+      ]
+    },
+    {
+      "snapshot": 709,
+      "camera": 166,
+      "position": [
+        2806,
+        4096,
+        -14522
+      ]
+    },
+    {
+      "snapshot": 713,
+      "camera": 176,
+      "position": [
+        2371,
+        4096,
+        -13762
+      ]
+    },
+    {
+      "snapshot": 716,
+      "camera": 176,
+      "position": [
+        1697,
+        4096,
+        -13361
+      ]
+    },
+    {
+      "snapshot": 719,
+      "camera": 176,
+      "position": [
+        696,
+        4096,
+        -13269
+      ]
+    },
+    {
+      "snapshot": 725,
+      "camera": 176,
+      "position": [
+        -370,
+        4096,
+        -13152
+      ]
+    },
+    {
+      "snapshot": 730,
+      "camera": 164,
+      "position": [
+        -1408,
+        4096,
+        -12922
+      ]
+    },
+    {
+      "snapshot": 735,
+      "camera": 164,
+      "position": [
+        -2541,
+        4096,
+        -12894
+      ]
+    },
+    {
+      "snapshot": 738,
+      "camera": 125,
+      "position": [
+        -3448,
+        4096,
+        -12469
+      ]
+    },
+    {
+      "snapshot": 741,
+      "camera": 125,
+      "position": [
+        -4267,
+        4096,
+        -12088
+      ]
+    },
+    {
+      "snapshot": 746,
+      "camera": 125,
+      "position": [
+        -4775,
+        4096,
+        -12237
+      ]
+    },
+    {
+      "snapshot": 764,
+      "camera": 125,
+      "position": [
+        -6125,
+        4096,
+        -12438
+      ]
+    },
+    {
+      "snapshot": 767,
+      "camera": 125,
+      "position": [
+        -6966,
+        4096,
+        -12803
+      ]
+    },
+    {
+      "snapshot": 771,
+      "camera": 125,
+      "position": [
+        -7600,
+        4096,
+        -12843
+      ]
+    },
+    {
+      "snapshot": 775,
+      "camera": 125,
+      "position": [
+        -8754,
+        4096,
+        -12500
+      ]
+    },
+    {
+      "snapshot": 779,
+      "camera": 125,
+      "position": [
+        -9651,
+        4096,
+        -11944
+      ]
+    },
+    {
+      "snapshot": 781,
+      "camera": 91,
+      "position": [
+        -10292,
+        4096,
+        -11513
+      ]
+    },
+    {
+      "snapshot": 787,
+      "camera": 91,
+      "position": [
+        -11242,
+        4096,
+        -11157
+      ]
+    },
+    {
+      "snapshot": 791,
+      "camera": 91,
+      "position": [
+        -12062,
+        4096,
+        -11016
+      ]
+    },
+    {
+      "snapshot": 795,
+      "camera": 91,
+      "position": [
+        -13020,
+        4096,
+        -11263
+      ]
+    },
+    {
+      "snapshot": 799,
+      "camera": 91,
+      "position": [
+        -13781,
+        4096,
+        -11464
+      ]
+    },
+    {
+      "snapshot": 802,
+      "camera": 163,
+      "position": [
+        -14597,
+        4096,
+        -11382
+      ]
+    },
+    {
+      "snapshot": 806,
+      "camera": 163,
+      "position": [
+        -15421,
+        4096,
+        -11370
+      ]
+    },
+    {
+      "snapshot": 812,
+      "camera": 163,
+      "position": [
+        -17351,
+        4096,
+        -11834
+      ]
+    },
+    {
+      "snapshot": 814,
+      "camera": 161,
+      "position": [
+        -17710,
+        4096,
+        -12045
+      ]
+    },
+    {
+      "snapshot": 1575,
+      "camera": 161,
+      "position": [
+        -18605,
+        4096,
+        -10952
+      ]
+    },
+    {
+      "snapshot": 1592,
+      "camera": 130,
+      "position": [
+        -19548,
+        4096,
+        -11686
+      ]
+    },
+    {
+      "snapshot": 1598,
+      "camera": 130,
+      "position": [
+        -19860,
+        4096,
+        -11617
+      ]
+    },
+    {
+      "snapshot": 1601,
+      "camera": 130,
+      "position": [
+        -20235,
+        4096,
+        -11457
+      ]
+    },
+    {
+      "snapshot": 1605,
+      "camera": 130,
+      "position": [
+        -20406,
+        4096,
+        -11699
+      ]
+    },
+    {
+      "snapshot": 1607,
+      "camera": 346,
+      "position": [
+        -21108,
+        4096,
+        -12308
+      ]
+    },
+    {
+      "snapshot": 1612,
+      "camera": 346,
+      "position": [
+        -21277,
+        4096,
+        -12760
+      ]
+    },
+    {
+      "snapshot": 1615,
+      "camera": 346,
+      "position": [
+        -21245,
+        4096,
+        -13675
+      ]
+    },
+    {
+      "snapshot": 1616,
+      "camera": 346,
+      "position": [
+        -21211,
+        4096,
+        -13906
+      ]
+    },
+    {
+      "snapshot": 1645,
+      "camera": 346,
+      "position": [
+        -20912,
+        4096,
+        -13714
+      ]
+    },
+    {
+      "snapshot": 1657,
+      "camera": 724,
+      "position": [
+        -20467,
+        4096,
+        -13557
+      ]
+    },
+    {
+      "snapshot": 1674,
+      "camera": 724,
+      "position": [
+        -19770,
+        4096,
+        -13432
+      ]
+    },
+    {
+      "snapshot": 1683,
+      "camera": 725,
+      "position": [
+        -19229,
+        4096,
+        -13345
+      ]
+    },
+    {
+      "snapshot": 1704,
+      "camera": 725,
+      "position": [
+        -18805,
+        4096,
+        -13415
+      ]
+    },
+    {
+      "snapshot": 1729,
+      "camera": 725,
+      "position": [
+        -18421,
+        4096,
+        -13613
+      ]
+    },
+    {
+      "snapshot": 1743,
+      "camera": 725,
+      "position": [
+        -18392,
+        4096,
+        -13772
+      ],
+      "target": [
+        -18176,
+        4096,
+        -13568
+      ],
+      "note": "Aim at the center of the original upper ladder tile (descriptor20909, script460) to leave braking room before the kitchen drop; recorded position remains provenance only."
+    }
+  ]
+}

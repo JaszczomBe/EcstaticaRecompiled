@@ -69,7 +69,11 @@ game-function reconstruction or progression acceptance. Save/Load now also
 preserves live difficulty/poison duration, with Debug/ASan real-menu checks
 from fresh gameplay and untouched g3. The original-backed ladder Space repair
 remains; its COURT150-derived traversal/persistence claims are withdrawn.
-Requalify both ladder directions from valid progression; see Task05.
+The [new ladder regression](../../../../journal/entries/ladder-regression-and-headless-audio-policy-2026-10-29.md)
+now qualifies both directions from fresh gameplay with controlled population,
+living landings and restored input in Debug/ASan. Headless non-audio work is
+silent by default. Eligible landing persistence and other ladder variants remain
+open; see Task05. The retired save-based results remain withdrawn.
 
 The [preceding stables spider session](../../../../journal/entries/stables-spider-and-zero-power-save-2026-10-29.md)
 exactly reproduces all 915 available checkpoints, then the same original

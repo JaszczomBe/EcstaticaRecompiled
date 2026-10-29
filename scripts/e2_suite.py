@@ -33,6 +33,7 @@ BLOCKS = {
                  '*.Movement.ArmedSwimming','*.Combat.ArmedSwimmingDirections','*.Traversal.ArmedWater','*.Movement.ShoreExit'),
     'menus': ('*.Menus.*',),
     'persistence': ('*.Persistence.*',),
+    'ladders': ('*.Interaction.StablesLadder',),
     'stability': ('*.Stability.*',),
     'replay': ('*.Replay.*',),
 }
@@ -389,7 +390,7 @@ def run_cases(cases, executor, destination, patterns=('*',), metadata=None, shar
     units=journey_plan(cases,patterns) if shared else isolated_plan(cases,patterns)
     destination.mkdir(parents=True,exist_ok=False)
     report=dict(schema='e2suite.result.2',state='running',metadata=metadata or {},results=[],journeys=[],seconds=0,
-                planned_executions=len(units),planned_gameplay_processes=sum(unit.kind=='journey' for unit in units)
+                planned_executions=len(units),planned_gameplay_processes=sum(unit.kind in ('journey','ladder') for unit in units)
                 +sum(1 if unit.options.get('failure_case') else 2 for unit in units if unit.kind=='persistence'))
     results={};start=time.monotonic();interrupted=False
     print(f'[==========] Running {len(selected)} selected cases in {len(units)} execution units.',flush=True)
@@ -562,6 +563,9 @@ def catalogue(configurations, game_data, build=False, replay_corpus=None):
             timeout=options.pop('timeout',240);required=options.pop('required',True)
             cases.append(Case(prefix+label,requires=(prefix+'Build',*[prefix+r for r in requires]),
                 kind='journey',scenario=scenario,configuration=configuration,timeout=timeout,options=options,required=required))
+        cases.append(Case(prefix+'Interaction.StablesLadder',kind='ladder',scenario='ladder',
+                          configuration=configuration,requires=(prefix+'Build',prefix+'Original.NoncombatPopulation',
+                          prefix+'Original.TowerConditions'),population_profile='noncombat-ladder',timeout=360))
         for label,equipment,profile,failure in [('World',False,'live',None),
                 ('Attachment',True,'noncombat-opening',None),('SaveFailure',False,'live','save-open')]:
             cases.append(Case(prefix+'Persistence.'+label,kind='persistence',configuration=configuration,
@@ -669,7 +673,7 @@ def executor(game_data, video_driver='dummy'):
             if key.startswith('E2R_') or key in ('SDL_VIDEODRIVER','SDL_AUDIODRIVER','ASAN_OPTIONS'):
                 environment.pop(key)
         environment.update(E2R_RECORD='off',E2R_DATA_DIR=str(directory/'runtime'),
-                           SDL_VIDEODRIVER=video_driver,ASAN_OPTIONS='detect_leaks=0')
+                           E2R_AUDIO='off',SDL_VIDEODRIVER=video_driver,ASAN_OPTIONS='detect_leaks=0')
         if case.kind=='coverage':
             trials=[results.get(name) for name in case.options['trials']]
             for result in trials:
@@ -701,11 +705,39 @@ def executor(game_data, video_driver='dummy'):
             import shutil
             shutil.copy2(binary,directory/'e2recomp')
             return dict(status='PASS',reason='',binary=identity)
-        if case.kind in ('journey','replay','persistence'):
+        if case.kind in ('journey','replay','persistence','ladder'):
             binary=destination/(case.configuration+'.Build')/'e2recomp'
             expected=results[case.configuration+'.Build']['binary']['sha256']
             if digest(binary)!=expected:
                 return dict(status='FAIL',reason='Pinned executable identity changed')
+        if case.kind=='ladder':
+            command=[sys.executable,str(ROOT/'scripts/probe-e2-ladder.py'),str(binary),
+                     '--game-data',str(game_data),'--output',str(directory/'probe'),
+                     '--timeout',str(int(case.timeout)-10),'--video-driver',video_driver]
+            result=execute(command,directory,case.timeout,environment)
+            path=directory/'probe/report.json'
+            if path.is_file():
+                report=json.loads(path.read_text())
+                details=report.get('result',{}).get('details',{})
+                accepted=(report.get('probe_complete') and report.get('installed_saves_unchanged')
+                          and report.get('no_save_files_created') and report.get('audio_output')=='off'
+                          and report.get('result',{}).get('native_exit_code')==0
+                          and report.get('seed')=='fresh game'
+                          and report.get('population_profile')=='noncombat-ladder'
+                          and all(details.get(leg,{}).get('passed') and details[leg].get('control_resumed')
+                                  and set(scenes)<=set(details[leg].get('scenes',[]))
+                                  and details[leg].get('landing',{}).get('camera')==camera
+                                  and details[leg]['landing'].get('position',[0,0,0])[1]==height
+                                  and details[leg].get('starting_health',0)>0
+                                  and details[leg]['landing'].get('health')==details[leg]['starting_health']
+                                  for leg,camera,height,scenes in (('descent',723,6656,(761,762)),
+                                                                  ('ascent',725,4096,(763,764)))))
+                result['ladder']=report
+                if result['status']=='PASS' and not accepted:
+                    result.update(status='FAIL',reason='Missing two-direction ladder/control/preservation evidence')
+            elif result['status']=='PASS':
+                result.update(status='FAIL',reason='Ladder probe emitted no report')
+            return result|dict(artifacts=case.name,population_profile='noncombat-ladder')
         if case.kind=='persistence':
             processes=1 if case.options.get('failure_case') else 2
             command=[sys.executable,str(ROOT/'scripts/probe-e2-game-save-load.py'),str(binary),

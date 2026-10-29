@@ -8,6 +8,10 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Continuous ladder regression traversal — 2026-10-29](entries/ladder-regression-continuous-traversal-2026-10-29.md): replaces the separate per-point stop/start walker with the existing shared traversal helper and session-guided waypoints, leaves braking room before the kitchen drop, and corrects the complete SDL menu gesture after a visible-run Quit failure.
+
+- [Ladder regression and headless audio policy — 2026-10-29](entries/ladder-regression-and-headless-audio-policy-2026-10-29.md): records human ladder acceptance, adds required fresh-game Debug/ASan down/up coverage using bounded navigation and controlled population, and makes headless/non-audio agent output silent with explicit sound/music opt-in. No retired save state is reused.
+
 - [Invalid COURT save retirement and persistence audit — 2026-10-29](entries/invalid-court-save-retirement-and-persistence-audit-2026-10-29.md): removes guessed recovery saves/tooling/profile, withdraws dependent gameplay acceptance, forbids invalid save state as reconstruction evidence, and repairs difficulty/poison-duration Save/Load ownership with valid-seed Debug/ASan checks.
 
 - [Stables ladder interaction recovery — 2026-10-29](entries/stables-ladder-interaction-recovery-2026-10-29.md): matches the 568-checkpoint source route, repairs the original Space predicate, records historical COURT150-derived descent/return/persistence/replay (gameplay acceptance now withdrawn), and the subsequently retired F5 override; other ladders, zero-life control and wider play remain open.

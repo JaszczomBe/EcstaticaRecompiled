@@ -4,7 +4,7 @@
 [Project README](../../../../../../README.md) · [Parent: Recover Item, Weapon, Door and Acid-Pool Models and Animations](../step-12-recover-object-models-and-animations.md)
 <!-- /docs-tree:parent -->
 
-Status: active; invalid COURT recovery retired; Save/Load scalar repair verified; ladder progression needs valid-seed requalification
+Status: active; user confirms ladder interaction; fresh-game down/up regression passes Debug/ASan; landing persistence and other object paths open
 Parent Step: [Object models and animations](../step-12-recover-object-models-and-animations.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
 Last Updated: 2026-10-29
@@ -78,6 +78,29 @@ source recordings, complete an incomplete tail or weaken strict checkpoints.
 
 ## Current session checkpoint
 
+The user confirms that ladder interaction works and requests quiet headless
+agent work plus an enduring descent/ascent regression. The
+[new regression evidence](../../../../../journal/entries/ladder-regression-and-headless-audio-policy-2026-10-29.md)
+verifies both directions from fresh gameplay in Debug/ASan. The recorded
+session182427_259 supplies navigation landmarks only; no recording, historical
+save, guessed health/power, coordinates or progression flags are loaded/assigned.
+The [visible-run follow-up](../../../../../journal/entries/ladder-regression-continuous-traversal-2026-10-29.md)
+replaces the separate stop/start walker with the existing continuous traversal
+helper and 55 session-guided waypoints. Combat loops are omitted; the final
+approach allows braking inside the original upper ladder tile. Complete SDL
+mouse gestures use the current presentation rectangle for normal Quit. The explicit
+`noncombat-ladder` fixture blocks audited opening enemies and random terrain
+spawns; census checks preserve Joe/props/animals and reject population leaks.
+Authored environmental projectiles remain, and both climbs must retain their
+observed arrival health rather than assume a fixed value.
+
+`Interaction.StablesLadder` is required in the full suite and **Regression12** /
+`--block ladders`. It verifies scenes761→762 and763→764, kitchen723/y6656 and
+stables725/y4096, living nonmodal landings, resumed turning and normal Quit.
+The test rejects all Save/Load calls and retains bounded outputs in private
+storage. Headless host audio is off by default; audio subjects explicitly opt in,
+using dummy audio unless an audible check is requested. Game settings are intact.
+
 The [save-state integrity correction](../../../../../journal/entries/invalid-court-save-retirement-and-persistence-audit-2026-10-29.md)
 supersedes the COURT recovery and its descendant progression. **Malformed,
 corrupted or manually patched saves and their descendants MUST NOT be used
@@ -104,13 +127,15 @@ retains fresh-game session182427_259, 568 exact diagnostic checkpoints and
 the original-backed stale Space mismatch. Its signed-byte repair and generator
 mirror remain supported by 4,768 original condition comparisons. The later
 92-checkpoint ladder traversal and landing persistence used COURT150 descendants
-and are withdrawn as gameplay acceptance. Requalify down/up from valid state.
+and remain withdrawn as gameplay acceptance. The new fresh-game case above
+independently qualifies down/up; it does not reinstate the retired results.
 
-Next: start a fresh human F5 game or verify an untouched original checkpoint,
-link its actual loaded save/build/session, then repeat the ladder route and
-eligible landing Save/Load. Do not resume the retired recovery profile or
-use private endpoint saves. The zero-life controllable state, other ladders,
-fresh boots/acid lifecycle, visuals and extended play remain open.
+Next: retain the required ladder case and quiet non-audio policy during further
+object work. Human F5 play must still link its actual valid loaded save/build/session.
+Valid-state eligible landing same/fresh Save/Load remains open; the ladder
+regression deliberately makes no persistence calls. Do not resume a retired
+profile or private recovery endpoint. Zero-life control, other ladders, fresh
+boots/acid lifecycle, visuals and extended play remain open.
 
 ### Historical invalid COURT experiment
 
@@ -200,9 +225,10 @@ actual loaded save; runtime 7 is still a known crash input.
 ## Preservation and boundaries
 
 Protect all occupied runtime/installed saves and quick-save 9. At this handoff,
-runtime **5 (123), 6, 7, 9** are occupied. Installed slots 5/6/7 have empty markers,
-but they are different from occupied runtime saves of the same number. Re-scan
-before every probe; the user will continue saving during the playthrough.
+the old runtime5/123,6/DFGSDRG and7/COURT are retired/quarantined by the
+integrity correction. Installed empty slots are distinct from later human runtime
+saves. Re-scan actual active files before every probe; never reuse an occupied
+slot or treat a quarantined file as a valid seed.
 
 Keep the protected 2026-10-28 crash session, incomplete source replay, prior
 castle/inventory evidence and the full sound/music evidence. Preserve existing
@@ -222,14 +248,20 @@ separately requested.
 2. Implementation: 90 original owners selected; no reconstructed C or damage
    change. Actual runtime-7 crash and original arithmetic are compared; nine
    additional courtyard owners pass native pixel/HUD/F3 checks.
-3. Current checkpoint: invalid COURT recovery and descendants are retired. Save/Load
-   difficulty/poison-duration repairs pass valid-seed Debug/ASan checks. The
-   original-backed Space predicate remains; ladder traversal and persistence
-   require requalification from valid progression. F5 uses normal storage.
+3. Current checkpoint: invalid COURT state remains retired. The required fresh-game
+   ladder down/up regression passes Debug/ASan with controlled population, living
+   landings and resumed input. Headless non-audio output defaults off. Save/Load
+   repairs retain their valid-seed bounds; landing persistence, other ladders and
+   further object paths remain open. F5 uses normal human storage.
 
 ## Change log
 
 ### 2026-10-29
+
+1. Recorded the user's ladder acceptance; added the required fresh-game down/up
+   regression, independent noncombat population policy, bounded navigation guided
+   by the session and default-silent headless audio with explicit audio-test opt-in.
+   Fresh evidence is in the [regression journal](../../../../../journal/entries/ladder-regression-and-headless-audio-policy-2026-10-29.md).
 
 1. Retired invalid COURT/recovery state and tooling by user instruction, forbade
    invalid save ancestry as reconstruction evidence, withdrew dependent gameplay

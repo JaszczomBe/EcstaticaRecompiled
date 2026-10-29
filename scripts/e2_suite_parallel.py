@@ -48,7 +48,7 @@ def run_lanes(cases, patterns, destination, metadata, command_builder, shared=Tr
            for lane,names in groups.items()}
     report=dict(schema='e2suite.result.2',state='running',metadata=metadata,results=[],journeys=[],lanes=[],seconds=0,
                 planned_executions=sum(len(plan) for plan in plans.values()),
-                planned_gameplay_processes=sum((1 if unit.options.get('failure_case') else 2) if unit.kind=='persistence' else unit.kind=='journey' for plan in plans.values() for unit in plan))
+                planned_gameplay_processes=sum((1 if unit.options.get('failure_case') else 2) if unit.kind=='persistence' else unit.kind in ('journey','ladder') for plan in plans.values() for unit in plan))
     started=time.monotonic();interrupted=False;states={};previous=None;coordinator_error=None
     print(f'[==========] Running {len(selected)} selected cases in {report["planned_executions"]} execution units; '
           f'{workers} configuration workers, sequential within each configuration.',flush=True)

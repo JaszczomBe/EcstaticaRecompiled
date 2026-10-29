@@ -160,6 +160,7 @@ if args.suite_scenario:
         if key_name.startswith("E2R_"):
             env.pop(key_name)
     env.update(E2R_INSPECT="1", E2R_INSPECT_MAX_FRAMES="8")
+    env['E2R_AUDIO'] = 'off'
 env["E2R_RECORD"] = "off"
 # Agent probes own their sessions; keep normal human log retention independent.
 env["E2R_DATA_DIR"] = prefix + "-runtime"
