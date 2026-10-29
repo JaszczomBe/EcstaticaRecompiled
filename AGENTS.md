@@ -10,6 +10,7 @@ current step/task and relevant journal evidence before changing runtime behavior
 
 - Preserve unrelated staged and unstaged changes. Do not commit or push unless requested.
 - Recover behavior from original disassembly/Ghidra and bounded original-code comparisons.
+- Malformed, corrupted or manually patched saves and their descendants MUST NOT be used to decompile game functionality or accept progression. Diagnose persistence faults, repair and verify Save/Load from fresh gameplay or unmodified original saves; re-saving a patched file does not recover lost state.
 - Mirror reconstructed C repairs in `E2Recomp/tools/GenerateRecon.js`; verify generated parity without unrelated churn.
 - Use the single **Ecstatica Recompiled** VS Code launch for normal human gameplay investigation. Agent probes retain explicit bounded input and recording policies.
 - Follow [code formatting and style](docs/style/README.md) and [contribution workflow](CONTRIBUTING.md).

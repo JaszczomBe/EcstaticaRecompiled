@@ -33,6 +33,26 @@ occupied; **5–7** are empty. Agent trials use private copies and originally fr
 slots only; quick-save slot **9** must not be used by tests. All writes route
 through writable runtime storage under `--data-dir/Saved`.
 
+## Save-state integrity follow-up — 2026-10-29
+
+Malformed, corrupted or manually patched saves and their descendants **MUST NOT**
+be used to decompile/reconstruct game functionality or accept gameplay progression.
+Inspect invalid saves only to diagnose persistence faults. Verify repairs from a
+fresh game or an unmodified original save, comparing live state at Save with stored
+bytes and same/fresh-process restoration. Re-saving a patched file does not restore
+lost state or establish valid provenance. Synthetic original-code fixtures must
+remain explicitly labelled and cannot qualify gameplay progression.
+
+The [integrity audit](../../../../journal/entries/invalid-court-save-retirement-and-persistence-audit-2026-10-29.md)
+withdraws the invalid COURT150 recovery and dependent gameplay acceptance.
+The earlier power/kills/gold ownership repair remains. Writer/loader now also
+preserve live difficulty and poison duration, matching original word order
+and sign extension. Debug/ASan pass 24 full writer and 81 scalar-loader
+comparisons per configuration, plus same/fresh menu persistence from fresh
+gameplay and unmodified g3 with difficulty changes and stored-state checks.
+Active-poison gameplay, arbitrary progression and corrupt-file recovery
+remain unqualified. These repairs do not recover values lost in old files.
+
 ## Menu refinement follow-up
 
 The user accepted functional save/load and requested saved images, automatic

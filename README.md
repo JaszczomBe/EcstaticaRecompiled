@@ -13,7 +13,54 @@ remaining models, broad gameplay fidelity and the 64-bit runtime remain incomple
 
 ## Start here
 
-**Original music now plays through software General MIDI.** Start with
+**Next priority: remaining object behavior, rendering and interactions.**
+After `v0.3.0`, the user selected anti-acid boots, ladder usage and other
+remaining object paths, with stability checks and a playthrough across several
+Save/Load sessions. Start with
+[Step 12 Task 05](docs/implementations/playable-sdl-runtime/steps/step-12/tasks/task-05-recover-object-behavior-rendering-and-interactions.md)
+and its [continuation handoff](docs/journal/entries/object-behavior-and-interactions-handoff-2026-10-29.md).
+Preserve each session's pinned build, matching save/checkpoint and findings;
+recover original contracts before changing behavior. The [save-state integrity correction](docs/journal/entries/invalid-court-save-retirement-and-persistence-audit-2026-10-29.md)
+withdraws the fabricated COURT150 progression baseline. Invalid saves and patched
+descendants **MUST NOT be used to decompile game functionality**. The old COURT,
+power150 copies and derived checkpoints are removed; recovery tooling/profile
+selection is retired. F5 uses normal runtime storage. Resume from a fresh game
+or a verified, unmodified original save. Current Save/Load also repairs live
+difficulty and poison-duration ownership, with Debug/ASan checks from valid seeds.
+The [ladder repair](docs/journal/entries/stables-ladder-interaction-recovery-2026-10-29.md)
+retains its original-x86 Space-predicate proof; traversal and landing persistence
+must be requalified from valid progression. Other ladders, visual review and
+the recorded zero-life controllable state remain open.
+The
+The
+[first session investigation](docs/journal/entries/garden-teleport-and-boots-session-2026-10-29.md)
+matches all 1,386 checkpoints and adds original garden pad/glow, courtyard gold
+head, hut chest and boots models to F5. Its installed checkpoint already has spent
+boots. Final Debug/ASan persistence, HUD/F3/inventory, audio/music replay and
+original-pixel checks pass. Fresh boots interaction, full effect review and wider
+playthrough remain open.
+
+The [COURT investigation](docs/journal/entries/court-recovery-150-and-repeat-spider-2026-10-29.md)
+records the historical zero-power crash and abandoned power150 experiment.
+Its patched-save hit/replay results do not qualify gameplay or recovered
+progression. Health53 was stored correctly, but other lost statistics cannot
+be reconstructed by choosing a power value or saving the file again.
+
+Earlier tower/castle and occupied-slot inventory routes based on the other
+quarantined zero-power saves5/123 and6/DFGSDRG also require valid-state
+requalification. Independent original-code repairs remain; historical acceptance
+summaries below must be read with this restriction.
+
+The [preceding courtyard investigation](docs/journal/entries/courtyard-boxes-and-zero-power-crash-2026-10-29.md)
+reproduces the reported SIGFPE from old runtime **7/COURT**, whose saved power is
+already zero. The original damage instructions have the same unguarded division;
+the occupied save and arithmetic remain unchanged. The preceding clean run loads
+healthy installed **2/g3** instead. Nine additional original courtyard owners,
+including the door, chest and statues, are selected in F5 (90 total). Final
+Debug/ASan protected persistence, HUD/F3/inventory and strict audio/music replay
+checks pass. Fresh interactions, full visual review and extended play remain open.
+
+**Original music now plays through software General MIDI.** See its retained
 [Step 05 Task 05](docs/implementations/playable-sdl-runtime/steps/step-05/tasks/task-05-recover-original-music.md)
 and the [music recovery evidence](docs/journal/entries/music-recovery-2026-10-29.md).
 The sequencer matches the original DLL across all 91 GM tracks; bounded native
@@ -21,7 +68,7 @@ output, independent Music/Sound settings, protected persistence and strict repla
 are verified. An external SoundFont supplies instruments; see the task for bank
 selection. Human listening, broader transitions and hardware-specific timbre remain open.
 
-**Original game sounds now play through SDL.** Start with
+**Original game sounds now play through SDL.** See the retained
 [Step 05 Task 04](docs/implementations/playable-sdl-runtime/steps/step-05/tasks/task-04-recover-original-game-sounds.md)
 and the [sound recovery evidence](docs/journal/entries/game-sounds-recovery-2026-10-29.md).
 All 404 indexed assets match original sample conversion; bounded real PulseAudio
@@ -53,7 +100,7 @@ models. Strike the head, collect the fallen key with **Space**, then approach th
 keyed door. [Step 12 Task 03](docs/implementations/playable-sdl-runtime/steps/step-12/tasks/task-03-recover-tower-key-trap-and-door-progression.md)
 and the [recovery evidence](docs/journal/entries/tower-key-progression-recovery-2026-10-28.md)
 retain human visual-review and wider gameplay limits. Remaining object/acid work
-stays open alongside the selected sound recovery.
+continues under the selected object/interaction recovery above.
 
 The [latest tower/storage follow-up](docs/journal/entries/tower-storage-render-followup-2026-10-28.md)
 adds original collection sparkle and storage models, including the gold sword.
@@ -63,7 +110,7 @@ unless comparison proves a reconstruction error.
 1. Read [project state and capabilities](docs/capabilities.md).
 2. Follow the [handoff and working rules](docs/HANDOFF.md).
 3. Open the [active runtime implementation](docs/implementations/playable-sdl-runtime/playable-sdl-runtime.md)
-   and its [selected music task](docs/implementations/playable-sdl-runtime/steps/step-05/tasks/task-05-recover-original-music.md).
+   and its [selected object/interaction task](docs/implementations/playable-sdl-runtime/steps/step-12/tasks/task-05-recover-object-behavior-rendering-and-interactions.md).
 4. Use [build and VS Code setup](docs/building.md), then press F5 with
    **Ecstatica Recompiled** and the **Debug · Clang 21 · i386 · SDL** preset.
 

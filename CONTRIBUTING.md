@@ -28,6 +28,14 @@ Describe the concrete trigger, changed behavior and verification in reviews.
 Do not treat a latch, sampled state, rendered frame or bounded survival as proof
 of complete gameplay fidelity.
 
+Malformed, corrupted or manually patched saves and their descendants **MUST NOT**
+be used to decompile/reconstruct game functionality or accept gameplay progression.
+Inspect invalid saves only to diagnose persistence faults. Verify repairs from a
+fresh game or an unmodified original save, comparing live state at Save with stored
+bytes and same/fresh-process restoration. Re-saving a patched file does not restore
+lost state or establish valid provenance. Synthetic original-code fixtures must
+remain explicitly labelled and cannot qualify gameplay progression.
+
 ## Documentation
 
 Update the owning implementation/task when its current state changes, add dated

@@ -8,6 +8,19 @@ This journal is the historical project memory for exploratory Linux runtime work
 
 ## Entries
 
+- [Invalid COURT save retirement and persistence audit — 2026-10-29](entries/invalid-court-save-retirement-and-persistence-audit-2026-10-29.md): removes guessed recovery saves/tooling/profile, withdraws dependent gameplay acceptance, forbids invalid save state as reconstruction evidence, and repairs difficulty/poison-duration Save/Load ownership with valid-seed Debug/ASan checks.
+
+- [Stables ladder interaction recovery — 2026-10-29](entries/stables-ladder-interaction-recovery-2026-10-29.md): matches the 568-checkpoint source route, repairs the original Space predicate, records historical COURT150-derived descent/return/persistence/replay (gameplay acceptance now withdrawn), and the subsequently retired F5 override; other ladders, zero-life control and wider play remain open.
+- [Repeated spider crash and chosen COURT recovery — 2026-10-29](entries/court-recovery-150-and-repeat-spider-2026-10-29.md): preserves the 1,381-checkpoint repeat and deliberate COURT/power150 choice; verifies stored life53/100, repairs private hit/replay probes, passes Debug/ASan persistence and 60-checkpoint audio-on/off replay, historically selected a recovery profile. That profile, recovery saves and dependent gameplay acceptance are now retired; see the integrity correction above.
+
+- [Stables spider hit and retained zero-power save — 2026-10-29](entries/stables-spider-and-zero-power-save-2026-10-29.md): exactly reproduces the latest 915-checkpoint spider-hit crash from unchanged runtime 7/COURT, extends original/native arithmetic comparisons to damage 2, and preserves saves, incomplete evidence and the healthy-checkpoint distinction.
+
+- [Courtyard boxes and saved zero-power crash — 2026-10-29](entries/courtyard-boxes-and-zero-power-crash-2026-10-29.md): preserves the latest incomplete crash and preceding clean run, proves the loaded old COURT checkpoint already has zero power, compares original damage arithmetic, and qualifies nine more original courtyard owners without changing saves or hiding other fallbacks.
+
+- [First object playthrough session — 2026-10-29](entries/garden-teleport-and-boots-session-2026-10-29.md): preserves the exact garden/courtyard/hut recording and matching installed checkpoint, selects original pad/glow/head/chest/boots models, distinguishes spent boots from a pickup defect, and retains separate zero-power crash, failed probes and gameplay/visual limits.
+
+- [Object behavior, rendering and interaction handoff — 2026-10-29](entries/object-behavior-and-interactions-handoff-2026-10-29.md): selects Step 12 Task 05 after `v0.3.0`, prioritizes anti-acid boots, ladder usage and remaining object paths, and defines protected multi-session Save/Load playthrough and stability evidence; documentation only.
+
 - [Original music recovery — 2026-10-29](entries/music-recovery-2026-10-29.md): original SIMD DLL sequencing and archive-loader parity, software General MIDI/SDL output, independent settings, protected persistence and strict music/sound replay; preserves authored behavior and earlier limits.
 
 - [Original game sound recovery — 2026-10-29](entries/game-sounds-recovery-2026-10-29.md): original resource/PCM/pool/playback repairs, SDL/PulseAudio output, bounded Debug/ASan regression and protected evidence; human listening and wider events open, music later.

@@ -27,14 +27,17 @@ F5 launch with recording, inspection, executable pinning and debugger evidence.
 See [build setup](building.md) and [debugging usage](debugging.md).
 
 For the selected next continuation, open the
-[audio step](implementations/playable-sdl-runtime/steps/step-05/step-05-begin-directsound-compatibility.md)
-and [Task 04: Recover Original Game Sounds](implementations/playable-sdl-runtime/steps/step-05/tasks/task-04-recover-original-game-sounds.md).
-The user explicitly requested this navigation update on 2026-10-29 after the
-inventory/status recovery, so a blank context can resume game-sound work.
-The task and its [handoff journal](journal/entries/game-sounds-handoff-2026-10-29.md)
-own source leads, current scope and protection. Audible original game sounds
-are the objective; music remains later. Prior inventory/object/inner-castle
-acceptance limits stay open and do not override the selected continuation.
+[object recovery step](implementations/playable-sdl-runtime/steps/step-12/step-12-recover-object-models-and-animations.md)
+and [Task 05: Object Behavior, Rendering and Interactions](implementations/playable-sdl-runtime/steps/step-12/tasks/task-05-recover-object-behavior-rendering-and-interactions.md).
+The user explicitly requested this navigation update after `v0.3.0` on
+2026-10-29: remaining object/equipment behavior (for example anti-acid boots),
+rendering and interactions (for example ladders), with stability checks and a
+playthrough across several Save/Load sessions. The task and its
+[handoff journal](journal/entries/object-behavior-and-interactions-handoff-2026-10-29.md)
+own the current checkpoint, session/save continuity and preserved limits.
+This replaces the stale sound-work resume pointer; accepted sound/music and
+prior inventory/object/castle evidence remain intact. Use original-code proof
+before changing behavior, including possible original defects.
 
 Read these sources in order:
 
@@ -84,6 +87,16 @@ When touching generated reconstruction behavior:
 7. Preserve user changes in a dirty worktree. Do not revert unrelated work.
 8. Do not commit or push unless explicitly asked.
 9. Respect the active implementation usage budget recorded in its documentation.
+
+## Save-state evidence policy
+
+Malformed, corrupted or manually patched saves and their descendants **MUST NOT**
+be used to decompile/reconstruct game functionality or accept gameplay progression.
+Inspect invalid saves only to diagnose persistence faults. Verify repairs from a
+fresh game or an unmodified original save, comparing live state at Save with stored
+bytes and same/fresh-process restoration. Re-saving a patched file does not restore
+lost state or establish valid provenance. Synthetic original-code fixtures must
+remain explicitly labelled and cannot qualify gameplay progression.
 
 ## Stable Development Coordinates
 

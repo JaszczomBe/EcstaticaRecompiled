@@ -13,12 +13,64 @@ diagnostic object markers alongside recovered animated character bodies.
 | --- | --- | --- |
 | Build and editor | Clang 21 i386 Debug/ASan, SDL/X11 builds, selected-target F5 | Debug is the everyday choice; optimized runtime and 64-bit execution remain experimental/incomplete |
 | Gameplay | Recovered movement, camera crossings, NPC/object population and bounded workshop activation | Human swimming, sword pickup, four kills and two broken doors verified; animation-cache stall repaired; Debug/ASan door passage and actual menu Quit pass; human random-potion pickup verified and delayed effects repaired with live Debug/ASan poison dispatch; bottle removal and subsequent sword use confirmed in the latest human run; visible health/potion diagnostics added; fresh Debug healing 85→100, poison onset, invisibility dispatch and conditional no-op verified; final effect expiry/cure remains open; latest alternate-target crash repaired with isolated generated Debug/ASan prefix evidence; extended stability remains a follow-up; animation-name parity restored for potion cleanup; natural effect summaries are optional; wider pickups/rendering remain deferred |
-| Rendering and audio | Original animated characters, 76 selected object/animal/effect owners and 16 representation families (251 original resources), independent F3 geometry modes, backgrounds and palette/depth/page presentation; diagnostic fallbacks for remaining objects/equipment | Bounded Debug/ASan pixels cover animals, intro lightning, courtyard pools, flames, doors, roof effects, collection sparkle, storage gold sword/necklace and collectible representatives; tower door appearance and broader natural pickup/combat lifetimes remain unqualified; game sounds have bounded original/PCM/SDL-device coverage; software GM music has bounded original/MIDI/PCM coverage; human listening, broad audio events/transitions and remaining rendering are incomplete; original HUD artwork/default and F1/F2 retain bounded original-code/native evidence |
+| Rendering and audio | Original animated characters, 90 selected object/animal/effect owners and 16 representation families (251 original resources), independent F3 geometry modes, backgrounds and palette/depth/page presentation; diagnostic fallbacks for remaining objects/equipment | Bounded Debug/ASan pixels cover animals, intro lightning, courtyard pools, flames, doors, roof effects, collection sparkle, storage gold sword/necklace and collectible representatives; tower door appearance and broader natural pickup/combat lifetimes remain unqualified; game sounds have bounded original/PCM/SDL-device coverage; software GM music has bounded original/MIDI/PCM coverage; human listening, broad audio events/transitions and remaining rendering are incomplete; original HUD artwork/default and F1/F2 retain bounded original-code/native evidence |
 | Persistence | Original-format gameplay Save/Load, writable runtime slots and original read fallback | Debug/ASan repeated same-process and fresh-process loads restore active actors and sword ownership, then resume input/animation/attacks; saved previews display at 160×120 without dirtying game pages, original menu geometry/font and title alignment are restored, successful Load dismisses the menu; installed saves remain intact; arbitrary original progressions and malformed-file recovery remain unqualified |
 | Investigation | Automatic F5 logging, replay, state timeline, rolling frames, pinned binary and debugger evidence | 16 MiB recording chunks and streaming replay remove the former 256 MiB ceiling; disk capacity, incomplete prefixes and strict replay divergence remain explicit |
 | Recovery tools | Original-x86 fixtures, crash export, state/report queries, route expectations, dependency-aware Debug/ASan gameplay suite with concurrent configurations, shared checkpoints, three-stage menu coverage, one/two visible windows, unarmed combat and host allocation-fault checks, recovery/diagnostic index | Headless menu labels, three-stage restarts and Load/Save dialog checks pass after original-backed menu/surface repairs; broader persistence, audio and exhaustive rendering remain unqualified; sampled/fixture evidence does not establish complete game behavior; rr is optional and currently absent |
 
 ## Current implementation and next work
+
+**Next: remaining object behavior, rendering and interactions across saved sessions.**
+After `v0.3.0`, the user selected [Step 12 Task 05](implementations/playable-sdl-runtime/steps/step-12/tasks/task-05-recover-object-behavior-rendering-and-interactions.md):
+anti-acid boots, ladder use and other remaining original object paths, plus
+stability and gameplay playthrough checks over several Save/Load sessions.
+The [handoff](journal/entries/object-behavior-and-interactions-handoff-2026-10-29.md)
+owns the baseline, protected evidence and session/checkpoint continuity. This
+selection was followed by the [first session investigation](journal/entries/garden-teleport-and-boots-session-2026-10-29.md):
+all 1,386 source checkpoints match, and F5 adds original garden pad/glow, gold
+head, hut chest and boots. The original loaded checkpoint already has spent
+boots. Fresh pickup/expiry, full effect review, ladders and extended stability
+remain open. Final 81-owner Debug/ASan protected persistence, HUD/F3/inventory,
+audio/music replay and original-pixel comparisons pass.
+Prior sound/music and gameplay limits remain.
+
+The [save-state integrity correction](journal/entries/invalid-court-save-retirement-and-persistence-audit-2026-10-29.md)
+retires COURT, all guessed power150 copies and derived progression saves, their
+private recovery runners and F5 profile selection. Invalid or patched save state
+**MUST NOT** support game-function reconstruction or gameplay acceptance.
+Save/Load now also preserves live difficulty and poison duration; fresh-game
+and untouched g3 Debug/ASan same/fresh-process checks compare real state and
+stored bytes. These checks retain broader progression/malformed-file limits.
+
+The [stables ladder repair](journal/entries/stables-ladder-interaction-recovery-2026-10-29.md)
+retains its original-x86 signed Space predicate and 4,768 condition comparisons
+per configuration. The historical 92-checkpoint traversal used descendants of
+the invalid COURT150 seed and no longer qualifies gameplay or persistence.
+Requalify both directions from valid progression. The
+[COURT journal](journal/entries/court-recovery-150-and-repeat-spider-2026-10-29.md)
+retains diagnostic reports of the crash and abandoned experiment only.
+
+Earlier tower/castle and occupied-slot inventory routes based on the other
+quarantined zero-power saves5/123 and6/DFGSDRG also require valid-state
+requalification. Independent original-code repairs remain; historical acceptance
+summaries below must be read with this restriction.
+
+The [preceding stables session](journal/entries/stables-spider-and-zero-power-save-2026-10-29.md)
+matches all **915** available checkpoints before spider **26** triggers the same
+zero-power division. It again loads unchanged runtime **7/COURT**, not healthy
+g3. Original/native damage comparisons now pass **2,184** health writes and
+**16** expected zero-power faults per Debug/ASan configuration. No behavior or
+save change is made; continuing healthy gameplay remains a separate acceptance.
+
+The [preceding courtyard session](journal/entries/courtyard-boxes-and-zero-power-crash-2026-10-29.md)
+exactly reproduces the old runtime-7 zero-power combat SIGFPE after all 700
+available checkpoints; original arithmetic comparison confirms the same fault.
+The preceding healthy g3 run matches all 1,192 checkpoints. Nine more source-backed
+owners address courtyard boxes, including door 256, chest 1087 and statues
+1098/1099, bringing F5 to 90 explicit owners. Saves, original arithmetic and other
+fallbacks are preserved. Final 90-owner Debug/ASan protected persistence,
+HUD/F3/inventory and six strict audio/music replay variants per configuration
+pass; full visual review and extended gameplay remain open.
 
 **Original music now plays through software General MIDI and SDL.**
 [Step 05 Task 05](implementations/playable-sdl-runtime/steps/step-05/tasks/task-05-recover-original-music.md)

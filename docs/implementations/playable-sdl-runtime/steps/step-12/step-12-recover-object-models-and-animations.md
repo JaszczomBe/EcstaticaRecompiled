@@ -4,17 +4,19 @@
 [Project README](../../../../../README.md) · [Parent: Playable SDL Runtime](../../playable-sdl-runtime.md)
 <!-- /docs-tree:parent -->
 
-Status: follow-ups retained; game sounds selected next in Step 05
+Status: active continuation in Task 05; object behavior/rendering/interactions across Save/Load playthrough sessions
 Parent Implementation: [Playable SDL Runtime](../../playable-sdl-runtime.md)
 Last Updated: 2026-10-29
 
 ## Goal
 
-Recover the original visible representations and animations of items, weapons,
-doors and acid pools. The user selected this work after HUD recovery and the
-recording repair. That selection established **object models/animations → game sounds →
-music**; the current sound continuation is linked below. The first bounded slice now has original-code and Debug/ASan evidence;
-remaining variants and natural acid-room gameplay are still open.
+Recover remaining original object behavior, visible representations, animations
+and interactions. After the `v0.3.0` sound/music milestone, the user selected
+[Task 05](tasks/task-05-recover-object-behavior-rendering-and-interactions.md) as the next priority: anti-acid boots, ladder usage and
+other remaining object paths, with stability checks and a playthrough over several
+Save/Load sessions. The earlier sequence was object models → sounds → music;
+those bounded recoveries retain their recorded acceptance. No new boots/ladder
+fault, behavior repair or complete playthrough is established by this handoff.
 
 ## Why This Step Exists
 
@@ -49,6 +51,40 @@ unknown decor and other unqualified paths remain open.
 
 ## Baseline and retained acceptance
 
+Current continuation baseline: `v0.3.0` at `38d79da2276c2baef8e0fceec46f0f7557cb8192`.
+The worktree was clean before the new documentation handoff. Task 05 and its
+[handoff journal](../../../../journal/entries/object-behavior-and-interactions-handoff-2026-10-29.md)
+own current session/save continuity. The first-slice coordinates below are
+historical; re-check HEAD/status and current save occupancy before investigation.
+The [first supplied session](../../../../journal/entries/garden-teleport-and-boots-session-2026-10-29.md)
+now adds five original F5 owners (81 total), qualifies natural Debug/ASan garden
+teleport/glow and preserves the spent boots checkpoint and old-save zero-power
+fault. Final 81-owner Debug/ASan protected persistence and strict audio/music
+replay pass; fresh boots, ladders and wider playthrough remain open.
+
+The [save-state integrity correction](../../../../journal/entries/invalid-court-save-retirement-and-persistence-audit-2026-10-29.md)
+retires the invalid COURT/power150 recovery, descendant checkpoints, private
+runners and F5 profile override. Malformed or patched saves **MUST NOT** support
+game-function reconstruction or progression acceptance. Save/Load now also
+preserves live difficulty/poison duration, with Debug/ASan real-menu checks
+from fresh gameplay and untouched g3. The original-backed ladder Space repair
+remains; its COURT150-derived traversal/persistence claims are withdrawn.
+Requalify both ladder directions from valid progression; see Task05.
+
+The [preceding stables spider session](../../../../journal/entries/stables-spider-and-zero-power-save-2026-10-29.md)
+exactly reproduces all 915 available checkpoints, then the same original
+zero-power division after another Load of unchanged runtime **7/COURT**.
+Debug/ASan original/native arithmetic comparisons include damage 2 and pass;
+the save and behavior remain unchanged. Continue from validated g3 or fresh play.
+
+The [preceding courtyard investigation](../../../../journal/entries/courtyard-boxes-and-zero-power-crash-2026-10-29.md)
+adds nine further original owners (90 total), records the exact runtime-7
+zero-power crash and a passing original arithmetic comparison, and retains the
+intervening healthy g3 session. Final 90-owner Debug/ASan protected persistence,
+HUD/F3/inventory and six strict audio/music replay variants per configuration
+pass. No save normalization or damage guard is added; fresh interactions,
+full visual review and extended play remain open.
+
 Repository: `/home/rgrabowski/Work/EcstaticaRecompiled`.
 Branch: `linux-e2-reconstructed-runtime`.
 Observed HEAD: `a2a6043ed2def4ca6babf9cc8a6ef45587e0431b`.
@@ -81,16 +117,24 @@ newly enabled object rendering.
    bypasses or use F1/F2 to control geometry or simulation.
 5. Mirror reconstructed C repairs in `E2Recomp/tools/GenerateRecon.js` and verify
    independent four-artifact parity. Keep host presentation below its boundary.
+6. Recover original item/equipment behavior and environmental interactions,
+   including hazard protection and ladder traversal where supported; verify
+   original state/eligibility and Save/Load contracts through natural play.
+7. Maintain session/save/checkpoint continuity and additional Debug/ASan stability
+   checks around each recovered path; Task 05 owns the ongoing playthrough.
 
 ## Current tasks
 
-After [inventory/status recovery](../step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md),
-the user selected [Step 05 Task 04: Original Game Sounds](../step-05/tasks/task-04-recover-original-game-sounds.md)
-on 2026-10-29 as the next focus. Step 12's remaining work stays open; this priority
-change does not extend or close the bounded acceptance below.
+[Task 05: Object Behavior, Rendering and Interactions](tasks/task-05-recover-object-behavior-rendering-and-interactions.md) now
+coordinates the next work across human Save/Load sessions, with anti-acid boots
+and ladder usage as initial examples. Preserve matching source saves, pinned
+session builds and explicit route/checkpoint links. Source-backed stability fixes
+and same/fresh-process persistence checks accompany each newly recovered path.
+The [selection handoff](../../../../journal/entries/object-behavior-and-interactions-handoff-2026-10-29.md)
+records this documentation-only priority change after sound/music recovery.
 
-[Task 04](tasks/task-04-recover-inner-castle-progression-crash-and-models.md) remains
-active after original-backed event/node and signed-clipping repairs. The
+[Task 04](tasks/task-04-recover-inner-castle-progression-crash-and-models.md) retains
+bounded acceptance after original-backed event/node and signed-clipping repairs. The
 [recovery evidence](../../../../journal/entries/inner-castle-crash-and-presentation-recovery-2026-10-28.md)
 records pinned crash reproduction, all **3,190** recovered-prefix checkpoints,
 original x86 comparisons and **76** selected owners covering the reported paths.
@@ -131,9 +175,9 @@ to unrelated stability/physics changes, not these explicitly requested paths.
 
 ## Out Of Scope
 
-Audio/music implementation, fabricated replacement art or animations, global
-bypass removal, changed physics/AI/damage, save-format changes, arbitrary tower
-stability fixes and broad portability. Fix a shared dependency narrowly when it
+Unrelated audio/music expansion, fabricated replacement art or animations, global
+bypass removal, speculative physics/AI/damage changes, save-format changes,
+arbitrary stability fixes and broad portability. Fix a shared dependency narrowly when it
 blocks a demonstrated original object path; retain unrelated limits.
 
 ## Usage Budget and Workflow
@@ -184,6 +228,12 @@ for the new contracts. Record failures as failures and split newly exposed crash
 families instead of weakening replay/checkpoint or gameplay checks.
 
 ## Change Log
+
+### 2026-10-29
+
+1. Selected Task 05 after `v0.3.0`: remaining object behavior, rendering and
+   interactions with stability checks and multi-session Save/Load playthrough.
+2. Added continuation and protection rules; no new runtime acceptance claimed.
 
 ### 2026-10-28
 

@@ -144,7 +144,11 @@ class PersistenceJourney(MenuJourney):
                             progress=s(0xac)&65535,phase=s(0xb2)&65535) if action else None,
                 timers=timers,attachment=attachment)
             cursor=w(0x4c)
-        result = dict(tick=current_tick,actors=actors,player=self.state('player'))
+        result = dict(tick=current_tick,actors=actors,player=self.state('player'),
+                      statistics={name:self.value(f'*(int*){address}') for name,address in
+                                  (('power',0x47ab28),('kills',0x47ab18),('gold',0x47ab14))})
+        result['statistics'].update(difficulty=self.value('DAT_0047a4a4'),
+                                    poison_duration=self.value('DAT_0047ab2c'))
         if getattr(self, 'music_checks', False):
             result['music']=dict(track=self.value('DAT_0047ab0c'),mapped=self.value('*(int*)0x47ab0c'),enabled=self.value('DAT_0047a49c'))
             self.require(result['music']['track']==result['music']['mapped'],'Current music/save address ownership differs')
@@ -154,6 +158,9 @@ class PersistenceJourney(MenuJourney):
         return result
 
     def compare_world(self, expected, actual):
+        if 'statistics' in expected:
+            self.require(expected['statistics']==actual['statistics'],
+                         'Loaded gameplay statistics differ from the live state at Save')
         self.require(set(expected['actors'])==set(actual['actors']),'Restored active actor identities differ')
         for identity, before in expected['actors'].items():
             after=actual['actors'][identity]
@@ -319,6 +326,10 @@ def run(prefix, runtime, game_data, slot, mode, equipment, expected_path, hud=Fa
             TowerJourney.load_initial(journey, load_slot)
         else:
             journey.reach_pedestal();journey.reach_gameplay()
+            journey.require(journey.value('*(int*)0x47ab28')==100,
+                            'Fresh-game power differs from original initialization')
+        journey.require(journey.value('*(int*)0x47ab28')>0,
+                        'Invalid zero/negative-power seed cannot qualify gameplay persistence')
         if inventory:
             from e2_inventory_steps import check
             check(journey, 'before-save')
@@ -327,7 +338,14 @@ def run(prefix, runtime, game_data, slot, mode, equipment, expected_path, hud=Fa
         if hud:
             hud_checks.switches('gameplay')
             hud_checks.menu_switches()
+        if music and journey.value('DAT_0047a49c') == 0:
+            journey.settings();journey.click(0x643998);journey.pump();journey.close_settings()
+            journey.require(journey.value('DAT_0047a49c')==1,'Music did not enable before the first persistence cycle')
         for cycle in range(2):
+            difficulty=journey.value('DAT_0047a4a4')
+            journey.settings();journey.click(0x643958);journey.pump();journey.close_settings()
+            journey.require(journey.value('DAT_0047a4a4')==(difficulty+1)%3,
+                            'Difficulty did not change through the original Settings control')
             if music and cycle == 1:
                 journey.settings();journey.click(0x643998);journey.pump();journey.close_settings()
                 journey.require(journey.value('DAT_0047a49c')==0,'Music did not disable before the second persistence cycle')

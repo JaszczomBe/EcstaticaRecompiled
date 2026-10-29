@@ -45,7 +45,7 @@ An explicit/nonempty `ECSTATICA2_DATA_DIR` cache value takes precedence. When th
 F5 enables original player and enemy ellipsoid bodies/bone animations
 (`E2R_PLAYER_MESH=1`, `E2R_NPC_MESH=1`), recovered action indexing and background
 population (`E2R_DEFER_BACKGROUND_SPAWNS=0`). F5 also selects original object IDs
-`5,255,259,260,264,265,266,278,290,536,537,601,603,608,663,710,711,737,794,806,908,909,912,963,980,1028,1085,1100,1101,1122,1123,1124,1125,1127,1128,1129,1130,1131,1153,1188,1190,1191,1192,1193,1252,2628,2656,2863,2864,2874,2875,2876,2877,2882,2911,3199,3251,3551,3717,3737,3782,3820,3821,3822,3839,3840,3986,3989,3994,3995,3996,3997,3998,3999,4000,4001`
+`5,255,256,259,260,264,265,266,278,290,505,536,537,601,603,608,663,710,711,737,794,796,806,908,909,912,948,963,980,1027,1028,1085,1087,1098,1099,1100,1101,1122,1123,1124,1125,1127,1128,1129,1130,1131,1153,1188,1190,1191,1192,1193,1252,1668,1843,2628,2656,2862,2863,2864,2874,2875,2876,2877,2882,2911,2925,2926,2927,3199,3251,3551,3717,3737,3782,3820,3821,3822,3839,3840,3986,3989,3994,3995,3996,3997,3998,3999,4000,4001`
 through `E2R_OBJECT_MESH_IDS`. `E2R_OBJECT_MESH_REPS=66,67,86,102,103,126,133,134,135,153,271,277,279,282,287,349`
 selects 16 source-audited families (251 original actor resources): potion,
 small/large flame, six stationary pool styles, red/blue doors, coin/gem/trophy/
@@ -57,7 +57,15 @@ adds **259/pike, 264/key3, 265/keyhed3 and 266/door3**. The
 adds original collection sparkle **2628**, necklace **3199**, gold sword **3251**,
 gas **737/1028** and chest **3782**. The [inner-castle recovery](journal/entries/inner-castle-crash-and-presentation-recovery-2026-10-28.md)
 adds armour, prison key, teleport, head/gate, wizardess, mace/sparkle and
-stairwell owners, for **76 explicit owners**.
+stairwell owners. The [first object playthrough session](journal/entries/garden-teleport-and-boots-session-2026-10-29.md)
+adds garden pad/glow **2927/796**, courtyard gold head **2926**, hut chest
+**505** and boots **948**, for **81 explicit owners**. Its loaded original
+checkpoint already has spent boots; new pickup and full effect appearance remain open.
+The [courtyard crash/model investigation](journal/entries/courtyard-boxes-and-zero-power-crash-2026-10-29.md)
+adds door **256**, chest **1087**, statues **1098/1099**, gas tube **1027**,
+amulet/sign **1668/1843**, courtyard pad **2862** and brown head **2925**,
+for **90 explicit owners**. Fallbacks for other owners remain; no complete door
+family is selected. Old zero-power saves retain their separate combat-crash limit.
 Unselected objects retain their
 diagnostic fallbacks and selective bypasses. Original pixels use recovered camera, palette, depth and
 physical DirectDraw pages. **F3** cycles original models with unrecovered boxes
@@ -147,6 +155,13 @@ The former `linux-clang32-asan` and `linux-clang32-sdl-asan` preset names are re
 4. Investigate normally. Logs, replay, state and rolling game frames share the session. The GDB startup hook pins the actual running executable and source/build context; debugger stops retain stacks and registers without resuming the game.
 5. End debugging normally. The finalization task generates the session's inspection report, including usable prefixes after a crash or debugger Stop. The Debug Console/task output identifies the session and report. See [investigation artifacts](debugging.md#normal-gameplay-investigation-in-vs-code).
 6. Ctrl+Shift+B uses the CMake build task for the active build preset. There are no shell configure/build launch wrappers or duplicate SDL/X11 launch entries; the additional process task finalizes investigation artifacts after debugging.
+
+F5 uses `--run-recon` and normal `~/.ecstatica2` runtime storage. The former
+COURT150 profile is retired: do not select patched or invalid saves or their
+descendants to investigate game functionality. Start fresh or verify an
+unmodified original save. The
+[integrity correction](journal/entries/invalid-court-save-retirement-and-persistence-audit-2026-10-29.md)
+records removal, quarantined old slots and current Save/Load validation.
 
 Changing the selected preset changes F5's executable. CMake Tools must have successfully configured that preset before its target commands can resolve. F5 uses its build-before-run integration; no additional pre-launch build task is attached.
 

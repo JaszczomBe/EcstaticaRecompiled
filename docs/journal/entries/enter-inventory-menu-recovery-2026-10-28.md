@@ -4,6 +4,19 @@
 [Project README](../../../README.md) · [Parent: Project Journal](../journal.md)
 <!-- /docs-tree:parent -->
 
+## Save-state acceptance correction — 2026-10-29
+
+The [integrity audit](invalid-court-save-retirement-and-persistence-audit-2026-10-29.md)
+identifies old runtime5/123 and6/DFGSDRG as zero-power/zero-counter saves and
+quarantines them outside Load. Routes based on those files or descendants cannot
+qualify gameplay progression or persistence, including historical tower/castle
+and occupied-slot inventory checks. Independent original-code comparisons and
+fresh/untouched-original tests retain their stated scope. **Invalid or manually
+patched save state MUST NOT be used to decompile game functionality.** Requalify
+affected routes from valid progression; the preservation claims below describe
+the earlier historical investigation, not current active save availability.
+
+
 Owner: [Step 11 Task 02](../../implementations/playable-sdl-runtime/steps/step-11/tasks/task-02-recover-enter-inventory-and-progress-menu.md).
 The [handoff](enter-inventory-menu-handoff-2026-10-28.md) retains the supplied
 original-game screenshot description. Evidence root:

@@ -45031,7 +45031,8 @@ LAB_0044ee0b:
         }
         else {
           if (uVar6 < 0x5a) {
-            uVar14 = _DAT_0063684d >> 0x18;
+            /* Original 0x44ebf2..0x44ebfb reads signed Space at +0x636850. */
+            uVar14 = (uint)(int)(signed char)DAT_00636850;
             *in_EAX = (int)(puVar11 + 1);
             goto LAB_0044e947;
           }
@@ -49417,7 +49418,12 @@ undefined8 __fastcall FUN_00453920(undefined4 param_1,char *param_2)
   }
   FUN_00417308(-1,stream);
   static const uintptr_t globals[] = {0x47ab0c,0x47ab28,0x47ab18,0x47ab14,0x47ab2c,0x47a4a4};
-  for (uint i = 0; i < sizeof(globals)/sizeof(globals[0]); ++i) FUN_00417308(*(int *)globals[i],stream);
+  for (uint i = 0; i < sizeof(globals)/sizeof(globals[0]); ++i) {
+    /* Original 0x4542e4/0x4542f0 saves live duration and difficulty. */
+    int value = globals[i] == 0x47ab2c ? (int)DAT_0047ab2c :
+                globals[i] == 0x47a4a4 ? (int)DAT_0047a4a4 : *(int *)globals[i];
+    FUN_00417308(value,stream);
+  }
   FUN_00441600(DAT_0047ab20,stream);
   FUN_00441600(DAT_0047ab24,stream);
   for (int i = 0; i < 150; ++i) E2R_WriteHostedStreamByte((undefined4 *)stream,*(byte *)(0xac4b00 + i));
@@ -49634,6 +49640,9 @@ undefined8 __fastcall FUN_004544a4(undefined4 param_1,undefined4 param_2)
   }
   static const uintptr_t globals[] = {0x47ab0c,0x47ab28,0x47ab18,0x47ab14,0x47ab2c,0x47a4a4};
   for (uint i = 0; i < sizeof(globals)/sizeof(globals[0]); ++i) *(int *)globals[i] = (short)E2R_ReadSaveWord(stream);
+  /* Original 0x454dba/0x454dc7 restores the fields used by gameplay/Settings. */
+  DAT_0047ab2c = *(int *)0x47ab2c;
+  DAT_0047a4a4 = *(int *)0x47a4a4;
   DAT_0047ab0c = *(int *)0x47ab0c;
   DAT_0047ab20 = E2R_ReadSaveDword(stream);
   DAT_0047ab24 = E2R_ReadSaveDword(stream);

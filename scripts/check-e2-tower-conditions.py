@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare original tower scene, facing and held-key conditions against x86.
+"""Compare original tower/ladder scene, input, facing and held-key conditions against x86.
 
 The production condition interpreter executes with an explicit cursor and mapped
 actor/node data. Resource loading, script dispatch and gameplay are separate gates.
@@ -31,9 +31,14 @@ typedef uint32_t uint;typedef uint64_t undefined8,ulonglong;
 static void FUN_00414e68(void) { assert(!"unqualified condition"); }
 static undefined8 FUN_0043cac0(ushort *actor, uint token) { assert(!"unexpected diagnostic");return 0; }
 '''
-for name in sorted(set(re.findall(r'\b_?DAT_[0-9a-f]+\b', production))):
+for name in sorted(set(re.findall(r'\b_?DAT_[0-9a-f]+\b', production)) | {'_DAT_0063684d', 'DAT_00636850'}):
     address = int(name.rsplit('_', 1)[1], 16)
-    harness += f'#define {name} (*(uint*)0x{address:x})\n'
+    if name in ('_DAT_0063684d', 'DAT_00636850'):
+        # Distinct exports reproduce the native overlap bug; mapping both to
+        # the original address would conceal a stale Space predicate.
+        harness += f'static uint {name};\n'
+    else:
+        harness += f'#define {name} (*(uint*)0x{address:x})\n'
 harness += production + '\n'
 harness += 'static const byte original[]={' + ','.join(map(str, image.code(0x44e810, 0x44f2fc))) + '};\n'
 harness += r'''
@@ -76,7 +81,15 @@ int main(void) {
         compare(hand?0x16:0x17,0x2108,invert);
         *(uint*)(0x90101c+hand*4)=0;
     }
-    printf("PASS: %u original-x86 tower conditions: scene phase/negation, all facing quadrants, held key versus sword/empty hand; exact cursor advancement\n",cases);
+    unsigned previous=cases;
+    for(unsigned space=0;space<256;space++)for(unsigned stale=0;stale<4;stale++)
+    for(int invert=0;invert<2;invert++) {
+        *(uint*)0x63684d=0x123456u | space<<24;
+        DAT_00636850=space;
+        _DAT_0063684d=stale*0x55000000u;
+        compare(0x59,0,invert);
+    }
+    printf("PASS: %u original-x86 tower/ladder conditions, including %u live-Space/stale-overlap cases; scene phase/negation, all facing quadrants, held key and exact cursor advancement\n",cases,cases-previous);
 }
 '''
 run_fixture(harness, asan=args.asan, keep=args.keep_harness, image=image,

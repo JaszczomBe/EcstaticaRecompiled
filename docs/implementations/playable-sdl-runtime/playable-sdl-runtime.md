@@ -28,7 +28,98 @@ Turn the reconstructed Ecstatica II Linux runtime into a practical SDL developer
 2. Replacing recovered logic with speculative shortcuts or direct SDL calls.
 3. Broad generated-file changes unrelated to a source-backed repair.
 
-## Current continuation — Original music
+## Current continuation — Object behavior, rendering and interactions
+
+The user selected [Step 12 Task 05](steps/step-12/tasks/task-05-recover-object-behavior-rendering-and-interactions.md) after the
+`v0.3.0` milestone (`38d79da`). Recover remaining original object/equipment
+behavior, pixels and interactions, initially including anti-acid boots and ladder
+usage, with stability checks and a playthrough across several Save/Load sessions.
+The [save-state integrity correction](../../journal/entries/invalid-court-save-retirement-and-persistence-audit-2026-10-29.md)
+supersedes the COURT150 recovery. Malformed/corrupted or patched saves and
+descendants **MUST NOT** be used to decompile game functionality or accept
+progression. COURT, guessed power150 copies and their derived saves are removed;
+recovery runners and the human profile override are retired. F5 uses normal
+runtime storage. Continue from a fresh game or a verified unmodified original
+save; re-saving the patched state cannot establish historical correctness.
+
+The audit finds two additional live/save ownership mismatches: difficulty and
+poison duration. Writer and loader now share the gameplay exports at those
+boundaries, preserving original format and signed-word restoration. No combat
+formula or generic save normalization changes. Debug/ASan compare 24 complete
+original writer outputs and 81 original scalar-restore cases per configuration.
+Fresh-game and unmodified g3 real-menu checks change difficulty through Settings,
+save twice, restore in the same and fresh processes, compare actor/statistics
+and stored bytes, resume movement/attacks and quit normally.
+
+The [ladder journal](../../journal/entries/stables-ladder-interaction-recovery-2026-10-29.md)
+retains original Space-predicate proof and its generator mirror, including
+4,768 original condition comparisons per configuration. Its previous traversal,
+landing persistence and 92-checkpoint results derive from invalid COURT150
+state and are withdrawn as gameplay acceptance. Requalify the stables/kitchen
+route from valid progression. Source recordings remain diagnostic history;
+the zero-life controllable state, other ladders, visuals and wider play remain open.
+
+Earlier tower/castle and occupied-slot inventory routes based on the other
+quarantined zero-power saves5/123 and6/DFGSDRG also require valid-state
+requalification. Independent original-code repairs remain; historical acceptance
+summaries below must be read with this restriction.
+
+The [preceding stables spider report](../../journal/entries/stables-spider-and-zero-power-save-2026-10-29.md)
+matches all **915** available checkpoints before SIGFPE at sequence **719,566,321**.
+It reloads unchanged runtime **7/COURT** with power **0**. Spider **26/w_spids4**
+hits Joe for computed damage **2** in camera **346**; original **0x42f3e3** also
+divides by that power. The expanded Debug/ASan fixture passes **2,184** health
+writes and **16** original/native zero-power faults per configuration.
+No production behavior, F5 selection or save is changed. Preserve the incomplete
+crash evidence; continue human play from validated **g3** or a fresh game.
+
+The [preceding courtyard report](../../journal/entries/courtyard-boxes-and-zero-power-crash-2026-10-29.md)
+reproduces SIGFPE at `FUN_0042efdc` after all **700** available checkpoints:
+old runtime **7/COURT** loads power **0**, and enemy **80** hits Joe in camera
+**143**. Original **0x42f3e3** has the same unguarded division. A new Debug/ASan
+fixture compares **1,872** health writes and **8** original/native zero-power
+faults per configuration. The save and damage behavior remain unchanged.
+The preceding clean **20261029_164439_553** instead loads installed **2/g3**,
+power **200**, and matches all **1,192** checkpoints; it writes no end save.
+F5 adds nine source-backed courtyard owners, including door **256**, chest
+**1087** and statues **1098/1099**, for **90** explicit owners. Debug/ASan asset
+pixels/HUD/F3 pass. Final 90-owner protected same/fresh persistence,
+HUD/F3/inventory and six strict audio/music replay variants per configuration
+pass after an explicitly approved retry of failed approval-service attempts.
+Each fresh replay matches 27 checkpoints; this remains bounded regression
+evidence, not a complete playthrough or full visual acceptance.
+
+The [first supplied session](../../journal/entries/garden-teleport-and-boots-session-2026-10-29.md)
+now matches all **1,386** checkpoints from installed **2/g3**, using its pinned
+v0.3.0 executable and preserved save. F5 adds original garden pad/glow **2927/796**,
+courtyard gold head **2926**, hut chest **505** and boots **948**, for **81**
+explicit owners. Debug/ASan asset pixels and natural teleport/glow routes pass.
+Final 81-owner protected persistence/HUD/F3/inventory, six strict audio/music
+replay variants per configuration and original ellipsoid pixels pass. Independent
+generation parity passes; no reconstructed C is changed.
+The loaded original checkpoint already records open chest/spent boots and cleared
+protection; no pickup, immunity or respawn behavior is changed. Full teleport
+effect review, fresh boots acquisition/expiry, ladders and wider playthrough remain open.
+An older zero-power runtime-slot-7 combat SIGFPE is retained separately with
+original unguarded division evidence; no save normalization is introduced.
+
+The [handoff journal](../../journal/entries/object-behavior-and-interactions-handoff-2026-10-29.md)
+records the baseline, protected saves/evidence and first bounded action. For each
+human session, preserve the pinned executable, actual loaded save snapshot/hash,
+route/findings, recovery evidence and last safe checkpoint; link the next session's
+Load to that checkpoint. Re-scan occupied saves each time. Agent reproduction
+uses bounded input and private copies; normal human play uses the existing F5
+launch. Recover and compare original contracts, mirror C repairs in
+`GenerateRecon.js`, and verify fresh Debug/ASan interactions, rendering,
+same/fresh-process persistence and strict replay as affected. Do not change
+possible original defects without a proven reconstruction mismatch.
+
+Task 02 retains variant/acid evidence and Task 04 retains castle repair/route
+limits. Existing audio, HUD/inventory, F3, saves and investigation/recording
+behavior remain regression requirements. No commit, push or tag change is
+requested. Original music and other earlier bounded recoveries remain below.
+
+## Retained recovery — Original music
 
 [Step 05 Task 05](steps/step-05/tasks/task-05-recover-original-music.md) restores
 original SIMD sequencing through a software General MIDI port and SDL output.

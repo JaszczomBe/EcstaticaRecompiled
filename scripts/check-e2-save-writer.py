@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare the complete recovered save writer with original x86 using private memory streams."""
+"""Compare the save writer and scalar restore with original x86 in private memory streams."""
 import argparse
 from pathlib import Path
 from e2_original import OriginalImage, function, run_fixture, support
@@ -26,6 +26,11 @@ typedef uint32_t uint,undefined4;typedef uint64_t undefined8,ulonglong;
 #define WORD(a) (*(int32_t *)(a))
 static byte output[512000],expected[512000];static unsigned count,opens,closes;
 static int stream[7];static int opening_fails;
+/* Keep these live exports separate from stale mapped image storage. */
+static int DAT_0047ab2c,DAT_0047a4a4;
+static ushort E2R_ReadSaveWord(int *s) {
+    assert(s[1]>=2);byte *p=(byte *)(uintptr_t)s[0];s[0]+=2;s[1]-=2;return p[0]|p[1]<<8;
+}
 static uint FUN_0045f5d6(void) { assert(!"Nonhosted production stream");return 0; }
 static int E2R_WriteHostedStreamByte(uint *s,int value) { assert(s==(uint *)stream && count<sizeof output);output[count++]=(byte)value;return value&255; }
 static uint E2R_OpenWriteStream(const char *path) { assert(!strcmp(path,"saved\\0005.ecs"));opens++;return opening_fails ? 0 : (uint)stream; }
@@ -47,8 +52,13 @@ harness += support()
 for name in ('FUN_00417248','FUN_00417308','FUN_00454fe4','FUN_00441600',
              'E2R_WriteSaveRecord','E2R_WriteSaveVectorRecord','FUN_00443dbc','FUN_004437f0','FUN_00453920'):
     harness += function(source,name) + '\n'
+loader = function(source,'FUN_004544a4')
+start = loader.index('  static const uintptr_t globals[] =')
+end = loader.index('  DAT_0047ab0c = *(int *)0x47ab0c;',start)
+harness += 'static void restore_statistics(int *stream) {\n' + loader[start:end] + '}\n'
 ranges = [(0x417248,0x4173c7),(0x4412f8,0x4413b5),(0x441600,0x44161c),
-          (0x4437f0,0x44432e),(0x453920,0x454430),(0x454fe4,0x455034),(0x422aa0,0x422ab9)]
+          (0x4437f0,0x44432e),(0x453920,0x454430),(0x454fe4,0x455034),(0x422aa0,0x422ab9),
+          (0x454d7e,0x454dcc)]
 for index, (start,end) in enumerate(ranges):
     harness += f'static const byte code{index}[]={{'+','.join(map(str,image.code(start,end)))+'};\n'
 harness += r'''
@@ -68,6 +78,8 @@ __attribute__((naked)) static void ret_hook(void) { __asm__("ret"); }
 __attribute__((naked)) static void error_hook(void) { __asm__("pushal; call FUN_00414e68; popal; ret"); }
 __attribute__((naked)) static void lock_hook(void) { __asm__("pushal; push %edx; push %eax; call FUN_00418a04; add $8,%esp; mov %eax,28(%esp); popal; ret"); }
 __attribute__((naked)) static void unlock_hook(void) { __asm__("pushal; push %edx; push %eax; call FUN_00418b00; add $8,%esp; popal; ret"); }
+__attribute__((used,noinline)) static uint read_original(int *s) { return E2R_ReadSaveWord(s); }
+__attribute__((naked)) static void read_hook(void) { __asm__("pushal; push %eax; call read_original; add $4,%esp; mov %eax,28(%esp); popal; ret"); }
 static void hook(uint address,void *target) { *(byte *)address=0xe9;WORD(address+1)=(uint)target-address-5; }
 static void map(uint address,uint size) { assert(mmap((void *)address,size,7,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0)==(void *)address); }
 static void seed(unsigned trial) {
@@ -117,6 +129,7 @@ static void seed(unsigned trial) {
     DAT_0047ab20=0x12345678;DAT_0047ab24=0x9abcdef0;DAT_0047ab40=trial%3;
     const uint globals[]={0x47ab0c,0x47ab28,0x47ab18,0x47ab14,0x47ab2c,0x47a4a4,0x47a49c,0x47a4a0,0x47a498,0x47a440};
     for(uint i=0;i<sizeof globals/sizeof globals[0];i++)WORD(globals[i])=i*3901+trial;
+    DAT_0047ab2c=WORD(0x47ab2c);DAT_0047a4a4=WORD(0x47a4a4);
     for(int i=0;i<DAT_0047ab40;i++) {
         WORD(0xac493c+i*4)=i+5;WORD(0xaba2ac+i*4)=i+10;WORD(0xac48ec+i*4)=i+20;WORD(0xaa69fc+i*4)=i+30;
     }
@@ -138,13 +151,28 @@ harness += r'''
         e2r_original_call(0x453920,&regs);assert(opens==1 && closes==1);
         unsigned size=count;memcpy(expected,output,size);
         seed(trial);stream[6]=0xe25eed01u;stream[3]=0x42;
+        WORD(0x47ab2c)=-19004;WORD(0x47a4a4)=-19005;
         assert((uint)FUN_00453920(5,label)==0 && opens==1 && closes==1);
         if(size!=count) { fprintf(stderr,"trial=%u size original=%u recovered=%u\n",trial,size,count);return 1; }
         assert(e2r_memory_equal("complete original save bytes",expected,output,count));
     }
-    puts("PASS: 24 complete original-x86 writer byte comparisons: both thumbnail branches, root records, actor state, relative timers, attachment IDs, cached fields and trailer; output captured in memory only");
+    hook(0x4173c8,read_hook);*(byte *)0x454dcc=0xc3;
+    const uint statistics[]={0x47ab0c,0x47ab28,0x47ab18,0x47ab14,0x47ab2c,0x47a4a4};
+    const short values[]={0,1,2,100,150,200,-1,-32768,32767};
+    for(unsigned trial=0;trial<81;trial++) {
+        byte bytes[12];int expected_stats[6];
+        for(unsigned i=0;i<6;i++) { ushort v=values[(trial+i*(trial/9+1))%9];bytes[i*2]=v;bytes[i*2+1]=v>>8; }
+        int input[7]={(uint)bytes,sizeof bytes};struct E2R_Registers regs={.esi=(uint)input};
+        e2r_original_call(0x454d7e,&regs);assert(!input[1]);
+        for(unsigned i=0;i<6;i++) { expected_stats[i]=WORD(statistics[i]);WORD(statistics[i])=-19006; }
+        DAT_0047ab2c=DAT_0047a4a4=-19007;
+        input[0]=(uint)bytes;input[1]=sizeof bytes;restore_statistics(input);assert(!input[1]);
+        for(unsigned i=0;i<6;i++)assert(WORD(statistics[i])==expected_stats[i]);
+        assert(DAT_0047ab2c==expected_stats[4] && DAT_0047a4a4==expected_stats[5]);
+    }
+    puts("PASS: 24 complete original-x86 writer byte comparisons with detached live duration/difficulty; 81 original scalar-restore comparisons; output captured in memory only");
 }
 '''
 run_fixture(harness, asan=args.asan, keep=args.keep_harness, image=image,
             dependencies=('original CRT open/byte/close/name/copy and hardware/surface providers intercepted',
-                          'private synthetic world; no disk save files, menu input or loader exercised'))
+                          'private synthetic world; scalar loader continuation replaced by ret; no disk saves or menu input'))

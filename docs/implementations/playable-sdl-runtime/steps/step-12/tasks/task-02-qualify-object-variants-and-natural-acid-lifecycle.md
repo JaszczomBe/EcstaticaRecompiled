@@ -4,10 +4,18 @@
 [Project README](../../../../../../README.md) · [Parent: Recover Item, Weapon, Door and Acid-Pool Models and Animations](../step-12-recover-object-models-and-animations.md)
 <!-- /docs-tree:parent -->
 
-Status: remaining variants/acid work retained; Task 04 crash/models takes priority
+Status: remaining variants/acid evidence retained; Task 05 coordinates the current playthrough
 Parent Step: [Object models and animations](../step-12-recover-object-models-and-animations.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
-Last Updated: 2026-10-28
+Last Updated: 2026-10-29
+
+## Current continuation
+
+After `v0.3.0`, [Task 05](./task-05-recover-object-behavior-rendering-and-interactions.md) coordinates the selected object behavior,
+rendering and interaction recovery across human Save/Load playthrough sessions.
+This task retains its specific earlier evidence and limits. Historical priority
+and audio-deferred statements below describe the earlier investigation order;
+they do not override the new selection. No additional acceptance is claimed.
 
 ## Goal
 

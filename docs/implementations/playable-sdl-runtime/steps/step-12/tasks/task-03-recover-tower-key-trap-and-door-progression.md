@@ -4,6 +4,17 @@
 [Project README](../../../../../../README.md) · [Parent: Recover Item, Weapon, Door and Acid-Pool Models and Animations](../step-12-recover-object-models-and-animations.md)
 <!-- /docs-tree:parent -->
 
+## Save-state qualification correction — 2026-10-29
+
+The [integrity audit](../../../../../journal/entries/invalid-court-save-retirement-and-persistence-audit-2026-10-29.md)
+quarantines zero-power runtime5/123 and6/DFGSDRG. Historical routes based on
+those files or descendants no longer qualify gameplay progression/persistence.
+Retain independent original-code repairs; requalify affected routes from fresh
+gameplay or unmodified original saves. Malformed or manually patched saves
+**MUST NOT** be used to decompile game functionality. Current continuation is
+Task05's valid-state handoff, not the historical acceptance below.
+
+
 Status: bounded progression/persistence accepted; human door appearance report remains unresolved
 Parent Step: [Object models and animations](../step-12-recover-object-models-and-animations.md)
 Parent Implementation: [Playable SDL Runtime](../../../playable-sdl-runtime.md)
